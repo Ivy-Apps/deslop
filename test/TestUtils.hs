@@ -1,7 +1,7 @@
-module TestUtils where
+module TestUtils (runFileSystemTest) where
 
 import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
+import Data.ByteString qualified as BS
 import Data.IORef
 import Effectful
 import Effectful.Dispatch.Dynamic
