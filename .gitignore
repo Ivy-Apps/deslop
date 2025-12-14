@@ -43,3 +43,6 @@ hie.yaml
 
 # Windows
 Thumbs.db
+
+# Deslop local runs
+demo.ts

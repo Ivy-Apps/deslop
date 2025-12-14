@@ -62,15 +62,23 @@ executable deslop
 
     hs-source-dirs:   app
 
--- 4. TESTS
 test-suite deslop-test
     import:           shared-properties
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
-    main-is:          Main.hs
+    main-is:          Spec.hs
     
+    build-tool-depends: hspec-discover:hspec-discover
+    
+    other-modules:
+        TestUtils
+        E2E.GoldenSpec
+
     build-depends:
         base,
         deslop,
         hspec,
-        effectful
+        effectful,
+        bytestring,
+        filepath,
+        directory

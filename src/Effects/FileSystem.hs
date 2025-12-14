@@ -1,7 +1,7 @@
 module Effects.FileSystem (
   readFileBS,
   writeFileBS,
-  FileSystem,
+  FileSystem (ReadFile, WriteFile),
   runFileSystemIO,
 ) where
 

@@ -1,16 +1,19 @@
-module Deslop (runDeslop) where
+module Deslop (deslopFile, runDeslop) where
 
-import Data.ByteString.Char8 qualified as C8
-import Effectful (Eff, IOE, MonadIO (liftIO), runEff, type (:>))
-import Effects.FileSystem (FileSystem, readFileBS, runFileSystemIO)
+import Data.ByteString (ByteString)
+import Effectful (Eff, MonadIO (liftIO), runEff, type (:>))
+import Effects.FileSystem (FileSystem, readFileBS, runFileSystemIO, writeFileBS)
 
-program :: (FileSystem :> es, IOE :> es) => Eff es ()
-program = do
-  content <- readFileBS "deslop.cabal"
-  liftIO $ putStrLn "File content:"
-  liftIO $ C8.putStrLn content
+deslopFile :: (FileSystem :> es) => FilePath -> FilePath -> Eff es ()
+deslopFile inputPath outputPath = do
+  original <- readFileBS inputPath
+  let clean = removeSlop original
+  writeFileBS outputPath clean
+
+removeSlop :: ByteString -> ByteString
+removeSlop = id
 
 runDeslop :: IO ()
-runDeslop = do
-  runEff $ do
-    runFileSystemIO program
+runDeslop = runEff $ runFileSystemIO $ do
+  deslopFile "test/fixtures/typescript/input/01-comments.ts" "demo.ts"
+  liftIO $ putStrLn "Deslop complete ✅"
