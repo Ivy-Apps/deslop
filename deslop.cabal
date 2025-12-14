@@ -28,7 +28,7 @@ library
     
     exposed-modules:  
         Deslop
-        Effects
+        Effects.FileSystem
 
     build-depends:    
         base ^>=4.20.0.0,

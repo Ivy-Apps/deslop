@@ -1,4 +1,9 @@
-module Effects (main) where
+module Effects.FileSystem (
+  readFileBS,
+  writeFileBS,
+  FileSystem,
+  runFileSystemIO,
+) where
 
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
@@ -21,14 +26,3 @@ runFileSystemIO :: (IOE :> es) => Eff (FileSystem : es) a -> Eff es a
 runFileSystemIO = interpret $ \_env -> \case
   ReadFile path -> liftIO $ BS.readFile path
   WriteFile path content -> liftIO $ BS.writeFile path content
-
-program :: (FileSystem :> es, IOE :> es) => Eff es ()
-program = do
-  content <- readFileBS "deslop.cabal"
-  liftIO . putStrLn $ "File content:"
-  liftIO . putStrLn . show $ content
-
-main :: IO ()
-main = do
-  runEff $ do
-    runFileSystemIO program
