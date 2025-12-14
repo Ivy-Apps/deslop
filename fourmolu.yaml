@@ -1,0 +1,3 @@
+indentation: 2
+comma-style: leading # Optional: Standard Haskell style (comma at start of line)
+record-brace-space: true # Optional: { field = ... } instead of {field = ...}

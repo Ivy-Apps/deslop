@@ -1,0 +1,74 @@
+cabal-version:      3.0
+name:               deslop
+version:            0.1.0
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Ivy Apps LTD
+maintainer:         iliyan@ivy-apps.com
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+
+common shared-properties
+    default-language: GHC2024
+    
+    ghc-options: 
+        -Wall -Wcompat -Widentities -Wincomplete-record-updates 
+        -Wincomplete-uni-patterns -Wmissing-export-lists 
+        -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+
+    default-extensions:
+        DuplicateRecordFields
+        OverloadedRecordDot
+        NoFieldSelectors
+        OverloadedStrings
+
+library
+    import:           shared-properties
+    
+    exposed-modules:  
+        Deslop
+
+    build-depends:    
+        base ^>=4.20.0.0,
+        effectful,
+        effectful-core,
+        aeson,
+        aeson-pretty,
+        text,
+        bytestring,
+        unordered-containers,
+        vector,
+        directory,
+        filepath
+
+    hs-source-dirs:   src
+
+executable deslop
+    import:           shared-properties
+    main-is:          Main.hs
+    
+    build-depends:
+        base,
+        deslop,
+        effectful,
+        effectful-core,
+        aeson,
+        aeson-pretty,
+        filepath,
+        text,
+        bytestring
+
+    hs-source-dirs:   app
+
+-- 4. TESTS
+test-suite deslop-test
+    import:           shared-properties
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+    
+    build-depends:
+        base,
+        deslop,
+        hspec,
+        effectful
