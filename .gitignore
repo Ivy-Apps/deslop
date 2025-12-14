@@ -29,7 +29,7 @@ cabal.project.local~
 hie.yaml
 
 # VS Code
-.vscode/
+.vscode/tasks.json
 *.code-workspace
 
 # Vim / Emacs
