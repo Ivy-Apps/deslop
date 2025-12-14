@@ -21,12 +21,14 @@ common shared-properties
         OverloadedRecordDot
         NoFieldSelectors
         OverloadedStrings
+        TypeFamilies
 
 library
     import:           shared-properties
     
     exposed-modules:  
         Deslop
+        Effects
 
     build-depends:    
         base ^>=4.20.0.0,
