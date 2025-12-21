@@ -28,7 +28,11 @@ library
     
     exposed-modules:  
         Deslop
+        TypeScript.Ast
+        TypeScript.Tokens
+        TypeScript.Lexer
         Effects.FileSystem
+        Utils
 
     build-depends:    
         base ^>=4.20.0.0,
