@@ -22,9 +22,9 @@ pToken =
         ]
 
 pImport :: Lexer TsToken
-pImport = do
-    (raw, _) <- match (string "import" *> manyTill anySingle end)
-    return $ TsToken raw ImportK
+pImport =
+    uncurry TsToken . second (const ImportK)
+        <$> match (string "import" *> manyTill anySingle end)
   where
     end = choice [try $ string ";\n", string ";", string "\n", string ")"]
 
