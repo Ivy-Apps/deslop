@@ -1,6 +1,13 @@
 module TypeScript.Ast where
 
-import Data.Text ( Text )
+import Data.Text (Text)
+
+data TsProgram = TsFile
+  { path :: FilePath
+  , name :: Text
+  , nodes :: [TsNode]
+  }
+  deriving (Show, Eq)
 
 data TsNode
   = -- | A TypeScript Import Declaration (e.g., @import { A } from './b';@).
@@ -9,9 +16,12 @@ data TsNode
     -- and the "target" (the module path itself).
     Import
       { prefix :: Text
-      -- ^ Everything before the target module e.g. @"import { User } from "@
+      -- ^ "import { A } from " OR "const x = await import("
       , target :: Text
-      -- ^ The target module e.g. @'../lib/utils', 'react'@
+      -- ^ "'./utils'" (Always includes the '' quotes)
+      , suffix :: Text
+      -- ^ ";" OR ")"
+      -- Captures the closing syntax so it moves with the import.
       , raw :: Text
       }
   | Comment
