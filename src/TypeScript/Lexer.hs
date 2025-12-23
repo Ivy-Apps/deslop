@@ -19,6 +19,7 @@ pToken =
         [ try pImport
         , try pDocs
         , try pComment
+        , pWhitespace
         , pRaw
         ]
 
@@ -46,6 +47,11 @@ pBlockComment :: Lexer TsToken
 pBlockComment =
     uncurry TsToken . second (CommentK . T.strip . T.pack)
         <$> match (string "/*" *> manyTill anySingle (string "*/"))
+
+pWhitespace :: Lexer TsToken
+pWhitespace =
+    uncurry TsToken . second (const WhitespaceK)
+        <$> match (some space1)
 
 pRaw :: Lexer TsToken
 pRaw =

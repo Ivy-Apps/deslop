@@ -7,15 +7,16 @@
               "* Calculates the nth Fibonacci number using an iterative approach.\n * The sequence is defined as: F(0)=0, F(1)=1, F(n) = F(n-1) + F(n-2).\n *\n * @param n - The zero-based index in the Fibonacci sequence to retrieve.\n * @returns The Fibonacci number at index n.\n * @throws {Error} If n is a negative integer."
           }
     }
+, TsToken { raw = "\n" , kind = WhitespaceK }
 , TsToken
-    { raw = "\nfunction calculateFibonacci(n: number): number {\n    "
+    { raw = "function calculateFibonacci(n: number): number {\n    "
     , kind = RawK
     }
 , TsToken
     { raw = "// Step 1: Input Validation.\n"
     , kind = CommentK { comment = "Step 1: Input Validation." }
     }
-, TsToken { raw = "    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// Check if the input 'n' is less than zero. The Fibonacci sequence starts at index 0.\n"
@@ -25,7 +26,8 @@
               "Check if the input 'n' is less than zero. The Fibonacci sequence starts at index 0."
           }
     }
-, TsToken { raw = "    if (n < 0) {\n        " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
+, TsToken { raw = "if (n < 0) {\n        " , kind = RawK }
 , TsToken
     { raw =
         "// If the input is negative, throw an error indicating invalid input.\n"
@@ -35,16 +37,17 @@
               "If the input is negative, throw an error indicating invalid input."
           }
     }
+, TsToken { raw = "        " , kind = WhitespaceK }
 , TsToken
     { raw =
-        "        throw new Error(\"Fibonacci index must be a non-negative integer.\");\n    }\n\n    "
+        "throw new Error(\"Fibonacci index must be a non-negative integer.\");\n    }\n\n    "
     , kind = RawK
     }
 , TsToken
     { raw = "// Step 2: Handle Base Case 0.\n"
     , kind = CommentK { comment = "Step 2: Handle Base Case 0." }
     }
-, TsToken { raw = "    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// If n is exactly 0, the result is implicitly defined as 0.\n"
@@ -54,20 +57,21 @@
               "If n is exactly 0, the result is implicitly defined as 0."
           }
     }
-, TsToken { raw = "    if (n === 0) {\n        " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
+, TsToken { raw = "if (n === 0) {\n        " , kind = RawK }
 , TsToken
     { raw = "// Return 0 and exit the function immediately.\n"
     , kind =
         CommentK
           { comment = "Return 0 and exit the function immediately." }
     }
-, TsToken
-    { raw = "        return 0;\n    }\n\n    " , kind = RawK }
+, TsToken { raw = "        " , kind = WhitespaceK }
+, TsToken { raw = "return 0;\n    }\n\n    " , kind = RawK }
 , TsToken
     { raw = "// Step 3: Handle Base Case 1.\n"
     , kind = CommentK { comment = "Step 3: Handle Base Case 1." }
     }
-, TsToken { raw = "    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// If n is exactly 1, the result is implicitly defined as 1.\n"
@@ -77,22 +81,23 @@
               "If n is exactly 1, the result is implicitly defined as 1."
           }
     }
-, TsToken { raw = "    if (n === 1) {\n        " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
+, TsToken { raw = "if (n === 1) {\n        " , kind = RawK }
 , TsToken
     { raw = "// Return 1 and exit the function immediately.\n"
     , kind =
         CommentK
           { comment = "Return 1 and exit the function immediately." }
     }
-, TsToken
-    { raw = "        return 1;\n    }\n\n    " , kind = RawK }
+, TsToken { raw = "        " , kind = WhitespaceK }
+, TsToken { raw = "return 1;\n    }\n\n    " , kind = RawK }
 , TsToken
     { raw = "// Step 4: Initialize State Variables for Iteration.\n"
     , kind =
         CommentK
           { comment = "Step 4: Initialize State Variables for Iteration." }
     }
-, TsToken { raw = "    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// We need to keep track of the two preceding numbers to calculate the next one.\n"
@@ -102,7 +107,7 @@
               "We need to keep track of the two preceding numbers to calculate the next one."
           }
     }
-, TsToken { raw = "\n    " , kind = RawK }
+, TsToken { raw = "\n    " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// 'prevPrev' represents F(i-2). We initialize it to F(0), which is 0.\n"
@@ -112,8 +117,9 @@
               "'prevPrev' represents F(i-2). We initialize it to F(0), which is 0."
           }
     }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
-    { raw = "    let prevPrev: number = 0;\n\n    " , kind = RawK }
+    { raw = "let prevPrev: number = 0;\n\n    " , kind = RawK }
 , TsToken
     { raw =
         "// 'prev' represents F(i-1). We initialize it to F(1), which is 1.\n"
@@ -123,8 +129,8 @@
               "'prev' represents F(i-1). We initialize it to F(1), which is 1."
           }
     }
-, TsToken
-    { raw = "    let prev: number = 1;\n\n    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
+, TsToken { raw = "let prev: number = 1;\n\n    " , kind = RawK }
 , TsToken
     { raw =
         "// 'current' will store the result of F(i) during each iteration.\n"
@@ -134,7 +140,7 @@
               "'current' will store the result of F(i) during each iteration."
           }
     }
-, TsToken { raw = "    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// We initialize it to 1 (the value for n=1) as a starting point before the loop begins.\n"
@@ -144,13 +150,14 @@
               "We initialize it to 1 (the value for n=1) as a starting point before the loop begins."
           }
     }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
-    { raw = "    let current: number = 1;\n\n    " , kind = RawK }
+    { raw = "let current: number = 1;\n\n    " , kind = RawK }
 , TsToken
     { raw = "// Step 5: Begin the Iterative Loop.\n"
     , kind = CommentK { comment = "Step 5: Begin the Iterative Loop." }
     }
-, TsToken { raw = "    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// We start the loop at index i = 2 because indexes 0 and 1 were handled by base cases.\n"
@@ -160,7 +167,7 @@
               "We start the loop at index i = 2 because indexes 0 and 1 were handled by base cases."
           }
     }
-, TsToken { raw = "    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// The loop runs as long as 'i' is less than or equal to the target index 'n'.\n"
@@ -170,17 +177,16 @@
               "The loop runs as long as 'i' is less than or equal to the target index 'n'."
           }
     }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
-    { raw = "    for (let i = 2; i <= n; i++) {\n        "
-    , kind = RawK
-    }
+    { raw = "for (let i = 2; i <= n; i++) {\n        " , kind = RawK }
 , TsToken
     { raw = "// Step 5a: Calculate the next Fibonacci number.\n"
     , kind =
         CommentK
           { comment = "Step 5a: Calculate the next Fibonacci number." }
     }
-, TsToken { raw = "        " , kind = RawK }
+, TsToken { raw = "        " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// Add the value two steps back (prevPrev) to the value one step back (prev).\n"
@@ -190,10 +196,9 @@
               "Add the value two steps back (prevPrev) to the value one step back (prev)."
           }
     }
+, TsToken { raw = "        " , kind = WhitespaceK }
 , TsToken
-    { raw = "        current = prevPrev + prev;\n\n        "
-    , kind = RawK
-    }
+    { raw = "current = prevPrev + prev;\n\n        " , kind = RawK }
 , TsToken
     { raw =
         "// Step 5b: Shift variables to prepare for the next iteration cycle.\n"
@@ -203,7 +208,7 @@
               "Step 5b: Shift variables to prepare for the next iteration cycle."
           }
     }
-, TsToken { raw = "        " , kind = RawK }
+, TsToken { raw = "        " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// The value that was one step back becomes the value two steps back for the next turn.\n"
@@ -213,8 +218,8 @@
               "The value that was one step back becomes the value two steps back for the next turn."
           }
     }
-, TsToken
-    { raw = "        prevPrev = prev;\n\n        " , kind = RawK }
+, TsToken { raw = "        " , kind = WhitespaceK }
+, TsToken { raw = "prevPrev = prev;\n\n        " , kind = RawK }
 , TsToken
     { raw =
         "// The value we just calculated as current becomes the value one step back for the next turn.\n"
@@ -224,8 +229,8 @@
               "The value we just calculated as current becomes the value one step back for the next turn."
           }
     }
-, TsToken
-    { raw = "        prev = current;\n        " , kind = RawK }
+, TsToken { raw = "        " , kind = WhitespaceK }
+, TsToken { raw = "prev = current;\n        " , kind = RawK }
 , TsToken
     { raw =
         "// End of loop iteration. The loop counter 'i' will increment now.\n"
@@ -235,12 +240,13 @@
               "End of loop iteration. The loop counter 'i' will increment now."
           }
     }
-, TsToken { raw = "    }\n\n    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
+, TsToken { raw = "}\n\n    " , kind = RawK }
 , TsToken
     { raw = "// Step 6: Return Result.\n"
     , kind = CommentK { comment = "Step 6: Return Result." }
     }
-, TsToken { raw = "    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
     { raw =
         "// Once the loop has finished running until i=n, the variable 'current' holds the correct Fibonacci number.\n"
@@ -250,11 +256,12 @@
               "Once the loop has finished running until i=n, the variable 'current' holds the correct Fibonacci number."
           }
     }
-, TsToken { raw = "    " , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
     { raw = "// Return the final calculated value.\n"
     , kind =
         CommentK { comment = "Return the final calculated value." }
     }
-, TsToken { raw = "    return current;\n}" , kind = RawK }
+, TsToken { raw = "    " , kind = WhitespaceK }
+, TsToken { raw = "return current;\n}" , kind = RawK }
 ]

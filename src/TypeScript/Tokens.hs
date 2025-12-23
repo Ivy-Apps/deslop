@@ -12,5 +12,6 @@ data TsTokenKind
     = ImportK
     | CommentK {comment :: Text}
     | DocsK {comment :: Text}
+    | WhitespaceK
     | RawK
     deriving (Show, Eq)

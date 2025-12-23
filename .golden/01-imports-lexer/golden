@@ -8,9 +8,10 @@
     }
 , TsToken
     { raw = "import User from '../models/User';\n" , kind = ImportK }
+, TsToken { raw = "\n" , kind = WhitespaceK }
 , TsToken
     { raw =
-        "\nfunction main() {\n  Logger.log(formatDate(new Date()));\n  const u = new User();\n}"
+        "function main() {\n  Logger.log(formatDate(new Date()));\n  const u = new User();\n}"
     , kind = RawK
     }
 ]
