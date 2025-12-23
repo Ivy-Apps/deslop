@@ -67,4 +67,4 @@ listFixtures dir = do
     return $ filter (\f -> takeExtension f == ".ts") files
 
 reconstruct :: [TsToken] -> T.Text
-reconstruct tokens = T.concat [t.raw | t <- tokens]
+reconstruct = foldMap (.raw)

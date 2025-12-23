@@ -1,10 +1,16 @@
-[ ImportTok
-    { raw = "import { formatDate } from '../../lib/utils';\n" }
-, ImportTok
-    { raw = "import * as Logger from '../../lib/logger';\n" }
-, ImportTok { raw = "import User from '../models/User';\n" }
-, RawTok
+[ TsToken
+    { raw = "import { formatDate } from '../../lib/utils';\n"
+    , kind = ImportK
+    }
+, TsToken
+    { raw = "import * as Logger from '../../lib/logger';\n"
+    , kind = ImportK
+    }
+, TsToken
+    { raw = "import User from '../models/User';\n" , kind = ImportK }
+, TsToken
     { raw =
         "\nfunction main() {\n  Logger.log(formatDate(new Date()));\n  const u = new User();\n}"
+    , kind = RawK
     }
 ]

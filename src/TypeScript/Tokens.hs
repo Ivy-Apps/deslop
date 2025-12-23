@@ -2,15 +2,14 @@ module TypeScript.Tokens where
 
 import Data.Text (Text)
 
-data TsToken
-  = ImportTok
-      { raw :: Text
-      }
-  | CommentTok
-      { comment :: Text
-      , raw :: Text
-      }
-  | RawTok
-      { raw :: Text
-      }
-  deriving (Show, Eq)
+data TsToken = TsToken
+    { raw :: Text
+    , kind :: TsTokenKind
+    }
+    deriving (Show, Eq)
+
+data TsTokenKind
+    = ImportK
+    | CommentK {comment :: Text}
+    | RawK
+    deriving (Show, Eq)
