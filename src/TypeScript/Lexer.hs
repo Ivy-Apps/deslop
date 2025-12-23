@@ -46,9 +46,9 @@ pBlockComment =
         <$> match (string "/*" *> manyTill anySingle (string "*/"))
 
 pRaw :: Lexer TsToken
-pRaw = do
-    (raw, _) <- match (anySingle >> matchTillToken)
-    return $ TsToken raw RawK
+pRaw =
+    uncurry TsToken . second (const RawK)
+        <$> match (anySingle >> manyTill anySingle stopCondition)
   where
-    matchTillToken = manyTill anySingle (lookAhead $ () <$ atTokenStart <|> eof)
+    stopCondition = lookAhead $ () <$ atTokenStart <|> eof
     atTokenStart = choice [try $ string "//", string "/*", string "import"]
