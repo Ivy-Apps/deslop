@@ -1,13 +1,10 @@
 [ ImportTok
-    { raw = "import { formatDate } from '../../lib/utils';" }
-, RawTok { raw = "\n" }
-, ImportTok { raw = "import * as Logger from '../../lib/logger';" }
-, RawTok { raw = "\n" }
-, ImportTok { raw = "import User from '../models/User';" }
-, RawTok { raw = "\n\nfunct" }
-, RawTok { raw = "ion ma" }
+    { raw = "import { formatDate } from '../../lib/utils';\n" }
+, ImportTok
+    { raw = "import * as Logger from '../../lib/logger';\n" }
+, ImportTok { raw = "import User from '../models/User';\n" }
 , RawTok
     { raw =
-        "in() {\n  Logger.log(formatDate(new Date()));\n  const u = new User();\n}"
+        "\nfunction main() {\n  Logger.log(formatDate(new Date()));\n  const u = new User();\n}"
     }
 ]
