@@ -76,6 +76,8 @@ test-suite deslop-test
         base,
         deslop,
         hspec,
+        hspec-golden,
+        text,
         effectful,
         bytestring,
         filepath,

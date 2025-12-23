@@ -7,5 +7,5 @@ import TypeScript.Tokens (TsToken)
 
 type Lexer = Parsec Void Text
 
-lexTs :: Lexer [TsToken]
-lexTs = undefined
+lexer :: Lexer [TsToken]
+lexer = undefined
