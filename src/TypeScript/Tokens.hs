@@ -4,8 +4,7 @@ import Data.Text (Text)
 
 data TsToken
   = ImportTok
-      { statement :: Text
-      , raw :: Text
+      { raw :: Text
       }
   | CommentTok
       { comment :: Text

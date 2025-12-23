@@ -1,1 +1,1 @@
-[CommentTok {comment = "hello", raw = "// hello"}]
+[ImportTok {raw = "import { formatDate } from '../../lib/utils';"},RawTok {raw = "\n"},ImportTok {raw = "import * as Logger from '../../lib/logger';"},RawTok {raw = "\n"},ImportTok {raw = "import User from '../models/User';"},RawTok {raw = "\n\nfunct"},RawTok {raw = "ion ma"},RawTok {raw = "in() {\n  Logger.log(formatDate(new Date()));\n  const u = new User();\n}"}]
