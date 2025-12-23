@@ -81,4 +81,5 @@ test-suite deslop-test
         effectful,
         bytestring,
         filepath,
-        directory
+        directory,
+        megaparsec

@@ -14,3 +14,4 @@ data TsToken
   | RawTok
       { raw :: Text
       }
+  deriving (Show, Eq)

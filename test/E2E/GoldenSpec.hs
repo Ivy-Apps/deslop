@@ -9,8 +9,12 @@ import System.FilePath (takeBaseName, takeExtension, (</>))
 import Test.Hspec (Spec, describe, it, runIO)
 import Test.Hspec.Golden (defaultGolden)
 
+import Data.Text.IO qualified as TIO
 import Deslop (deslopFile)
 import TestUtils (runFileSystemTest)
+import Text.Megaparsec (runParser)
+import Text.Megaparsec.Error (errorBundlePretty)
+import TypeScript.Lexer (lexer)
 
 tsFixturesPath :: FilePath
 tsFixturesPath = "test/fixtures/typescript"
@@ -25,7 +29,20 @@ spec = describe "E2E Golden Tests" $ do
   createGoldenTest filename = do
     let testName = takeBaseName filename
 
-    it ("deslop " ++ testName) $ do
+    it ("Lexer " ++ testName) $ do
+      -- Given
+      sourceCode <- TIO.readFile (tsFixturesPath </> filename)
+
+      -- When
+      let res = runParser lexer filename sourceCode
+
+      -- Then
+      let out = case res of
+            Left e -> errorBundlePretty e
+            Right ts -> show ts
+      return $ defaultGolden (testName <> "-lexer") out
+
+    it ("Deslop " ++ testName) $ do
       -- Given
       let inputPath = tsFixturesPath </> filename
       captureRef <- newIORef Nothing
