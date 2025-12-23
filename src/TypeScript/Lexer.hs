@@ -41,7 +41,8 @@ pLineComment = do
 
 pRaw :: Lexer TsToken
 pRaw = do
-    (raw, _) <- match (anySingle >> manyTill anySingle (lookAhead (atTokenStart <|> eof)))
+    (raw, _) <- match (anySingle >> matchTillToken)
     return $ TsToken raw RawK
   where
-    atTokenStart = () <$ string "//" <|> () <$ string "import"
+    matchTillToken = manyTill anySingle (lookAhead $ () <$ atTokenStart <|> eof)
+    atTokenStart = choice [string "//", string "import"]
