@@ -25,7 +25,7 @@ spec = describe "E2E Golden Tests" $ do
   createGoldenTest filename = do
     let testName = takeBaseName filename
 
-    it ("removes AI slop from " ++ testName) $ do
+    it ("deslop " ++ testName) $ do
       -- Given
       let inputPath = tsFixturesPath </> filename
       captureRef <- newIORef Nothing
@@ -40,7 +40,7 @@ spec = describe "E2E Golden Tests" $ do
         Nothing -> fail "The program did not write any output!"
         Just actualBytes -> do
           let actualContent = T.unpack $ decodeUtf8 actualBytes
-          return $ defaultGolden testName actualContent
+          return $ defaultGolden (testName <> "-deslop") actualContent
 
 listFixtures :: FilePath -> IO [FilePath]
 listFixtures dir = do
