@@ -17,6 +17,7 @@ pToken :: Lexer TsToken
 pToken =
     choice
         [ try pImport
+        , try pDocs
         , try pComment
         , pRaw
         ]
@@ -27,6 +28,11 @@ pImport =
         <$> match (string "import" *> manyTill anySingle end)
   where
     end = choice [try $ string ";\n", string ";", string "\n", string ")"]
+
+pDocs :: Lexer TsToken
+pDocs =
+    uncurry TsToken . second (DocsK . T.strip . T.pack)
+        <$> match (string "/**" *> manyTill anySingle (string "*/"))
 
 pComment :: Lexer TsToken
 pComment = try pLineComment <|> pBlockComment

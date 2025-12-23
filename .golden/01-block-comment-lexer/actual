@@ -2,9 +2,9 @@
     { raw =
         "/**\n * Calculates the nth Fibonacci number.\n * * @param n - Zero-based index.\n * @returns The Fibonacci number.\n */"
     , kind =
-        CommentK
+        DocsK
           { comment =
-              "*\n * Calculates the nth Fibonacci number.\n * * @param n - Zero-based index.\n * @returns The Fibonacci number."
+              "* Calculates the nth Fibonacci number.\n * * @param n - Zero-based index.\n * @returns The Fibonacci number."
           }
     }
 , TsToken { raw = "\n" , kind = RawK }

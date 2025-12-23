@@ -11,5 +11,6 @@ data TsToken = TsToken
 data TsTokenKind
     = ImportK
     | CommentK {comment :: Text}
+    | DocsK {comment :: Text}
     | RawK
     deriving (Show, Eq)
