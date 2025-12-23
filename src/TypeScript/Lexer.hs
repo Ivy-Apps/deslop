@@ -34,11 +34,7 @@ pComment = try pLineComment <|> pBlockComment
 pLineComment :: Lexer TsToken
 pLineComment =
     uncurry TsToken . second (CommentK . T.strip)
-        <$> match
-            ( string "//"
-                *> takeWhileP (Just "comment") ((/=) '\n')
-                <* optional newline
-            )
+        <$> match (string "//" *> takeWhileP (Just "comment") ((/=) '\n') <* optional newline)
 
 pBlockComment :: Lexer TsToken
 pBlockComment =
