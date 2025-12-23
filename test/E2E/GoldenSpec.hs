@@ -37,9 +37,7 @@ spec = describe "E2E Golden Tests" $ do
       let res = runParser lexer filename sourceCode
 
       -- Then
-      let out = case res of
-            Left e -> errorBundlePretty e
-            Right ts -> ppShow ts
+      let out = either errorBundlePretty ppShow res
       return $ defaultGolden (testName <> "-lexer") out
 
     it ("Deslop " ++ testName) $ do
