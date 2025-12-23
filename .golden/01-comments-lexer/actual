@@ -1,1 +1,202 @@
-[RawTok {raw = "/**\n * Calculates the nth F"},RawTok {raw = "ibonacc"},RawTok {raw = "i number us"},RawTok {raw = "ing an "},RawTok {raw = "iterat"},RawTok {raw = "ive approach.\n * The sequence "},RawTok {raw = "is def"},RawTok {raw = "ined as: F(0)=0, F(1)=1, F(n) = F(n-1) + F(n-2).\n *\n * @param n - The zero-based "},RawTok {raw = "index "},RawTok {raw = "in the F"},RawTok {raw = "ibonacc"},RawTok {raw = "i sequence to retr"},RawTok {raw = "ieve.\n * @returns The F"},RawTok {raw = "ibonacc"},RawTok {raw = "i number at "},RawTok {raw = "index n.\n * @throws {Error} If n "},RawTok {raw = "is a negat"},RawTok {raw = "ive "},RawTok {raw = "integer.\n *"},RawTok {raw = "/\nfunct"},RawTok {raw = "ion calculateF"},RawTok {raw = "ibonacc"},RawTok {raw = "i(n: number): number {\n    "},RawTok {raw = "/"},RawTok {raw = "/ Step 1: Input Val"},RawTok {raw = "idat"},RawTok {raw = "ion.\n    "},RawTok {raw = "/"},RawTok {raw = "/ Check "},RawTok {raw = "if the "},RawTok {raw = "input 'n' "},RawTok {raw = "is less than zero. The F"},RawTok {raw = "ibonacc"},RawTok {raw = "i sequence starts at "},RawTok {raw = "index 0.\n    "},RawTok {raw = "if (n < 0) {\n        "},RawTok {raw = "/"},RawTok {raw = "/ If the "},RawTok {raw = "input "},RawTok {raw = "is negat"},RawTok {raw = "ive, throw an error "},RawTok {raw = "ind"},RawTok {raw = "icat"},RawTok {raw = "ing "},RawTok {raw = "inval"},RawTok {raw = "id "},RawTok {raw = "input.\n        throw new Error(\"F"},RawTok {raw = "ibonacc"},RawTok {raw = "i "},RawTok {raw = "index must be a non-negat"},RawTok {raw = "ive "},RawTok {raw = "integer.\");\n    }\n\n    "},RawTok {raw = "/"},RawTok {raw = "/ Step 2: Handle Base Case 0.\n    "},RawTok {raw = "/"},RawTok {raw = "/ If n "},RawTok {raw = "is exactly 0, the result "},RawTok {raw = "is "},RawTok {raw = "impl"},RawTok {raw = "ic"},RawTok {raw = "itly def"},RawTok {raw = "ined as 0.\n    "},RawTok {raw = "if (n === 0) {\n        "},RawTok {raw = "/"},RawTok {raw = "/ Return 0 and ex"},RawTok {raw = "it the funct"},RawTok {raw = "ion "},RawTok {raw = "immed"},RawTok {raw = "iately.\n        return 0;\n    }\n\n    "},RawTok {raw = "/"},RawTok {raw = "/ Step 3: Handle Base Case 1.\n    "},RawTok {raw = "/"},RawTok {raw = "/ If n "},RawTok {raw = "is exactly 1, the result "},RawTok {raw = "is "},RawTok {raw = "impl"},RawTok {raw = "ic"},RawTok {raw = "itly def"},RawTok {raw = "ined as 1.\n    "},RawTok {raw = "if (n === 1) {\n        "},RawTok {raw = "/"},RawTok {raw = "/ Return 1 and ex"},RawTok {raw = "it the funct"},RawTok {raw = "ion "},RawTok {raw = "immed"},RawTok {raw = "iately.\n        return 1;\n    }\n\n    "},RawTok {raw = "/"},RawTok {raw = "/ Step 4: In"},RawTok {raw = "it"},RawTok {raw = "ial"},RawTok {raw = "ize State Var"},RawTok {raw = "iables for Iterat"},RawTok {raw = "ion.\n    "},RawTok {raw = "/"},RawTok {raw = "/ We need to keep track of the two preced"},RawTok {raw = "ing numbers to calculate the next one.\n\n    "},RawTok {raw = "/"},RawTok {raw = "/ 'prevPrev' represents F("},RawTok {raw = "i-2). We "},RawTok {raw = "in"},RawTok {raw = "it"},RawTok {raw = "ial"},RawTok {raw = "ize "},RawTok {raw = "it to F(0), wh"},RawTok {raw = "ich "},RawTok {raw = "is 0.\n    let prevPrev: number = 0;\n\n    "},RawTok {raw = "/"},RawTok {raw = "/ 'prev' represents F("},RawTok {raw = "i-1). We "},RawTok {raw = "in"},RawTok {raw = "it"},RawTok {raw = "ial"},RawTok {raw = "ize "},RawTok {raw = "it to F(1), wh"},RawTok {raw = "ich "},RawTok {raw = "is 1.\n    let prev: number = 1;\n\n    "},RawTok {raw = "/"},RawTok {raw = "/ 'current' w"},RawTok {raw = "ill store the result of F("},RawTok {raw = "i) dur"},RawTok {raw = "ing each "},RawTok {raw = "iterat"},RawTok {raw = "ion.\n    "},RawTok {raw = "/"},RawTok {raw = "/ We "},RawTok {raw = "in"},RawTok {raw = "it"},RawTok {raw = "ial"},RawTok {raw = "ize "},RawTok {raw = "it to 1 (the value for n=1) as a start"},RawTok {raw = "ing po"},RawTok {raw = "int before the loop beg"},RawTok {raw = "ins.\n    let current: number = 1;\n\n    "},RawTok {raw = "/"},RawTok {raw = "/ Step 5: Beg"},RawTok {raw = "in the Iterat"},RawTok {raw = "ive Loop.\n    "},RawTok {raw = "/"},RawTok {raw = "/ We start the loop at "},RawTok {raw = "index "},RawTok {raw = "i = 2 because "},RawTok {raw = "indexes 0 and 1 were handled by base cases.\n    "},RawTok {raw = "/"},RawTok {raw = "/ The loop runs as long as '"},RawTok {raw = "i' "},RawTok {raw = "is less than or equal to the target "},RawTok {raw = "index 'n'.\n    for (let "},RawTok {raw = "i = 2; "},RawTok {raw = "i <= n; "},RawTok {raw = "i++) {\n        "},RawTok {raw = "/"},RawTok {raw = "/ Step 5a: Calculate the next F"},RawTok {raw = "ibonacc"},RawTok {raw = "i number.\n        "},RawTok {raw = "/"},RawTok {raw = "/ Add the value two steps back (prevPrev) to the value one step back (prev).\n        current = prevPrev + prev;\n\n        "},RawTok {raw = "/"},RawTok {raw = "/ Step 5b: Sh"},RawTok {raw = "ift var"},RawTok {raw = "iables to prepare for the next "},RawTok {raw = "iterat"},RawTok {raw = "ion cycle.\n        "},RawTok {raw = "/"},RawTok {raw = "/ The value that was one step back becomes the value two steps back for the next turn.\n        prevPrev = prev;\n\n        "},RawTok {raw = "/"},RawTok {raw = "/ The value we just calculated as current becomes the value one step back for the next turn.\n        prev = current;\n        "},RawTok {raw = "/"},RawTok {raw = "/ End of loop "},RawTok {raw = "iterat"},RawTok {raw = "ion. The loop counter '"},RawTok {raw = "i' w"},RawTok {raw = "ill "},RawTok {raw = "increment now.\n    }\n\n    "},RawTok {raw = "/"},RawTok {raw = "/ Step 6: Return Result.\n    "},RawTok {raw = "/"},RawTok {raw = "/ Once the loop has f"},RawTok {raw = "in"},RawTok {raw = "ished runn"},RawTok {raw = "ing unt"},RawTok {raw = "il "},RawTok {raw = "i=n, the var"},RawTok {raw = "iable 'current' holds the correct F"},RawTok {raw = "ibonacc"},RawTok {raw = "i number.\n    "},RawTok {raw = "/"},RawTok {raw = "/ Return the f"},RawTok {raw = "inal calculated value.\n    return current;\n}"}]
+[ RawTok { raw = "/**\n * Calculates the nth F" }
+, RawTok { raw = "ibonacc" }
+, RawTok { raw = "i number us" }
+, RawTok { raw = "ing an " }
+, RawTok { raw = "iterat" }
+, RawTok { raw = "ive approach.\n * The sequence " }
+, RawTok { raw = "is def" }
+, RawTok
+    { raw =
+        "ined as: F(0)=0, F(1)=1, F(n) = F(n-1) + F(n-2).\n *\n * @param n - The zero-based "
+    }
+, RawTok { raw = "index " }
+, RawTok { raw = "in the F" }
+, RawTok { raw = "ibonacc" }
+, RawTok { raw = "i sequence to retr" }
+, RawTok { raw = "ieve.\n * @returns The F" }
+, RawTok { raw = "ibonacc" }
+, RawTok { raw = "i number at " }
+, RawTok { raw = "index n.\n * @throws {Error} If n " }
+, RawTok { raw = "is a negat" }
+, RawTok { raw = "ive " }
+, RawTok { raw = "integer.\n *" }
+, RawTok { raw = "/\nfunct" }
+, RawTok { raw = "ion calculateF" }
+, RawTok { raw = "ibonacc" }
+, RawTok { raw = "i(n: number): number {\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Step 1: Input Val" }
+, RawTok { raw = "idat" }
+, RawTok { raw = "ion.\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Check " }
+, RawTok { raw = "if the " }
+, RawTok { raw = "input 'n' " }
+, RawTok { raw = "is less than zero. The F" }
+, RawTok { raw = "ibonacc" }
+, RawTok { raw = "i sequence starts at " }
+, RawTok { raw = "index 0.\n    " }
+, RawTok { raw = "if (n < 0) {\n        " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ If the " }
+, RawTok { raw = "input " }
+, RawTok { raw = "is negat" }
+, RawTok { raw = "ive, throw an error " }
+, RawTok { raw = "ind" }
+, RawTok { raw = "icat" }
+, RawTok { raw = "ing " }
+, RawTok { raw = "inval" }
+, RawTok { raw = "id " }
+, RawTok { raw = "input.\n        throw new Error(\"F" }
+, RawTok { raw = "ibonacc" }
+, RawTok { raw = "i " }
+, RawTok { raw = "index must be a non-negat" }
+, RawTok { raw = "ive " }
+, RawTok { raw = "integer.\");\n    }\n\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Step 2: Handle Base Case 0.\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ If n " }
+, RawTok { raw = "is exactly 0, the result " }
+, RawTok { raw = "is " }
+, RawTok { raw = "impl" }
+, RawTok { raw = "ic" }
+, RawTok { raw = "itly def" }
+, RawTok { raw = "ined as 0.\n    " }
+, RawTok { raw = "if (n === 0) {\n        " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Return 0 and ex" }
+, RawTok { raw = "it the funct" }
+, RawTok { raw = "ion " }
+, RawTok { raw = "immed" }
+, RawTok { raw = "iately.\n        return 0;\n    }\n\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Step 3: Handle Base Case 1.\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ If n " }
+, RawTok { raw = "is exactly 1, the result " }
+, RawTok { raw = "is " }
+, RawTok { raw = "impl" }
+, RawTok { raw = "ic" }
+, RawTok { raw = "itly def" }
+, RawTok { raw = "ined as 1.\n    " }
+, RawTok { raw = "if (n === 1) {\n        " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Return 1 and ex" }
+, RawTok { raw = "it the funct" }
+, RawTok { raw = "ion " }
+, RawTok { raw = "immed" }
+, RawTok { raw = "iately.\n        return 1;\n    }\n\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Step 4: In" }
+, RawTok { raw = "it" }
+, RawTok { raw = "ial" }
+, RawTok { raw = "ize State Var" }
+, RawTok { raw = "iables for Iterat" }
+, RawTok { raw = "ion.\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ We need to keep track of the two preced" }
+, RawTok { raw = "ing numbers to calculate the next one.\n\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ 'prevPrev' represents F(" }
+, RawTok { raw = "i-2). We " }
+, RawTok { raw = "in" }
+, RawTok { raw = "it" }
+, RawTok { raw = "ial" }
+, RawTok { raw = "ize " }
+, RawTok { raw = "it to F(0), wh" }
+, RawTok { raw = "ich " }
+, RawTok { raw = "is 0.\n    let prevPrev: number = 0;\n\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ 'prev' represents F(" }
+, RawTok { raw = "i-1). We " }
+, RawTok { raw = "in" }
+, RawTok { raw = "it" }
+, RawTok { raw = "ial" }
+, RawTok { raw = "ize " }
+, RawTok { raw = "it to F(1), wh" }
+, RawTok { raw = "ich " }
+, RawTok { raw = "is 1.\n    let prev: number = 1;\n\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ 'current' w" }
+, RawTok { raw = "ill store the result of F(" }
+, RawTok { raw = "i) dur" }
+, RawTok { raw = "ing each " }
+, RawTok { raw = "iterat" }
+, RawTok { raw = "ion.\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ We " }
+, RawTok { raw = "in" }
+, RawTok { raw = "it" }
+, RawTok { raw = "ial" }
+, RawTok { raw = "ize " }
+, RawTok { raw = "it to 1 (the value for n=1) as a start" }
+, RawTok { raw = "ing po" }
+, RawTok { raw = "int before the loop beg" }
+, RawTok { raw = "ins.\n    let current: number = 1;\n\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Step 5: Beg" }
+, RawTok { raw = "in the Iterat" }
+, RawTok { raw = "ive Loop.\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ We start the loop at " }
+, RawTok { raw = "index " }
+, RawTok { raw = "i = 2 because " }
+, RawTok
+    { raw = "indexes 0 and 1 were handled by base cases.\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ The loop runs as long as '" }
+, RawTok { raw = "i' " }
+, RawTok { raw = "is less than or equal to the target " }
+, RawTok { raw = "index 'n'.\n    for (let " }
+, RawTok { raw = "i = 2; " }
+, RawTok { raw = "i <= n; " }
+, RawTok { raw = "i++) {\n        " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Step 5a: Calculate the next F" }
+, RawTok { raw = "ibonacc" }
+, RawTok { raw = "i number.\n        " }
+, RawTok { raw = "/" }
+, RawTok
+    { raw =
+        "/ Add the value two steps back (prevPrev) to the value one step back (prev).\n        current = prevPrev + prev;\n\n        "
+    }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Step 5b: Sh" }
+, RawTok { raw = "ift var" }
+, RawTok { raw = "iables to prepare for the next " }
+, RawTok { raw = "iterat" }
+, RawTok { raw = "ion cycle.\n        " }
+, RawTok { raw = "/" }
+, RawTok
+    { raw =
+        "/ The value that was one step back becomes the value two steps back for the next turn.\n        prevPrev = prev;\n\n        "
+    }
+, RawTok { raw = "/" }
+, RawTok
+    { raw =
+        "/ The value we just calculated as current becomes the value one step back for the next turn.\n        prev = current;\n        "
+    }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ End of loop " }
+, RawTok { raw = "iterat" }
+, RawTok { raw = "ion. The loop counter '" }
+, RawTok { raw = "i' w" }
+, RawTok { raw = "ill " }
+, RawTok { raw = "increment now.\n    }\n\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Step 6: Return Result.\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Once the loop has f" }
+, RawTok { raw = "in" }
+, RawTok { raw = "ished runn" }
+, RawTok { raw = "ing unt" }
+, RawTok { raw = "il " }
+, RawTok { raw = "i=n, the var" }
+, RawTok { raw = "iable 'current' holds the correct F" }
+, RawTok { raw = "ibonacc" }
+, RawTok { raw = "i number.\n    " }
+, RawTok { raw = "/" }
+, RawTok { raw = "/ Return the f" }
+, RawTok { raw = "inal calculated value.\n    return current;\n}" }
+]

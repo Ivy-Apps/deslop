@@ -82,4 +82,5 @@ test-suite deslop-test
         bytestring,
         filepath,
         directory,
-        megaparsec
+        megaparsec,
+        pretty-show

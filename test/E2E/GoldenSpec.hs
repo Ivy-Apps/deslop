@@ -3,17 +3,17 @@ module E2E.GoldenSpec (spec) where
 import Data.IORef (newIORef, readIORef)
 import Data.Text qualified as T
 import Data.Text.Encoding (decodeUtf8)
+import Data.Text.IO qualified as TIO
+import Deslop (deslopFile)
 import Effectful (runEff)
 import System.Directory (listDirectory)
 import System.FilePath (takeBaseName, takeExtension, (</>))
 import Test.Hspec (Spec, describe, it, runIO)
 import Test.Hspec.Golden (defaultGolden)
-
-import Data.Text.IO qualified as TIO
-import Deslop (deslopFile)
 import TestUtils (runFileSystemTest)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
+import Text.Show.Pretty (ppShow)
 import TypeScript.Lexer (lexer)
 
 tsFixturesPath :: FilePath
@@ -39,7 +39,7 @@ spec = describe "E2E Golden Tests" $ do
       -- Then
       let out = case res of
             Left e -> errorBundlePretty e
-            Right ts -> show ts
+            Right ts -> ppShow ts
       return $ defaultGolden (testName <> "-lexer") out
 
     it ("Deslop " ++ testName) $ do
