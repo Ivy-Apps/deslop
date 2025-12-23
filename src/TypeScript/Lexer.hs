@@ -1,6 +1,8 @@
 module TypeScript.Lexer where
 
-import Data.Text
+import Data.Bifunctor (second)
+import Data.Text (Text)
+import Data.Text qualified as T
 import Data.Void
 import Text.Megaparsec
 import Text.Megaparsec.Char
@@ -27,17 +29,21 @@ pImport = do
     end = choice [try $ string ";\n", string ";", string "\n", string ")"]
 
 pComment :: Lexer TsToken
-pComment = pLineComment
+pComment = try pLineComment <|> pBlockComment
 
 pLineComment :: Lexer TsToken
-pLineComment = do
-    (raw, comment) <-
-        match $
-            string "//"
-                *> optional (char ' ')
-                *> takeWhileP (Just "comment content") ((/=) '\n')
+pLineComment =
+    uncurry TsToken . second (CommentK . T.strip)
+        <$> match
+            ( string "//"
+                *> takeWhileP (Just "comment") ((/=) '\n')
                 <* optional newline
-    return $ TsToken raw CommentK {comment = comment}
+            )
+
+pBlockComment :: Lexer TsToken
+pBlockComment =
+    uncurry TsToken . second (CommentK . T.strip . T.pack)
+        <$> match (string "/*" *> manyTill anySingle (string "*/"))
 
 pRaw :: Lexer TsToken
 pRaw = do
@@ -45,4 +51,4 @@ pRaw = do
     return $ TsToken raw RawK
   where
     matchTillToken = manyTill anySingle (lookAhead $ () <$ atTokenStart <|> eof)
-    atTokenStart = choice [string "//", string "import"]
+    atTokenStart = choice [try $ string "//", string "/*", string "import"]

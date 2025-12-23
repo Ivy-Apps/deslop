@@ -1,0 +1,45 @@
+[ TsToken
+    { raw =
+        "/**\n * Calculates the nth Fibonacci number.\n * * @param n - Zero-based index.\n * @returns The Fibonacci number.\n */"
+    , kind =
+        CommentK
+          { comment =
+              "*\n * Calculates the nth Fibonacci number.\n * * @param n - Zero-based index.\n * @returns The Fibonacci number."
+          }
+    }
+, TsToken { raw = "\n" , kind = RawK }
+, TsToken
+    { raw = "import { validate } from \"./utils\";\n"
+    , kind = ImportK
+    }
+, TsToken { raw = "\n" , kind = RawK }
+, TsToken
+    { raw =
+        "/* Standard Block Comment:\n   This part handles the iterative logic \n   without using recursion. */"
+    , kind =
+        CommentK
+          { comment =
+              "Standard Block Comment:\n   This part handles the iterative logic \n   without using recursion."
+          }
+    }
+, TsToken
+    { raw = "\nfunction fib(n: number): number {\n    " , kind = RawK }
+, TsToken
+    { raw = "// Single line comment with spaces\n"
+    , kind = CommentK { comment = "Single line comment with spaces" }
+    }
+, TsToken
+    { raw =
+        "    if (n <= 1) return n;\n\n    let a = 0, b = 1;\n    for (let i = 2; i <= n; i++) {\n        "
+    , kind = RawK
+    }
+, TsToken
+    { raw = "/* Inline block comment */"
+    , kind = CommentK { comment = "Inline block comment" }
+    }
+, TsToken
+    { raw =
+        "\n        let temp = a + b;\n        a = b;\n        b = temp;\n    }\n    return b;\n}"
+    , kind = RawK
+    }
+]
