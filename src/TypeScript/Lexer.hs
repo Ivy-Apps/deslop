@@ -21,7 +21,7 @@ pToken =
         ]
 
 pImport :: Lexer TsToken
-pImport = ImportTok . fst <$> match (string "import" <* manyTill anySingle end)
+pImport = ImportTok . fst <$> match (string "import" *> manyTill anySingle end)
   where
     end = choice [try $ string ";\n", string ";", string "\n", string ")"]
 
@@ -30,9 +30,13 @@ pComment = pLineComment
 
 pLineComment :: Lexer TsToken
 pLineComment = do
-    prefix <- string "//"
-    comment <- takeWhileP (Just "comment content") ((/=) '\n')
-    return CommentTok {comment = comment, raw = prefix <> comment <> T.singleton '\n'}
+    (raw, comment) <-
+        match $
+            string "//"
+                *> optional (char ' ')
+                *> takeWhileP (Just "comment content") ((/=) '\n')
+                <* optional newline
+    return CommentTok {comment = comment, raw = raw}
 
 pRaw :: Lexer TsToken
 pRaw = do

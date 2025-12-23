@@ -1,7 +1,9 @@
 {
     "[haskell]": {
         "editor.defaultFormatter": "haskell.haskell",
-        "editor.formatOnSave": true
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
     },
     "haskell.formattingProvider": "fourmolu"
 }
