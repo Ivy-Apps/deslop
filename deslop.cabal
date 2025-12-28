@@ -28,7 +28,6 @@ library
     
     exposed-modules:  
         Deslop
-        TypeScript.Ast
         TypeScript.Tokens
         TypeScript.Lexer
         Effects.FileSystem
