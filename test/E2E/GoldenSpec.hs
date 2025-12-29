@@ -63,19 +63,19 @@ spec = describe "E2E Golden Tests" $ do
 
         it ("Deslop " <> testName) $ do
             -- Given
-            let inputPath = tsFixturesPath </> filename
+            let path = tsFixturesPath </> filename
             captureRef <- newIORef Nothing
 
             -- When
             runEff $ runFileSystemTest captureRef $ do
-                deslopFile inputPath "_ignored.ts"
+                deslopFile path "_ignored.ts"
 
             -- Then
-            actualResult <- readIORef captureRef
-            case actualResult of
+            actualRes <- readIORef captureRef
+            case actualRes of
                 Nothing -> fail "The program did not write any output!"
-                Just actualBytes -> do
-                    let actualContent = T.unpack $ decodeUtf8 actualBytes
+                Just actual -> do
+                    let actualContent = T.unpack $ decodeUtf8 actual
                     return $ defaultGolden (testName <> "-deslop") actualContent
 
 listFixtures :: FilePath -> IO [FilePath]
