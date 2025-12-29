@@ -44,16 +44,13 @@ parseImport = first errorBundlePretty . runParser parser ""
     -- import type { User, Permissions } from "./types";
     parser :: Parser TsNode
     parser = do
-        p1 <- T.pack <$> manyTill anySingle (string "from")
-        p2 <- string "from"
-        p3 <- mconcat <$> some (string " ")
-        p4 <- pQuote
-        t <- manyTill anySingle (char p4)
+        (p1, q) <- manyTill_ anySingle pQuote
+        t <- takeWhile1P (Just "target") (/= q)
         s <- takeRest
         pure
             Import
-                { prefix = p1 <> p2 <> p3 <> T.singleton p4
-                , target = T.pack t
+                { prefix = T.pack p1 <> T.singleton q
+                , target = t
                 , suffix = s
                 }
 
