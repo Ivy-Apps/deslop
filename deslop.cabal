@@ -28,10 +28,11 @@ library
     
     exposed-modules:  
         Deslop
+        Deslop.Imports
         TypeScript.Tokens
+        TypeScript.AST
         TypeScript.Parser
         TypeScript.Lexer
-        TypeScript.ImportsFix
         Effects.FileSystem
         Utils
 
