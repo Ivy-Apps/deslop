@@ -22,6 +22,7 @@ common shared-properties
         NoFieldSelectors
         OverloadedStrings
         TypeFamilies
+        DeriveGeneric
 
 library
     import:           shared-properties
@@ -33,6 +34,7 @@ library
         TypeScript.AST
         TypeScript.Parser
         TypeScript.Lexer
+        TypeScript.Config
         Effects.FileSystem
         Utils
 
@@ -44,6 +46,7 @@ library
         aeson-pretty,
         text,
         bytestring,
+        containers,
         unordered-containers,
         vector,
         directory,
