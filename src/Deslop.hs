@@ -1,5 +1,6 @@
 module Deslop (deslopFile, runDeslop) where
 
+import Data.Bifunctor
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as B
 import Data.Text.Encoding qualified as T
@@ -13,7 +14,9 @@ deslopFile :: (FileSystem :> es) => FilePath -> FilePath -> Eff es ()
 deslopFile src dst = readFileBS src >>= writeFileBS dst . removeSlop src
 
 removeSlop :: FilePath -> ByteString -> ByteString
-removeSlop p c = c
+removeSlop p c = case pipeline of
+    Left _ -> c
+    Right c' -> c'
   where
     pipeline :: Either String ByteString
     pipeline =
