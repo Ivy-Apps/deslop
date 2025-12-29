@@ -4,7 +4,7 @@ import Data.Text (Text)
 
 data TsProgram = TsModule
     { path :: FilePath
-    , tokens :: [TsNode]
+    , ast :: [TsNode]
     }
     deriving (Show, Eq)
 
