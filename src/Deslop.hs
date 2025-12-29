@@ -1,8 +1,6 @@
 module Deslop (deslopFile, runDeslop) where
 
-import Data.Bifunctor
 import Data.ByteString (ByteString)
-import Data.ByteString qualified as B
 import Data.Text.Encoding qualified as T
 import Deslop.Imports (fixImports)
 import Effectful (Eff, MonadIO (liftIO), runEff, type (:>))
@@ -18,8 +16,8 @@ removeSlop p c = either (const c) id pipeline
   where
     pipeline :: Either String ByteString
     pipeline =
-        parseTs (TsFile {path = p, content = T.decodeUtf8 c})
-            >>= pure . T.encodeUtf8 . renderAst . (.ast) . deslop
+        T.encodeUtf8 . renderAst . (.ast) . deslop
+            <$> parseTs (TsFile {path = p, content = T.decodeUtf8 c})
 
     deslop :: TsProgram -> TsProgram
     deslop = fixImports
