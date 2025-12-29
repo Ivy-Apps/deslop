@@ -1,0 +1,201 @@
+TsModule
+  { path = "test/fixtures/typescript/01-line-comments.ts"
+  , ast =
+      [ Docs
+          { raw =
+              "/**\n * Calculates the nth Fibonacci number using an iterative approach.\n * The sequence is defined as: F(0)=0, F(1)=1, F(n) = F(n-1) + F(n-2).\n *\n * @param n - The zero-based index in the Fibonacci sequence to retrieve.\n * @returns The Fibonacci number at index n.\n * @throws {Error} If n is a negative integer.\n */"
+          , content =
+              "* Calculates the nth Fibonacci number using an iterative approach.\n * The sequence is defined as: F(0)=0, F(1)=1, F(n) = F(n-1) + F(n-2).\n *\n * @param n - The zero-based index in the Fibonacci sequence to retrieve.\n * @returns The Fibonacci number at index n.\n * @throws {Error} If n is a negative integer."
+          }
+      , Source { raw = "\n" }
+      , Source
+          { raw = "function calculateFibonacci(n: number): number {\n    " }
+      , Comment
+          { raw = "// Step 1: Input Validation.\n"
+          , content = "Step 1: Input Validation."
+          }
+      , Source { raw = "    " }
+      , Comment
+          { raw =
+              "// Check if the input 'n' is less than zero. The Fibonacci sequence starts at index 0.\n"
+          , content =
+              "Check if the input 'n' is less than zero. The Fibonacci sequence starts at index 0."
+          }
+      , Source { raw = "    " }
+      , Source { raw = "if (n < 0) {\n        " }
+      , Comment
+          { raw =
+              "// If the input is negative, throw an error indicating invalid input.\n"
+          , content =
+              "If the input is negative, throw an error indicating invalid input."
+          }
+      , Source { raw = "        " }
+      , Source
+          { raw =
+              "throw new Error(\"Fibonacci index must be a non-negative integer.\");\n    }\n\n    "
+          }
+      , Comment
+          { raw = "// Step 2: Handle Base Case 0.\n"
+          , content = "Step 2: Handle Base Case 0."
+          }
+      , Source { raw = "    " }
+      , Comment
+          { raw =
+              "// If n is exactly 0, the result is implicitly defined as 0.\n"
+          , content =
+              "If n is exactly 0, the result is implicitly defined as 0."
+          }
+      , Source { raw = "    " }
+      , Source { raw = "if (n === 0) {\n        " }
+      , Comment
+          { raw = "// Return 0 and exit the function immediately.\n"
+          , content = "Return 0 and exit the function immediately."
+          }
+      , Source { raw = "        " }
+      , Source { raw = "return 0;\n    }\n\n    " }
+      , Comment
+          { raw = "// Step 3: Handle Base Case 1.\n"
+          , content = "Step 3: Handle Base Case 1."
+          }
+      , Source { raw = "    " }
+      , Comment
+          { raw =
+              "// If n is exactly 1, the result is implicitly defined as 1.\n"
+          , content =
+              "If n is exactly 1, the result is implicitly defined as 1."
+          }
+      , Source { raw = "    " }
+      , Source { raw = "if (n === 1) {\n        " }
+      , Comment
+          { raw = "// Return 1 and exit the function immediately.\n"
+          , content = "Return 1 and exit the function immediately."
+          }
+      , Source { raw = "        " }
+      , Source { raw = "return 1;\n    }\n\n    " }
+      , Comment
+          { raw = "// Step 4: Initialize State Variables for Iteration.\n"
+          , content = "Step 4: Initialize State Variables for Iteration."
+          }
+      , Source { raw = "    " }
+      , Comment
+          { raw =
+              "// We need to keep track of the two preceding numbers to calculate the next one.\n"
+          , content =
+              "We need to keep track of the two preceding numbers to calculate the next one."
+          }
+      , Source { raw = "\n    " }
+      , Comment
+          { raw =
+              "// 'prevPrev' represents F(i-2). We initialize it to F(0), which is 0.\n"
+          , content =
+              "'prevPrev' represents F(i-2). We initialize it to F(0), which is 0."
+          }
+      , Source { raw = "    " }
+      , Source { raw = "let prevPrev: number = 0;\n\n    " }
+      , Comment
+          { raw =
+              "// 'prev' represents F(i-1). We initialize it to F(1), which is 1.\n"
+          , content =
+              "'prev' represents F(i-1). We initialize it to F(1), which is 1."
+          }
+      , Source { raw = "    " }
+      , Source { raw = "let prev: number = 1;\n\n    " }
+      , Comment
+          { raw =
+              "// 'current' will store the result of F(i) during each iteration.\n"
+          , content =
+              "'current' will store the result of F(i) during each iteration."
+          }
+      , Source { raw = "    " }
+      , Comment
+          { raw =
+              "// We initialize it to 1 (the value for n=1) as a starting point before the loop begins.\n"
+          , content =
+              "We initialize it to 1 (the value for n=1) as a starting point before the loop begins."
+          }
+      , Source { raw = "    " }
+      , Source { raw = "let current: number = 1;\n\n    " }
+      , Comment
+          { raw = "// Step 5: Begin the Iterative Loop.\n"
+          , content = "Step 5: Begin the Iterative Loop."
+          }
+      , Source { raw = "    " }
+      , Comment
+          { raw =
+              "// We start the loop at index i = 2 because indexes 0 and 1 were handled by base cases.\n"
+          , content =
+              "We start the loop at index i = 2 because indexes 0 and 1 were handled by base cases."
+          }
+      , Source { raw = "    " }
+      , Comment
+          { raw =
+              "// The loop runs as long as 'i' is less than or equal to the target index 'n'.\n"
+          , content =
+              "The loop runs as long as 'i' is less than or equal to the target index 'n'."
+          }
+      , Source { raw = "    " }
+      , Source { raw = "for (let i = 2; i <= n; i++) {\n        " }
+      , Comment
+          { raw = "// Step 5a: Calculate the next Fibonacci number.\n"
+          , content = "Step 5a: Calculate the next Fibonacci number."
+          }
+      , Source { raw = "        " }
+      , Comment
+          { raw =
+              "// Add the value two steps back (prevPrev) to the value one step back (prev).\n"
+          , content =
+              "Add the value two steps back (prevPrev) to the value one step back (prev)."
+          }
+      , Source { raw = "        " }
+      , Source { raw = "current = prevPrev + prev;\n\n        " }
+      , Comment
+          { raw =
+              "// Step 5b: Shift variables to prepare for the next iteration cycle.\n"
+          , content =
+              "Step 5b: Shift variables to prepare for the next iteration cycle."
+          }
+      , Source { raw = "        " }
+      , Comment
+          { raw =
+              "// The value that was one step back becomes the value two steps back for the next turn.\n"
+          , content =
+              "The value that was one step back becomes the value two steps back for the next turn."
+          }
+      , Source { raw = "        " }
+      , Source { raw = "prevPrev = prev;\n\n        " }
+      , Comment
+          { raw =
+              "// The value we just calculated as current becomes the value one step back for the next turn.\n"
+          , content =
+              "The value we just calculated as current becomes the value one step back for the next turn."
+          }
+      , Source { raw = "        " }
+      , Source { raw = "prev = current;\n        " }
+      , Comment
+          { raw =
+              "// End of loop iteration. The loop counter 'i' will increment now.\n"
+          , content =
+              "End of loop iteration. The loop counter 'i' will increment now."
+          }
+      , Source { raw = "    " }
+      , Source { raw = "}\n\n    " }
+      , Comment
+          { raw = "// Step 6: Return Result.\n"
+          , content = "Step 6: Return Result."
+          }
+      , Source { raw = "    " }
+      , Comment
+          { raw =
+              "// Once the loop has finished running until i=n, the variable 'current' holds the correct Fibonacci number.\n"
+          , content =
+              "Once the loop has finished running until i=n, the variable 'current' holds the correct Fibonacci number."
+          }
+      , Source { raw = "    " }
+      , Comment
+          { raw = "// Return the final calculated value.\n"
+          , content = "Return the final calculated value."
+          }
+      , Source { raw = "    " }
+      , Source { raw = "return current;\n}" }
+      ]
+  }

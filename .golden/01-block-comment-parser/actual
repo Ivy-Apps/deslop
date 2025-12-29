@@ -1,0 +1,44 @@
+TsModule
+  { path = "test/fixtures/typescript/01-block-comment.ts"
+  , ast =
+      [ Docs
+          { raw =
+              "/**\n * Calculates the nth Fibonacci number.\n * * @param n - Zero-based index.\n * @returns The Fibonacci number.\n */"
+          , content =
+              "* Calculates the nth Fibonacci number.\n * * @param n - Zero-based index.\n * @returns The Fibonacci number."
+          }
+      , Source { raw = "\n" }
+      , Import
+          { prefix = "import { validate } from \""
+          , target = "./utils"
+          , suffix = "\";\n"
+          }
+      , Source { raw = "\n" }
+      , Comment
+          { raw =
+              "/* Standard Block Comment:\n   This part handles the iterative logic \n   without using recursion. */"
+          , content =
+              "Standard Block Comment:\n   This part handles the iterative logic \n   without using recursion."
+          }
+      , Source { raw = "\n" }
+      , Source { raw = "function fib(n: number): number {\n    " }
+      , Comment
+          { raw = "// Single line comment with spaces\n"
+          , content = "Single line comment with spaces"
+          }
+      , Source { raw = "    " }
+      , Source
+          { raw =
+              "if (n <= 1) return n;\n\n    let a = 0, b = 1;\n    for (let i = 2; i <= n; i++) {\n        "
+          }
+      , Comment
+          { raw = "/* Inline block comment */"
+          , content = "Inline block comment"
+          }
+      , Source { raw = "\n        " }
+      , Source
+          { raw =
+              "let temp = a + b;\n        a = b;\n        b = temp;\n    }\n    return b;\n}"
+          }
+      ]
+  }

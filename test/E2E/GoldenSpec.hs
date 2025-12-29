@@ -14,7 +14,9 @@ import TestUtils (runFileSystemTest)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
+import TypeScript.AST
 import TypeScript.Lexer (lexer)
+import TypeScript.Parser
 import TypeScript.Tokens
 
 tsFixturesPath :: FilePath
@@ -30,21 +32,36 @@ spec = describe "E2E Golden Tests" $ do
     createGoldenTest filename = do
         let testName = takeBaseName filename
 
-        it ("Lexer " ++ testName) $ do
+        it ("Lexer " <> testName) $ do
             -- Given
-            sourceCode <- TIO.readFile (tsFixturesPath </> filename)
+            source <- TIO.readFile (tsFixturesPath </> filename)
 
             -- When
-            let res = runParser lexer filename sourceCode
+            let res = runParser lexer filename source
 
             -- Then
             case res of
-                Left e -> fail . errorBundlePretty $ e
+                Left e -> fail $ errorBundlePretty e
                 Right tokens -> do
-                    reconstruct tokens `shouldBe` sourceCode
+                    reconstruct tokens `shouldBe` source
                     return $ defaultGolden (testName <> "-lexer") (ppShow tokens)
 
-        it ("Deslop " ++ testName) $ do
+        it ("Parse " <> testName) $ do
+            -- Given
+            let path = tsFixturesPath </> filename
+            source <- TIO.readFile path
+
+            -- When
+            let res = parseTs TsFile {path = path, content = source}
+
+            -- Then
+            case res of
+                Left e -> fail e
+                Right p -> do
+                    renderAst p.ast `shouldBe` source
+                    return $ defaultGolden (testName <> "-parser") (ppShow p)
+
+        it ("Deslop " <> testName) $ do
             -- Given
             let inputPath = tsFixturesPath </> filename
             captureRef <- newIORef Nothing
