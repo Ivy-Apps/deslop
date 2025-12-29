@@ -14,9 +14,7 @@ deslopFile :: (FileSystem :> es) => FilePath -> FilePath -> Eff es ()
 deslopFile src dst = readFileBS src >>= writeFileBS dst . removeSlop src
 
 removeSlop :: FilePath -> ByteString -> ByteString
-removeSlop p c = case pipeline of
-    Left _ -> c
-    Right c' -> c'
+removeSlop p c = either (const c) id pipeline
   where
     pipeline :: Either String ByteString
     pipeline =
