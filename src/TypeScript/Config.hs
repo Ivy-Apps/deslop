@@ -1,20 +1,59 @@
-module TypeScript.Config where
+module TypeScript.Config (
+    parseTsConfig,
+    TsConfig (..),
+    ImportAlias (..),
+) where
 
-import Data.Aeson
-import Data.Map
-import Data.Text
-import GHC.Generics
+import Control.Monad (join, (>=>))
+import Data.Aeson (FromJSON, decode)
+import Data.Bifunctor (Bifunctor (bimap))
+import Data.ByteString (ByteString)
+import Data.ByteString.Lazy qualified as BL
+import Data.Map (Map)
+import Data.Map qualified as M
+import Data.Maybe (catMaybes, fromMaybe)
+import Data.Text as T (Text, stripPrefix, takeWhile)
+import GHC.Generics (Generic)
+import Utils (safeHead)
+
+data TsConfigJson = TsConfigJson
+    { compilerOptions :: CompilerOptionsJson
+    }
+    deriving (Show, Generic)
+
+data CompilerOptionsJson = CompilerOptionsJson
+    { paths :: Maybe (Map Text [Text])
+    }
+    deriving (Show, Generic)
+
+instance FromJSON TsConfigJson
+instance FromJSON CompilerOptionsJson
 
 data TsConfig = TsConfig
-    { compilerOptions :: CompilerOptions
+    { paths :: [ImportAlias]
     }
-    deriving (Show, Generic)
+    deriving (Show, Eq)
 
-data CompilerOptions = CompilerOptions
-    { baseUrl :: Maybe FilePath
-    , paths :: Maybe (Map Text [Text])
+data ImportAlias = ImportAlias
+    { label :: Text
+    , path :: Text
     }
-    deriving (Show, Generic)
+    deriving (Show, Eq)
 
-instance FromJSON TsConfig
-instance FromJSON CompilerOptions
+parseTsConfig :: ByteString -> Maybe TsConfig
+parseTsConfig = fromJson >=> extractPaths >=> pure . buildConfig
+  where
+    fromJson :: ByteString -> Maybe TsConfigJson
+    fromJson = decode . BL.fromStrict
+
+    extractPaths :: TsConfigJson -> Maybe (Map Text [Text])
+    extractPaths = (.paths) . (.compilerOptions)
+
+    buildConfig :: Map Text [Text] -> TsConfig
+    buildConfig = TsConfig . catMaybes . fmap parseAlias . M.toList . M.mapMaybe safeHead
+
+    parseAlias :: (Text, Text) -> Maybe ImportAlias
+    parseAlias = Just . uncurry ImportAlias . join bimap cleanPath
+
+    cleanPath :: Text -> Text
+    cleanPath = (fromMaybe <*> T.stripPrefix "./") . T.takeWhile (/= '*')
