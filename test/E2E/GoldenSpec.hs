@@ -7,6 +7,7 @@ import Data.Text.Encoding qualified as T
 import Data.Text.IO qualified as TIO
 import Deslop (deslopFile)
 import Effectful (runEff)
+import Effectful.Reader.Static (runReader)
 import System.Directory (listDirectory)
 import System.FilePath (takeBaseName, takeExtension, (</>))
 import Test.Hspec
@@ -16,7 +17,7 @@ import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
 import TypeScript.AST
-import TypeScript.Config (parseTsConfig)
+import TypeScript.Config (TsConfig (TsConfig), parseTsConfig)
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser
 import TypeScript.Tokens
@@ -83,10 +84,13 @@ spec = do
             -- Given
             let path = tsFixturesPath </> filename
             captureRef <- newIORef Nothing
+            let tsCfg = TsConfig [] -- TODO: Load a real one
 
             -- When
-            runEff $ runFileSystemTest captureRef $ do
-                deslopFile path "_ignored.ts"
+            runEff
+                . runFileSystemTest captureRef
+                . runReader tsCfg
+                $ deslopFile path "_ignored.ts"
 
             -- Then
             actualRes <- readIORef captureRef

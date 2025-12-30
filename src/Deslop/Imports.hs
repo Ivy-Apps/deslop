@@ -1,6 +1,9 @@
 module Deslop.Imports where
 
+import Effectful
+import Effectful.Reader.Static (Reader)
 import TypeScript.AST (TsProgram)
+import TypeScript.Config
 
-fixImports :: TsProgram -> TsProgram
-fixImports = id
+fixImports :: (Reader TsConfig :> es) => TsProgram -> Eff es TsProgram
+fixImports = pure . id
