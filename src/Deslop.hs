@@ -2,6 +2,7 @@ module Deslop (deslopFile, runDeslop) where
 
 import Control.Monad ((>=>))
 import Data.ByteString (ByteString)
+import Data.Maybe (fromMaybe)
 import Data.Text.Encoding qualified as T
 import Deslop.Imports (fixImports)
 import Effectful (Eff, MonadIO (liftIO), runEff, type (:>))
@@ -19,15 +20,18 @@ deslopFile src dst = readFileBS src >>= removeSlop src >>= writeFileBS dst
 removeSlop ::
     (Reader TsConfig :> es) =>
     FilePath -> ByteString -> Eff es ByteString
-removeSlop p c = pipeline >>= pure . either (const c) id
+removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
   where
     pipeline :: (Reader TsConfig :> es) => Eff es (Either String ByteString)
     pipeline =
-        traverse (deslop >=> pure . T.encodeUtf8 . renderAst . (.ast)) . parseTs $
+        traverse (fmap render . deslop) . parseTs $
             TsFile {path = p, content = T.decodeUtf8 c}
 
     deslop :: (Reader TsConfig :> es) => TsProgram -> Eff es TsProgram
-    deslop = fixImports
+    deslop = foldr (>=>) pure [fixImports]
+
+    render :: TsProgram -> ByteString
+    render = T.encodeUtf8 . renderAst . (.ast)
 
 runDeslop :: IO ()
 runDeslop = do
