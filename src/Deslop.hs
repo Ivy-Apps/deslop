@@ -1,5 +1,6 @@
 module Deslop (deslopFile, runDeslop) where
 
+import Control.Monad ((>=>))
 import Data.ByteString (ByteString)
 import Data.Text.Encoding qualified as T
 import Deslop.Imports (fixImports)
@@ -21,9 +22,9 @@ removeSlop ::
 removeSlop p c = pipeline >>= pure . either (const c) id
   where
     pipeline :: (Reader TsConfig :> es) => Eff es (Either String ByteString)
-    pipeline = case parseTs (TsFile {path = p, content = T.decodeUtf8 c}) of
-        Right prog -> deslop prog >>= pure . Right . T.encodeUtf8 . renderAst . (.ast)
-        Left e -> pure . Left $ e
+    pipeline =
+        traverse (deslop >=> pure . T.encodeUtf8 . renderAst . (.ast)) . parseTs $
+            TsFile {path = p, content = T.decodeUtf8 c}
 
     deslop :: (Reader TsConfig :> es) => TsProgram -> Eff es TsProgram
     deslop = fixImports
