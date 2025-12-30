@@ -3,6 +3,7 @@ module E2E.GoldenSpec (spec) where
 import Data.IORef (newIORef, readIORef)
 import Data.Text qualified as T
 import Data.Text.Encoding (decodeUtf8)
+import Data.Text.Encoding qualified as T
 import Data.Text.IO qualified as TIO
 import Deslop (deslopFile)
 import Effectful (runEff)
@@ -15,6 +16,7 @@ import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
 import TypeScript.AST
+import TypeScript.Config (parseTsConfig)
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser
 import TypeScript.Tokens
@@ -23,13 +25,29 @@ tsFixturesPath :: FilePath
 tsFixturesPath = "test/fixtures/typescript"
 
 spec :: Spec
-spec = describe "E2E Golden Tests" $ do
-    inputFiles <- runIO $ listFixtures tsFixturesPath
+spec = do
+    describe "E2E Golden Tests" $
+        (runIO $ listFixtures tsFixturesPath ".ts") >>= mapM_ tsGoldenTest
 
-    mapM_ createGoldenTest inputFiles
+    describe "TSConfig Golden Tests" $
+        (runIO $ listFixtures tsFixturesPath ".json") >>= mapM_ configGoldenTest
   where
-    createGoldenTest :: FilePath -> Spec
-    createGoldenTest filename = do
+    configGoldenTest :: FilePath -> Spec
+    configGoldenTest fname = do
+        let testName = takeBaseName fname
+
+        it ("TSConfig " <> testName) $ do
+            -- Given
+            cfgFile <- T.encodeUtf8 <$> TIO.readFile (tsFixturesPath </> fname)
+
+            -- When
+            let cfg = parseTsConfig cfgFile
+
+            -- Then
+            return $ defaultGolden (testName) (ppShow cfg)
+
+    tsGoldenTest :: FilePath -> Spec
+    tsGoldenTest filename = do
         let testName = takeBaseName filename
 
         it ("Lexer " <> testName) $ do
@@ -78,10 +96,10 @@ spec = describe "E2E Golden Tests" $ do
                     let actualContent = T.unpack $ decodeUtf8 actual
                     return $ defaultGolden (testName <> "-deslop") actualContent
 
-listFixtures :: FilePath -> IO [FilePath]
-listFixtures dir = do
+listFixtures :: FilePath -> String -> IO [FilePath]
+listFixtures dir ext = do
     files <- listDirectory dir
-    return $ filter (\f -> takeExtension f == ".ts") files
+    return $ filter (\f -> takeExtension f == ext) files
 
 reconstruct :: [TsToken] -> T.Text
 reconstruct = foldMap (.raw)
