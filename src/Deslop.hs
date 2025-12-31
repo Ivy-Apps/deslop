@@ -1,4 +1,4 @@
-module Deslop (deslopFile, runDeslop) where
+module Deslop (deslopFile, deslopProject, runDeslop) where
 
 import Control.Monad ((>=>))
 import Data.ByteString (ByteString)
@@ -11,6 +11,9 @@ import Effects.FileSystem (FileSystem, readFileBS, runFileSystemIO, writeFileBS)
 import TypeScript.AST
 import TypeScript.Config (TsConfig (TsConfig))
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
+
+deslopProject :: (FileSystem :> es) => FilePath -> Eff es ()
+deslopProject _ = return ()
 
 deslopFile ::
     (FileSystem :> es, Reader TsConfig :> es) =>

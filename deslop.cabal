@@ -75,7 +75,8 @@ test-suite deslop-test
     
     other-modules:
         TestUtils
-        E2E.GoldenSpec
+        E2E.FileGoldenSpec
+        E2E.ProjectGoldenSpec
 
     build-depends:
         base,
@@ -87,5 +88,7 @@ test-suite deslop-test
         bytestring,
         filepath,
         directory,
+        unliftio,
         megaparsec,
-        pretty-show
+        pretty-show,
+        extra

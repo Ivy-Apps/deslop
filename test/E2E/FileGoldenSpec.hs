@@ -1,4 +1,4 @@
-module E2E.GoldenSpec (spec) where
+module E2E.FileGoldenSpec (spec) where
 
 import Data.IORef (newIORef, readIORef)
 import Data.Text qualified as T

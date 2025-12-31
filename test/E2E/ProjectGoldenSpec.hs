@@ -1,0 +1,57 @@
+module E2E.ProjectGoldenSpec (spec) where
+
+import Control.Monad (forM, forM_)
+import Data.Text qualified as T
+import Data.Text.IO qualified as TIO
+import Deslop (deslopProject)
+import Effectful (runEff)
+import Effects.FileSystem (runFileSystemIO)
+import System.Directory (
+    copyFile,
+    createDirectoryIfMissing,
+    doesDirectoryExist,
+    listDirectory,
+ )
+import System.FilePath ((</>))
+import Test.Hspec
+import Test.Hspec.Golden (defaultGolden)
+import UnliftIO.Temporary (withSystemTempDirectory)
+
+projectFixturePath :: FilePath
+projectFixturePath = "test/fixtures/ts-project-1"
+
+spec :: Spec
+spec = describe "Whole Project Golden Tests" $ do
+    it "correctly transforms ts-project-1" $ do
+        -- Setup Safe Temp Directory
+        withSystemTempDirectory "deslop-test" $ \tmpDir -> do
+            -- Given
+            copyDir projectFixturePath tmpDir
+
+            -- When
+            runEff . runFileSystemIO $ deslopProject tmpDir
+
+            -- Then
+            let filesToVerify =
+                    [ "src/app/[locale]/login/page.tsx"
+                    , "src/features/home/home-screen.tsx"
+                    , "src/features/home/home.spec.ts"
+                    ]
+            results <- forM filesToVerify $ \relPath -> do
+                content <- TIO.readFile (tmpDir </> relPath)
+                let header = "\n\n>>> FILE: " <> T.pack relPath <> "\n"
+                return $ header <> content
+            let fullSnapshot = T.concat results
+            return $ defaultGolden "ts-project-1-snapshot" (T.unpack fullSnapshot)
+
+copyDir :: FilePath -> FilePath -> IO ()
+copyDir src dst = do
+    createDirectoryIfMissing True dst
+    content <- listDirectory src
+    forM_ content $ \name -> do
+        let srcPath = src </> name
+        let dstPath = dst </> name
+        isDirectory <- doesDirectoryExist srcPath
+        if isDirectory
+            then copyDir srcPath dstPath
+            else copyFile srcPath dstPath

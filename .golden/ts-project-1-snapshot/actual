@@ -1,0 +1,79 @@
+
+
+>>> FILE: src/app/[locale]/login/page.tsx
+"use client";
+
+import React from 'react';
+// Testing even deeper relative imports
+import { validateUsername } from '../../../features/login/login-form';
+import { capitalize } from '../../../lib/util';
+
+export default function LoginPage() {
+  // AI-generated state handler
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isValid = validateUsername("test_user");
+    alert(isValid ? "Success" : "Failure");
+  };
+
+  return (
+    <div>
+      <h2>{capitalize("login")}</h2>
+      <button onClick={handleLogin}>Log In</button>
+    </div>
+  );
+}
+
+>>> FILE: src/features/home/home-screen.tsx
+import React from 'react';
+// Testing relative import resolution:
+import { getHomeData } from "./home-component"; 
+// Testing cross-directory relative import resolution:
+import { Button } from "../../components/ds/Button";
+
+/**
+ * AI-generated: Home Screen layout.
+ * This component fetches home data and renders the DS button.
+ */
+export const HomeScreen: React.FC = () => {
+  const homeData = getHomeData();
+
+  const handleAction = () => {
+    // AI: Placeholder for analytics tracking
+    console.log("Button clicked on Home Screen");
+    alert(`Action for: ${homeData.title}`);
+  };
+
+  return (
+    <div className="home-screen-container">
+      <header>
+        <h1>{homeData.title}</h1>
+      </header>
+      
+      <section>
+        <p>Welcome back! Your last update was: {homeData.lastUpdated}</p>
+        
+        {/* AI: Example of using the DS Button with props */}
+        <Button 
+          label="Refresh Dashboard" 
+          variant="primary" 
+          onClick={handleAction} 
+        />
+      </section>
+    </div>
+  );
+};
+
+>>> FILE: src/features/home/home.spec.ts
+import { getHomeData } from "./home-component";
+import { mockUser } from "@tests/fixtures/fixtures";
+import * from "../../../tests/test-log"
+
+describe("Home Feature", () => {
+    it("should return valid home data for the mock user", () => {
+        testLog('Home feature test suite')
+        const data = getHomeData();
+        expect(data.title).toBeDefined();
+        expect(mockUser.name).toBe("John Doe");
+    });
+});
