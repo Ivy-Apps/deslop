@@ -27,17 +27,17 @@ tsFixturesPath = "test/fixtures/typescript"
 
 spec :: Spec
 spec = do
-    describe "E2E Golden Tests" $
+    describe "TypeScript Tests" $
         (runIO $ listFixtures tsFixturesPath ".ts") >>= mapM_ tsGoldenTest
 
-    describe "TSConfig Golden Tests" $
+    describe "TSConfig Tests" $
         (runIO $ listFixtures tsFixturesPath ".json") >>= mapM_ configGoldenTest
   where
     configGoldenTest :: FilePath -> Spec
     configGoldenTest fname = do
         let testName = takeBaseName fname
 
-        it ("TSConfig " <> testName) $ do
+        it ("case: " <> testName) $ do
             -- Given
             cfgFile <- T.encodeUtf8 <$> TIO.readFile (tsFixturesPath </> fname)
 
