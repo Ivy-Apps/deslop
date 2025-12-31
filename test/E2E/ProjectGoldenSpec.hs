@@ -39,9 +39,9 @@ spec = describe "Whole Project Golden Tests" $ do
                     ]
             results <- forM filesToVerify $ \relPath -> do
                 content <- TIO.readFile (tmpDir </> relPath)
-                let header = "\n\n>>> FILE: " <> T.pack relPath <> "\n"
+                let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
                 return $ header <> content
-            let fullSnapshot = T.concat results
+            let fullSnapshot = T.dropWhile (== '\n') $ T.concat results
             return $ defaultGolden "ts-project-1-snapshot" (T.unpack fullSnapshot)
 
 copyDir :: FilePath -> FilePath -> IO ()
