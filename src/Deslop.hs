@@ -5,15 +5,16 @@ module Deslop (
     DeslopError (..),
 ) where
 
-import Control.Monad ((>=>))
+import Control.Monad (forM_, (>=>))
 import Data.ByteString (ByteString)
 import Data.Maybe (fromMaybe)
 import Data.Text.Encoding qualified as T
+import Data.Traversable
 import Deslop.Imports (importAliases)
-import Effectful (Eff, MonadIO (liftIO), runEff, type (:>))
+import Effectful (Eff, runEff, type (:>))
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, runReader)
-import Effects.FileSystem (FileSystem, readFileBS, runFileSystemIO, writeFileBS)
+import Effects.FileSystem (FileSystem, isDirectory, listDirectory, readFileBS, runFileSystemIO, writeFileBS)
 import System.FilePath
 import TypeScript.AST
 import TypeScript.Config (TsConfig (TsConfig), parseTsConfig)
@@ -28,16 +29,30 @@ type ProjectPath = FilePath
 deslopProject :: (FileSystem :> es, Error DeslopError :> es) => ProjectPath -> Eff es ()
 deslopProject projPath = do
     let tsCfgPath = projPath </> "tsconfig.json"
-    mayCfg <- parseTsConfig <$> readFileBS tsCfgPath
-    case mayCfg of
-        Nothing -> throwError $ ConfigParseError tsCfgPath
-        Just cfg -> do
-            pure ()
+    cfgContent <- readFileBS tsCfgPath
+    cfg <- maybe (throwError $ ConfigParseError tsCfgPath) pure (parseTsConfig cfgContent)
+    files <- getTsFiles projPath
+    runReader @TsConfig cfg $ forM_ files $ \f -> do
+        deslopFile f
+
+getTsFiles :: (FileSystem :> es) => FilePath -> Eff es [FilePath]
+getTsFiles dir = do
+    entries <- listDirectory dir
+    paths <- forM entries $ \entry -> do
+        let path = dir </> entry
+        isDir <- isDirectory path
+        if isDir
+            then
+                if entry `elem` ["node_modules", ".git", "dist", ".next"]
+                    then pure []
+                    else getTsFiles path
+            else pure [path | takeExtension path `elem` [".ts", ".tsx"]]
+    pure $ concat paths
 
 deslopFile ::
     (FileSystem :> es, Reader TsConfig :> es) =>
-    FilePath -> FilePath -> Eff es ()
-deslopFile src dst = readFileBS src >>= removeSlop src >>= writeFileBS dst
+    FilePath -> Eff es ()
+deslopFile src = readFileBS src >>= removeSlop src >>= writeFileBS src
 
 removeSlop ::
     (Reader TsConfig :> es) =>

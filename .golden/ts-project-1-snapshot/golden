@@ -3,8 +3,8 @@
 
 import React from 'react';
 // Testing even deeper relative imports
-import { validateUsername } from '../../../features/login/login-form';
-import { capitalize } from '../../../lib/util';
+import { validateUsername } from '@/features/login/login-form';
+import { capitalize } from '@/lib/util';
 
 export default function LoginPage() {
   // AI-generated state handler
@@ -26,9 +26,9 @@ export default function LoginPage() {
 >>> FILE: src/features/home/home-screen.tsx
 import React from 'react';
 // Testing relative import resolution:
-import { getHomeData } from "./home-component"; 
+import { getHomeData } from "@/features/home/home-component"; 
 // Testing cross-directory relative import resolution:
-import { Button } from "../../components/ds/Button";
+import { Button } from "@/components/ds/Button";
 
 /**
  * AI-generated: Home Screen layout.
@@ -65,9 +65,9 @@ export const HomeScreen: React.FC = () => {
 
 
 >>> FILE: src/features/home/home.spec.ts
-import { getHomeData } from "./home-component";
+import { getHomeData } from "@/features/home/home-component";
 import { mockUser } from "@tests/fixtures/fixtures";
-import * from "../../../tests/test-log"
+import * from "@tests/test-log"
 
 describe("Home Feature", () => {
     it("should return valid home data for the mock user", () => {

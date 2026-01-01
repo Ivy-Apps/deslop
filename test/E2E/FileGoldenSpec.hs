@@ -96,7 +96,7 @@ spec = do
             runEff
                 . runFileSystemTest captureRef
                 . runReader tsCfg
-                $ deslopFile path "_ignored.ts"
+                $ deslopFile path
 
             -- Then
             actualRes <- readIORef captureRef
