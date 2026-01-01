@@ -2,6 +2,9 @@
 
 module Deslop.ImportSpec where
 
+import Control.Monad (forM_)
+import Data.Text (Text)
+import Data.Text qualified as T
 import Deslop.Imports (importAliases)
 import Effectful (runEff)
 import Effectful.Reader.Static
@@ -10,109 +13,47 @@ import TypeScript.AST
 import TypeScript.Config
 
 spec :: Spec
-spec = do
-    describe "Happy path" $ do
-        it "'converts '../../' relative import to '@/'" $ do
-            -- Given
-            let cfg = TsConfig [ImportAlias "@/" "src/"]
-            let prog =
-                    TsModule
-                        { path = "src/features/home/home.ts"
-                        , ast =
-                            [ Import
-                                { prefix = "import * from '"
-                                , target = "../../lib/welcome"
-                                , suffix = "';\n"
-                                }
-                            ]
-                        }
+spec = describe "importAliases" $ do
+    -- Given
+    let cfg =
+            TsConfig
+                { paths =
+                    [ ImportAlias "@/" "src/"
+                    , ImportAlias "@test/" "tests/"
+                    ]
+                }
 
-            -- When
-            prog' <- runEff . runReader cfg $ importAliases prog
+    let runTest source target =
+            runEff . runReader cfg $
+                importAliases (mkTestProgram source target)
 
-            -- Then
-            head prog'.ast
-                `shouldBe` Import
-                    { prefix = "import * from '"
-                    , target = "@/lib/welcome"
-                    , suffix = "';\n"
-                    }
+    describe "Happy Path Resolutions" $ do
+        let cases =
+                [ ("src/features/home/home.ts", "../../lib/welcome", "@/lib/welcome")
+                , ("src/features/home/home.ts", "./useHomeViewModel", "@/features/home/useHomeViewModel")
+                , ("src/features/auth.spec.ts", "../../tests/auth-fixture", "@test/auth-fixture")
+                , ("src/app.ts", "react", "react")
+                ]
 
-        it "'converts './' relative import to '@/*'" $ do
-            -- Given
-            let cfg = TsConfig [ImportAlias "@/" "src/"]
-            let prog =
-                    TsModule
-                        { path = "src/features/home/home.ts"
-                        , ast =
-                            [ Import
-                                { prefix = "import * from '"
-                                , target = "./useHomeViewModel"
-                                , suffix = "';\n"
-                                }
-                            ]
-                        }
+        forM_ cases $ \(src, target, expected) ->
+            it (T.unpack $ "resolves '" <> target <> "' -> '" <> expected <> "'") $ do
+                -- When
+                result <- runTest src target
+                -- Then
+                firstTarget result `shouldBe` expected
 
-            -- When
-            prog' <- runEff . runReader cfg $ importAliases prog
+mkTestProgram :: FilePath -> Text -> TsProgram
+mkTestProgram filePath importTarget =
+    TsModule
+        filePath
+        [ Import
+            { prefix = "import * from '"
+            , target = importTarget
+            , suffix = "';\n"
+            }
+        ]
 
-            -- Then
-            head prog'.ast
-                `shouldBe` Import
-                    { prefix = "import * from '"
-                    , target = "@/features/home/useHomeViewModel"
-                    , suffix = "';\n"
-                    }
-
-        it "does not touch bare specifiers - e.g. 'react'" $ do
-            -- Given
-            let cfg = TsConfig [ImportAlias "@/" "src/"]
-            let prog =
-                    TsModule
-                        { path = "src/features/home/home.ts"
-                        , ast =
-                            [ Import
-                                { prefix = "import * from '"
-                                , target = "react"
-                                , suffix = "';\n"
-                                }
-                            ]
-                        }
-
-            -- When
-            prog' <- runEff . runReader cfg $ importAliases prog
-
-            -- Then
-            prog `shouldBe` prog'
-
-        it "converts more complex '@test/*' imports" $ do
-            -- Given
-            let cfg =
-                    TsConfig
-                        { paths =
-                            [ ImportAlias "@test/" "tests/",
-                            ImportAlias "@/" "src/"
-                            ]
-                        }
-            let prog =
-                    TsModule
-                        { path = "src/features/auth.spec.ts"
-                        , ast =
-                            [ Import
-                                { prefix = "import * from '"
-                                , target = "../../tests/auth-fixture"
-                                , suffix = "';\n"
-                                }
-                            ]
-                        }
-
-            -- When
-            prog' <- runEff . runReader cfg $ importAliases prog
-
-            -- Then
-            head prog'.ast
-                `shouldBe` Import
-                    { prefix = "import * from '"
-                    , target = "@test/auth-fixture"
-                    , suffix = "';\n"
-                    }
+firstTarget :: TsProgram -> Text
+firstTarget p = case p.ast of
+    (Import _ t _ : _) -> t
+    _ -> error "The program has no imports!"
