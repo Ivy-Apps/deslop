@@ -23,19 +23,20 @@ importAliases prog = do
 
     fixTarget t = do
         as <- asks @TsConfig (.paths)
-        absP <- T.pack <$> absPath as t
-        let absAl = useAlias absP as
-        pure . fst $ dropCommon (absAl, t)
+        absT <- T.pack <$> absPath as t
+        case useAlias as absT of
+            Just absT' -> pure . fst $ dropCommonPre (absT', absT)
+            Nothing -> pure t
 
-    dropCommon :: (Text, Text) -> (Text, Text)
-    dropCommon (x, y) = case T.commonPrefixes x y of
+    dropCommonPre :: (Text, Text) -> (Text, Text)
+    dropCommonPre (x, y) = case T.commonPrefixes x y of
         Just (_, x', y') -> (x', y')
         Nothing -> (x, y)
 
-    useAlias fp =
-        fromMaybe fp
-            . fmap (\(ImportAlias l p) -> T.replace p l fp)
-            . find ((`T.isInfixOf` fp) . (.path))
+    useAlias as fp = applyAlias <$> findAliasForPath as
+      where
+        applyAlias (ImportAlias a p) = T.replace p a fp
+        findAliasForPath = find (\a -> a.path `T.isInfixOf` fp)
 
     absPath as = fullPath . T.unpack . reverseAlias as
 

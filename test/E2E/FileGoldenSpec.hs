@@ -17,7 +17,7 @@ import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
 import TypeScript.AST
-import TypeScript.Config (TsConfig (TsConfig), parseTsConfig)
+import TypeScript.Config (ImportAlias (ImportAlias), TsConfig (..), parseTsConfig)
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser
 import TypeScript.Tokens
@@ -84,7 +84,13 @@ spec = do
             -- Given
             let path = tsFixturesPath </> filename
             captureRef <- newIORef Nothing
-            let tsCfg = TsConfig [] -- TODO: Load a real one
+            let tsCfg =
+                    TsConfig
+                        { paths =
+                            [ ImportAlias "@/*" "src/*"
+                            , ImportAlias "@test/*" "tests/*"
+                            ]
+                        }
 
             -- When
             runEff
