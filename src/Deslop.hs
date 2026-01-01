@@ -4,7 +4,7 @@ import Control.Monad ((>=>))
 import Data.ByteString (ByteString)
 import Data.Maybe (fromMaybe)
 import Data.Text.Encoding qualified as T
-import Deslop.Imports (fixImports)
+import Deslop.Imports (importAliases)
 import Effectful (Eff, MonadIO (liftIO), runEff, type (:>))
 import Effectful.Reader.Static (Reader, runReader)
 import Effects.FileSystem (FileSystem, readFileBS, runFileSystemIO, writeFileBS)
@@ -28,7 +28,7 @@ removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
     pipeline =
         traverse (fmap render . deslop) . parseTs $
             TsFile {path = p, content = T.decodeUtf8 c}
-    deslop = foldr (>=>) pure [fixImports]
+    deslop = foldr (>=>) pure [importAliases]
     render = T.encodeUtf8 . renderAst . (.ast)
 
 runDeslop :: IO ()

@@ -5,7 +5,8 @@ import Data.ByteString qualified as BS
 import Data.IORef
 import Effectful
 import Effectful.Dispatch.Dynamic
-import Effects.FileSystem (FileSystem (FileExists, ReadFile, WriteFile))
+import Effects.FileSystem (FileSystem (FileExists, FullPath, ReadFile, WriteFile))
+import System.Directory (canonicalizePath)
 
 runFileSystemTest ::
     (IOE :> es) =>
@@ -16,3 +17,4 @@ runFileSystemTest ref = interpret $ \_ -> \case
     ReadFile path -> liftIO $ BS.readFile path
     WriteFile _path content -> liftIO $ writeIORef ref (Just content)
     FileExists _path -> pure True
+    FullPath p -> liftIO $ canonicalizePath p
