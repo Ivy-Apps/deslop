@@ -9,10 +9,12 @@ import Data.Aeson (FromJSON, decode)
 import Data.Bifunctor (Bifunctor (bimap))
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as BL
+import Data.List (sortOn)
 import Data.Map (Map)
 import Data.Map qualified as M
 import Data.Maybe (catMaybes, fromMaybe)
-import Data.Text as T (Text, stripPrefix, takeWhile)
+import Data.Ord (Down (Down))
+import Data.Text as T (Text, length, stripPrefix, takeWhile)
 import GHC.Generics (Generic)
 import Utils (safeHead)
 
@@ -50,10 +52,19 @@ parseTsConfig = fromJson >=> extractPaths >=> pure . buildConfig
     extractPaths = (.paths) . (.compilerOptions)
 
     buildConfig :: Map Text [Text] -> TsConfig
-    buildConfig = TsConfig . catMaybes . fmap parseAlias . M.toList . M.mapMaybe safeHead
+    buildConfig =
+        TsConfig
+            . sortByLongest
+            . catMaybes
+            . fmap parseAlias
+            . M.toList
+            . M.mapMaybe safeHead
 
     parseAlias :: (Text, Text) -> Maybe ImportAlias
     parseAlias = Just . uncurry ImportAlias . join bimap cleanPath
 
     cleanPath :: Text -> Text
     cleanPath = (fromMaybe <*> T.stripPrefix "./") . T.takeWhile (/= '*')
+
+    sortByLongest :: [ImportAlias] -> [ImportAlias]
+    sortByLongest = sortOn (Down . T.length . (.label))

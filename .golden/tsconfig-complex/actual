@@ -1,10 +1,10 @@
 Just
   TsConfig
     { paths =
-        [ ImportAlias { label = "@/" , path = "src/" }
+        [ ImportAlias { label = "@components/" , path = "src/components/" }
         , ImportAlias { label = "@assets/" , path = "src/assets/" }
-        , ImportAlias { label = "@components/" , path = "src/components/" }
         , ImportAlias { label = "@hooks/" , path = "src/hooks/" }
         , ImportAlias { label = "@utils/" , path = "src/utils/" }
+        , ImportAlias { label = "@/" , path = "src/" }
         ]
     }
