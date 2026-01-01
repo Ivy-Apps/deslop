@@ -21,7 +21,7 @@ deslopFile ::
 deslopFile src dst = readFileBS src >>= removeSlop src >>= writeFileBS dst
 
 removeSlop ::
-    (Reader TsConfig :> es, FileSystem :> es) =>
+    (Reader TsConfig :> es) =>
     FilePath -> ByteString -> Eff es ByteString
 removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
   where

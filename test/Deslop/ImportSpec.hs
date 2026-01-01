@@ -1,11 +1,9 @@
 module Deslop.ImportSpec where
 
-import Data.IORef
 import Deslop.Imports (importAliases)
 import Effectful (runEff)
 import Effectful.Reader.Static
 import Test.Hspec
-import TestUtils (runFileSystemTest)
 import TypeScript.AST
 import TypeScript.Config
 
@@ -26,14 +24,9 @@ spec = do
                                 }
                             ]
                         }
-            capture <- newIORef Nothing
 
             -- When
-            prog' <-
-                runEff
-                    . runFileSystemTest capture
-                    . runReader cfg
-                    $ importAliases prog
+            prog' <- runEff . runReader cfg $ importAliases prog
 
             -- Then
             prog.path `shouldBe` prog'.path

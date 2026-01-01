@@ -1,18 +1,28 @@
 module Deslop.Imports where
 
-import Data.Bifunctor
-import Data.List
+import Data.List (find, isPrefixOf)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
-import Effectful
-import Effectful.Reader.Static
-import Effects.FileSystem
-import System.FilePath
-import TypeScript.AST
-import TypeScript.Config
+import Effectful (Eff, type (:>))
+import Effectful.Reader.Static (Reader, asks)
+import System.FilePath (
+    joinPath,
+    splitDirectories,
+    takeDirectory,
+    (</>),
+ )
+import TypeScript.AST (
+    TsNode (Import, target),
+    TsProgram (ast, path),
+ )
+import TypeScript.Config (
+    ImportAlias (ImportAlias, label, path),
+    TsConfig (paths),
+ )
+import Utils (safePop)
 
-importAliases :: (Reader TsConfig :> es, FileSystem :> es) => TsProgram -> Eff es TsProgram
+importAliases :: (Reader TsConfig :> es) => TsProgram -> Eff es TsProgram
 importAliases prog = do
     ast' <- traverse fixImport prog.ast
     pure prog {ast = ast'}
@@ -70,7 +80,3 @@ normalizeSegments = joinPath . reverse . foldl' step [] . splitDirectories
         | segment == "." = stack
         | segment == ".." = safePop stack
         | otherwise = segment : stack
-
-    safePop :: [String] -> [String]
-    safePop [] = []
-    safePop (_ : xs) = xs
