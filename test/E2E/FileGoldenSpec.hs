@@ -87,8 +87,8 @@ spec = do
             let tsCfg =
                     TsConfig
                         { paths =
-                            [ ImportAlias "@/*" "src/*"
-                            , ImportAlias "@test/*" "tests/*"
+                            [ ImportAlias "@/" "test/"
+                            , ImportAlias "@test/" "tests/"
                             ]
                         }
 

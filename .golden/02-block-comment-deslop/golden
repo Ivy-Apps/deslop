@@ -1,4 +1,4 @@
-import { setup } from "./utils";
+import { setup } from "@/fixtures/typescript/utils";
 
 /* Hello, world! in JS */
 function main() {

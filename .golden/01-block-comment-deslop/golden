@@ -3,7 +3,7 @@
  * * @param n - Zero-based index.
  * @returns The Fibonacci number.
  */
-import { validate } from "./utils";
+import { validate } from "@/fixtures/typescript/utils";
 
 /* Standard Block Comment:
    This part handles the iterative logic 
