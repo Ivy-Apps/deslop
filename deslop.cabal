@@ -75,6 +75,7 @@ test-suite deslop-test
     
     other-modules:
         TestUtils
+        Deslop.ImportSpec
         E2E.FileGoldenSpec
         E2E.ProjectGoldenSpec
 
