@@ -21,11 +21,26 @@ importAliases prog = do
         pure og {target = t'}
     fixImport x = pure x
 
-    fixTarget t =
-        uncurry fpWithAlias . bimap T.pack (.paths)
-            <$> ((,) <$> fullPath (T.unpack t) <*> ask @TsConfig)
+    fixTarget t = do
+        as <- asks @TsConfig (.paths)
+        absP <- T.pack <$> absPath as t
+        let absAl = useAlias absP as
+        pure . fst $ dropCommon (absAl, t)
 
-    fpWithAlias fp =
+    dropCommon :: (Text, Text) -> (Text, Text)
+    dropCommon (x, y) = case T.commonPrefixes x y of
+        Just (_, x', y') -> (x', y')
+        Nothing -> (x, y)
+
+    useAlias fp =
         fromMaybe fp
             . fmap (\(ImportAlias l p) -> T.replace p l fp)
             . find ((`T.isInfixOf` fp) . (.path))
+
+    absPath as = fullPath . T.unpack . reverseAlias as
+
+    reverseAlias as fp =
+        fromMaybe fp
+            . fmap (\(ImportAlias l p) -> T.replace l p fp)
+            . find ((`T.isInfixOf` fp) . (.label))
+            $ as
