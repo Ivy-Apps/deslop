@@ -1,6 +1,9 @@
 module Main (main) where
 
 import Deslop (runDeslop)
+import System.Environment (getArgs)
 
 main :: IO ()
-main = runDeslop
+main = do
+    [projectPath] <- getArgs
+    runDeslop projectPath

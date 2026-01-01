@@ -3,8 +3,9 @@ module E2E.ProjectGoldenSpec (spec) where
 import Control.Monad (forM, forM_)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
-import Deslop (deslopProject)
+import Deslop (DeslopError (..), deslopProject)
 import Effectful (runEff)
+import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
 import System.Directory (
     copyFile,
@@ -29,7 +30,11 @@ spec = describe "Whole Project Golden Tests" $ do
             copyDir projectFixturePath tmpDir
 
             -- When
-            runEff . runFileSystemIO $ deslopProject tmpDir
+            _ <-
+                runEff
+                    . runFileSystemIO
+                    . runErrorNoCallStack @DeslopError
+                    $ deslopProject tmpDir
 
             -- Then
             let filesToVerify =

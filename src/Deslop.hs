@@ -1,4 +1,9 @@
-module Deslop (deslopFile, deslopProject, runDeslop) where
+module Deslop (
+    deslopFile,
+    deslopProject,
+    runDeslop,
+    DeslopError (..),
+) where
 
 import Control.Monad ((>=>))
 import Data.ByteString (ByteString)
@@ -6,14 +11,24 @@ import Data.Maybe (fromMaybe)
 import Data.Text.Encoding qualified as T
 import Deslop.Imports (importAliases)
 import Effectful (Eff, MonadIO (liftIO), runEff, type (:>))
+import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, runReader)
 import Effects.FileSystem (FileSystem, readFileBS, runFileSystemIO, writeFileBS)
+import System.FilePath
 import TypeScript.AST
-import TypeScript.Config (TsConfig (TsConfig))
+import TypeScript.Config (TsConfig (TsConfig), parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
 
-deslopProject :: (FileSystem :> es) => FilePath -> Eff es ()
-deslopProject _ = return ()
+data DeslopError
+    = ConfigParseError FilePath
+    deriving (Show, Eq)
+
+type ProjectPath = FilePath
+
+deslopProject :: (FileSystem :> es, Error DeslopError :> es) => ProjectPath -> Eff es ()
+deslopProject projPath = do
+    cfg <- parseTsConfig <$> readFileBS (projPath </> "tsconfig.json")
+    pure ()
 
 deslopFile ::
     (FileSystem :> es, Reader TsConfig :> es) =>
@@ -31,11 +46,11 @@ removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
     deslop = foldr (>=>) pure [importAliases]
     render = T.encodeUtf8 . renderAst . (.ast)
 
-runDeslop :: IO ()
-runDeslop = do
-    runEff
-        . runFileSystemIO
-        . runReader (TsConfig [])
-        $ do
-            deslopFile "test/fixtures/typescript/01-imports.ts" "demo.ts"
-            liftIO $ putStrLn "Deslop complete ✅"
+runDeslop :: ProjectPath -> IO ()
+runDeslop projPath = do
+    res <-
+        runEff . runFileSystemIO . runErrorNoCallStack @DeslopError $
+            deslopProject projPath
+    case res of
+        Left err -> putStrLn $ "❌ Error: " ++ show err
+        Right _ -> putStrLn "Deslop successful ✅"
