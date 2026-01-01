@@ -27,8 +27,12 @@ type ProjectPath = FilePath
 
 deslopProject :: (FileSystem :> es, Error DeslopError :> es) => ProjectPath -> Eff es ()
 deslopProject projPath = do
-    cfg <- parseTsConfig <$> readFileBS (projPath </> "tsconfig.json")
-    pure ()
+    let tsCfgPath = projPath </> "tsconfig.json"
+    mayCfg <- parseTsConfig <$> readFileBS tsCfgPath
+    case mayCfg of
+        Nothing -> throwError $ ConfigParseError tsCfgPath
+        Just cfg -> do
+            pure ()
 
 deslopFile ::
     (FileSystem :> es, Reader TsConfig :> es) =>
