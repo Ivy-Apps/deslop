@@ -18,8 +18,8 @@ spec = describe "importAliases" $ do
     let cfg =
             TsConfig
                 { paths =
-                    [ ImportAlias "@/" "src/"
-                    , ImportAlias "@test/" "tests/"
+                    [ ImportAlias "@test/" "tests/"
+                    , ImportAlias "@/" "src/"
                     ]
                 }
 
@@ -33,6 +33,7 @@ spec = describe "importAliases" $ do
                 , ("src/features/home/home.ts", "./useHomeViewModel", "@/features/home/useHomeViewModel")
                 , ("src/features/auth.spec.ts", "../../tests/auth-fixture", "@test/auth-fixture")
                 , ("src/app.ts", "react", "react")
+                , ("src/feature/f1/f1.spec.ts", "@/../tests/fixtures", "@test/fixtures")
                 ]
 
         forM_ cases $ \(src, target, expected) ->
