@@ -21,19 +21,14 @@ deslopFile ::
 deslopFile src dst = readFileBS src >>= removeSlop src >>= writeFileBS dst
 
 removeSlop ::
-    (Reader TsConfig :> es) =>
+    (Reader TsConfig :> es, FileSystem :> es) =>
     FilePath -> ByteString -> Eff es ByteString
 removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
   where
-    pipeline :: (Reader TsConfig :> es) => Eff es (Either String ByteString)
     pipeline =
         traverse (fmap render . deslop) . parseTs $
             TsFile {path = p, content = T.decodeUtf8 c}
-
-    deslop :: (Reader TsConfig :> es) => TsProgram -> Eff es TsProgram
     deslop = foldr (>=>) pure [fixImports]
-
-    render :: TsProgram -> ByteString
     render = T.encodeUtf8 . renderAst . (.ast)
 
 runDeslop :: IO ()
