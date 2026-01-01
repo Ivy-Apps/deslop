@@ -46,3 +46,6 @@ Thumbs.db
 
 # Deslop local runs
 demo.ts
+
+# Golden tests
+actual

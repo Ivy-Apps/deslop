@@ -1,3 +1,0 @@
-Just
-  TsConfig
-    { paths = [ ImportAlias { label = "@/" , path = "src/" } ] }
