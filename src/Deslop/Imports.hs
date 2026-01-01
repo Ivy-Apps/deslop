@@ -8,6 +8,7 @@ import Data.Text qualified as T
 import Effectful
 import Effectful.Reader.Static
 import Effects.FileSystem
+import System.FilePath
 import TypeScript.AST
 import TypeScript.Config
 
@@ -23,7 +24,7 @@ importAliases prog = do
 
     fixTarget t = do
         as <- asks @TsConfig (.paths)
-        absT <- T.pack <$> absPath as t
+        let absT = T.pack . absPath as $ t
         case useAlias as absT of
             Just absT' -> pure . fst $ dropCommonPre (absT', absT)
             Nothing -> pure t
@@ -38,10 +39,38 @@ importAliases prog = do
         applyAlias (ImportAlias a p) = T.replace p a fp
         findAliasForPath = find (\a -> a.path `T.isInfixOf` fp)
 
-    absPath as = fullPath . T.unpack . reverseAlias as
+    absPath as = resolveTsImport prog.path . T.unpack . reverseAlias as
 
     reverseAlias as fp =
         fromMaybe fp
             . fmap (\(ImportAlias l p) -> T.replace l p fp)
             . find ((`T.isInfixOf` fp) . (.label))
             $ as
+
+resolveTsImport :: FilePath -> FilePath -> FilePath
+resolveTsImport sourcePath importPath
+    | isBareSpecifier importPath = importPath
+    | otherwise =
+        let
+            sourceDir = takeDirectory sourcePath
+            rawCombined = sourceDir </> importPath
+         in
+            normalizeSegments rawCombined
+
+isBareSpecifier :: String -> Bool
+isBareSpecifier path = not (isRelative path || isAbsolute path)
+  where
+    isRelative p = "." `isPrefixOf` p -- Covers "./", "../", and just "."
+    isAbsolute p = "/" `isPrefixOf` p
+
+normalizeSegments :: FilePath -> FilePath
+normalizeSegments = joinPath . reverse . foldl' step [] . splitDirectories
+  where
+    step stack segment
+        | segment == "." = stack
+        | segment == ".." = safePop stack
+        | otherwise = segment : stack
+
+    safePop :: [String] -> [String]
+    safePop [] = []
+    safePop (_ : xs) = xs

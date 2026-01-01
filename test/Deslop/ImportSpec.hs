@@ -17,7 +17,7 @@ spec = do
             let cfg = TsConfig [ImportAlias "@/" "src/"]
             let prog =
                     TsModule
-                        { path = "mac/project/src/features/home/home.ts"
+                        { path = "src/features/home/home.ts"
                         , ast =
                             [ Import
                                 { prefix = "import * from '"
