@@ -34,8 +34,11 @@ runCLILog action = do
                     hFlush stdout
                 LogSummary -> liftIO $ do
                     count <- readIORef counterRef
-                    putStrLn "─────────────────────────────────────────"
                     setSGR [SetColor Foreground Vivid Green, SetConsoleIntensity BoldIntensity]
-                    putStrLn $ "✨ Cleaned " ++ show count ++ " files successfully!"
+                    if count > 0
+                        then
+                            putStrLn $ "✨ Cleaned " ++ show count ++ " files successfully!"
+                        else
+                            putStrLn $ "✨ The project is already clean!"
                     setSGR [Reset]
           )

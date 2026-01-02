@@ -11,9 +11,10 @@ import Data.Maybe (fromMaybe)
 import Data.Text.Encoding qualified as T
 import Data.Traversable
 import Deslop.Imports (importAliases)
-import Effectful (Eff, runEff, type (:>))
+import Effectful (Eff, liftIO, runEff, type (:>))
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, runReader)
+import Effects.CLILog
 import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
@@ -23,6 +24,7 @@ import Effects.FileSystem (
     runFileSystemIO,
     writeFileBS,
  )
+import System.Console.ANSI
 import System.FilePath
 import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
@@ -38,6 +40,7 @@ deslopProject ::
     ( WrFileSystem :> es
     , RoFileSystem :> es
     , Error DeslopError :> es
+    , CLILog :> es
     ) =>
     ProjectPath -> Eff es ()
 deslopProject projPath = do
@@ -65,9 +68,17 @@ deslopFile ::
     ( RoFileSystem :> es
     , WrFileSystem :> es
     , Reader TsConfig :> es
+    , CLILog :> es
     ) =>
     FilePath -> Eff es ()
-deslopFile src = readFileBS src >>= removeSlop src >>= writeFileBS src
+deslopFile src = do
+    c <- readFileBS src
+    c' <- removeSlop src c
+    if c /= c'
+        then do
+            writeFileBS src c'
+            logModification src
+        else pure ()
 
 removeSlop ::
     (Reader TsConfig :> es) =>
@@ -82,9 +93,20 @@ removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
 
 runDeslop :: ProjectPath -> IO ()
 runDeslop projPath = do
-    res <-
-        runEff . runFileSystemIO . runErrorNoCallStack @DeslopError $
-            deslopProject projPath
-    case res of
-        Left err -> putStrLn $ "❌ Error: " ++ show err
-        Right _ -> putStrLn "Deslop successful ✅"
+    setSGR [SetColor Foreground Vivid Blue, SetConsoleIntensity BoldIntensity]
+    putStrLn $ "🚀 Deslopping project: " <> projPath
+    setSGR [Reset]
+    putStrLn "─────────────────────────────────────────"
+    putStrLn "Changelog:"
+    runEff
+        . runFileSystemIO
+        . runCLILog
+        $ do
+            res <- runErrorNoCallStack @DeslopError (deslopProject projPath)
+            liftIO $ putStrLn "─────────────────────────────────────────"
+            case res of
+                Left err -> liftIO $ do
+                    setSGR [SetColor Foreground Vivid Red]
+                    putStrLn $ "❌ Error: " <> show err
+                    setSGR [Reset]
+                Right _ -> logSummary
