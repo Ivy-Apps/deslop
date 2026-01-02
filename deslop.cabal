@@ -47,11 +47,10 @@ library
         text,
         bytestring,
         containers,
-        unordered-containers,
-        vector,
         directory,
         filepath,
-        megaparsec
+        megaparsec,
+        extra
 
     hs-source-dirs:   src
 
@@ -61,7 +60,8 @@ executable deslop
     
     build-depends:
         base,
-        deslop
+        deslop,
+        extra
 
     hs-source-dirs:   app
 
