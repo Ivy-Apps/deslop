@@ -34,7 +34,6 @@ jobs:
         with:
           ghc-version: '9.10.1'
           cabal-version: 'latest'
-          cache: true
 
       - name: Cache ~/.cabal/store
         uses: actions/cache@v4
