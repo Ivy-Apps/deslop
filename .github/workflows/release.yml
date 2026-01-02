@@ -15,15 +15,11 @@ jobs:
     strategy:
       matrix:
         include:
-          # Apple Silicon (M1/M2/M3)
           - os: macos-latest
             target: aarch64-apple-darwin
             cabal-flags: ""
-            
-          # Linux x86_64
           - os: ubuntu-latest
             target: x86_64-linux-unknown
-            # Static linking ensures it runs on any Linux distro without installing deps
             cabal-flags: "--enable-executable-static"
 
     steps:
@@ -50,12 +46,8 @@ jobs:
       - name: Build Binary
         run: |
           cabal build all --enable-tests ${{ matrix.cabal-flags }}
-          
           mkdir -p dist
-          # Robustly find the binary path regardless of OS
           cp $(cabal list-bin deslop) dist/deslop
-          
-          # Strip symbols to reduce size (works on both Mac and Linux)
           strip dist/deslop
 
       - name: Compress Binary
@@ -86,8 +78,7 @@ jobs:
         run: |
           TAG=${{ github.ref_name }}
           VERSION=${TAG#v}
-          echo "Processing version $VERSION..."
-
+          
           # Download assets to calculate hashes
           wget -q -O deslop-linux.tar.gz "https://github.com/ivy-apps/deslop/releases/download/$TAG/deslop-x86_64-linux-unknown.tar.gz"
           wget -q -O deslop-arm.tar.gz "https://github.com/ivy-apps/deslop/releases/download/$TAG/deslop-aarch64-apple-darwin.tar.gz"
@@ -95,20 +86,20 @@ jobs:
           SHA_LINUX=$(sha256sum deslop-linux.tar.gz | awk '{print $1}')
           SHA_ARM=$(sha256sum deslop-arm.tar.gz | awk '{print $1}')
 
-          # Generate Formula with Linux Support
-          cat > tap/Formula/deslop.rb <<EOF
+          # Use 'EOF' in quotes to prevent shell variable expansion inside the Heredoc
+          cat > tap/Formula/deslop.rb <<'EOF'
           class Deslop < Formula
             desc "A CLI tool for the Deslop project"
             homepage "https://github.com/ivy-apps/deslop"
-            version "$VERSION"
+            version "VERSION_PLACEHOLDER"
             license "BSD-3-Clause"
 
             if OS.mac? && Hardware::CPU.arm?
-              url "https://github.com/ivy-apps/deslop/releases/download/$TAG/deslop-aarch64-apple-darwin.tar.gz"
-              sha256 "$SHA_ARM"
+              url "https://github.com/ivy-apps/deslop/releases/download/TAG_PLACEHOLDER/deslop-aarch64-apple-darwin.tar.gz"
+              sha256 "SHA_ARM_PLACEHOLDER"
             elsif OS.linux?
-              url "https://github.com/ivy-apps/deslop/releases/download/$TAG/deslop-x86_64-linux-unknown.tar.gz"
-              sha256 "$SHA_LINUX"
+              url "https://github.com/ivy-apps/deslop/releases/download/TAG_PLACEHOLDER/deslop-x86_64-linux-unknown.tar.gz"
+              sha256 "SHA_LINUX_PLACEHOLDER"
             end
 
             def install
@@ -120,6 +111,12 @@ jobs:
             end
           end
           EOF
+
+          # Use sed to swap placeholders with the actual variables calculated above
+          sed -i "s|VERSION_PLACEHOLDER|$VERSION|g" tap/Formula/deslop.rb
+          sed -i "s|TAG_PLACEHOLDER|$TAG|g" tap/Formula/deslop.rb
+          sed -i "s|SHA_ARM_PLACEHOLDER|$SHA_ARM|g" tap/Formula/deslop.rb
+          sed -i "s|SHA_LINUX_PLACEHOLDER|$SHA_LINUX|g" tap/Formula/deslop.rb
 
           cd tap
           git config user.name "GitHub Actions"
