@@ -49,3 +49,5 @@ demo.ts
 
 # Golden tests
 actual
+
+sandbox/
