@@ -1,0 +1,72 @@
+name: Haskell CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+        ghc: ['9.10.1']
+        cabal: ['latest']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Haskell
+      uses: haskell-actions/setup@v2
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: ${{ matrix.cabal }}
+
+    - name: Cache ~/.cabal/store
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cabal/store
+          dist-newstyle
+        # The cache key is now tied strictly to your frozen dependencies
+        key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
+        
+        # Fallback: If freeze file changed, try to match partial cache from previous runs
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.ghc }}-
+
+    - name: Build dependencies
+      run: cabal build all --only-dependencies --enable-tests
+
+    - name: Build Project
+      run: cabal build all --enable-tests
+
+    - name: Run Tests
+      run: cabal test all
+
+    # Packaging and Distribution (Only runs on Main Push)
+    - name: Prepare Binary
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        mkdir -p dist
+        
+        EXE_PATH=$(cabal list-bin deslop)
+        echo "Binary found at: $EXE_PATH"
+        
+        cp "$EXE_PATH" dist/deslop
+        strip dist/deslop
+        
+        # Sanity check: Ensure we haven't linked weird libs
+        otool -L dist/deslop
+
+    - name: Upload Binary Artifact
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v4
+      with:
+        name: deslop-${{ runner.os }}-${{ runner.arch }}
+        path: dist/deslop

@@ -1,4 +1,4 @@
-.PHONY: sandbox
+.PHONY: sandbox update
 
 .DEFAULT_GOAL := help
 
@@ -7,6 +7,14 @@ sandbox: ## Generate a testing '/sandbox' project dir
 	@mkdir -p sandbox
 	@cp -a test/fixtures/ts-project-1/. sandbox/
 	@echo 'Sandbox generated ✅'
+
+update: ## Update Cabal index, get latest versions, and freeze them
+	@echo "Updating Cabal index..."
+	@cabal update
+	@echo "Resolving fresh dependencies..."
+	@rm -f cabal.project.freeze
+	@cabal freeze
+	@echo "Done! Dependencies updated and locked in 'cabal.project.freeze' ❄️"
 
 help:
 	@echo 'Usage: make [target]'
