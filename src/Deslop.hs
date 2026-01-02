@@ -12,7 +12,6 @@ import Data.ByteString (ByteString)
 import Data.Maybe (fromMaybe)
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
-import Data.Traversable
 import Deslop.Imports (importAliases)
 import Effectful (Eff, liftIO, runEff, type (:>))
 import Effectful.Error.Static
