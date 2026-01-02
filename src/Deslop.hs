@@ -9,6 +9,7 @@ import Control.Monad (forM_, (>=>))
 import Data.ByteString (ByteString)
 import Data.Maybe (fromMaybe)
 import Data.Text.Encoding qualified as T
+import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Data.Traversable
 import Deslop.Imports (importAliases)
 import Effectful (Eff, liftIO, runEff, type (:>))
@@ -26,6 +27,7 @@ import Effects.FileSystem (
  )
 import System.Console.ANSI
 import System.FilePath
+import Text.Printf (printf)
 import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
@@ -93,6 +95,7 @@ removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
 
 runDeslop :: ProjectPath -> IO ()
 runDeslop projPath = do
+    start <- getCurrentTime
     setSGR [SetColor Foreground Vivid Blue, SetConsoleIntensity BoldIntensity]
     putStrLn $ "🚀 Deslopping project: " <> projPath
     setSGR [Reset]
@@ -109,4 +112,12 @@ runDeslop projPath = do
                     setSGR [SetColor Foreground Vivid Red]
                     putStrLn $ "❌ Error: " <> show err
                     setSGR [Reset]
-                Right _ -> logSummary
+                Right _ -> do
+                    logSummary
+                    end <- liftIO $ getCurrentTime
+                    let diff = diffUTCTime end start
+                    let seconds = realToFrac diff :: Double
+                    liftIO $
+                        if seconds < 1
+                            then printf "⏱  Finished in %.2fms\n" (seconds * 1000)
+                            else printf "⏱  Finished in %.2fs\n" seconds

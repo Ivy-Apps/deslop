@@ -52,7 +52,8 @@ library
         filepath,
         megaparsec,
         extra,
-        ansi-terminal
+        ansi-terminal,
+        time
 
     hs-source-dirs:   src
 
