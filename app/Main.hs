@@ -1,10 +1,7 @@
 module Main (main) where
 
-import Data.Text (Text)
-import Data.Text qualified as T
 import Deslop (Params (..), runDeslop)
 import Options.Applicative
-import System.Environment (getArgs)
 
 pParams :: Parser Params
 pParams =
