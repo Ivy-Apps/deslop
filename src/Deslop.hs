@@ -17,7 +17,7 @@ import Effectful.Reader.Static (Reader, runReader)
 import Effects.FileSystem (FileSystem, isDirectory, listDirectory, readFileBS, runFileSystemIO, writeFileBS)
 import System.FilePath
 import TypeScript.AST
-import TypeScript.Config (TsConfig (TsConfig), parseTsConfig)
+import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
 
 data DeslopError
@@ -32,8 +32,7 @@ deslopProject projPath = do
     cfgContent <- readFileBS tsCfgPath
     cfg <- maybe (throwError $ ConfigParseError tsCfgPath) pure (parseTsConfig cfgContent)
     files <- getTsFiles projPath
-    runReader @TsConfig cfg $ forM_ files $ \f -> do
-        deslopFile f
+    runReader @TsConfig cfg $ forM_ files deslopFile
 
 getTsFiles :: (FileSystem :> es) => FilePath -> Eff es [FilePath]
 getTsFiles dir = do
