@@ -1,0 +1,129 @@
+name: Release & Homebrew
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build & Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Apple Silicon (M1/M2/M3)
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            cabal-flags: ""
+            
+          # Linux x86_64
+          - os: ubuntu-latest
+            target: x86_64-linux-unknown
+            # Static linking ensures it runs on any Linux distro without installing deps
+            cabal-flags: "--enable-executable-static"
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Haskell
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10.1'
+          cabal-version: 'latest'
+
+      - name: Cache ~/.cabal/store
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-${{ matrix.target }}-ghc9.10.1-${{ hashFiles('cabal.project.freeze') }}
+
+      - name: Install Libs (Linux only)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgmp-dev libncurses-dev
+
+      - name: Build Binary
+        run: |
+          cabal build all --enable-tests ${{ matrix.cabal-flags }}
+          
+          mkdir -p dist
+          # Robustly find the binary path regardless of OS
+          cp $(cabal list-bin deslop) dist/deslop
+          
+          # Strip symbols to reduce size (works on both Mac and Linux)
+          strip dist/deslop
+
+      - name: Compress Binary
+        run: |
+          cd dist
+          tar -czf deslop-${{ matrix.target }}.tar.gz deslop
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/deslop-${{ matrix.target }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew:
+    name: Update Homebrew Tap
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Tap Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ivy-apps/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Update Formula
+        run: |
+          TAG=${{ github.ref_name }}
+          VERSION=${TAG#v}
+          echo "Processing version $VERSION..."
+§
+          # Download assets to calculate hashes
+          wget -q -O deslop-linux.tar.gz "https://github.com/ivy-apps/deslop/releases/download/$TAG/deslop-x86_64-linux-unknown.tar.gz"
+          wget -q -O deslop-arm.tar.gz "https://github.com/ivy-apps/deslop/releases/download/$TAG/deslop-aarch64-apple-darwin.tar.gz"
+          
+          SHA_LINUX=$(sha256sum deslop-linux.tar.gz | awk '{print $1}')
+          SHA_ARM=$(sha256sum deslop-arm.tar.gz | awk '{print $1}')
+
+          # Generate Formula with Linux Support
+          cat > tap/Formula/deslop.rb <<EOF
+          class Deslop < Formula
+            desc "A CLI tool for the Deslop project"
+            homepage "https://github.com/ivy-apps/deslop"
+            version "$VERSION"
+            license "BSD-3-Clause"
+
+            if OS.mac? && Hardware::CPU.arm?
+              url "https://github.com/ivy-apps/deslop/releases/download/$TAG/deslop-aarch64-apple-darwin.tar.gz"
+              sha256 "$SHA_ARM"
+            elsif OS.linux?
+              url "https://github.com/ivy-apps/deslop/releases/download/$TAG/deslop-x86_64-linux-unknown.tar.gz"
+              sha256 "$SHA_LINUX"
+            end
+
+            def install
+              bin.install "deslop"
+            end
+
+            test do
+              system "#{bin}/deslop", "--help"
+            end
+          end
+          EOF
+
+          cd tap
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Formula/deslop.rb
+          git commit -m "Update deslop formula to $TAG" || echo "No changes to commit"
+          git push
