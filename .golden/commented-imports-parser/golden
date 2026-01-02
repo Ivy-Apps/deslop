@@ -1,0 +1,34 @@
+TsModule
+  { path = "test/fixtures/typescript/commented-imports.ts"
+  , ast =
+      [ Import
+          { prefix = "import { useSate } from '"
+          , target = "@react/hooks"
+          , suffix = "';\n"
+          }
+      , Comment
+          { raw =
+              "// import { firstName } from './users'; <-- we don't need that\n"
+          , content =
+              "import { firstName } from './users'; <-- we don't need that"
+          }
+      , Comment
+          { raw =
+              "/*\nimport * from 'react';\nimport * from '../../lib/utils';\n*/"
+          , content =
+              "import * from 'react';\nimport * from '../../lib/utils';"
+          }
+      , Source { raw = "\n\n" }
+      , Source
+          { raw = "function main() {\n    console.log('Hi');\n    " }
+      , Comment
+          { raw = "// await import('../old/data');\n"
+          , content = "await import('../old/data');"
+          }
+      , Source { raw = "    " }
+      , Source { raw = "await " }
+      , Import
+          { prefix = "import('" , target = "../new/data" , suffix = "')" }
+      , Source { raw = ";\n}" }
+      ]
+  }

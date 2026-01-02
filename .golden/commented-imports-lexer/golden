@@ -1,0 +1,36 @@
+[ TsToken
+    { raw = "import { useSate } from '@react/hooks';\n"
+    , kind = ImportK
+    }
+, TsToken
+    { raw =
+        "// import { firstName } from './users'; <-- we don't need that\n"
+    , kind =
+        CommentK
+          { comment =
+              "import { firstName } from './users'; <-- we don't need that"
+          }
+    }
+, TsToken
+    { raw =
+        "/*\nimport * from 'react';\nimport * from '../../lib/utils';\n*/"
+    , kind =
+        CommentK
+          { comment =
+              "import * from 'react';\nimport * from '../../lib/utils';"
+          }
+    }
+, TsToken { raw = "\n\n" , kind = WhitespaceK }
+, TsToken
+    { raw = "function main() {\n    console.log('Hi');\n    "
+    , kind = RawK
+    }
+, TsToken
+    { raw = "// await import('../old/data');\n"
+    , kind = CommentK { comment = "await import('../old/data');" }
+    }
+, TsToken { raw = "    " , kind = WhitespaceK }
+, TsToken { raw = "await " , kind = RawK }
+, TsToken { raw = "import('../new/data')" , kind = ImportK }
+, TsToken { raw = ";\n}" , kind = RawK }
+]
