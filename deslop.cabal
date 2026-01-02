@@ -36,6 +36,7 @@ library
         TypeScript.Lexer
         TypeScript.Config
         Effects.FileSystem
+        Effects.CLILog
         Utils
 
     build-depends:    
@@ -50,7 +51,8 @@ library
         directory,
         filepath,
         megaparsec,
-        extra
+        extra,
+        ansi-terminal
 
     hs-source-dirs:   src
 
@@ -61,7 +63,8 @@ executable deslop
     build-depends:
         base,
         deslop,
-        extra
+        extra,
+        ansi-terminal
 
     hs-source-dirs:   app
 
