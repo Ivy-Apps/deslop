@@ -43,6 +43,10 @@ spec = describe "Whole Project Golden Tests" $ do
                     [ "src/app/[locale]/login/page.tsx"
                     , "src/features/home/home-screen.tsx"
                     , "src/features/home/home.spec.ts"
+                    , "src/app/[locale]/login/page.tsx"
+                    , "src/features/login/login.spec.ts"
+                    , "src/features/login/login-form.ts"
+                    , "tests/fixtures/fixtures.ts"
                     ]
             results <- forM filesToVerify $ \relPath -> do
                 content <- TIO.readFile (tmpDir </> relPath)

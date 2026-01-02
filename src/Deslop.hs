@@ -74,18 +74,16 @@ tsConfig projPath = loadConfig $ projPath </> "tsconfig.json"
     handleInvalid = throwError . TsConfigParseError
 
 getTsFiles :: (RoFileSystem :> es) => FilePath -> Eff es [FilePath]
-getTsFiles dir = do
-    entries <- listDirectory dir
-    paths <- forM entries $ \entry -> do
-        let path = dir </> entry
-        isDir <- isDirectory path
-        if isDir
-            then
-                if entry `elem` ["node_modules", ".git", "dist", ".next"]
-                    then pure []
-                    else getTsFiles path
-            else pure [path | takeExtension path `elem` [".ts", ".tsx"]]
-    pure $ concat paths
+getTsFiles dir = listDirectory dir >>= fmap concat . traverse (processEntry dir)
+  where
+    processEntry root entry
+        | entry `elem` ignored = pure []
+        | otherwise = resolve $ root </> entry
+
+    resolve path = isDirectory path >>= bool (pure $ tsOrEmpty path) (getTsFiles path)
+
+    tsOrEmpty f = [f | takeExtension f `elem` [".ts", ".tsx"]]
+    ignored = ["node_modules", ".git", "dist", ".next"]
 
 deslopFile ::
     ( RoFileSystem :> es

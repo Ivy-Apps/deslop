@@ -77,3 +77,67 @@ describe("Home Feature", () => {
         expect(mockUser.name).toBe("John Doe");
     });
 });
+
+
+>>> FILE: src/app/[locale]/login/page.tsx
+"use client";
+
+import React from 'react';
+// Testing even deeper relative imports
+import { validateUsername } from '@/features/login/login-form';
+import { capitalize } from '@/lib/util';
+
+export default function LoginPage() {
+  // AI-generated state handler
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isValid = validateUsername("test_user");
+    alert(isValid ? "Success" : "Failure");
+  };
+
+  return (
+    <div>
+      <h2>{capitalize("login")}</h2>
+      <button onClick={handleLogin}>Log In</button>
+    </div>
+  );
+}
+
+
+>>> FILE: src/features/login/login.spec.ts
+import { validateUsername } from "@/features/login/login-form";
+import { mockUser } from "@tests/fixtures/fixtures";
+
+describe("Login Feature", () => {
+  // AI: Ensure the username from fixtures is valid
+  it("should validate the fixture user correctly", () => {
+    const result = validateUsername(mockUser.name);
+    expect(result).toBe(true);
+  });
+});
+
+
+>>> FILE: src/features/login/login-form.ts
+import { capitalize } from "@/lib/util";
+
+export const validateUsername = (name: string) => {
+  // 1. Validate input
+  if (name.length < 3) return false;
+
+  // 1a. Log for debug purposes
+  console.log(`Validating user: ${capitalize(name)}`);
+
+  // 2. Valid name - return true
+  return true;
+};
+
+
+>>> FILE: tests/fixtures/fixtures.ts
+// AI: Mock data for unit tests
+import { formatDate } from "@/lib/util";
+
+export const mockUser = {
+  id: 1,
+  name: "John Doe",
+  createdAt: formatDate(new Date()),
+};
