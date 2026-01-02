@@ -10,18 +10,9 @@ permissions:
 
 jobs:
   build-release:
-    name: Build & Release
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            cabal-flags: ""
-          - os: ubuntu-latest
-            target: x86_64-linux-unknown
-            cabal-flags: "--enable-executable-static"
-
+    name: Build & Release (Apple Silicon)
+    runs-on: macos-latest
+    
     steps:
       - uses: actions/checkout@v4
       
@@ -31,21 +22,19 @@ jobs:
           ghc-version: '9.10.1'
           cabal-version: 'latest'
 
-      - name: Cache ~/.cabal/store
+      - name: Cache Cabal Store
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cabal/store
+            /Users/runner/.cabal/store
             dist-newstyle
-          key: ${{ runner.os }}-${{ matrix.target }}-ghc9.10.1-${{ hashFiles('cabal.project.freeze') }}
-
-      - name: Install Libs (Linux only)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgmp-dev libncurses-dev
+          key: ${{ runner.os }}-arm64-ghc9.10.1-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: |
+            ${{ runner.os }}-arm64-ghc9.10.1-
 
       - name: Build Binary
         run: |
-          cabal build all --enable-tests ${{ matrix.cabal-flags }}
+          cabal build all --enable-tests
           mkdir -p dist
           cp $(cabal list-bin deslop) dist/deslop
           strip dist/deslop
@@ -53,12 +42,12 @@ jobs:
       - name: Compress Binary
         run: |
           cd dist
-          tar -czf deslop-${{ matrix.target }}.tar.gz deslop
+          tar -czf deslop-aarch64-apple-darwin.tar.gz deslop
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/deslop-${{ matrix.target }}.tar.gz
+          files: dist/deslop-aarch64-apple-darwin.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -79,14 +68,11 @@ jobs:
           TAG=${{ github.ref_name }}
           VERSION=${TAG#v}
           
-          # Download assets to calculate hashes
-          wget -q -O deslop-linux.tar.gz "https://github.com/ivy-apps/deslop/releases/download/$TAG/deslop-x86_64-linux-unknown.tar.gz"
+          # Download only the ARM asset
           wget -q -O deslop-arm.tar.gz "https://github.com/ivy-apps/deslop/releases/download/$TAG/deslop-aarch64-apple-darwin.tar.gz"
-          
-          SHA_LINUX=$(sha256sum deslop-linux.tar.gz | awk '{print $1}')
           SHA_ARM=$(sha256sum deslop-arm.tar.gz | awk '{print $1}')
 
-          # Use 'EOF' in quotes to prevent shell variable expansion inside the Heredoc
+          # Generate Formula
           cat > tap/Formula/deslop.rb <<'EOF'
           class Deslop < Formula
             desc "A CLI tool for the Deslop project"
@@ -94,12 +80,10 @@ jobs:
             version "VERSION_PLACEHOLDER"
             license "BSD-3-Clause"
 
+            # Only supporting Apple Silicon
             if OS.mac? && Hardware::CPU.arm?
               url "https://github.com/ivy-apps/deslop/releases/download/TAG_PLACEHOLDER/deslop-aarch64-apple-darwin.tar.gz"
               sha256 "SHA_ARM_PLACEHOLDER"
-            elsif OS.linux?
-              url "https://github.com/ivy-apps/deslop/releases/download/TAG_PLACEHOLDER/deslop-x86_64-linux-unknown.tar.gz"
-              sha256 "SHA_LINUX_PLACEHOLDER"
             end
 
             def install
@@ -112,11 +96,9 @@ jobs:
           end
           EOF
 
-          # Use sed to swap placeholders with the actual variables calculated above
           sed -i "s|VERSION_PLACEHOLDER|$VERSION|g" tap/Formula/deslop.rb
           sed -i "s|TAG_PLACEHOLDER|$TAG|g" tap/Formula/deslop.rb
           sed -i "s|SHA_ARM_PLACEHOLDER|$SHA_ARM|g" tap/Formula/deslop.rb
-          sed -i "s|SHA_LINUX_PLACEHOLDER|$SHA_LINUX|g" tap/Formula/deslop.rb
 
           cd tap
           git config user.name "GitHub Actions"
