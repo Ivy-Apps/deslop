@@ -16,7 +16,7 @@ import System.Directory (
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (runCLILogTest)
+import TestUtils (defaultParams, runCLILogTest)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 projectFixturePath :: FilePath
@@ -36,7 +36,7 @@ spec = describe "Whole Project Golden Tests" $ do
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
                     . runCLILogTest
-                    $ deslopProject tmpDir
+                    $ deslopProject (defaultParams tmpDir)
 
             -- Then
             let filesToVerify =

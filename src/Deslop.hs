@@ -3,6 +3,7 @@ module Deslop (
     deslopProject,
     runDeslop,
     DeslopError (..),
+    Params (..),
 ) where
 
 import Control.Monad (forM_, (>=>))
@@ -32,11 +33,16 @@ import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
 
+data Params = Params
+    { projectPath :: FilePath
+    , imports :: Bool
+    , comments :: Bool
+    }
+    deriving (Show, Eq)
+
 data DeslopError
     = ConfigParseError FilePath
     deriving (Show, Eq)
-
-type ProjectPath = FilePath
 
 deslopProject ::
     ( WrFileSystem :> es
@@ -44,8 +50,9 @@ deslopProject ::
     , Error DeslopError :> es
     , CLILog :> es
     ) =>
-    ProjectPath -> Eff es ()
-deslopProject projPath = do
+    Params -> Eff es ()
+deslopProject params = do
+    let projPath = params.projectPath
     let tsCfgPath = projPath </> "tsconfig.json"
     cfgContent <- readFileBS tsCfgPath
     cfg <- maybe (throwError $ ConfigParseError tsCfgPath) pure (parseTsConfig cfgContent)
@@ -93,11 +100,11 @@ removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
     deslop = foldr (>=>) pure [importAliases]
     render = T.encodeUtf8 . renderAst . (.ast)
 
-runDeslop :: ProjectPath -> IO ()
-runDeslop projPath = do
+runDeslop :: Params -> IO ()
+runDeslop params = do
     start <- getCurrentTime
     setSGR [SetColor Foreground Vivid Blue, SetConsoleIntensity BoldIntensity]
-    putStrLn $ "🚀 Deslopping project: " <> projPath
+    putStrLn $ "🚀 Deslopping project: " <> params.projectPath
     setSGR [Reset]
     putStrLn "─────────────────────────────────────────"
     putStrLn "Changelog:"
@@ -105,7 +112,7 @@ runDeslop projPath = do
         . runFileSystemIO
         . runCLILog
         $ do
-            res <- runErrorNoCallStack @DeslopError (deslopProject projPath)
+            res <- runErrorNoCallStack @DeslopError (deslopProject params)
             liftIO $ putStrLn "─────────────────────────────────────────"
             case res of
                 Left err -> liftIO $ do

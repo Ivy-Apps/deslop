@@ -65,7 +65,9 @@ executable deslop
         base,
         deslop,
         extra,
-        ansi-terminal
+        ansi-terminal,
+        optparse-applicative,
+        text
 
     hs-source-dirs:   app
 

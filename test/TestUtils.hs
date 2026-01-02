@@ -1,12 +1,12 @@
-module TestUtils (runFileSystemTest, runCLILogTest) where
+module TestUtils (runFileSystemTest, runCLILogTest, defaultParams) where
 
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.IORef
+import Deslop (Params (..))
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.CLILog
-import Effects.CLILog (CLILog)
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
 
 runFileSystemTest ::
@@ -38,3 +38,11 @@ runCLILogTest :: Eff (CLILog : es) a -> Eff es a
 runCLILogTest = interpret $ \_ -> \case
     LogModification _ -> pure ()
     LogSummary -> pure ()
+
+defaultParams :: FilePath -> Params
+defaultParams projPath =
+    Params
+        { projectPath = projPath
+        , imports = True
+        , comments = True
+        }
