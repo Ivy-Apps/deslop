@@ -1,4 +1,7 @@
 [ TsToken
+    { raw = "import '../../tests/viewmodel-test';\n" , kind = ImportK }
+, TsToken { raw = "\n" , kind = WhitespaceK }
+, TsToken
     { raw =
         "/**\n * Calculates the nth Fibonacci number using an iterative approach.\n * The sequence is defined as: F(0)=0, F(1)=1, F(n) = F(n-1) + F(n-2).\n *\n * @param n - The zero-based index in the Fibonacci sequence to retrieve.\n * @returns The Fibonacci number at index n.\n * @throws {Error} If n is a negative integer.\n */"
     , kind =

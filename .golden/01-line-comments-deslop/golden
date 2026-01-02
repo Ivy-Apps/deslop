@@ -1,3 +1,5 @@
+import '@/tests/viewmodel-test';
+
 /**
  * Calculates the nth Fibonacci number using an iterative approach.
  * The sequence is defined as: F(0)=0, F(1)=1, F(n) = F(n-1) + F(n-2).

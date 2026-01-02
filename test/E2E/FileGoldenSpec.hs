@@ -12,7 +12,7 @@ import System.Directory (listDirectory)
 import System.FilePath (takeBaseName, takeExtension, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (runFileSystemTest)
+import TestUtils (runFileSystemTest, runCLILogTest)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
@@ -96,6 +96,7 @@ spec = do
             runEff
                 . runFileSystemTest captureRef
                 . runReader tsCfg
+                . runCLILogTest
                 $ deslopFile path
 
             -- Then

@@ -1,7 +1,13 @@
 TsModule
   { path = "test/fixtures/typescript/01-line-comments.ts"
   , ast =
-      [ Docs
+      [ Import
+          { prefix = "import '"
+          , target = "../../tests/viewmodel-test"
+          , suffix = "';\n"
+          }
+      , Source { raw = "\n" }
+      , Docs
           { raw =
               "/**\n * Calculates the nth Fibonacci number using an iterative approach.\n * The sequence is defined as: F(0)=0, F(1)=1, F(n) = F(n-1) + F(n-2).\n *\n * @param n - The zero-based index in the Fibonacci sequence to retrieve.\n * @returns The Fibonacci number at index n.\n * @throws {Error} If n is a negative integer.\n */"
           , content =

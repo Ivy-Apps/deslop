@@ -1,10 +1,12 @@
-module TestUtils (runFileSystemTest) where
+module TestUtils (runFileSystemTest, runCLILogTest) where
 
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.IORef
 import Effectful
 import Effectful.Dispatch.Dynamic
+import Effects.CLILog
+import Effects.CLILog (CLILog)
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
 
 runFileSystemTest ::
@@ -31,3 +33,8 @@ runWrFileSystemTest ::
     Eff es a
 runWrFileSystemTest ref = interpret $ \_ -> \case
     WriteFile _path content -> liftIO $ writeIORef ref (Just content)
+
+runCLILogTest :: Eff (CLILog : es) a -> Eff es a
+runCLILogTest = interpret $ \_ -> \case
+    LogModification _ -> pure ()
+    LogSummary -> pure ()
