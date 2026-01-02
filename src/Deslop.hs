@@ -7,9 +7,10 @@ module Deslop (
 ) where
 
 import Control.Monad (forM_, (>=>))
+import Data.Bool
 import Data.ByteString (ByteString)
 import Data.Maybe (fromMaybe)
-import Data.Text.Encoding qualified as T
+import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Data.Traversable
 import Deslop.Imports (importAliases)
@@ -20,6 +21,7 @@ import Effects.CLILog
 import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
+    fileExists,
     isDirectory,
     listDirectory,
     readFileBS,
@@ -41,7 +43,8 @@ data Params = Params
     deriving (Show, Eq)
 
 data DeslopError
-    = ConfigParseError FilePath
+    = TsConfigNotFoundError FilePath
+    | TsConfigParseError FilePath
     deriving (Show, Eq)
 
 deslopProject ::
@@ -53,11 +56,22 @@ deslopProject ::
     Params -> Eff es ()
 deslopProject params = do
     let projPath = params.projectPath
-    let tsCfgPath = projPath </> "tsconfig.json"
-    cfgContent <- readFileBS tsCfgPath
-    cfg <- maybe (throwError $ ConfigParseError tsCfgPath) pure (parseTsConfig cfgContent)
+    cfg <- tsConfig projPath
     files <- getTsFiles projPath
     runReader @TsConfig cfg $ forM_ files deslopFile
+
+tsConfig ::
+    ( RoFileSystem :> es
+    , Error DeslopError :> es
+    ) =>
+    FilePath -> Eff es TsConfig
+tsConfig projPath = loadConfig $ projPath </> "tsconfig.json"
+  where
+    loadConfig fp = fileExists fp >>= bool (handleMissing fp) (handleFound fp)
+    handleFound fp = readFileBS fp >>= maybe (handleInvalid fp) pure . parseTsConfig
+
+    handleMissing = throwError . TsConfigNotFoundError
+    handleInvalid = throwError . TsConfigParseError
 
 getTsFiles :: (RoFileSystem :> es) => FilePath -> Eff es [FilePath]
 getTsFiles dir = do
@@ -96,9 +110,9 @@ removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
   where
     pipeline =
         traverse (fmap render . deslop) . parseTs $
-            TsFile {path = p, content = T.decodeUtf8 c}
+            TsFile {path = p, content = TE.decodeUtf8 c}
     deslop = foldr (>=>) pure [importAliases]
-    render = T.encodeUtf8 . renderAst . (.ast)
+    render = TE.encodeUtf8 . renderAst . (.ast)
 
 runDeslop :: Params -> IO ()
 runDeslop params = do
@@ -117,7 +131,7 @@ runDeslop params = do
             case res of
                 Left err -> liftIO $ do
                     setSGR [SetColor Foreground Vivid Red]
-                    putStrLn $ "❌ Error: " <> show err
+                    putStrLn $ "❌ Error: " <> humanReadable err
                     setSGR [Reset]
                 Right _ -> do
                     logSummary
@@ -128,3 +142,9 @@ runDeslop params = do
                         if seconds < 1
                             then printf "⏱  Finished in %.2fms\n" (seconds * 1000)
                             else printf "⏱  Finished in %.2fs\n" seconds
+
+humanReadable :: DeslopError -> String
+humanReadable (TsConfigNotFoundError path) =
+    "tsconfig.json not found in '" <> path <> "'"
+humanReadable (TsConfigParseError path) =
+    "Could not parse TS config, check: '" <> path <> "'"
