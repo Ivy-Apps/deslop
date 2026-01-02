@@ -80,9 +80,9 @@ getTsFiles dir = listDirectory dir >>= fmap concat . traverse (processEntry dir)
         | entry `elem` ignored = pure []
         | otherwise = resolve $ root </> entry
 
-    resolve path = isDirectory path >>= bool (pure $ tsOrEmpty path) (getTsFiles path)
+    resolve path = isDirectory path >>= bool (tsOrEmpty path) (getTsFiles path)
 
-    tsOrEmpty f = [f | takeExtension f `elem` [".ts", ".tsx"]]
+    tsOrEmpty f = pure [f | takeExtension f `elem` [".ts", ".tsx"]]
     ignored = ["node_modules", ".git", "dist", ".next"]
 
 deslopFile ::
