@@ -14,7 +14,15 @@ import Deslop.Imports (importAliases)
 import Effectful (Eff, runEff, type (:>))
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, runReader)
-import Effects.FileSystem (FileSystem, isDirectory, listDirectory, readFileBS, runFileSystemIO, writeFileBS)
+import Effects.FileSystem (
+    RoFileSystem,
+    WrFileSystem,
+    isDirectory,
+    listDirectory,
+    readFileBS,
+    runFileSystemIO,
+    writeFileBS,
+ )
 import System.FilePath
 import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
@@ -26,7 +34,12 @@ data DeslopError
 
 type ProjectPath = FilePath
 
-deslopProject :: (FileSystem :> es, Error DeslopError :> es) => ProjectPath -> Eff es ()
+deslopProject ::
+    ( WrFileSystem :> es
+    , RoFileSystem :> es
+    , Error DeslopError :> es
+    ) =>
+    ProjectPath -> Eff es ()
 deslopProject projPath = do
     let tsCfgPath = projPath </> "tsconfig.json"
     cfgContent <- readFileBS tsCfgPath
@@ -34,7 +47,7 @@ deslopProject projPath = do
     files <- getTsFiles projPath
     runReader @TsConfig cfg $ forM_ files deslopFile
 
-getTsFiles :: (FileSystem :> es) => FilePath -> Eff es [FilePath]
+getTsFiles :: (RoFileSystem :> es) => FilePath -> Eff es [FilePath]
 getTsFiles dir = do
     entries <- listDirectory dir
     paths <- forM entries $ \entry -> do
@@ -49,7 +62,10 @@ getTsFiles dir = do
     pure $ concat paths
 
 deslopFile ::
-    (FileSystem :> es, Reader TsConfig :> es) =>
+    ( RoFileSystem :> es
+    , WrFileSystem :> es
+    , Reader TsConfig :> es
+    ) =>
     FilePath -> Eff es ()
 deslopFile src = readFileBS src >>= removeSlop src >>= writeFileBS src
 
