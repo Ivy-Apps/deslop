@@ -13,10 +13,12 @@ runs:
     - name: Cache GHCup
       uses: actions/cache@v4
       with:
-        path: ~/.ghcup
+        path: |
+          ~/.ghcup/bin
+          ~/.ghcup/cache
         key: ${{ runner.os }}-ghcup-${{ inputs.ghc-version }}
         restore-keys: |
-          ${{ runner.os }}-ghcup-${{ inputs.ghc-version }}
+          ${{ runner.os }}-ghcup-
 
     # Setup Haskell (No index update)
     - name: Setup Haskell
@@ -32,8 +34,8 @@ runs:
       with:
         path: |
           ~/.cabal/store
+          ~/.cabal/packages
           dist-newstyle
-        # Uses the freeze file for the perfect cache key
         key: ${{ runner.os }}-ghc${{ inputs.ghc-version }}-${{ hashFiles('cabal.project.freeze') }}
         restore-keys: |
           ${{ runner.os }}-ghc${{ inputs.ghc-version }}-
