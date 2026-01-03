@@ -60,6 +60,7 @@ library
 executable deslop
     import:           shared-properties
     main-is:          Main.hs
+    other-modules: Paths_deslop
     
     build-depends:
         base,

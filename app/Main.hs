@@ -1,7 +1,9 @@
 module Main (main) where
 
+import Data.Version (showVersion)
 import Deslop (Params (..), runDeslop)
 import Options.Applicative
+import Paths_deslop (version)
 
 pParams :: Parser Params
 pParams =
@@ -21,10 +23,19 @@ pParams =
                 <> help "Remove AI-generated slop comments"
             )
 
+versionOption :: Parser (a -> a)
+versionOption =
+    infoOption
+        ("Deslop Version " <> showVersion version)
+        ( long "version"
+            <> short 'v'
+            <> help "Show version"
+        )
+
 optsInfo :: ParserInfo Params
 optsInfo =
     info
-        (helper <*> pParams)
+        (helper <*> versionOption <*> pParams)
         ( fullDesc
             <> header "Deslop - A Haskell-powered code cleaner ✨"
             <> progDesc "Removes slop from TypeScript projects."
