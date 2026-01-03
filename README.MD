@@ -4,6 +4,10 @@
 
 The easiest way to install Deslop on macOS or Linux is via Homebrew.
 
+> [!NOTE]
+> Currently only works on MacOS ARM. 
+> For Linux it's not tested but you can attempt manual installation from source.
+
 ```bash
 brew tap ivy-apps/tap
 brew install deslop
