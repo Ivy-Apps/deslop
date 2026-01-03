@@ -14,7 +14,7 @@ Clean TypeScript slop **automatically** in milliseconds.
 The easiest way to install Deslop on macOS or Linux is via Homebrew.
 
 > [!NOTE]
-> Currently only works on MacOS ARM. 
+> Currently only works on **MacOS ARM**. 
 > For Linux it's not tested but you can attempt manual installation from source.
 
 ```bash
