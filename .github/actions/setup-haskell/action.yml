@@ -24,7 +24,7 @@ runs:
       with:
         ghc-version: ${{ inputs.ghc-version }}
         cabal-version: 'latest'
-        cabal-update: false
+        cabal-update: true
 
     # Cache the Project Dependencies (Libraries)
     - name: Cache Cabal Store
