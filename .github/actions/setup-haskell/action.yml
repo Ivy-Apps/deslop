@@ -1,0 +1,39 @@
+name: 'Deslop Haskell Setup'
+description: 'Optimized setup for GHC, Cabal, and Caches'
+inputs:
+  ghc-version:
+    description: 'The GHC version to install'
+    required: true
+    default: '9.10.1'
+
+runs:
+  using: "composite"
+  steps:
+    # Cache the GHCup toolchain (Compiler files)
+    - name: Cache GHCup
+      uses: actions/cache@v4
+      with:
+        path: ~/.ghcup
+        key: ${{ runner.os }}-ghcup-${{ inputs.ghc-version }}
+        restore-keys: |
+          ${{ runner.os }}-ghcup-${{ inputs.ghc-version }}
+
+    # Setup Haskell (No index update)
+    - name: Setup Haskell
+      uses: haskell-actions/setup@v2
+      with:
+        ghc-version: ${{ inputs.ghc-version }}
+        cabal-version: 'latest'
+        cabal-update: false
+
+    # Cache the Project Dependencies (Libraries)
+    - name: Cache Cabal Store
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cabal/store
+          dist-newstyle
+        # Uses the freeze file for the perfect cache key
+        key: ${{ runner.os }}-ghc${{ inputs.ghc-version }}-${{ hashFiles('cabal.project.freeze') }}
+        restore-keys: |
+          ${{ runner.os }}-ghc${{ inputs.ghc-version }}-
