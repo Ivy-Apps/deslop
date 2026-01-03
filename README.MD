@@ -1,5 +1,14 @@
 # Deslop
 
+Clean TypeScript slop **automatically** in milliseconds.
+
+![deslop-demo](assets/deslop-demo.png)
+
+**Currently supports:**
+- Replacing relative imports with absolute alias (e.g. `@`) ones. ✅
+- Removing AI comments like (`// 1. Do x, y, z; // Step 2`, etc) 🚧
+
+
 ## Installation
 
 The easiest way to install Deslop on macOS or Linux is via Homebrew.
