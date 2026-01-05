@@ -97,8 +97,58 @@ spec = do
                     )
                 ,
                     ( "Await import terminated by ';'"
-                    , "await import ('./lib/login');\nlet x = 42"
-                    , "import ('./lib/login');"
+                    , "const module = await import ('./heavy-module');\nlet x = 42"
+                    , "import ('./heavy-module');"
+                    )
+                ,
+                    ( "Combined Default + Named/Namespace"
+                    , "import React, { useState } from \"react\";"
+                    , "import React, { useState } from \"react\";"
+                    )
+                ,
+                    ( "Side-Effect Import"
+                    , "import './styles.css';"
+                    , "import './styles.css';"
+                    )
+                ,
+                    ( "Type-Only Imports (Top level)"
+                    , "import type { User, Role } from './models'; const x = 1;"
+                    , "import type { User, Role } from './models';"
+                    )
+                ,
+                    ( "Inline Type Imports (TS 4.5+)"
+                    , "import { createStore, type Store } from 'redux'; "
+                    , "import { createStore, type Store } from 'redux';"
+                    )
+                ,
+                    ( "Import Attributes/Assertions (JSON)"
+                    , "import data from './data.json' with { type: \"json\" }; "
+                    , "import data from './data.json' with { type: \"json\" };"
+                    )
+                ,
+                    ( "Named Import with Aliasing"
+                    , "import { originalName as aliasName } from 'lib'; "
+                    , "import { originalName as aliasName } from 'lib';"
+                    )
+                ,
+                    ( "Namespace Import (Explicit)"
+                    , "import * as Utils from './utils'; "
+                    , "import * as Utils from './utils';"
+                    )
+                ,
+                    ( "Keywords as Identifiers (Aliased)"
+                    , "import { class as classSelector, delete as remove } from 'dom'; "
+                    , "import { class as classSelector, delete as remove } from 'dom';"
+                    )
+                ,
+                    ( "Empty Named Import (Side-effect intent)"
+                    , "import {} from './init-module'; "
+                    , "import {} from './init-module';"
+                    )
+                ,
+                    ( "String Literal Export Names (Arbitrary Module Namespace)"
+                    , "import { \"stupid-name\" as normal } from 'weird-lib'; "
+                    , "import { \"stupid-name\" as normal } from 'weird-lib';"
                     )
                 ]
 
