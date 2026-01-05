@@ -61,7 +61,7 @@ pImport =
             ]
       where
         skipBetween q =
-            char q >> manyTill L.charLiteral (char q) >> pure ()
+            char q *> manyTill L.charLiteral (char q) *> pure ()
 
 pDocs :: Lexer TsToken
 pDocs =
