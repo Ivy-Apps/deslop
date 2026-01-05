@@ -1,5 +1,9 @@
 # Deslop
 
+> [!WARNING]
+> The project is under heavy development and unstable. Use at your own risk!
+> It's recommended to use with git so you can revert any undesired changes.
+
 Clean TypeScript slop **automatically** in milliseconds.
 
 ![deslop-demo](assets/deslop-demo.png)
