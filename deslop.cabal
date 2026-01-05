@@ -83,6 +83,7 @@ test-suite deslop-test
     other-modules:
         TestUtils
         Deslop.ImportSpec
+        TypeScript.LexerSpec
         E2E.FileGoldenSpec
         E2E.ProjectGoldenSpec
 
@@ -99,4 +100,5 @@ test-suite deslop-test
         unliftio,
         megaparsec,
         pretty-show,
-        extra
+        extra,
+        QuickCheck
