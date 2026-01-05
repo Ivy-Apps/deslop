@@ -38,6 +38,7 @@ genChunk =
         [ (5, genImport)
         , (2, genLineComment)
         , (2, genBlockComment)
+        , (2, genDocs)
         , (5, genWhitespace)
         , (6, genRaw)
         ]
@@ -81,6 +82,11 @@ genBlockComment :: Gen Text
 genBlockComment = do
     content <- T.pack <$> listOf contentChar
     pure $ "/* " <> content <> " */"
+
+genDocs :: Gen Text
+genDocs = do
+    content <- T.pack <$> listOf contentChar
+    pure $ "/** " <> content <> " */"
 
 genWhitespace :: Gen Text
 genWhitespace = T.pack <$> listOf1 contentChar
