@@ -26,8 +26,24 @@ spec = do
                     )
                 ,
                     ( "Basic double quotes"
-                    , "import * as React from \"react;\"\nconsole.log();"
+                    , "import * as React from \"react\";\nconsole.log();"
                     , "import * as React from \"react\";"
+                    )
+                ,
+                    ( "Multiline"
+                    , T.unlines
+                        [ "import {"
+                        , "  urls,"
+                        , "  labels,"
+                        , "} from '../../lib/constants';"
+                        , "\n\n"
+                        ]
+                    , T.unlines
+                        [ "import {"
+                        , "  urls,"
+                        , "  labels,"
+                        , "} from '../../lib/constants';"
+                        ]
                     )
                 ,
                     ( "Multiline with trailing comma"
@@ -71,12 +87,17 @@ spec = do
                     )
                 ,
                     ( "Await import terminated by ')'"
-                    , "import (`../../strings/${local}.json`)).default"
+                    , T.unlines
+                        [ "return {"
+                        , "  locale,"
+                        , "  strings: await import (`../../strings/${local}.json`)).default,"
+                        , "};"
+                        ]
                     , "import (`../../strings/${local}.json`)"
                     )
                 ,
                     ( "Await import terminated by ';'"
-                    , "import ('./lib/login');"
+                    , "await import ('./lib/login');"
                     , "import ('./lib/login');"
                     )
                 ]
@@ -84,10 +105,10 @@ spec = do
         forM_ cases $ \(desc, input, expectedRaw) ->
             it ("parses: " <> desc) $ do
                 -- When
-                let result = head <$> runTest input
+                let res = head . filter (\n -> n.kind == ImportK) <$> runTest input
 
                 -- Then
-                case result of
+                case res of
                     Left err -> expectationFailure (errorBundlePretty err)
                     Right token -> do
                         token.kind `shouldBe` ImportK
