@@ -1,0 +1,14 @@
+import {
+    itemsPerPage,
+    itemInfo,
+} from '@/lib/shop/constants';
+import * from 'react';
+import {
+    a,
+    b,
+    c // not sure if we need that!
+} from '@/fixtures/typescript/abc'
+
+export function ItemsPage() {
+    return <ItemsView />
+}

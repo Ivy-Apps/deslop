@@ -7,6 +7,8 @@ import Data.Void
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import TypeScript.Tokens
+import Control.Monad
+import qualified Text.Megaparsec.Char.Lexer as L
 
 type Lexer = Parsec Void Text
 
@@ -26,9 +28,38 @@ pToken =
 pImport :: Lexer TsToken
 pImport =
     uncurry TsToken . second (const ImportK)
-        <$> match (string "import" *> manyTill anySingle end)
+        <$> match (string "import" *> parseBody 0)
   where
-    end = choice [try $ string ";\n", string ";", string "\n", string ")"]
+    parseBody depth = do
+        done <- atEnd
+        if done 
+            then pure () 
+            else do
+                next <- lookAhead anySingle
+                if depth == 0 && (next == ';' || next == '\n')
+                    then void anySingle
+                    else do
+                        choice
+                            [ try pSkipString
+                            , void $ try pComment
+                            , void anySingle
+                            ] >> parseBody (currentDepth depth next)
+
+    currentDepth :: Int -> Char -> Int
+    currentDepth d '{' = d + 1
+    currentDepth d '(' = d + 1
+    currentDepth d '}' = max 0 (d - 1)
+    currentDepth d ')' = max 0 (d - 1)
+    currentDepth d _   = d
+
+    pSkipString = choice 
+        [ skipBetween '"'
+        , skipBetween '\'' 
+        , skipBetween '`'
+        ]
+      where 
+        skipBetween q = 
+            char q >> manyTill L.charLiteral (char q) >> pure ()
 
 pDocs :: Lexer TsToken
 pDocs =

@@ -4,19 +4,21 @@ TsModule
       [ Import
           { prefix = "import { formatDate } from '"
           , target = "../../lib/utils"
-          , suffix = "';\n"
+          , suffix = "';"
           }
+      , Source { raw = "\n" }
       , Import
           { prefix = "import * as Logger from '"
           , target = "../../lib/logger"
-          , suffix = "';\n"
+          , suffix = "';"
           }
+      , Source { raw = "\n" }
       , Import
           { prefix = "import User from '"
           , target = "../models/User"
-          , suffix = "';\n"
+          , suffix = "';"
           }
-      , Source { raw = "\n" }
+      , Source { raw = "\n\n" }
       , Source
           { raw =
               "function main() {\n  Logger.log(formatDate(new Date()));\n  const u = new User();\n}"

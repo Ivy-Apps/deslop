@@ -11,9 +11,9 @@ TsModule
       , Import
           { prefix = "import { validate } from \""
           , target = "./utils"
-          , suffix = "\";\n"
+          , suffix = "\";"
           }
-      , Source { raw = "\n" }
+      , Source { raw = "\n\n" }
       , Comment
           { raw =
               "/* Standard Block Comment:\n   This part handles the iterative logic \n   without using recursion. */"
