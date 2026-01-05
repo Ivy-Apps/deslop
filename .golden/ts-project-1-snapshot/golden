@@ -64,6 +64,20 @@ export const HomeScreen: React.FC = () => {
 };
 
 
+>>> FILE: src/features/home/home-component.ts
+import { formatDate } from "@/lib/util";
+
+export const getHomeData = async () => {
+  const module = await import ('@/features/heavy-module');
+  const extras = await import ('@/lib/extra').extras;
+
+  return {
+    title: "Welcome Home",
+    lastUpdated: formatDate(new Date()),
+  };
+};
+
+
 >>> FILE: src/features/home/home.spec.ts
 import { getHomeData } from "@/features/home/home-component";
 import { mockUser } from "@tests/fixtures/fixtures";
@@ -119,6 +133,10 @@ describe("Login Feature", () => {
 
 >>> FILE: src/features/login/login-form.ts
 import { capitalize } from "@/lib/util";
+import {
+  mockUser,
+  mockCredentials
+} from '@tests/fixtures'
 
 export const validateUsername = (name: string) => {
   // 1. Validate input

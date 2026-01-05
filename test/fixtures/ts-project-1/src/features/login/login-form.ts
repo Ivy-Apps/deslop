@@ -1,4 +1,8 @@
 import { capitalize } from "../../lib/util";
+import {
+  mockUser,
+  mockCredentials
+} from '../../tests/fixtures'
 
 export const validateUsername = (name: string) => {
   // 1. Validate input

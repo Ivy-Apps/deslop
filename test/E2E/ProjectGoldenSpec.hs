@@ -42,6 +42,7 @@ spec = describe "Whole Project Golden Tests" $ do
             let filesToVerify =
                     [ "src/app/[locale]/login/page.tsx"
                     , "src/features/home/home-screen.tsx"
+                    , "src/features/home/home-component.ts"
                     , "src/features/home/home.spec.ts"
                     , "src/app/[locale]/login/page.tsx"
                     , "src/features/login/login.spec.ts"
