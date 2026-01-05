@@ -6,13 +6,92 @@ import Test.Hspec
 import Test.QuickCheck
 import Text.Megaparsec (errorBundlePretty, parse)
 
+import Control.Monad
 import TypeScript.Lexer (lexer)
 import TypeScript.Tokens
 
 spec :: Spec
-spec = describe "TypeScript Lexer" $ do
-    it "reconstructs the original input exactly (Round Trip)" $ do
-        property prop_roundTrip
+spec = do
+    describe "TypeScript Lexer" $ do
+        it "reconstructs the original input exactly (Round Trip)" $ do
+            property prop_roundTrip
+
+    describe "Import Parser" $ do
+        let runTest input = parse lexer "test.ts" input
+        let cases =
+                [
+                    ( "Basic single quotes"
+                    , "import { foo } from 'bar'; const x = 1;"
+                    , "import { foo } from 'bar';"
+                    )
+                ,
+                    ( "Basic double quotes"
+                    , "import * as React from \"react;\"\nconsole.log();"
+                    , "import * as React from \"react\";"
+                    )
+                ,
+                    ( "Multiline with trailing comma"
+                    , T.unlines
+                        [ "import {"
+                        , "  foo,"
+                        , "  bar,"
+                        , "} from 'baz'; export const x = 1;"
+                        ]
+                    , T.unlines
+                        [ "import {"
+                        , "  foo,"
+                        , "  bar,"
+                        , "} from 'baz';"
+                        ]
+                    )
+                ,
+                    ( "Strings containing braces"
+                    , "import { \"}\" as brace } from 'lib'; const y = 2;"
+                    , "import { \"}\" as brace } from 'lib';"
+                    )
+                ,
+                    ( "Strings containing semicolons"
+                    , "import { \";\" as semi } from 'lib'; "
+                    , "import { \";\" as semi } from 'lib';"
+                    )
+                ,
+                    ( "Block comments inside"
+                    , "import { /* } */ a } from 'b'; "
+                    , "import { /* } */ a } from 'b';"
+                    )
+                ,
+                    ( "Line comments inside (multiline)"
+                    , "import {\n  a, // comment with }\n} from 'b'; "
+                    , "import {\n  a, // comment with }\n} from 'b';"
+                    )
+                ,
+                    ( "Terminated by newline (no semicolon)"
+                    , "import { x } from 'y'\nconst z = 1;"
+                    , "import { x } from 'y'\n"
+                    )
+                ,
+                    ( "Await import terminated by ')'"
+                    , "import (`../../strings/${local}.json`)).default"
+                    , "import (`../../strings/${local}.json`)"
+                    )
+                ,
+                    ( "Await import terminated by ';'"
+                    , "import ('./lib/login');"
+                    , "import ('./lib/login');"
+                    )
+                ]
+
+        forM_ cases $ \(desc, input, expectedRaw) ->
+            it ("parses: " <> desc) $ do
+                -- When
+                let result = head <$> runTest input
+
+                -- Then
+                case result of
+                    Left err -> expectationFailure (errorBundlePretty err)
+                    Right token -> do
+                        token.kind `shouldBe` ImportK
+                        T.strip (token.raw) `shouldBe` T.strip expectedRaw
 
 -- | The core property: Reassembled tokens must match the original input exactly.
 prop_roundTrip :: TsInput -> Property
