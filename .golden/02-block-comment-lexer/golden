@@ -1,6 +1,6 @@
 [ TsToken
-    { raw = "import { setup } from \"./utils\";\n" , kind = ImportK }
-, TsToken { raw = "\n" , kind = WhitespaceK }
+    { raw = "import { setup } from \"./utils\";" , kind = ImportK }
+, TsToken { raw = "\n\n" , kind = WhitespaceK }
 , TsToken
     { raw = "/* Hello, world! in JS */"
     , kind = CommentK { comment = "Hello, world! in JS" }

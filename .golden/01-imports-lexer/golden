@@ -1,14 +1,16 @@
 [ TsToken
-    { raw = "import { formatDate } from '../../lib/utils';\n"
+    { raw = "import { formatDate } from '../../lib/utils';"
     , kind = ImportK
     }
-, TsToken
-    { raw = "import * as Logger from '../../lib/logger';\n"
-    , kind = ImportK
-    }
-, TsToken
-    { raw = "import User from '../models/User';\n" , kind = ImportK }
 , TsToken { raw = "\n" , kind = WhitespaceK }
+, TsToken
+    { raw = "import * as Logger from '../../lib/logger';"
+    , kind = ImportK
+    }
+, TsToken { raw = "\n" , kind = WhitespaceK }
+, TsToken
+    { raw = "import User from '../models/User';" , kind = ImportK }
+, TsToken { raw = "\n\n" , kind = WhitespaceK }
 , TsToken
     { raw =
         "function main() {\n  Logger.log(formatDate(new Date()));\n  const u = new User();\n}"

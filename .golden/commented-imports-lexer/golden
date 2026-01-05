@@ -1,7 +1,8 @@
 [ TsToken
-    { raw = "import { useSate } from '@react/hooks';\n"
+    { raw = "import { useSate } from '@react/hooks';"
     , kind = ImportK
     }
+, TsToken { raw = "\n" , kind = WhitespaceK }
 , TsToken
     { raw =
         "// import { firstName } from './users'; <-- we don't need that\n"
@@ -31,6 +32,7 @@
     }
 , TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken { raw = "await " , kind = RawK }
-, TsToken { raw = "import('../new/data')" , kind = ImportK }
-, TsToken { raw = ";\n}" , kind = RawK }
+, TsToken { raw = "import('../new/data');" , kind = ImportK }
+, TsToken { raw = "\n" , kind = WhitespaceK }
+, TsToken { raw = "}" , kind = RawK }
 ]

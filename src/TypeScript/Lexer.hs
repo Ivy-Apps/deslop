@@ -1,11 +1,14 @@
 module TypeScript.Lexer where
 
+import Control.Monad
 import Data.Bifunctor (second)
+import Data.Bool
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void
 import Text.Megaparsec
 import Text.Megaparsec.Char
+import Text.Megaparsec.Char.Lexer qualified as L
 import TypeScript.Tokens
 
 type Lexer = Parsec Void Text
@@ -26,9 +29,39 @@ pToken =
 pImport :: Lexer TsToken
 pImport =
     uncurry TsToken . second (const ImportK)
-        <$> match (string "import" *> manyTill anySingle end)
+        <$> match (string "import" *> parseBody 0)
   where
-    end = choice [try $ string ";\n", string ";", string "\n", string ")"]
+    parseBody depth = atEnd >>= bool (body depth) (pure ())
+
+    body d = do
+        next <- lookAhead anySingle
+        let d' = currentDepth d next
+        if d' == 0 && (next == ';' || next == '\n' || next == ')')
+            then void anySingle <* optional (char ';')
+            else
+                choice
+                    [ try pSkipString
+                    , void $ try pComment
+                    , void anySingle
+                    ]
+                    >> parseBody d'
+
+    currentDepth :: Int -> Char -> Int
+    currentDepth d '{' = d + 1
+    currentDepth d '(' = d + 1
+    currentDepth d '}' = max 0 (d - 1)
+    currentDepth d ')' = max 0 (d - 1)
+    currentDepth d _ = d
+
+    pSkipString =
+        choice
+            [ skipBetween '"'
+            , skipBetween '\''
+            , skipBetween '`'
+            ]
+      where
+        skipBetween q =
+            char q *> manyTill L.charLiteral (char q) *> pure ()
 
 pDocs :: Lexer TsToken
 pDocs =

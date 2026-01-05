@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               deslop
-version:            0.1.2
+version:            0.1.3
 license:            BSD-3-Clause
 license-file:       LICENSE
 author:             Ivy Apps LTD
@@ -83,6 +83,7 @@ test-suite deslop-test
     other-modules:
         TestUtils
         Deslop.ImportSpec
+        TypeScript.LexerSpec
         E2E.FileGoldenSpec
         E2E.ProjectGoldenSpec
 
@@ -99,4 +100,5 @@ test-suite deslop-test
         unliftio,
         megaparsec,
         pretty-show,
-        extra
+        extra,
+        QuickCheck

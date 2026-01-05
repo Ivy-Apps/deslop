@@ -9,10 +9,8 @@
     }
 , TsToken { raw = "\n" , kind = WhitespaceK }
 , TsToken
-    { raw = "import { validate } from \"./utils\";\n"
-    , kind = ImportK
-    }
-, TsToken { raw = "\n" , kind = WhitespaceK }
+    { raw = "import { validate } from \"./utils\";" , kind = ImportK }
+, TsToken { raw = "\n\n" , kind = WhitespaceK }
 , TsToken
     { raw =
         "/* Standard Block Comment:\n   This part handles the iterative logic \n   without using recursion. */"

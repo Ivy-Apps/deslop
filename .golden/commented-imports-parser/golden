@@ -4,8 +4,9 @@ TsModule
       [ Import
           { prefix = "import { useSate } from '"
           , target = "@react/hooks"
-          , suffix = "';\n"
+          , suffix = "';"
           }
+      , Source { raw = "\n" }
       , Comment
           { raw =
               "// import { firstName } from './users'; <-- we don't need that\n"
@@ -28,7 +29,8 @@ TsModule
       , Source { raw = "    " }
       , Source { raw = "await " }
       , Import
-          { prefix = "import('" , target = "../new/data" , suffix = "')" }
-      , Source { raw = ";\n}" }
+          { prefix = "import('" , target = "../new/data" , suffix = "');" }
+      , Source { raw = "\n" }
+      , Source { raw = "}" }
       ]
   }

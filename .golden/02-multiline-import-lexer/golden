@@ -1,0 +1,20 @@
+[ TsToken
+    { raw =
+        "import {\n    itemsPerPage,\n    itemInfo,\n} from '../../lib/shop/constants';"
+    , kind = ImportK
+    }
+, TsToken { raw = "\n" , kind = WhitespaceK }
+, TsToken { raw = "import * from 'react';" , kind = ImportK }
+, TsToken { raw = "\n" , kind = WhitespaceK }
+, TsToken
+    { raw =
+        "import {\n    a,\n    b,\n    c // not sure if we need that!\n} from './abc'\n"
+    , kind = ImportK
+    }
+, TsToken { raw = "\n" , kind = WhitespaceK }
+, TsToken
+    { raw =
+        "export function ItemsPage() {\n    return <ItemsView />\n}"
+    , kind = RawK
+    }
+]

@@ -1,0 +1,25 @@
+TsModule
+  { path = "test/fixtures/typescript/02-multiline-import.ts"
+  , ast =
+      [ Import
+          { prefix = "import {\n    itemsPerPage,\n    itemInfo,\n} from '"
+          , target = "../../lib/shop/constants"
+          , suffix = "';"
+          }
+      , Source { raw = "\n" }
+      , Import
+          { prefix = "import * from '" , target = "react" , suffix = "';" }
+      , Source { raw = "\n" }
+      , Import
+          { prefix =
+              "import {\n    a,\n    b,\n    c // not sure if we need that!\n} from '"
+          , target = "./abc"
+          , suffix = "'\n"
+          }
+      , Source { raw = "\n" }
+      , Source
+          { raw =
+              "export function ItemsPage() {\n    return <ItemsView />\n}"
+          }
+      ]
+  }
