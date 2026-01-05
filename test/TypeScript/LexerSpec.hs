@@ -97,7 +97,7 @@ spec = do
                     )
                 ,
                     ( "Await import terminated by ';'"
-                    , "await import ('./lib/login');"
+                    , "await import ('./lib/login');\nlet x = 42"
                     , "import ('./lib/login');"
                     )
                 ]
