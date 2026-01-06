@@ -35,6 +35,7 @@ library
         TypeScript.Parser
         TypeScript.Lexer
         TypeScript.Config
+        Translations.Parser
         Effects.FileSystem
         Effects.CLILog
         Utils

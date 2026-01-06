@@ -1,0 +1,62 @@
+{
+  "common": {
+    "buttons": {
+      "save": "Guardar cambios",
+      "cancel": "Cancelar",
+      "delete": "Eliminar elemento",
+      "actions": {
+        "confirm": "¿Estás seguro?",
+        "loading": "Procesando..."
+      }
+    },
+    "errors": {
+      "not_found": "La página que buscas no existe.",
+      "unauthorized": "No tienes permiso para acceder a este recurso."
+    }
+  },
+  "dashboard": {
+    "header": {
+      "title": "¡Bienvenido de nuevo, {name}!",
+      "subtitle": "Esto es lo que está pasando con tus proyectos hoy."
+    },
+    "statistics": {
+      "revenue": {
+        "label": "Ingresos totales",
+        "trend": {
+          "up": "Aumentó un {percent}%",
+          "down": "Disminuyó un {percent}%"
+        }
+      },
+      "users": {
+        "active": "{count, plural, =0 {Sin usuarios activos} one {# usuario activo} other {# usuarios activos}}"
+      }
+    },
+    "navigation": {
+      "sidebar": {
+        "links": {
+          "home": "Inicio",
+          "settings": "Configuración",
+          "billing": {
+            "main": "Facturación y facturas",
+            "history": "Historial de pagos"
+          }
+        }
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Inicia sesión en tu cuenta",
+      "form": {
+        "email": {
+          "label": "Correo electrónico",
+          "placeholder": "ej. alex@ejemplo.com"
+        },
+        "password": {
+          "label": "Contraseña",
+          "forgot": "¿Olvidaste tu contraseña?"
+        }
+      }
+    }
+  }
+}

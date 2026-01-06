@@ -1,0 +1,62 @@
+{
+  "common": {
+    "buttons": {
+      "save": "Save Changes",
+      "cancel": "Cancel",
+      "delete": "Delete Item",
+      "actions": {
+        "confirm": "Are you sure?",
+        "loading": "Processing..."
+      }
+    },
+    "errors": {
+      "not_found": "The page you are looking for does not exist.",
+      "unauthorized": "You do not have permission to access this resource."
+    }
+  },
+  "dashboard": {
+    "header": {
+      "title": "Welcome back, {name}!",
+      "subtitle": "Here is what's happening with your projects today."
+    },
+    "statistics": {
+      "revenue": {
+        "label": "Total Revenue",
+        "trend": {
+          "up": "Increased by {percent}%",
+          "down": "Decreased by {percent}%"
+        }
+      },
+      "users": {
+        "active": "{count, plural, =0 {No active users} one {# active user} other {# active users}}"
+      }
+    },
+    "navigation": {
+      "sidebar": {
+        "links": {
+          "home": "Home",
+          "settings": "Settings",
+          "billing": {
+            "main": "Billing & Invoices",
+            "history": "Payment History"
+          }
+        }
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Login to your account",
+      "form": {
+        "email": {
+          "label": "Email Address",
+          "placeholder": "e.g. alex@example.com"
+        },
+        "password": {
+          "label": "Password",
+          "forgot": "Forgot your password?"
+        }
+      }
+    }
+  }
+}
