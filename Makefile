@@ -16,6 +16,22 @@ update: ## Update Cabal index, get latest versions, and freeze them
 	@cabal freeze
 	@echo "Done! Dependencies updated and locked in 'cabal.project.freeze' ❄️"
 
+fix-hls: ## Fixes HLS
+	@echo "🛑 Stopping any running HLS instances..."
+	-pkill haskell-language-server || true
+	
+	@echo "🧹 Cleaning project-local artifacts..."
+	rm -rf .hls/
+	rm -rf dist-newstyle/
+	
+	@echo "🔥 Purging global GHCide cache (the usual culprit for ARR_WORDS errors)..."
+	rm -rf ~/.cache/ghcide
+	
+	@echo "📦 Re-building project to sync cabal.freeze..."
+	cabal build all
+	
+	@echo "✅ Clean complete. Please restart VSCode"
+
 help:
 	@echo 'Usage: make [target]'
 	@echo 'Targets:'
