@@ -48,6 +48,7 @@ library
         text,
         bytestring,
         containers,
+        unordered-containers,
         directory,
         filepath,
         megaparsec,
