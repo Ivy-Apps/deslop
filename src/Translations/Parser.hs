@@ -6,8 +6,7 @@ import Data.Bifunctor
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as BL
 import Data.HashMap.Strict (HashMap)
-import Data.HashMap.Strict qualified as HM
-import Data.List
+import Data.List (partition)
 import Data.List.NonEmpty (NonEmpty, nonEmpty)
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
@@ -15,7 +14,6 @@ import Data.Text qualified as T
 import Effectful (Eff, (:>))
 import Effects.FileSystem (RoFileSystem, listDirectory, readFileBS)
 import System.FilePath
-import System.FilePath (dropExtension, splitDirectories)
 import Utils (safeHead)
 
 data Translations = Translations
