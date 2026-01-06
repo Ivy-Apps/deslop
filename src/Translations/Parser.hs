@@ -2,10 +2,12 @@ module Translations.Parser where
 
 import Data.Aeson
 import Data.Aeson.Types
+import Data.Bifunctor
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as BL
 import Data.HashMap.Strict (HashMap)
 import Data.HashMap.Strict qualified as HM
+import Data.List
 import Data.List.NonEmpty (NonEmpty, nonEmpty)
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
@@ -43,21 +45,23 @@ defaultLanguage :: Text
 defaultLanguage = "en"
 
 readTranslations :: (RoFileSystem :> es) => FilePath -> Eff es (Maybe Translations)
-readTranslations root = do
-    ds <- fmap (root </>) <$> listDirectory root
-    ts <- catMaybes <$> traverse readTranslation ds
-    let base = safeHead . filter (isDeault . (.language)) $ ts
-    let extras = nonEmpty . filter (not . isDeault . (.language)) $ ts
-    pure $ Translations <$> base <*> extras
+readTranslations root =
+    listDirectory root
+        >>= traverse readTranslation . fmap (root </>)
+        >>= pure . assemble . catMaybes
   where
-    isDeault = (==) defaultLanguage
+    assemble :: [Translation] -> Maybe Translations
+    assemble =
+        uncurry (liftA2 Translations)
+            . bimap safeHead nonEmpty
+            . partition ((== defaultLanguage) . (.language))
 
 readTranslation :: (RoFileSystem :> es) => FilePath -> Eff es (Maybe Translation)
 readTranslation path =
     readFileBS path
         >>= pure . fmap (Translation language) . parseTransTree
   where
-    language = T.pack . dropExtension . last . splitDirectories $ path
+    language = T.pack . takeBaseName $ path
 
 parseTransTree :: ByteString -> Maybe TransTree
 parseTransTree = decode . BL.fromStrict
