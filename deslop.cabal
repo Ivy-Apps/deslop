@@ -50,6 +50,7 @@ library
         bytestring,
         containers,
         unordered-containers,
+        ordered-containers,
         directory,
         filepath,
         megaparsec,
