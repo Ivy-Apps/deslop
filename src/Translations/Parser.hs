@@ -36,6 +36,7 @@ data Translation = Translation
 data TransTree
     = Branch (OMap Text TransTree)
     | Leaf Text
+    | Empty
     deriving (Show, Eq)
 
 instance FromJSON TransTree where
