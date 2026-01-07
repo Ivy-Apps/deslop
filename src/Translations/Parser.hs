@@ -1,13 +1,18 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
+
 module Translations.Parser where
 
 import Data.Aeson
+import Data.Aeson.Key qualified as K
+import Data.Aeson.KeyMap qualified as KM
 import Data.Aeson.Types
 import Data.Bifunctor
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as BL
 import Data.List (partition)
 import Data.List.NonEmpty (NonEmpty, nonEmpty)
+import Data.Map.Ordered (OMap)
+import Data.Map.Ordered qualified as OM
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -15,10 +20,6 @@ import Effectful (Eff, (:>))
 import Effects.FileSystem (RoFileSystem, listDirectory, readFileBS)
 import System.FilePath
 import Utils (safeHead)
-import Data.Map.Ordered (OMap)
-import Data.Map.Ordered qualified as OMap
-import Data.Aeson.Key qualified as K
-import Data.Aeson.KeyMap qualified as KM
 
 data Translations = Translations
     { base :: Translation
@@ -46,15 +47,9 @@ instance FromJSON TransTree where
 instance (FromJSON v) => FromJSON (OMap Text v) where
     parseJSON :: Value -> Parser (OMap Text v)
     parseJSON = withObject "OMap" $ \obj -> do
-        -- KM.toList extracts [(Key, Value)]. 
-        -- In Aeson 2+, this generally respects the order of the keys in the source JSON.
-        let rawPairs = KM.toList obj
-        
-        -- Traverse the list, converting Key to Text and parsing the Value
-        parsedPairs <- traverse (\(k, v) -> (,) (K.toText k) <$> parseJSON v) rawPairs
-        
-        -- Construct the Ordered Map
-        pure $ OMap.fromList parsedPairs
+        traverse step (KM.toList obj) >>= pure . OM.fromList
+      where
+        step (k, v) = (,) (K.toText k) <$> parseJSON v
 
 defaultLanguage :: Text
 defaultLanguage = "en"
