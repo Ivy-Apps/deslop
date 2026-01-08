@@ -41,7 +41,8 @@
             "history": "Payment History"
           }
         }
-      }
+      },
+      "close": "Close"
     }
   },
   "auth": {
@@ -58,5 +59,6 @@
         }
       }
     }
-  }
+  },
+  "back": "Back"
 }
