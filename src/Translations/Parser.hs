@@ -34,16 +34,25 @@ data Translation = Translation
     deriving (Show, Eq)
 
 data TransTree
-    = Branch (OMap Text TransTree)
-    | Leaf Text
-    | Empty
+    = Root [TransTree]
+    | Branch Text [TransTree]
+    | Leaf Text Text
     deriving (Show, Eq)
 
 instance FromJSON TransTree where
     parseJSON :: Value -> Parser TransTree
-    parseJSON (String s) = pure (Leaf s)
-    parseJSON ob@(Object _) = Branch <$> parseJSON ob
-    parseJSON e = typeMismatch "String or Object" e
+    parseJSON = parseNode Nothing
+      where
+        parseNode :: (Maybe Text) -> Value -> Parser TransTree
+        parseNode (Just k) (String v) = pure $ Leaf k v
+        parseNode (Nothing) o@(Object _) = parseChildren o >>= pure . Root
+        parseNode (Just k) o@(Object _) = parseChildren o >>= pure . Branch k
+        parseNode mk inv = typeMismatch ("Unexpected case at key: " <> show mk) inv
+
+        parseChildren :: Value -> Parser [TransTree]
+        parseChildren o =
+            (parseJSON o :: Parser (OMap Text Value))
+                >>= traverse (uncurry parseNode . first Just) . OM.assocs
 
 instance (FromJSON v) => FromJSON (OMap Text v) where
     parseJSON :: Value -> Parser (OMap Text v)
