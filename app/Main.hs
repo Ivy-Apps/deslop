@@ -11,6 +11,8 @@ pParams =
         <$> strArgument
             ( metavar "PROJECT_PATH"
                 <> help "Path to the TypeScript project"
+                <> value "."
+                <> showDefault
             )
         <*> switch
             ( long "imports"
