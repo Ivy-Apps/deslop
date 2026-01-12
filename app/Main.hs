@@ -22,6 +22,11 @@ pParams =
                 <> short 'c'
                 <> help "Remove AI-generated slop comments"
             )
+        <*> switch
+            ( long "modified"
+                <> short 'm'
+                <> help "Change only git modified files"
+            )
 
 versionOption :: Parser (a -> a)
 versionOption =
@@ -49,7 +54,7 @@ myPrefs =
             <> helpShowGlobals -- Show global options in help
 
 applyDefaults :: Params -> Params
-applyDefaults p@(Params _ i c)
+applyDefaults p@(Params _ i c _)
     | not i && not c = p {imports = True, comments = True}
     | otherwise = p
 

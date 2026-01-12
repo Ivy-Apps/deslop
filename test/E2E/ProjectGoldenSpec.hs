@@ -16,7 +16,7 @@ import System.Directory (
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (defaultParams, runCLILogTest)
+import TestUtils (defaultParams, runCLILogTest, runGitTest)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 projectFixturePath :: FilePath
@@ -36,6 +36,7 @@ spec = describe "Whole Project Golden Tests" $ do
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
                     . runCLILogTest
+                    . runGitTest
                     $ deslopProject (defaultParams tmpDir)
 
             -- Then

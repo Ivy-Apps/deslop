@@ -9,6 +9,7 @@ module Deslop (
 import Control.Monad (forM_, (>=>))
 import Data.Bool
 import Data.ByteString (ByteString)
+import Data.List (intersect)
 import Data.Maybe (fromMaybe)
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
@@ -27,6 +28,7 @@ import Effects.FileSystem (
     runFileSystemIO,
     writeFileBS,
  )
+import Effects.Git
 import System.Console.ANSI
 import System.FilePath
 import Text.Printf (printf)
@@ -38,6 +40,7 @@ data Params = Params
     { projectPath :: FilePath
     , imports :: Bool
     , comments :: Bool
+    , modified :: Bool
     }
     deriving (Show, Eq)
 
@@ -49,6 +52,7 @@ data DeslopError
 deslopProject ::
     ( WrFileSystem :> es
     , RoFileSystem :> es
+    , Git :> es
     , Error DeslopError :> es
     , CLILog :> es
     ) =>
@@ -57,7 +61,12 @@ deslopProject params = do
     let projPath = params.projectPath
     cfg <- tsConfig projPath
     files <- getTsFiles projPath
-    runReader @TsConfig cfg $ forM_ files deslopFile
+    if params.modified
+        then do
+            mFiles <- modifiedFiles
+            runReader @TsConfig cfg $ forM_ (intersect mFiles files) deslopFile
+        else
+            runReader @TsConfig cfg $ forM_ files deslopFile
 
 tsConfig ::
     ( RoFileSystem :> es
@@ -122,6 +131,7 @@ runDeslop params = do
     runEff
         . runFileSystemIO
         . runCLILog
+        . runGit
         $ do
             res <- runErrorNoCallStack @DeslopError (deslopProject params)
             liftIO $ putStrLn "─────────────────────────────────────────"

@@ -39,6 +39,7 @@ library
         Translations.Manager
         Effects.FileSystem
         Effects.CLILog
+        Effects.Git
         Utils
 
     build-depends:    
@@ -57,7 +58,8 @@ library
         megaparsec,
         extra,
         ansi-terminal,
-        time
+        time,
+        process
 
     hs-source-dirs:   src
 

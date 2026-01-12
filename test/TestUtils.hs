@@ -1,4 +1,9 @@
-module TestUtils (runFileSystemTest, runCLILogTest, defaultParams) where
+module TestUtils (
+    runFileSystemTest,
+    runCLILogTest,
+    runGitTest,
+    defaultParams,
+) where
 
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
@@ -8,6 +13,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.CLILog
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
+import Effects.Git
 
 runFileSystemTest ::
     (IOE :> es) =>
@@ -45,4 +51,9 @@ defaultParams projPath =
         { projectPath = projPath
         , imports = True
         , comments = True
+        , modified = False
         }
+
+runGitTest :: Eff (Git : es) a -> Eff es a
+runGitTest = interpret $ \_ -> \case
+    ModifiedFiles -> pure []
