@@ -21,9 +21,8 @@ gitLsFiles =
     lines
         <$> readProcess
             "git"
-            [ "ls-files"
-            , "--modified"
-            , "--others"
-            , "--exclude-standard"
+            [ "diff"
+            , "--name-only"
+            , "HEAD"
             ]
             ""
