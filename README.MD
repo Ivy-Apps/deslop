@@ -36,3 +36,8 @@ ghcup install ghc 9.10.1
 ghcup set ghc 9.10.1
 ghcup install cabal
 ```
+3. Install hgold for Golden tests
+```bash
+cabal install hspec-golden
+hgold # to update golden tests
+```

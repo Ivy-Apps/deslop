@@ -3,7 +3,7 @@ module E2E.ProjectGoldenSpec (spec) where
 import Control.Monad (forM, forM_)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
-import Deslop (DeslopError (..), deslopProject)
+import Deslop (DeslopError (..), Params (..), deslopProject)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
@@ -36,7 +36,7 @@ spec = describe "Whole Project Golden Tests" $ do
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
                     . runCLILogTest
-                    . runGitTest
+                    . runGitTest []
                     $ deslopProject (defaultParams tmpDir)
 
             -- Then
@@ -56,6 +56,41 @@ spec = describe "Whole Project Golden Tests" $ do
                 return $ header <> content
             let fullSnapshot = T.dropWhile (== '\n') $ T.concat results
             return $ defaultGolden "ts-project-1-snapshot" (T.unpack fullSnapshot)
+
+    it "transforms only modified files" $ do
+        -- Setup Safe Temp Directory
+        withSystemTempDirectory "deslop-test" $ \tmpDir -> do
+            -- Given
+            copyDir projectFixturePath tmpDir
+
+            -- When
+
+            let params = (defaultParams tmpDir) {modified = True}
+            _ <-
+                runEff
+                    . runFileSystemIO
+                    . runErrorNoCallStack @DeslopError
+                    . runCLILogTest
+                    . runGitTest
+                        [ tmpDir </> "src/app/[locale]/login/page.tsx"
+                        , tmpDir </> "src/features/home/home-screen.tsx"
+                        ]
+                    $ deslopProject params
+
+            -- Then
+            let filesToVerify =
+                    [ "src/app/[locale]/login/page.tsx"
+                    , "src/features/home/home-screen.tsx"
+                    , "src/features/home/home-component.ts"
+                    , "src/features/home/home.spec.ts"
+                    , "tests/fixtures/fixtures.ts"
+                    ]
+            results <- forM filesToVerify $ \relPath -> do
+                content <- TIO.readFile (tmpDir </> relPath)
+                let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
+                return $ header <> content
+            let fullSnapshot = T.dropWhile (== '\n') $ T.concat results
+            return $ defaultGolden "ts-project-1-git-modified" (T.unpack fullSnapshot)
 
 copyDir :: FilePath -> FilePath -> IO ()
 copyDir src dst = do

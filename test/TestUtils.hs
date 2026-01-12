@@ -15,6 +15,8 @@ import Effects.CLILog
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
 import Effects.Git
 
+type ModifiedFiles = [FilePath]
+
 runFileSystemTest ::
     (IOE :> es) =>
     IORef (Maybe ByteString) ->
@@ -54,6 +56,6 @@ defaultParams projPath =
         , modified = False
         }
 
-runGitTest :: Eff (Git : es) a -> Eff es a
-runGitTest = interpret $ \_ -> \case
-    ModifiedFiles -> pure []
+runGitTest :: ModifiedFiles -> Eff (Git : es) a -> Eff es a
+runGitTest ms = interpret $ \_ -> \case
+    ModifiedFiles -> pure ms
