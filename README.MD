@@ -27,6 +27,12 @@ brew install deslop
 deslop --help
 ```
 
+**To update**
+```bash
+brew update
+brew upgrade deslop
+```
+
 ## Setup
 
 1. Install [GHCUP](https://www.haskell.org/ghcup/)
