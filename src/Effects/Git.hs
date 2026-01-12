@@ -14,10 +14,10 @@ modifiedFiles = send $ ModifiedFiles
 
 runGit :: (IOE :> es) => Eff (Git : es) a -> Eff es a
 runGit = interpret $ \_ -> \case
-    ModifiedFiles -> liftIO gitLsFiles
+    ModifiedFiles -> liftIO gitModifiedFiles
 
-gitLsFiles :: IO [FilePath]
-gitLsFiles =
+gitModifiedFiles :: IO [FilePath]
+gitModifiedFiles =
     lines
         <$> readProcess
             "git"

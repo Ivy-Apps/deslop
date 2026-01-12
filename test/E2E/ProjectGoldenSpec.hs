@@ -72,7 +72,7 @@ spec = describe "Whole Project Golden Tests" $ do
                     . runErrorNoCallStack @DeslopError
                     . runCLILogTest
                     . runGitTest
-                        [ tmpDir </> "src/app/[locale]/login/page.tsx"
+                        [ tmpDir </> "." </> "src/app/[locale]/login/page.tsx"
                         , tmpDir </> "src/features/home/home-screen.tsx"
                         ]
                     $ deslopProject params

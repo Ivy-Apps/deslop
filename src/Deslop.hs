@@ -63,8 +63,9 @@ deslopProject params = do
     files <- getTsFiles projPath
     if params.modified
         then do
-            mFiles <- modifiedFiles
-            runReader @TsConfig cfg $ forM_ (intersect mFiles files) deslopFile
+            mFiles <- map normalise <$> modifiedFiles
+            runReader @TsConfig cfg $
+                forM_ (intersect mFiles (normalise <$> files)) deslopFile
         else
             runReader @TsConfig cfg $ forM_ files deslopFile
 
