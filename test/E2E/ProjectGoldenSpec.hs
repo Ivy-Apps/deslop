@@ -25,7 +25,6 @@ projectFixturePath = "test/fixtures/ts-project-1"
 spec :: Spec
 spec = describe "Whole Project Golden Tests" $ do
     it "correctly transforms ts-project-1" $ do
-        -- Setup Safe Temp Directory
         withSystemTempDirectory "deslop-test" $ \tmpDir -> do
             -- Given
             copyDir projectFixturePath tmpDir
@@ -50,21 +49,15 @@ spec = describe "Whole Project Golden Tests" $ do
                     , "src/features/login/login-form.ts"
                     , "tests/fixtures/fixtures.ts"
                     ]
-            results <- forM filesToVerify $ \relPath -> do
-                content <- TIO.readFile (tmpDir </> relPath)
-                let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
-                return $ header <> content
-            let fullSnapshot = T.dropWhile (== '\n') $ T.concat results
-            return $ defaultGolden "ts-project-1-snapshot" (T.unpack fullSnapshot)
+            fullSnapshot <- snapshot tmpDir filesToVerify
+            return $ defaultGolden "ts-project-1-snapshot" fullSnapshot
 
     it "transforms only modified files" $ do
-        -- Setup Safe Temp Directory
         withSystemTempDirectory "deslop-test" $ \tmpDir -> do
             -- Given
             copyDir projectFixturePath tmpDir
 
             -- When
-
             let params = (defaultParams tmpDir) {modified = True}
             _ <-
                 runEff
@@ -85,12 +78,16 @@ spec = describe "Whole Project Golden Tests" $ do
                     , "src/features/home/home.spec.ts"
                     , "tests/fixtures/fixtures.ts"
                     ]
-            results <- forM filesToVerify $ \relPath -> do
-                content <- TIO.readFile (tmpDir </> relPath)
-                let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
-                return $ header <> content
-            let fullSnapshot = T.dropWhile (== '\n') $ T.concat results
-            return $ defaultGolden "ts-project-1-git-modified" (T.unpack fullSnapshot)
+            fullSnapshot <- snapshot tmpDir filesToVerify
+            return $ defaultGolden "ts-project-1-git-modified" fullSnapshot
+
+snapshot :: FilePath -> [FilePath] -> IO String
+snapshot tmpDir filesToVerify = do
+    results <- forM filesToVerify $ \relPath -> do
+        content <- TIO.readFile (tmpDir </> relPath)
+        let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
+        return $ header <> content
+    pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
 
 copyDir :: FilePath -> FilePath -> IO ()
 copyDir src dst = do
