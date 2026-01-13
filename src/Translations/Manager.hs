@@ -18,8 +18,7 @@ fixTranslation base target = do
     tsRes <- fmap HM.fromList <$> translate (base.language, target.language) missingTs
     case tsRes of
         Right fixedTs -> do
-            let tM' = fixedTs <> tM
-            pure . Right $ target
+            pure . Right $ target {tree = apply (fixedTs <> tM) base.tree}
         Left e -> pure . Left $ e
   where
     findNotTranslated :: Text -> HashMap Text Text -> TransTree -> [(Text, Text)]
