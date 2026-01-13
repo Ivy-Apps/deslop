@@ -48,6 +48,8 @@ library
         effectful-core,
         aeson,
         aeson-pretty,
+        attoparsec,
+        attoparsec-aeson,
         text,
         bytestring,
         containers,
