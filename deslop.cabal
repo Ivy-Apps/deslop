@@ -37,9 +37,11 @@ library
         TypeScript.Config
         Translations.Parser
         Translations.Manager
+        Translations.Translator
         Effects.FileSystem
         Effects.CLILog
         Effects.Git
+        Effects.AI
         Utils
 
     build-depends:    

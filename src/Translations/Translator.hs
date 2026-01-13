@@ -1,0 +1,1 @@
+module Translations.Translator where

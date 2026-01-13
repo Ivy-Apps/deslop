@@ -1,11 +1,14 @@
 module Translations.Manager where
 
-import Data.Bifunctor (Bifunctor (first))
 import Data.HashMap.Strict (HashMap)
 import Data.HashMap.Strict qualified as HM
-import Data.Maybe
 import Data.Text (Text)
+import Effectful
+import Effects.AI
 import Translations.Parser
+
+translate :: (AI :> es) => Translations -> Eff es (Either Text Translations)
+translate = pure . Right . id
 
 flatten :: TransTree -> HashMap Text Text
 flatten = HM.fromList . go ""
