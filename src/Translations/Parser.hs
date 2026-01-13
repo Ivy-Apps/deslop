@@ -22,6 +22,8 @@ import Effects.FileSystem (RoFileSystem, listDirectory, readFileBS)
 import System.FilePath (takeBaseName, (</>))
 import Utils (safeHead)
 
+type Language = Text
+
 data Translations = Translations
     { base :: Translation
     , extra :: NonEmpty Translation
@@ -29,7 +31,7 @@ data Translations = Translations
     deriving (Show, Eq)
 
 data Translation = Translation
-    { language :: Text
+    { language :: Language
     , tree :: TransTree
     }
     deriving (Show, Eq)

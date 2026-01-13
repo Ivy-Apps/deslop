@@ -7,8 +7,16 @@ import Effectful
 import Effects.AI
 import Translations.Parser
 
-translate :: (AI :> es) => Translations -> Eff es (Either Text Translations)
-translate = pure . Right . id
+fixTranslations :: (AI :> es) => Translations -> Eff es (Either Text Translations)
+fixTranslations = pure . Right . id
+
+fixTranslation :: (AI :> es) => Translation -> Translation -> Eff es (Either Text Translation)
+fixTranslation base target = do
+    let tM = flatten target.tree
+    pure $ Left "WIP"
+  where
+    findNotTranslated :: TransTree -> HashMap Text Text -> [(Text, Text)]
+    findNotTranslated bT tM = []
 
 flatten :: TransTree -> HashMap Text Text
 flatten = HM.fromList . go ""
