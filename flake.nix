@@ -66,13 +66,15 @@
           ];
 
           plugins = {
+            web-devicons.enable = true;
+
             nvim-tree.enable = true;
             telescope = { enable = true; keymaps = { "<leader>ff" = "find_files"; "<leader>fg" = "live_grep"; }; };
             
             treesitter = {
               enable = true;
               settings.indent.enable = false; 
-              grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [ haskell cabal json yaml markdown nix bash make ];
+              grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [ haskell json yaml markdown nix bash make ];
             };
 
             haskell-tools = { 
