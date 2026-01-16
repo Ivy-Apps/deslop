@@ -26,8 +26,7 @@
         };
 
         # --- 2. Neovim Configuration ---
-        nixvimModule = {
-          enable = true;
+        nixvimModule = {          
           colorschemes.catppuccin.enable = true;
 
           globals = {
@@ -58,11 +57,10 @@
                action = "<cmd>!hlint %<CR>";
                options.desc = "Check Lint (Hlint CLI)";
              }
-             # NEW: Toggle Haskell Repl for current buffer
              {
                 mode = "n";
                 key = "<leader>rr";
-                action = "<cmd>HaskellRep<CR>";
+                action = "<cmd>lua require('haskell-tools').repl.toggle()<CR>";
                 options.desc = "Haskell REPL";
              }
           ];
@@ -77,13 +75,10 @@
               grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [ haskell cabal json yaml markdown nix bash make ];
             };
 
-            # Haskell-tools provides the LSP config, so we don't need 'lsp.servers.hls'
             haskell-tools = { 
               enable = true; 
               tools = {
                 hover.enable = true; 
-                # This ensures the plugin doesn't try to download its own HLS binary
-                # and uses the one we provide in extraPackages/PATH
                 log.level = "info";
               };
             };
@@ -124,12 +119,8 @@
             pkgs.ripgrep
             pkgs.fd
             pkgs.nixpkgs-fmt
-            
-            # The Critical Trio
             haskellPackages.haskell-language-server
             haskellPackages.hoogle
-            
-            # The Stable Tools
             pkgs.fourmolu 
             pkgs.hlint
           ];
@@ -150,7 +141,6 @@
           pkgs.just
           haskellPackages.hspec-golden
           haskellPackages.hpack
-          # NEW: Helper to generate hie.yaml for IDE support
           haskellPackages.implicit-hie
         ];
 
@@ -176,8 +166,6 @@
             shellHook = ''
               echo "🔮 Deslop IDE (GHC 9.10)"
               
-              # Auto-generate hie.yaml if missing. 
-              # This tells HLS strictly how to interpret the project.
               if [ ! -f hie.yaml ]; then
                 echo "   Generating hie.yaml for HLS..."
                 gen-hie > hie.yaml
