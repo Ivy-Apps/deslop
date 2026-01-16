@@ -1,4 +1,4 @@
-.PHONY: sandbox update
+.PHONY: sandbox update install_nix
 
 .DEFAULT_GOAL := help
 
@@ -31,6 +31,29 @@ fix-hls: ## Fixes HLS
 	cabal build all
 	
 	@echo "✅ Clean complete. Please restart VSCode"
+
+install_nix: ## Install Nix and enable Flakes support
+	@# 1. Check if Nix is installed
+	@if ! command -v nix-env >/dev/null 2>&1; then \
+		echo "⬇️  Nix not found. Installing..."; \
+		curl -L https://nixos.org/nix/install | sh -s -- --daemon; \
+		echo "✅ Nix installed."; \
+	else \
+		echo "✅ Nix is already installed."; \
+	fi
+	
+	@# 2. Enable Flakes (User level config is safest/easiest to automate)
+	@echo "❄️  Configuring Flakes..."
+	@mkdir -p ~/.config/nix
+	@touch ~/.config/nix/nix.conf
+	@if ! grep -q "experimental-features = nix-command flakes" ~/.config/nix/nix.conf; then \
+		echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf; \
+		echo "   Added flake support to ~/.config/nix/nix.conf"; \
+	else \
+		echo "   Flakes already enabled in ~/.config/nix/nix.conf"; \
+	fi
+	
+	@echo "🚀 Ready! Please restart your shell (or run 'source /etc/profile.d/nix.sh'), then run 'nix develop'."
 
 help:
 	@echo 'Usage: make [target]'

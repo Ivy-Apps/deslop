@@ -33,7 +33,25 @@ brew update
 brew upgrade deslop
 ```
 
-## Setup
+## Develop with Nix
+
+```shell
+make install_nix
+nix develop
+```
+
+## NVIM setup
+```shell
+brew install --cask iterm2
+brew install --cask font-jetbrains-mono-nerd-font
+```
+**iTerm2 Settings:**
+1. Open iTerm
+2. Settings > Profiles > Text.
+3. Check "Use a different font for non-ASCII text".
+4. Select the `JetBrainsMono Nerd Font`.
+
+## Devevelop Manually
 
 1. Install [GHCUP](https://www.haskell.org/ghcup/)
 2. Install GHC 9.10.1+
