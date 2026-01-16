@@ -33,7 +33,14 @@ brew update
 brew upgrade deslop
 ```
 
-## Setup
+## Develop with Nix
+
+```shell
+make install_nix
+nix develop
+```
+
+## Devevelop Manually
 
 1. Install [GHCUP](https://www.haskell.org/ghcup/)
 2. Install GHC 9.10.1+
