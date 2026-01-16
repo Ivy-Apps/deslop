@@ -39,12 +39,16 @@
             shiftwidth = 2; expandtab = true; 
             smartindent = true; breakindent = true;
             backspace = [ "indent" "eol" "start" ];
+            # Smart Case Search (Case insensitive unless capital used)
+            ignorecase = true;
+            smartcase = true;
           };
           
           clipboard.register = "unnamedplus";
           
           # --- Keymaps ---
           keymaps = [
+             # --- Haskell Tools ---
              {
                mode = "n";
                key = "<leader>fm";
@@ -63,13 +67,73 @@
                 action = "<cmd>lua require('haskell-tools').repl.toggle()<CR>";
                 options.desc = "Haskell REPL";
              }
+             {
+               mode = "n";
+               key = "<leader>ca";
+               action = "<cmd>lua vim.lsp.buf.code_action()<CR>";
+               options.desc = "Code Actions";
+             }
+
+             # --- Search & UI ---
+             {
+               mode = "n";
+               key = "<leader>ss";
+               action = "<cmd>Telescope current_buffer_fuzzy_find<CR>";
+               options.desc = "Search in Buffer";
+             }
+             {
+               mode = "n";
+               key = "<leader>nh";
+               action = "<cmd>noh<CR>";
+               options.desc = "Clear Highlights";
+             }
+             {
+               mode = "n";
+               key = "<leader>bk";
+               action = "<cmd>bd<CR>";
+               options.desc = "Kill Buffer";
+             }
+             {
+               mode = "n";
+               key = "<C-a>";
+               action = "ggVG";
+               options.desc = "Select All";
+             }
+
+             # --- Git ---
+             {
+               mode = "n";
+               key = "<leader>gs";
+               action = "<cmd>Neogit<CR>";
+               options.desc = "Git Status (Neogit)";
+             }
+             {
+               mode = "n";
+               key = "<leader>hp";
+               action = "<cmd>Gitsigns preview_hunk<CR>";
+               options.desc = "Preview Git Hunk";
+             }
           ];
 
           plugins = {
             web-devicons.enable = true;
-
             nvim-tree.enable = true;
-            telescope = { enable = true; keymaps = { "<leader>ff" = "find_files"; "<leader>fg" = "live_grep"; }; };
+            
+            # --- FIX: Enable diffview so Neogit can use it ---
+            diffview.enable = true; 
+            
+            neogit = {
+              enable = true;
+              settings.integrations.diffview = true;
+            };
+
+            telescope = { 
+              enable = true; 
+              keymaps = { 
+                "<leader>ff" = "find_files"; 
+                "<leader>fg" = "live_grep"; 
+              }; 
+            };
             
             treesitter = {
               enable = true;
@@ -79,11 +143,9 @@
 
             haskell-tools = { 
               enable = true; 
-              settings = {
-                tools = {
-                  hover.enable = true; 
-                  log.level = "info";
-                };
+              settings.tools = {
+                hover.enable = true; 
+                log.level = "info";
               };
             };
 
