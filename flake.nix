@@ -26,7 +26,7 @@
         };
 
         # --- 2. Neovim Configuration ---
-        nixvimModule = {          
+        nixvimModule = {
           colorschemes.catppuccin.enable = true;
 
           globals = {
@@ -77,9 +77,11 @@
 
             haskell-tools = { 
               enable = true; 
-              tools = {
-                hover.enable = true; 
-                log.level = "info";
+              settings = {
+                tools = {
+                  hover.enable = true; 
+                  log.level = "info";
+                };
               };
             };
 
