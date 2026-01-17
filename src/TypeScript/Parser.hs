@@ -13,6 +13,7 @@ import Text.Megaparsec.Char
 import TypeScript.AST
 import TypeScript.Lexer
 import TypeScript.Tokens
+import Data.List (foldl')
 
 type Parser = Parsec Void Text
 

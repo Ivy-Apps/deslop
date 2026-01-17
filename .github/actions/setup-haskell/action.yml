@@ -4,7 +4,7 @@ inputs:
   ghc-version:
     description: 'The GHC version to install'
     required: true
-    default: '9.10.1'
+    default: '9.6.7'
 
 runs:
   using: "composite"

@@ -9,7 +9,7 @@ build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 
 common shared-properties
-    default-language: GHC2024
+    default-language: GHC2021
     
     ghc-options: 
         -Wall -Wcompat -Widentities -Wincomplete-record-updates 
@@ -23,6 +23,8 @@ common shared-properties
         OverloadedStrings
         TypeFamilies
         DeriveGeneric
+        LambdaCase
+        DataKinds
 
 library
     import:           shared-properties
@@ -45,7 +47,7 @@ library
         Utils
 
     build-depends:    
-        base ^>=4.20.0.0,
+        base ^>=4.18.3.0,
         effectful,
         effectful-core,
         aeson,

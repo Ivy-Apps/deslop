@@ -54,11 +54,14 @@ brew install --cask font-jetbrains-mono-nerd-font
 ## Devevelop Manually
 
 1. Install [GHCUP](https://www.haskell.org/ghcup/)
-2. Install GHC 9.10.1+
+2. Install GHC, Cabal and HLS.
 ```bash
-ghcup install ghc 9.10.1
-ghcup set ghc 9.10.1
-ghcup install cabal
+ghcup install ghc 9.6.7
+ghcup set ghc 9.6.7
+ghcup install cabal recommended
+ghcup set cabal recommended
+ghcup install hls recommended
+ghcup set hls recommended
 ```
 3. Install hgold for Golden tests
 ```bash
