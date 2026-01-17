@@ -18,7 +18,7 @@ runs:
           ~/.ghcup/cache
         key: ${{ runner.os }}-ghcup-${{ inputs.ghc-version }}
         restore-keys: |
-          ${{ runner.os }}-ghcup-
+          ${{ runner.os }}-ghcup-${{ inputs.ghc-version }}
 
     # Setup Haskell (No index update)
     - name: Setup Haskell
