@@ -34,6 +34,13 @@
             overrides = self: super: {
               deslop = self.callCabal2nix "deslop" (pkgs.lib.cleanSource ./.) { };
             };
+
+            config = {
+              allowBroken = true; # Attempt to build packages that are marked as broken upstream
+              doCheck = false;      # Don't run tests for dependencies
+              doProfiling = false;  # Don't build profiling libraries
+              # doHaddock = false;    # Don't build documentation (haddockPhase)
+            };
           };
 
           nixvimModule = {
