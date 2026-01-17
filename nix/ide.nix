@@ -108,8 +108,19 @@
 
     treesitter = {
       enable = true;
-      settings.indent.enable = false;
-      grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [ haskell json yaml markdown nix bash make ];
+      settings = {
+        highlight.enable = true;
+        indent.enable = false;
+      };
+      grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [ 
+        haskell 
+        json 
+        yaml 
+        markdown 
+        nix 
+        bash 
+        make 
+      ];
     };
 
     haskell-tools = {
