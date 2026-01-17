@@ -156,7 +156,7 @@
     pkgs.nixpkgs-fmt
     haskellPackages.haskell-language-server
     haskellPackages.hoogle
-    pkgs.fourmolu
-    pkgs.hlint
+    haskellPackages.fourmolu
+    haskellPackages.hlint
   ];
 }

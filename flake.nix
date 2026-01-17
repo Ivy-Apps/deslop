@@ -45,7 +45,7 @@
           ciDeps = [
             haskellPackages.cabal-install
             haskellPackages.hspec-discover
-            pkgs.hlint
+            haskellPackages.hlint
             pkgs.git
           ];
 
@@ -75,7 +75,7 @@
                 pkgs.zlib
                 pkgs.xz
                 haskellPackages.haskell-language-server
-                pkgs.fourmolu
+                haskellPackages.fourmolu
               ];
 
               shellHook = ''
