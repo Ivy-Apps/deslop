@@ -1,6 +1,18 @@
 {
   description = "Deslop: Haskell Env + Immutable Neovim IDE";
 
+  nixConfig = {
+    extra-substituters = [
+      "https://nix-community.cachix.org"
+      "https://cache.iog.io"
+    ];
+    extra-trusted-public-keys = [
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+      "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
+    ];
+    allow-import-from-derivation = true;
+  };
+
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
@@ -16,16 +28,14 @@
 
       perSystem = { config, pkgs, system, ... }:
         let
-          # --- 1. Haskell Configuration ---
-          ghcVersion = "ghc910";
+          ghcVersion = "ghc967";
 
           haskellPackages = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
-              deslop = self.callCabal2nix "deslop" ./. { };
+              deslop = self.callCabal2nix "deslop" (pkgs.lib.cleanSource ./.) { };
             };
           };
 
-          # --- 2. Neovim Configuration ---
           nixvimModule = {
             colorschemes.catppuccin.enable = true;
 
@@ -42,7 +52,6 @@
               smartindent = true;
               breakindent = true;
               backspace = [ "indent" "eol" "start" ];
-              # Smart Case Search (Case insensitive unless capital used)
               ignorecase = true;
               smartcase = true;
             };
@@ -122,7 +131,6 @@
               web-devicons.enable = true;
               nvim-tree.enable = true;
 
-              # --- FIX: Enable diffview so Neogit can use it ---
               diffview.enable = true;
 
               neogit = {
@@ -197,7 +205,6 @@
 
           nvim = nixvim.legacyPackages.${system}.makeNixvim nixvimModule;
 
-          # --- 3. Shell Definitions ---
           ciDeps = [
             haskellPackages.cabal-install
             haskellPackages.hspec-discover
@@ -219,7 +226,7 @@
             ci = haskellPackages.shellFor {
               packages = p: [ p.deslop ];
               nativeBuildInputs = ciDeps;
-              buildInputs = [ pkgs.zlib ];
+              buildInputs = [ pkgs.zlib pkgs.xz ];
             };
 
             default = haskellPackages.shellFor {
@@ -229,12 +236,18 @@
               nativeBuildInputs = ciDeps ++ localDeps;
               buildInputs = [
                 pkgs.zlib
+                pkgs.xz
                 haskellPackages.haskell-language-server
                 pkgs.fourmolu
               ];
 
               shellHook = ''
-                echo "🔮 Deslop IDE (GHC 9.10)"
+                echo "🔮 Deslop Dev env initialized."
+                echo "--------------------------------------------------------"
+                # This will print the exact versions currently in the PATH
+                echo "✅ GHC:  $(ghc --version)"
+                echo "✅ HLS:  $(haskell-language-server --version | awk '{print $1, $2, $3, $4, $5}')"
+                echo "--------------------------------------------------------"
               
                 if [ ! -f hie.yaml ]; then
                   echo "   Generating hie.yaml for HLS..."
@@ -249,4 +262,3 @@
         };
     };
 }
-
