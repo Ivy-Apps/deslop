@@ -4,7 +4,7 @@ inputs:
   ghc-version:
     description: 'The GHC version to install'
     required: true
-    default: '9.10.1'
+    default: '9.6.7'
 
 runs:
   using: "composite"
@@ -18,7 +18,7 @@ runs:
           ~/.ghcup/cache
         key: ${{ runner.os }}-ghcup-${{ inputs.ghc-version }}
         restore-keys: |
-          ${{ runner.os }}-ghcup-
+          ${{ runner.os }}-ghcup-${{ inputs.ghc-version }}
 
     # Setup Haskell (No index update)
     - name: Setup Haskell

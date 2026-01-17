@@ -1,6 +1,6 @@
 module Deslop.Imports where
 
-import Data.List (find, isPrefixOf)
+import Data.List (find, isPrefixOf, foldl')
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
