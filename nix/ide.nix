@@ -67,12 +67,6 @@
       action = "<cmd>bd<CR>";
       options.desc = "Kill Buffer";
     }
-    {
-      mode = "n";
-      key = "<C-a>";
-      action = "ggVG";
-      options.desc = "Select All";
-    }
     # --- Git ---
     {
       mode = "n";
