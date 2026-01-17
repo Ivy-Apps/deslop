@@ -9,15 +9,20 @@
   };
 
   opts = {
+    # --- Standard Vim Options ---
     number = true;
     relativenumber = true;
     shiftwidth = 2;
     expandtab = true;
     smartindent = true;
     breakindent = true;
-    backspace = [ "indent" "eol" "start" ];
     ignorecase = true;
     smartcase = true;
+    
+    # --- Window/Split Behavior ---
+    splitbelow = true; # New horizontal splits go down
+    splitright = true; # New vertical splits go right
+    termguicolors = true; 
   };
 
   clipboard.register = "unnamedplus";
