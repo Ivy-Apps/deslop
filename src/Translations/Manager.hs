@@ -38,8 +38,6 @@ fixTranslation base target =
 flatten :: TransTree -> HashMap Text Text
 flatten = HM.fromList . go ""
   where
-    go :: Text -> TransTree -> [(Text, Text)]
-    go p (Leaf k v) = [(joinKey p k, v)]
+    go p (Leaf k v) = [(p <.> k, v)]
     go p (Root ts) = concatMap (go p) ts
-    go p (Branch k ts) = concatMap (go (joinKey p k)) ts
-
+    go p (Branch k ts) = concatMap (go $ p <.> k) ts
