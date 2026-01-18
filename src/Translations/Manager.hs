@@ -32,7 +32,7 @@ fixTranslation base target =
             }
 
     apply :: HashMap Text Text -> TransTree -> TransTree
-    apply _ t = t
+    apply m = fkmap (\k v -> maybe v id (HM.lookup k m))
 
 -- | Flattens a tree into dot-separated paths
 flatten :: TransTree -> HashMap Text Text
