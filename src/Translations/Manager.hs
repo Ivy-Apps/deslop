@@ -43,5 +43,3 @@ flatten = HM.fromList . go []
     go path (Root ts) = concatMap (go path) ts
     go path (Branch k ts) = concatMap (go (path <> [k])) ts
 
-joinKey :: [Text] -> Text
-joinKey = T.intercalate "."

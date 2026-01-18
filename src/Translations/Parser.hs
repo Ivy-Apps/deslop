@@ -143,3 +143,14 @@ render tree = TL.toStrict . toLazyText $ renderNode 0 tree
 
     renderChild :: Int -> TransTree -> Builder
     renderChild lvl node = mkIndent lvl <> renderNode lvl node
+
+fkmap :: (Text -> Text -> Text) -> TransTree -> TransTree
+fkmap f = go ""
+  where
+    go p (Leaf k v) = Leaf k $ f (joinKey $ p : [k]) v
+    go p (Root ts) = Root $ go p <$> ts
+    go p (Branch k ts) = Branch k $ go (joinKey $ p : [k]) <$> ts
+
+joinKey :: [Text] -> Text
+joinKey = T.intercalate "."
+
