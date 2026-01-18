@@ -162,6 +162,13 @@
       action = "<cmd>Neogit<CR>";
       options.desc = "Git Status (Neogit)";
     }
+    # --- Terminal mode ---
+    {
+      mode = "t";
+      key = "<Esc>";
+      action = "<C-\\><C-n>";
+      options.desc = "Exit terminal mode";
+    }
   ];
 
   plugins = {
