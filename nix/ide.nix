@@ -9,7 +9,6 @@
   };
 
   opts = {
-    # --- Standard Vim Options ---
     number = true;
     relativenumber = true;
     shiftwidth = 2;
@@ -18,11 +17,11 @@
     breakindent = true;
     ignorecase = true;
     smartcase = true;
-    
+
     # --- Window/Split Behavior ---
-    splitbelow = true; # New horizontal splits go down
-    splitright = true; # New vertical splits go right
-    termguicolors = true; 
+    splitbelow = true;
+    splitright = true;
+    termguicolors = true;
   };
 
   clipboard.register = "unnamedplus";
@@ -100,6 +99,27 @@
     }
     {
       mode = "n";
+      key = "<leader>rq";
+      action = "<cmd>lua require('haskell-tools').repl.quit()<CR>";
+      options.desc = "Quit GHCi REPL";
+    }
+    {
+      mode = "n";
+      key = "<leader>hg";
+      action = ''<cmd>lua require("toggleterm").exec("while read -p 'Hoogle> ' q; do hoogle search --color --count=15 \"$q\"; echo; done", 5)<CR>'';
+      options = {
+        desc = "Hoogle Search (Bottom)";
+        silent = true;
+      };
+    }
+    {
+      mode = "n";
+      key = "<leader>tt";
+      action = ''<cmd>lua require("toggleterm").exec("cabal test --test-show-details=direct", 1)<CR>'';
+      options.desc = "Run Cabal Tests";
+    }
+    {
+      mode = "n";
       key = "<leader>ca";
       action = "<cmd>lua vim.lsp.buf.code_action()<CR>";
       options.desc = "Code Actions";
@@ -130,18 +150,31 @@
       action = "<cmd>Neogit<CR>";
       options.desc = "Git Status (Neogit)";
     }
-    {
-      mode = "n";
-      key = "<leader>hp";
-      action = "<cmd>Gitsigns preview_hunk<CR>";
-      options.desc = "Preview Git Hunk";
-    }
   ];
 
   plugins = {
     web-devicons.enable = true;
     nvim-tree.enable = true;
     diffview.enable = true;
+
+    toggleterm = {
+      enable = true;
+      settings = {
+        direction = "horizontal";
+        size = ''
+          function(term)
+            return vim.o.lines * 0.3
+          end
+        '';
+        open_mapping = "[[<c-t>]]";
+        hide_numbers = true;
+        shade_terminals = true;
+        start_in_insert = true;
+        terminal_mappings = true;
+        persist_mode = true;
+        insert_mappings = true;
+      };
+    };
 
     neogit = {
       enable = true;
@@ -162,14 +195,14 @@
         highlight.enable = true;
         indent.enable = false;
       };
-      grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [ 
-        haskell 
-        json 
-        yaml 
-        markdown 
-        nix 
-        bash 
-        make 
+      grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [
+        haskell
+        json
+        yaml
+        markdown
+        nix
+        bash
+        make
       ];
     };
 
@@ -178,6 +211,9 @@
       settings.tools = {
         hover.enable = true;
         log.level = "info";
+        repl = {
+          handler = "toggleterm";
+        };
       };
     };
 
@@ -221,3 +257,4 @@
     haskellPackages.hlint
   ];
 }
+
