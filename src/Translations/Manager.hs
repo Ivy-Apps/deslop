@@ -36,10 +36,10 @@ fixTranslation base target =
 
 -- | Flattens a tree into dot-separated paths
 flatten :: TransTree -> HashMap Text Text
-flatten = HM.fromList . go []
+flatten = HM.fromList . go ""
   where
-    go :: [Text] -> TransTree -> [(Text, Text)]
-    go path (Leaf k v) = [(joinKey (path <> [k]), v)]
-    go path (Root ts) = concatMap (go path) ts
-    go path (Branch k ts) = concatMap (go (path <> [k])) ts
+    go :: Text -> TransTree -> [(Text, Text)]
+    go p (Leaf k v) = [(joinKey p k, v)]
+    go p (Root ts) = concatMap (go p) ts
+    go p (Branch k ts) = concatMap (go (joinKey p k)) ts
 
