@@ -87,6 +87,18 @@
     }
     {
       mode = "n";
+      key = "<leader>gd";
+      action = "<cmd>lua vim.lsp.buf.definition()<CR>";
+      options.desc = "Go to Definition";
+    }
+    {
+      mode = "n";
+      key = "<leader>gr";
+      action = "<cmd>Telescope lsp_references<CR>";
+      options.desc = "Find References (Telescope)";
+    }
+    {
+      mode = "n";
       key = "<leader>cl";
       action = "<cmd>!hlint %<CR>";
       options.desc = "Check Lint (Hlint CLI)";
