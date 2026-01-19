@@ -16,11 +16,8 @@ import System.Directory (
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (defaultParams, runCLILogTest, runGitTest)
+import TestUtils (copyDir, defaultParams, projectFixturePath, runCLILogTest, runGitTest)
 import UnliftIO.Temporary (withSystemTempDirectory)
-
-projectFixturePath :: FilePath
-projectFixturePath = "test/fixtures/ts-project-1"
 
 spec :: Spec
 spec = describe "Whole Project Golden Tests" $ do
@@ -89,14 +86,3 @@ snapshot tmpDir filesToVerify = do
         return $ header <> content
     pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
 
-copyDir :: FilePath -> FilePath -> IO ()
-copyDir src dst = do
-    createDirectoryIfMissing True dst
-    content <- listDirectory src
-    forM_ content $ \name -> do
-        let srcPath = src </> name
-        let dstPath = dst </> name
-        isDirectory <- doesDirectoryExist srcPath
-        if isDirectory
-            then copyDir srcPath dstPath
-            else copyFile srcPath dstPath
