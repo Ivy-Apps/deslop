@@ -1,18 +1,12 @@
 module E2E.ProjectGoldenSpec (spec) where
 
-import Control.Monad (forM, forM_)
+import Control.Monad (forM)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import Deslop (DeslopError (..), Params (..), deslopProject)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
-import System.Directory (
-    copyFile,
-    createDirectoryIfMissing,
-    doesDirectoryExist,
-    listDirectory,
- )
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
@@ -85,4 +79,3 @@ snapshot tmpDir filesToVerify = do
         let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
         return $ header <> content
     pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
-
