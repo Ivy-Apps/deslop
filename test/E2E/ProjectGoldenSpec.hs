@@ -10,7 +10,7 @@ import Effects.FileSystem (runFileSystemIO)
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (copyDir, defaultParams, projectFixturePath, runCLILogTest, runGitTest)
+import TestUtils (copyDir, defaultParams, projectFixturePath, runCLILogTest, runGitTest, snapshot)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
@@ -71,11 +71,3 @@ spec = describe "Whole Project Golden Tests" $ do
                     ]
             fullSnapshot <- snapshot tmpDir filesToVerify
             return $ defaultGolden "ts-project-1-git-modified" fullSnapshot
-
-snapshot :: FilePath -> [FilePath] -> IO String
-snapshot tmpDir filesToVerify = do
-    results <- forM filesToVerify $ \relPath -> do
-        content <- TIO.readFile (tmpDir </> relPath)
-        let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
-        return $ header <> content
-    pure . T.unpack . T.dropWhile (== '\n') $ T.concat results

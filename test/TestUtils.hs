@@ -1,4 +1,5 @@
 module TestUtils (
+    snapshot,
     runFileSystemTest,
     runCLILogTest,
     runGitTest,
@@ -11,6 +12,8 @@ import Control.Monad (forM, forM_)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.IORef
+import Data.Text qualified as T
+import Data.Text.IO qualified as TIO
 import Deslop (Params (..))
 import Effectful
 import Effectful.Dispatch.Dynamic
@@ -81,3 +84,10 @@ copyDir src dst = do
             then copyDir srcPath dstPath
             else copyFile srcPath dstPath
 
+snapshot :: FilePath -> [FilePath] -> IO String
+snapshot tmpDir filesToVerify = do
+    results <- forM filesToVerify $ \relPath -> do
+        content <- TIO.readFile (tmpDir </> relPath)
+        let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
+        return $ header <> content
+    pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
