@@ -4,7 +4,6 @@ import Data.Functor ((<&>))
 import Data.HashMap.Strict (HashMap)
 import Data.HashMap.Strict qualified as HM
 import Data.Text (Text)
-import Data.Text qualified as T
 import Effectful
 import Effects.AI
 import Translations.Parser
