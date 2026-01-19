@@ -27,34 +27,36 @@
   clipboard.register = "unnamedplus";
 
   extraConfigLua = ''
-    _G.NuclearHLS = function()
-      local notify = vim.notify
-      notify("☢️  Initiating HLS Nuclear Reset...", vim.log.levels.WARN)
+        _G.NuclearHLS = function()
+          local notify = vim.notify
+          notify("☢️  Initiating HLS Nuclear Reset...", vim.log.levels.WARN)
 
-      -- 1. Stop all HLS clients
-      -- Uses 'get_clients' (nvim 0.10+) or falls back to 'get_active_clients'
-      local get_clients = vim.lsp.get_clients or vim.lsp.get_active_clients
-      local clients = get_clients({ name = "hls" })
-      for _, client in ipairs(clients) do
-        client.stop()
-      end
+          -- 1. Stop all HLS clients
+          -- Uses 'get_clients' (nvim 0.10+) or falls back to 'get_active_clients'
+          local get_clients = vim.lsp.get_clients or vim.lsp.get_active_clients
+          local clients = get_clients({ name = "hls" })
+          for _, client in ipairs(clients) do
+            client.stop()
+          end
 
-      -- 2. Execute Shell Commands Asynchronously
-      -- Note: explicit 'sh -c' ensures redirections (>) work correctly
-      vim.fn.jobstart({"sh", "-c", "rm -rf .hie-bios && gen-hie > hie.yaml && touch *.cabal"}, {
-        on_exit = function(_, code)
-          vim.schedule(function()
-            if code == 0 then
-              -- 3. Restart Lsp
-              vim.cmd("LspStart hls")
-              notify("✅ HLS Revived: Cache cleared & hie.yaml generated.", vim.log.levels.INFO)
-            else
-              notify("❌ HLS Reset Failed: Check shell permissions.", vim.log.levels.ERROR)
+          -- 2. Execute Shell Commands Asynchronously
+          -- Note: explicit 'sh -c' ensures redirections (>) work correctly
+          vim.fn.jobstart({"sh", "-c", "rm -rf .hie-bios && gen-hie > hie.yaml && touch *.cabal"}, {
+            on_exit = function(_, code)
+              vim.schedule(function()
+                if code == 0 then
+                  -- 3. Restart Lsp
+                  vim.cmd("LspStart hls")
+                  notify("✅ HLS Revived: Cache cleared & hie.yaml generated.", vim.log.levels.INFO)
+                else
+                  notify("❌ HLS Reset Failed: Check shell permissions.", vim.log.levels.ERROR)
+                end
+              end)
             end
-          end)
+          })
         end
-      })
-    end
+
+    require("telescope").load_extension("hoogle")
   '';
 
   keymaps = [
@@ -149,11 +151,14 @@
     {
       mode = "n";
       key = "<leader>hg";
-      action = ''<cmd>lua require("toggleterm").exec("while read -p 'Hoogle> ' q; do hoogle search --color --count=15 \"$q\"; echo; done", 5)<CR>'';
-      options = {
-        desc = "Hoogle Search (Bottom)";
-        silent = true;
-      };
+      action = "<cmd>lua _G.HoogleSearch()<CR>";
+      options.desc = "Hoogle Search (Telescope)";
+    }
+    {
+      mode = "n";
+      key = "<leader>hg";
+      action = "<cmd>Telescope hoogle<CR>";
+      options.desc = "Hoogle Search (Live)";
     }
     {
       mode = "n";
@@ -303,10 +308,15 @@
     lualine.enable = true;
   };
 
+  extraPlugins = [
+    pkgs.vimPlugins.telescope_hoogle
+  ];
+
   extraPackages = [
     pkgs.ripgrep
     pkgs.fd
     pkgs.nixpkgs-fmt
+    pkgs.xdg-utils
     haskellPackages.haskell-language-server
     haskellPackages.hoogle
     haskellPackages.fourmolu
