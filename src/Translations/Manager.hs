@@ -12,7 +12,10 @@ import Translations.Translator
 
 -- | Identity op for successful translations
 fixTranslations :: (AI :> es) => Translations -> Eff es (Either Text Translations)
-fixTranslations = pure . Right . id
+fixTranslations (Translations b xs) =
+    fmap (fmap (Translations b) . sequenceA)
+        . traverse (fixTranslation b)
+        $ xs
 
 fixTranslation :: (AI :> es) => Translation -> Translation -> Eff es (Either Text Translation)
 fixTranslation base target =
