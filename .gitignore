@@ -26,7 +26,6 @@ cabal.project.local~
 ### IDE / Tooling ###
 # Haskell Language Server artifacts
 .hie-bios/
-hie.yaml
 
 # VS Code
 .vscode/tasks.json
