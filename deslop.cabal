@@ -98,6 +98,7 @@ test-suite deslop-test
         TypeScript.LexerSpec
         E2E.FileGoldenSpec
         E2E.ProjectGoldenSpec
+        E2E.TranslationsSpec
 
     build-depends:
         base,
