@@ -1,19 +1,28 @@
 module TestUtils (
+    snapshot,
     runFileSystemTest,
     runCLILogTest,
     runGitTest,
     defaultParams,
+    projectFixturePath,
+    copyDir,
 ) where
 
+import Control.Monad (forM, forM_)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.IORef
+import Data.Text qualified as T
+import Data.Text.IO qualified as TIO
 import Deslop (Params (..))
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.CLILog
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
 import Effects.Git
+import System.Directory (copyFile, doesDirectoryExist, listDirectory)
+import System.Directory.Extra (createDirectoryIfMissing)
+import System.FilePath ((</>))
 
 type ModifiedFiles = [FilePath]
 
@@ -59,3 +68,26 @@ defaultParams projPath =
 runGitTest :: ModifiedFiles -> Eff (Git : es) a -> Eff es a
 runGitTest ms = interpret $ \_ -> \case
     ModifiedFiles -> pure ms
+
+projectFixturePath :: FilePath
+projectFixturePath = "test/fixtures/ts-project-1"
+
+copyDir :: FilePath -> FilePath -> IO ()
+copyDir src dst = do
+    createDirectoryIfMissing True dst
+    content <- listDirectory src
+    forM_ content $ \name -> do
+        let srcPath = src </> name
+        let dstPath = dst </> name
+        isDirectory <- doesDirectoryExist srcPath
+        if isDirectory
+            then copyDir srcPath dstPath
+            else copyFile srcPath dstPath
+
+snapshot :: FilePath -> [FilePath] -> IO String
+snapshot tmpDir filesToVerify = do
+    results <- forM filesToVerify $ \relPath -> do
+        content <- TIO.readFile (tmpDir </> relPath)
+        let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
+        return $ header <> content
+    pure . T.unpack . T.dropWhile (== '\n') $ T.concat results

@@ -36,10 +36,10 @@
             };
           };
 
-          nixvimConfig = import ./nix/ide.nix { 
-            inherit pkgs haskellPackages; 
+          nixvimConfig = import ./nix/ide.nix {
+            inherit pkgs haskellPackages;
           };
-          
+
           nvim = nixvim.legacyPackages.${system}.makeNixvim nixvimConfig;
 
           ciDeps = [
@@ -54,7 +54,6 @@
             pkgs.just
             haskellPackages.hspec-golden
             haskellPackages.hpack
-            haskellPackages.implicit-hie
           ];
 
         in
@@ -86,11 +85,6 @@
                 echo "✅ HLS:  $(haskell-language-server --version | awk '{print $1, $2, $3, $4, $5}')"
                 echo "--------------------------------------------------------"
               
-                if [ ! -f hie.yaml ]; then
-                  echo "   Generating hie.yaml for HLS..."
-                  gen-hie > hie.yaml
-                fi
-
                 echo "   Run 'vim' to start."
                 alias vim="nvim"
               '';
@@ -99,3 +93,4 @@
         };
     };
 }
+

@@ -6,7 +6,7 @@ module Deslop (
     Params (..),
 ) where
 
-import Control.Monad (forM_, (>=>))
+import Control.Monad (forM_, when, (>=>))
 import Data.Bool
 import Data.ByteString (ByteString)
 import Data.List (intersect)
@@ -56,7 +56,8 @@ deslopProject ::
     , Error DeslopError :> es
     , CLILog :> es
     ) =>
-    Params -> Eff es ()
+    Params ->
+    Eff es ()
 deslopProject params = do
     let projPath = params.projectPath
     cfg <- tsConfig projPath
@@ -73,7 +74,8 @@ tsConfig ::
     ( RoFileSystem :> es
     , Error DeslopError :> es
     ) =>
-    FilePath -> Eff es TsConfig
+    FilePath ->
+    Eff es TsConfig
 tsConfig projPath = loadConfig $ projPath </> "tsconfig.json"
   where
     loadConfig fp = fileExists fp >>= bool (handleMissing fp) (handleFound fp)
@@ -100,19 +102,20 @@ deslopFile ::
     , Reader TsConfig :> es
     , CLILog :> es
     ) =>
-    FilePath -> Eff es ()
+    FilePath ->
+    Eff es ()
 deslopFile src = do
     c <- readFileBS src
     c' <- removeSlop src c
-    if c /= c'
-        then do
-            writeFileBS src c'
-            logModification src
-        else pure ()
+    when (c /= c') $ do
+        writeFileBS src c'
+        logModification src
 
 removeSlop ::
     (Reader TsConfig :> es) =>
-    FilePath -> ByteString -> Eff es ByteString
+    FilePath ->
+    ByteString ->
+    Eff es ByteString
 removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
   where
     pipeline =

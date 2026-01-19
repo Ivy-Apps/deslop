@@ -26,6 +26,34 @@
 
   clipboard.register = "unnamedplus";
 
+  extraConfigLua = ''
+        _G.NuclearHLS = function()
+          local notify = vim.notify
+          notify("☢️  Initiating HLS Nuclear Reset...", vim.log.levels.WARN)
+
+          local get_clients = vim.lsp.get_clients or vim.lsp.get_active_clients
+          local clients = get_clients({ name = "hls" })
+          for _, client in ipairs(clients) do
+            client.stop()
+          end
+
+          vim.fn.jobstart({"sh", "-c", "rm -rf .hie-bios && touch *.cabal"}, {
+            on_exit = function(_, code)
+              vim.schedule(function()
+                if code == 0 then
+                  vim.cmd("LspStart hls")
+                  notify("✅ HLS Revived: Cache cleared.", vim.log.levels.INFO)
+                else
+                  notify("❌ HLS Reset Failed: Check shell permissions.", vim.log.levels.ERROR)
+                end
+              end)
+            end
+          })
+        end
+
+    require("telescope").load_extension("hoogle")
+  '';
+
   keymaps = [
     # --- Window Management ---
     {
@@ -87,6 +115,18 @@
     }
     {
       mode = "n";
+      key = "<leader>gd";
+      action = "<cmd>lua vim.lsp.buf.definition()<CR>";
+      options.desc = "Go to Definition";
+    }
+    {
+      mode = "n";
+      key = "<leader>gr";
+      action = "<cmd>Telescope lsp_references<CR>";
+      options.desc = "Find References (Telescope)";
+    }
+    {
+      mode = "n";
       key = "<leader>cl";
       action = "<cmd>!hlint %<CR>";
       options.desc = "Check Lint (Hlint CLI)";
@@ -106,11 +146,14 @@
     {
       mode = "n";
       key = "<leader>hg";
-      action = ''<cmd>lua require("toggleterm").exec("while read -p 'Hoogle> ' q; do hoogle search --color --count=15 \"$q\"; echo; done", 5)<CR>'';
-      options = {
-        desc = "Hoogle Search (Bottom)";
-        silent = true;
-      };
+      action = "<cmd>lua _G.HoogleSearch()<CR>";
+      options.desc = "Hoogle Search (Telescope)";
+    }
+    {
+      mode = "n";
+      key = "<leader>hg";
+      action = "<cmd>Telescope hoogle<CR>";
+      options.desc = "Hoogle Search (Live)";
     }
     {
       mode = "n";
@@ -123,6 +166,12 @@
       key = "<leader>ca";
       action = "<cmd>lua vim.lsp.buf.code_action()<CR>";
       options.desc = "Code Actions";
+    }
+    {
+      mode = "n";
+      key = "<leader>lx";
+      action = "<cmd>lua _G.NuclearHLS()<CR>";
+      options.desc = "Nuclear HLS Restart";
     }
     # --- Search & UI ---
     {
@@ -149,6 +198,13 @@
       key = "<leader>gs";
       action = "<cmd>Neogit<CR>";
       options.desc = "Git Status (Neogit)";
+    }
+    # --- Terminal mode ---
+    {
+      mode = "t";
+      key = "<Esc>";
+      action = "<C-\\><C-n>";
+      options.desc = "Exit terminal mode";
     }
   ];
 
@@ -247,10 +303,15 @@
     lualine.enable = true;
   };
 
+  extraPlugins = [
+    pkgs.vimPlugins.telescope_hoogle
+  ];
+
   extraPackages = [
     pkgs.ripgrep
     pkgs.fd
     pkgs.nixpkgs-fmt
+    pkgs.xdg-utils
     haskellPackages.haskell-language-server
     haskellPackages.hoogle
     haskellPackages.fourmolu

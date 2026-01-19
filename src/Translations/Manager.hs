@@ -4,7 +4,6 @@ import Data.Functor ((<&>))
 import Data.HashMap.Strict (HashMap)
 import Data.HashMap.Strict qualified as HM
 import Data.Text (Text)
-import Data.Text qualified as T
 import Effectful
 import Effects.AI
 import Translations.Parser
@@ -12,7 +11,10 @@ import Translations.Translator
 
 -- | Identity op for successful translations
 fixTranslations :: (AI :> es) => Translations -> Eff es (Either Text Translations)
-fixTranslations = pure . Right . id
+fixTranslations (Translations b xs) =
+    fmap (fmap (Translations b) . sequenceA)
+        . traverse (fixTranslation b)
+        $ xs
 
 fixTranslation :: (AI :> es) => Translation -> Translation -> Eff es (Either Text Translation)
 fixTranslation base target =
@@ -32,16 +34,12 @@ fixTranslation base target =
             }
 
     apply :: HashMap Text Text -> TransTree -> TransTree
-    apply _ t = t
+    apply m = fkmap (\k v -> maybe v id (HM.lookup k m))
 
 -- | Flattens a tree into dot-separated paths
 flatten :: TransTree -> HashMap Text Text
-flatten = HM.fromList . go []
+flatten = HM.fromList . go ""
   where
-    go :: [Text] -> TransTree -> [(Text, Text)]
-    go path (Leaf k v) = [(joinKey (path <> [k]), v)]
-    go path (Root ts) = concatMap (go path) ts
-    go path (Branch k ts) = concatMap (go (path <> [k])) ts
-
-joinKey :: [Text] -> Text
-joinKey = T.intercalate "."
+    go p (Leaf k v) = [(p <.> k, v)]
+    go p (Root ts) = concatMap (go p) ts
+    go p (Branch k ts) = concatMap (go $ p <.> k) ts

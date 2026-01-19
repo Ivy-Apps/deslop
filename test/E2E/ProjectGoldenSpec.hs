@@ -1,26 +1,17 @@
 module E2E.ProjectGoldenSpec (spec) where
 
-import Control.Monad (forM, forM_)
+import Control.Monad (forM)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import Deslop (DeslopError (..), Params (..), deslopProject)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
-import System.Directory (
-    copyFile,
-    createDirectoryIfMissing,
-    doesDirectoryExist,
-    listDirectory,
- )
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (defaultParams, runCLILogTest, runGitTest)
+import TestUtils (copyDir, defaultParams, projectFixturePath, runCLILogTest, runGitTest, snapshot)
 import UnliftIO.Temporary (withSystemTempDirectory)
-
-projectFixturePath :: FilePath
-projectFixturePath = "test/fixtures/ts-project-1"
 
 spec :: Spec
 spec = describe "Whole Project Golden Tests" $ do
@@ -80,23 +71,3 @@ spec = describe "Whole Project Golden Tests" $ do
                     ]
             fullSnapshot <- snapshot tmpDir filesToVerify
             return $ defaultGolden "ts-project-1-git-modified" fullSnapshot
-
-snapshot :: FilePath -> [FilePath] -> IO String
-snapshot tmpDir filesToVerify = do
-    results <- forM filesToVerify $ \relPath -> do
-        content <- TIO.readFile (tmpDir </> relPath)
-        let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
-        return $ header <> content
-    pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
-
-copyDir :: FilePath -> FilePath -> IO ()
-copyDir src dst = do
-    createDirectoryIfMissing True dst
-    content <- listDirectory src
-    forM_ content $ \name -> do
-        let srcPath = src </> name
-        let dstPath = dst </> name
-        isDirectory <- doesDirectoryExist srcPath
-        if isDirectory
-            then copyDir srcPath dstPath
-            else copyFile srcPath dstPath
