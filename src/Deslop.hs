@@ -9,8 +9,11 @@ module Deslop (
 import Control.Monad (forM_, when, (>=>))
 import Data.Bool
 import Data.ByteString (ByteString)
+import Data.Foldable
 import Data.List (intersect)
 import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.Imports (importAliases)
@@ -33,6 +36,7 @@ import Effects.Git
 import System.Console.ANSI
 import System.FilePath
 import Text.Printf (printf)
+import Translations.Manager
 import Translations.Parser
 import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
@@ -51,19 +55,31 @@ data DeslopError
     | TsConfigParseError FilePath
     deriving (Show, Eq)
 
+data TranslationsError
+    = ParseTranslationsError
+    | TranslateError Text
+    deriving (Show, Eq)
+
 translateProject ::
     ( WrFileSystem :> es
     , RoFileSystem :> es
     , CLILog :> es
     , AI :> es
+    , Error TranslationsError :> es
     ) =>
     Params ->
     Eff es ()
 translateProject params =
     readTranslations params.projectPath
-        >> pure ()
+        >>= maybe handleReadError pipeline
   where
-    x = 5
+    pipeline ts = fixTranslations ts >>= either handleTranslateErorr writeTranslations
+    writeTranslations = traverse_ writeTranslation . (.extra)
+    writeTranslation (Translation l t) = writeFileBS (translationFile l) (TE.encodeUtf8 $ render t)
+    translationFile l = params.projectPath </> (T.unpack l <> ".json")
+
+    handleReadError = throwError ParseTranslationsError
+    handleTranslateErorr = throwError . TranslateError
 
 deslopProject ::
     ( WrFileSystem :> es
