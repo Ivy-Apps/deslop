@@ -62,6 +62,8 @@ translateProject ::
 translateProject params =
     readTranslations params.projectPath
         >> pure ()
+  where
+    x = 5
 
 deslopProject ::
     ( WrFileSystem :> es
