@@ -8,7 +8,7 @@
         "confirm": "Êtes-vous sûr ?",
         "loading": "Traitement en cours..."
       }
-    },
+    }
   },
   "dashboard": {
     "header": {
@@ -39,7 +39,7 @@
             "history": "Historique des paiements"
           }
         }
-      },
+      }
     }
   },
   "auth": {
@@ -57,5 +57,5 @@
       }
     }
   },
-  "back": "Retour",
+  "back": "Retour"
 }

@@ -1,11 +1,14 @@
 >>> FILE: messages/es.json
 {
-  "remove-me": {
-    "to-be-removed" : "dummy"
-  },
   "common": {
     "buttons": {
-      "notInBase: "Should be removed!",
+      "save": "Save Changes",
+      "cancel": "Cancel",
+      "delete": "Delete Item",
+      "actions": {
+        "confirm": "Are you sure?",
+        "loading": "Processing..."
+      }
     },
     "errors": {
       "not_found": "La página que buscas no existe.",
@@ -39,7 +42,8 @@
             "history": "Historial de pagos"
           }
         }
-      }
+      },
+      "close": "Close"
     }
   },
   "auth": {
@@ -56,9 +60,9 @@
         }
       }
     }
-  }
+  },
+  "back": "Back"
 }
-
 
 
 >>> FILE: messages/fr.json
@@ -67,17 +71,20 @@
     "buttons": {
       "save": "Enregistrer les modifications",
       "cancel": "Annuler",
-      "export": "Exporter les données",
+      "delete": "Delete Item",
       "actions": {
         "confirm": "Êtes-vous sûr ?",
         "loading": "Traitement en cours..."
       }
     },
+    "errors": {
+      "not_found": "The page you are looking for does not exist.",
+      "unauthorized": "You do not have permission to access this resource."
+    }
   },
   "dashboard": {
     "header": {
       "title": "Bon retour, {name} !",
-      "subtitle": "Remove me",
       "subtitle": "Voici ce qui se passe avec vos projets aujourd'hui."
     },
     "statistics": {
@@ -97,13 +104,13 @@
         "links": {
           "home": "Accueil",
           "settings": "Paramètres",
-          "profile": "Mon Profil",
           "billing": {
             "main": "Facturation et factures",
             "history": "Historique des paiements"
           }
         }
       },
+      "close": "Close"
     }
   },
   "auth": {
@@ -121,9 +128,8 @@
       }
     }
   },
-  "back": "Retour",
+  "back": "Retour"
 }
-
 
 
 >>> FILE: messages/en.json
