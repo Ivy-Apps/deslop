@@ -18,7 +18,7 @@ spec = describe "NextJS Translations" $ do
             copyDir projectFixturePath tmpDir
 
             -- When
-            _ <-
+            res <-
                 runEff
                     . runFileSystemIO
                     . runErrorNoCallStack @TranslationsError
@@ -27,6 +27,7 @@ spec = describe "NextJS Translations" $ do
                     $ translateProject (defaultParams tmpDir)
 
             -- Then
+            res `shouldBe` (Right ())
             let filesToVerify =
                     [ "messages/es.json"
                     , "messages/fr.json"
