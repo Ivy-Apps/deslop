@@ -72,14 +72,16 @@ translateProject ::
     Params ->
     Eff es ()
 translateProject params =
-    readTranslations params.projectPath
+    readTranslations translationsPath
         >>= maybe handleReadError pipeline
   where
     pipeline ts = fixTranslations ts >>= either handleTranslateErorr writeTranslations
     writeTranslations = traverse_ writeTranslation . (.extra)
     writeTranslation (Translation l t) = writeFileBS (translationFile l) (TE.encodeUtf8 $ render t)
-    translationFile l = params.projectPath </> (T.unpack l <> ".json")
 
+    translationFile l = translationsPath </> (T.unpack l <> ".json")
+    translationsPath = params.projectPath </> "messages"
+  
     handleReadError = throwError ParseTranslationsError
     handleTranslateErorr = throwError . TranslateError
 
