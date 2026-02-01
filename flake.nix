@@ -1,5 +1,5 @@
 {
-  description = "Deslop: Haskell Env + Immutable Neovim IDE";
+  description = "Deslop: Haskell Env + Neovim IDE";
 
   nixConfig = {
     extra-substituters = [
@@ -85,8 +85,7 @@
                 echo "✅ HLS:  $(haskell-language-server --version | awk '{print $1, $2, $3, $4, $5}')"
                 echo "--------------------------------------------------------"
               
-                echo "   Run 'vim' to start."
-                alias vim="nvim"
+                echo "   Run 'nvim .' to start."
               '';
             };
           };

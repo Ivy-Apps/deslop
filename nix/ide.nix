@@ -27,36 +27,18 @@
   clipboard.register = "unnamedplus";
 
   extraConfigLua = ''
-    -- Nuclear HLS Reset
     _G.NuclearHLS = function()
-      local notify = vim.notify
-      notify("☢️  Initiating HLS Nuclear Reset...", vim.log.levels.WARN)
-
-      local get_clients = vim.lsp.get_clients or vim.lsp.get_active_clients
-      local clients = get_clients({ name = "hls" })
-      for _, client in ipairs(clients) do
-        client.stop()
-      end
-
-      -- Clears HIE bios cache and touches cabal file to force reload
-      vim.fn.jobstart({"sh", "-c", "rm -rf .hie-bios && touch *.cabal"}, {
-        on_exit = function(_, code)
-          vim.schedule(function()
-            if code == 0 then
-              vim.cmd("LspStart hls")
-              notify("✅ HLS Revived: Cache cleared.", vim.log.levels.INFO)
-            else
-              notify("❌ HLS Reset Failed: Check shell permissions.", vim.log.levels.ERROR)
-            end
-          end)
-        end
-      })
+      vim.notify("☢️  Restarting Haskell LSP...", vim.log.levels.WARN)
+      -- standard LSP restart command which is cleaner than manual stop/start
+      vim.cmd("LspRestart") 
+      -- Force a file reload to trigger re-indexing
+      vim.cmd("e!")
     end
 
-    -- Load the manual extension for Hoogle
-    require("telescope").load_extension("hoogle")
-    -- Load live_grep_args extension
-    require("telescope").load_extension("live_grep_args")
+        -- Load the manual extension for Hoogle
+        require("telescope").load_extension("hoogle")
+        -- Load live_grep_args extension
+        require("telescope").load_extension("live_grep_args")
   '';
 
   keymaps = [
@@ -332,9 +314,5 @@
     pkgs.fd
     pkgs.nixpkgs-fmt
     pkgs.xdg-utils
-    haskellPackages.haskell-language-server
-    haskellPackages.hoogle
-    haskellPackages.fourmolu
-    haskellPackages.hlint
   ];
 }
