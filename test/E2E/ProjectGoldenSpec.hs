@@ -1,8 +1,5 @@
 module E2E.ProjectGoldenSpec (spec) where
 
-import Control.Monad (forM)
-import Data.Text qualified as T
-import Data.Text.IO qualified as TIO
 import Deslop (DeslopError (..), Params (..), deslopProject)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)

@@ -4,6 +4,8 @@ module Deslop (
     runDeslop,
     DeslopError (..),
     Params (..),
+    translateProject,
+    TranslationsError (..),
 ) where
 
 import Control.Monad (forM_, when, (>=>))

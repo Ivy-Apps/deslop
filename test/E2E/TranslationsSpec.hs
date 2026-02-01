@@ -1,6 +1,12 @@
 module E2E.TranslationsSpec where
 
+import Deslop
+import Effectful
+import Effectful.Error.Static (runErrorNoCallStack)
+import Effects.FileSystem (runFileSystemIO)
+import System.FilePath ((</>))
 import Test.Hspec
+import Test.Hspec.Golden (defaultGolden)
 import TestUtils
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -12,7 +18,13 @@ spec = describe "NextJS Translations" $ do
             copyDir projectFixturePath tmpDir
 
             -- When
-            -- TBD
+            _ <-
+                runEff
+                    . runFileSystemIO
+                    . runErrorNoCallStack @TranslationsError
+                    . runCLILogTest
+                    . runAITest
+                    $ translateProject (defaultParams tmpDir)
 
             -- Then
             True `shouldBe` True
