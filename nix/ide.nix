@@ -1,4 +1,4 @@
-{ pkgs, haskellPackages, ... }:
+{ pkgs, ... }:
 
 {
   colorschemes.catppuccin.enable = true;
@@ -268,11 +268,25 @@
 
     haskell-tools = {
       enable = true;
-      settings.tools = {
-        hover.enable = true;
-        log.level = "info";
-        repl = {
-          handler = "toggleterm";
+      settings = {
+        hls = {
+          cmd = [
+            "haskell-language-server-wrapper"
+            "--lsp"
+            "+RTS"
+            "-A128M" # Large allocation area (faster re-checking)
+            "-H2G" # Pre-allocate 2GB heap (stops early GC thrashing)
+            "-I0" # Disable Idle GC (prevents lag when you stop typing)
+            "-RTS"
+          ];
+        };
+
+        tools = {
+          hover.enable = true;
+          log.level = "info";
+          repl = {
+            handler = "toggleterm";
+          };
         };
       };
     };
@@ -280,7 +294,7 @@
     conform-nvim = {
       enable = true;
       settings = {
-        format_on_save = { timeout_ms = 5000; lsp_fallback = true; };
+        # format_on_save = { timeout_ms = 5000; lsp_fallback = true; };
         formatters_by_ft = {
           haskell = [ "fourmolu" ];
           nix = [ "nixpkgs_fmt" ];
