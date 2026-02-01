@@ -1,0 +1,199 @@
+>>> FILE: messages/es.json
+{
+  "common": {
+    "buttons": {
+      "save": "Save Changes",
+      "cancel": "Cancel",
+      "delete": "Delete Item",
+      "actions": {
+        "confirm": "Are you sure?",
+        "loading": "Processing..."
+      }
+    },
+    "errors": {
+      "not_found": "La página que buscas no existe.",
+      "unauthorized": "No tienes permiso para acceder a este recurso."
+    }
+  },
+  "dashboard": {
+    "header": {
+      "title": "¡Bienvenido de nuevo, {name}!",
+      "subtitle": "Esto es lo que está pasando con tus proyectos hoy."
+    },
+    "statistics": {
+      "revenue": {
+        "label": "Ingresos totales",
+        "trend": {
+          "up": "Aumentó un {percent}%",
+          "down": "Disminuyó un {percent}%"
+        }
+      },
+      "users": {
+        "active": "{count, plural, =0 {Sin usuarios activos} one {# usuario activo} other {# usuarios activos}}"
+      }
+    },
+    "navigation": {
+      "sidebar": {
+        "links": {
+          "home": "Inicio",
+          "settings": "Configuración",
+          "billing": {
+            "main": "Facturación y facturas",
+            "history": "Historial de pagos"
+          }
+        }
+      },
+      "close": "Close"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Inicia sesión en tu cuenta",
+      "form": {
+        "email": {
+          "label": "Correo electrónico",
+          "placeholder": "ej. alex@ejemplo.com"
+        },
+        "password": {
+          "label": "Contraseña",
+          "forgot": "¿Olvidaste tu contraseña?"
+        }
+      }
+    }
+  },
+  "back": "Back"
+}
+
+
+>>> FILE: messages/fr.json
+{
+  "common": {
+    "buttons": {
+      "save": "Enregistrer les modifications",
+      "cancel": "Annuler",
+      "delete": "Delete Item",
+      "actions": {
+        "confirm": "Êtes-vous sûr ?",
+        "loading": "Traitement en cours..."
+      }
+    },
+    "errors": {
+      "not_found": "The page you are looking for does not exist.",
+      "unauthorized": "You do not have permission to access this resource."
+    }
+  },
+  "dashboard": {
+    "header": {
+      "title": "Bon retour, {name} !",
+      "subtitle": "Voici ce qui se passe avec vos projets aujourd'hui."
+    },
+    "statistics": {
+      "revenue": {
+        "label": "Revenu total",
+        "trend": {
+          "up": "Augmentation de {percent}%",
+          "down": "Diminution de {percent}%"
+        }
+      },
+      "users": {
+        "active": "{count, plural, =0 {Aucun utilisateur actif} one {# utilisateur actif} other {# utilisateurs actifs}}"
+      }
+    },
+    "navigation": {
+      "sidebar": {
+        "links": {
+          "home": "Accueil",
+          "settings": "Paramètres",
+          "billing": {
+            "main": "Facturation et factures",
+            "history": "Historique des paiements"
+          }
+        }
+      },
+      "close": "Close"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Connectez-vous à votre compte",
+      "form": {
+        "email": {
+          "label": "Adresse e-mail",
+          "placeholder": "ex. alex@exemple.com"
+        },
+        "password": {
+          "label": "Mot de passe",
+          "forgot": "Mot de passe oublié ?"
+        }
+      }
+    }
+  },
+  "back": "Retour"
+}
+
+
+>>> FILE: messages/en.json
+{
+  "common": {
+    "buttons": {
+      "save": "Save Changes",
+      "cancel": "Cancel",
+      "delete": "Delete Item",
+      "actions": {
+        "confirm": "Are you sure?",
+        "loading": "Processing..."
+      }
+    },
+    "errors": {
+      "not_found": "The page you are looking for does not exist.",
+      "unauthorized": "You do not have permission to access this resource."
+    }
+  },
+  "dashboard": {
+    "header": {
+      "title": "Welcome back, {name}!",
+      "subtitle": "Here is what's happening with your projects today."
+    },
+    "statistics": {
+      "revenue": {
+        "label": "Total Revenue",
+        "trend": {
+          "up": "Increased by {percent}%",
+          "down": "Decreased by {percent}%"
+        }
+      },
+      "users": {
+        "active": "{count, plural, =0 {No active users} one {# active user} other {# active users}}"
+      }
+    },
+    "navigation": {
+      "sidebar": {
+        "links": {
+          "home": "Home",
+          "settings": "Settings",
+          "billing": {
+            "main": "Billing & Invoices",
+            "history": "Payment History"
+          }
+        }
+      },
+      "close": "Close"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Login to your account",
+      "form": {
+        "email": {
+          "label": "Email Address",
+          "placeholder": "e.g. alex@example.com"
+        },
+        "password": {
+          "label": "Password",
+          "forgot": "Forgot your password?"
+        }
+      }
+    }
+  },
+  "back": "Back"
+}

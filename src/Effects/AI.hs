@@ -4,7 +4,7 @@ import Data.Text (Text)
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 
-data AIError = GenericError Text
+newtype AIError = GenericError Text
 
 data AI :: Effect where
     Prompt :: Text -> AI m (Either AIError Text)

@@ -3,6 +3,7 @@ module TestUtils (
     runFileSystemTest,
     runCLILogTest,
     runGitTest,
+    runAITest,
     defaultParams,
     projectFixturePath,
     copyDir,
@@ -20,6 +21,7 @@ import Effectful.Dispatch.Dynamic
 import Effects.CLILog
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
 import Effects.Git
+import Effects.AI
 import System.Directory (copyFile, doesDirectoryExist, listDirectory)
 import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath ((</>))
@@ -68,6 +70,10 @@ defaultParams projPath =
 runGitTest :: ModifiedFiles -> Eff (Git : es) a -> Eff es a
 runGitTest ms = interpret $ \_ -> \case
     ModifiedFiles -> pure ms
+
+runAITest ::  Eff (AI : es) a -> Eff es a
+runAITest = interpret $ \_ -> \case
+    Prompt p -> pure . Right $ p
 
 projectFixturePath :: FilePath
 projectFixturePath = "test/fixtures/ts-project-1"

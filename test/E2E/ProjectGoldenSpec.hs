@@ -1,8 +1,5 @@
 module E2E.ProjectGoldenSpec (spec) where
 
-import Control.Monad (forM)
-import Data.Text qualified as T
-import Data.Text.IO qualified as TIO
 import Deslop (DeslopError (..), Params (..), deslopProject)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
@@ -21,7 +18,7 @@ spec = describe "Whole Project Golden Tests" $ do
             copyDir projectFixturePath tmpDir
 
             -- When
-            _ <-
+            res <-
                 runEff
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
@@ -30,6 +27,7 @@ spec = describe "Whole Project Golden Tests" $ do
                     $ deslopProject (defaultParams tmpDir)
 
             -- Then
+            res `shouldBe` (Right ())
             let filesToVerify =
                     [ "src/app/[locale]/login/page.tsx"
                     , "src/features/home/home-screen.tsx"

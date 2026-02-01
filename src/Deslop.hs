@@ -4,19 +4,25 @@ module Deslop (
     runDeslop,
     DeslopError (..),
     Params (..),
+    translateProject,
+    TranslationsError (..),
 ) where
 
 import Control.Monad (forM_, when, (>=>))
 import Data.Bool
 import Data.ByteString (ByteString)
+import Data.Foldable
 import Data.List (intersect)
 import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.Imports (importAliases)
 import Effectful (Eff, liftIO, runEff, type (:>))
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, runReader)
+import Effects.AI
 import Effects.CLILog
 import Effects.FileSystem (
     RoFileSystem,
@@ -32,6 +38,8 @@ import Effects.Git
 import System.Console.ANSI
 import System.FilePath
 import Text.Printf (printf)
+import Translations.Manager
+import Translations.Parser
 import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
@@ -48,6 +56,34 @@ data DeslopError
     = TsConfigNotFoundError FilePath
     | TsConfigParseError FilePath
     deriving (Show, Eq)
+
+data TranslationsError
+    = ParseTranslationsError
+    | TranslateError Text
+    deriving (Show, Eq)
+
+translateProject ::
+    ( WrFileSystem :> es
+    , RoFileSystem :> es
+    , CLILog :> es
+    , AI :> es
+    , Error TranslationsError :> es
+    ) =>
+    Params ->
+    Eff es ()
+translateProject params =
+    readTranslations translationsPath
+        >>= maybe handleReadError pipeline
+  where
+    pipeline ts = fixTranslations ts >>= either handleTranslateErorr writeTranslations
+    writeTranslations = traverse_ writeTranslation . (.extra)
+    writeTranslation (Translation l t) = writeFileBS (translationFile l) (TE.encodeUtf8 $ render t)
+
+    translationFile l = translationsPath </> (T.unpack l <> ".json")
+    translationsPath = params.projectPath </> "messages"
+  
+    handleReadError = throwError ParseTranslationsError
+    handleTranslateErorr = throwError . TranslateError
 
 deslopProject ::
     ( WrFileSystem :> es
@@ -66,7 +102,7 @@ deslopProject params = do
         then do
             mFiles <- map normalise <$> modifiedFiles
             runReader @TsConfig cfg $
-                forM_ (intersect mFiles (normalise <$> files)) deslopFile
+                forM_ (mFiles `intersect` (normalise <$> files)) deslopFile
         else
             runReader @TsConfig cfg $ forM_ files deslopFile
 

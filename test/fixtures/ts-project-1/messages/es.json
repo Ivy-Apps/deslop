@@ -1,13 +1,10 @@
 {
+  "remove-me": {
+    "to-be-removed" : "dummy"
+  },
   "common": {
     "buttons": {
-      "save": "Guardar cambios",
-      "cancel": "Cancelar",
-      "delete": "Eliminar elemento",
-      "actions": {
-        "confirm": "¿Estás seguro?",
-        "loading": "Procesando..."
-      }
+      "notInBase": "Should be removed!"
     },
     "errors": {
       "not_found": "La página que buscas no existe.",

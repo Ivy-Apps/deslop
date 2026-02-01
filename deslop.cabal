@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               deslop
-version:            0.2.3
+version:            0.2.4
 license:            BSD-3-Clause
 license-file:       LICENSE
 author:             Ivy Apps LTD

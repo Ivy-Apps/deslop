@@ -23,6 +23,6 @@ gitModifiedFiles =
             "git"
             [ "diff"
             , "--name-only"
-            , "HEAD"
+            , "origin/main"
             ]
             ""
