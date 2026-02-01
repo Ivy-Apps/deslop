@@ -66,7 +66,7 @@ deslopProject params = do
         then do
             mFiles <- map normalise <$> modifiedFiles
             runReader @TsConfig cfg $
-                forM_ (intersect mFiles (normalise <$> files)) deslopFile
+                forM_ (mFiles `intersect` (normalise <$> files)) deslopFile
         else
             runReader @TsConfig cfg $ forM_ files deslopFile
 
