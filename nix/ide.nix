@@ -1,4 +1,4 @@
-{ pkgs, haskellPackages }:
+{ pkgs, haskellPackages, ... }:
 
 {
   colorschemes.catppuccin.enable = true;
@@ -27,86 +27,66 @@
   clipboard.register = "unnamedplus";
 
   extraConfigLua = ''
-        _G.NuclearHLS = function()
-          local notify = vim.notify
-          notify("☢️  Initiating HLS Nuclear Reset...", vim.log.levels.WARN)
+    -- Nuclear HLS Reset
+    _G.NuclearHLS = function()
+      local notify = vim.notify
+      notify("☢️  Initiating HLS Nuclear Reset...", vim.log.levels.WARN)
 
-          local get_clients = vim.lsp.get_clients or vim.lsp.get_active_clients
-          local clients = get_clients({ name = "hls" })
-          for _, client in ipairs(clients) do
-            client.stop()
-          end
+      local get_clients = vim.lsp.get_clients or vim.lsp.get_active_clients
+      local clients = get_clients({ name = "hls" })
+      for _, client in ipairs(clients) do
+        client.stop()
+      end
 
-          vim.fn.jobstart({"sh", "-c", "rm -rf .hie-bios && touch *.cabal"}, {
-            on_exit = function(_, code)
-              vim.schedule(function()
-                if code == 0 then
-                  vim.cmd("LspStart hls")
-                  notify("✅ HLS Revived: Cache cleared.", vim.log.levels.INFO)
-                else
-                  notify("❌ HLS Reset Failed: Check shell permissions.", vim.log.levels.ERROR)
-                end
-              end)
+      -- Clears HIE bios cache and touches cabal file to force reload
+      vim.fn.jobstart({"sh", "-c", "rm -rf .hie-bios && touch *.cabal"}, {
+        on_exit = function(_, code)
+          vim.schedule(function()
+            if code == 0 then
+              vim.cmd("LspStart hls")
+              notify("✅ HLS Revived: Cache cleared.", vim.log.levels.INFO)
+            else
+              notify("❌ HLS Reset Failed: Check shell permissions.", vim.log.levels.ERROR)
             end
-          })
+          end)
         end
+      })
+    end
 
+    -- Load the manual extension for Hoogle
     require("telescope").load_extension("hoogle")
+    -- Load live_grep_args extension
+    require("telescope").load_extension("live_grep_args")
   '';
 
   keymaps = [
-    # --- Window Management ---
+    # --- Advanced Search ---
     {
       mode = "n";
-      key = "<leader>h";
-      action = "<C-w>h";
-      options.desc = "Focus Left";
-    }
-    {
-      mode = "n";
-      key = "<leader>l";
-      action = "<C-w>l";
-      options.desc = "Focus Right";
-    }
-    {
-      mode = "n";
-      key = "<leader>j";
-      action = "<C-w>j";
-      options.desc = "Focus Down";
-    }
-    {
-      mode = "n";
-      key = "<leader>k";
-      action = "<C-w>k";
-      options.desc = "Focus Up";
-    }
-    # Move the actual windows around
-    {
-      mode = "n";
-      key = "<leader>H";
-      action = "<C-w>H";
-      options.desc = "Move Window Left";
-    }
-    {
-      mode = "n";
-      key = "<leader>L";
-      action = "<C-w>L";
-      options.desc = "Move Window Right";
-    }
-    {
-      mode = "n";
-      key = "<leader>J";
-      action = "<C-w>J";
-      options.desc = "Move Window Down";
-    }
-    {
-      mode = "n";
-      key = "<leader>K";
-      action = "<C-w>K";
-      options.desc = "Move Window Up";
+      key = "<leader>fg";
+      # Using the extension allows passing args to ripgrep (e.g. "String" -t haskell)
+      action = "<cmd>lua require('telescope').extensions.live_grep_args.live_grep_args()<CR>";
+      options.desc = "Live Grep (Args)";
     }
 
-    # --- Haskell Tools ---
+    # --- Window Management ---
+    { mode = "n"; key = "<leader>h"; action = "<C-w>h"; options.desc = "Focus Left"; }
+    { mode = "n"; key = "<leader>l"; action = "<C-w>l"; options.desc = "Focus Right"; }
+    { mode = "n"; key = "<leader>j"; action = "<C-w>j"; options.desc = "Focus Down"; }
+    { mode = "n"; key = "<leader>k"; action = "<C-w>k"; options.desc = "Focus Up"; }
+
+    { mode = "n"; key = "<leader>H"; action = "<C-w>H"; options.desc = "Move Window Left"; }
+    { mode = "n"; key = "<leader>L"; action = "<C-w>L"; options.desc = "Move Window Right"; }
+    { mode = "n"; key = "<leader>J"; action = "<C-w>J"; options.desc = "Move Window Down"; }
+    { mode = "n"; key = "<leader>K"; action = "<C-w>K"; options.desc = "Move Window Up"; }
+
+    # --- Haskell Tools & LSP ---
+    {
+      mode = "n";
+      key = "<leader>e";
+      action = "<cmd>lua vim.diagnostic.open_float()<CR>";
+      options.desc = "Show line diagnostics";
+    }
     {
       mode = "n";
       key = "<leader>fm";
@@ -127,6 +107,12 @@
     }
     {
       mode = "n";
+      key = "<leader>rn";
+      action = "<cmd>lua vim.lsp.buf.rename()<CR>";
+      options.desc = "Rename Symbol (LSP)";
+    }
+    {
+      mode = "n";
       key = "<leader>cl";
       action = "<cmd>!hlint %<CR>";
       options.desc = "Check Lint (Hlint CLI)";
@@ -143,17 +129,18 @@
       action = "<cmd>lua require('haskell-tools').repl.quit()<CR>";
       options.desc = "Quit GHCi REPL";
     }
-    {
-      mode = "n";
-      key = "<leader>hg";
-      action = "<cmd>lua _G.HoogleSearch()<CR>";
-      options.desc = "Hoogle Search (Telescope)";
-    }
+    # Fixed duplicate keymap. Now 'hg' is Telescope (Interactive), 'hs' is Search (Prompt)
     {
       mode = "n";
       key = "<leader>hg";
       action = "<cmd>Telescope hoogle<CR>";
-      options.desc = "Hoogle Search (Live)";
+      options.desc = "Hoogle (Live)";
+    }
+    {
+      mode = "n";
+      key = "<leader>hs";
+      action = "<cmd>lua _G.HoogleSearch()<CR>";
+      options.desc = "Hoogle (Prompt)";
     }
     {
       mode = "n";
@@ -173,6 +160,7 @@
       action = "<cmd>lua _G.NuclearHLS()<CR>";
       options.desc = "Nuclear HLS Restart";
     }
+
     # --- Search & UI ---
     {
       mode = "n";
@@ -192,6 +180,7 @@
       action = "<cmd>bd<CR>";
       options.desc = "Kill Buffer";
     }
+
     # --- Git ---
     {
       mode = "n";
@@ -199,6 +188,7 @@
       action = "<cmd>Neogit<CR>";
       options.desc = "Git Status (Neogit)";
     }
+
     # --- Terminal mode ---
     {
       mode = "t";
@@ -210,7 +200,17 @@
 
   plugins = {
     web-devicons.enable = true;
-    nvim-tree.enable = true;
+
+    nvim-tree = {
+      enable = true;
+      settings = {
+        update_focused_file = {
+          enable = true;
+          update_root = true;
+        };
+      };
+    };
+
     diffview.enable = true;
 
     toggleterm = {
@@ -239,9 +239,10 @@
 
     telescope = {
       enable = true;
+      extensions.live-grep-args.enable = true;
       keymaps = {
         "<leader>ff" = "find_files";
-        "<leader>fg" = "live_grep";
+        # Note: <leader>fg is handled manually in keymaps to access the extension
       };
     };
 
@@ -249,6 +250,8 @@
       enable = true;
       settings = {
         highlight.enable = true;
+        # Note: Haskell Treesitter indent is often buggy, handle with care. 
+        # Formatter (fourmolu) is preferred.
         indent.enable = false;
       };
       grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [
@@ -290,8 +293,25 @@
       settings = {
         sources = [{ name = "nvim_lsp"; } { name = "path"; } { name = "buffer"; } { name = "luasnip"; }];
         mapping = {
-          "<CR>" = "cmp.mapping.confirm({ select = true })";
+          # Cycle with Tab
           "<Tab>" = "cmp.mapping.select_next_item()";
+          "<S-Tab>" = "cmp.mapping.select_prev_item()";
+
+          # IntelliJ-style: Enter replaces the existing text
+          "<CR>" = ''
+            cmp.mapping.confirm({
+              behavior = cmp.ConfirmBehavior.Replace,
+              select = true,
+            })
+          '';
+
+          # Shift+Enter to just insert (without replacing)
+          "<S-CR>" = ''
+            cmp.mapping.confirm({
+              behavior = cmp.ConfirmBehavior.Insert,
+              select = true,
+            })
+          '';
         };
       };
     };
@@ -318,4 +338,3 @@
     haskellPackages.hlint
   ];
 }
-
