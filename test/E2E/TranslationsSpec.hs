@@ -27,4 +27,10 @@ spec = describe "NextJS Translations" $ do
                     $ translateProject (defaultParams tmpDir)
 
             -- Then
-            True `shouldBe` True
+            let filesToVerify =
+                    [ "messages/es.json"
+                    , "messages/fr.json"
+                    , "messages/en.json"
+                    ]
+            fullSnapshot <- snapshot tmpDir filesToVerify
+            return $ defaultGolden "translations-1" fullSnapshot

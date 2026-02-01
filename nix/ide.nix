@@ -69,6 +69,12 @@
       action = "<cmd>lua require('telescope').extensions.live_grep_args.live_grep_args()<CR>";
       options.desc = "Live Grep (Args)";
     }
+    {
+      mode = "n";
+      key = "<leader>fa";
+      action = "<cmd>lua require('telescope.builtin').find_files({ hidden = true, no_ignore = true })<CR>";
+      options.desc = "Find All Files (Hidden & Ignored)";
+    }
 
     # --- Window Management ---
     { mode = "n"; key = "<leader>h"; action = "<C-w>h"; options.desc = "Focus Left"; }

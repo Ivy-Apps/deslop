@@ -1,0 +1,61 @@
+{
+  "common": {
+    "buttons": {
+      "save": "Enregistrer les modifications",
+      "cancel": "Annuler",
+      "export": "Exporter les données",
+      "actions": {
+        "confirm": "Êtes-vous sûr ?",
+        "loading": "Traitement en cours..."
+      }
+    },
+  },
+  "dashboard": {
+    "header": {
+      "title": "Bon retour, {name} !",
+      "subtitle": "Remove me",
+      "subtitle": "Voici ce qui se passe avec vos projets aujourd'hui."
+    },
+    "statistics": {
+      "revenue": {
+        "label": "Revenu total",
+        "trend": {
+          "up": "Augmentation de {percent}%",
+          "down": "Diminution de {percent}%"
+        }
+      },
+      "users": {
+        "active": "{count, plural, =0 {Aucun utilisateur actif} one {# utilisateur actif} other {# utilisateurs actifs}}"
+      }
+    },
+    "navigation": {
+      "sidebar": {
+        "links": {
+          "home": "Accueil",
+          "settings": "Paramètres",
+          "profile": "Mon Profil",
+          "billing": {
+            "main": "Facturation et factures",
+            "history": "Historique des paiements"
+          }
+        }
+      },
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Connectez-vous à votre compte",
+      "form": {
+        "email": {
+          "label": "Adresse e-mail",
+          "placeholder": "ex. alex@exemple.com"
+        },
+        "password": {
+          "label": "Mot de passe",
+          "forgot": "Mot de passe oublié ?"
+        }
+      }
+    }
+  },
+  "back": "Retour",
+}
