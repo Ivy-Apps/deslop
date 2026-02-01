@@ -17,6 +17,7 @@ import Deslop.Imports (importAliases)
 import Effectful (Eff, liftIO, runEff, type (:>))
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, runReader)
+import Effects.AI
 import Effects.CLILog
 import Effects.FileSystem (
     RoFileSystem,
@@ -32,6 +33,7 @@ import Effects.Git
 import System.Console.ANSI
 import System.FilePath
 import Text.Printf (printf)
+import Translations.Parser
 import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
@@ -48,6 +50,18 @@ data DeslopError
     = TsConfigNotFoundError FilePath
     | TsConfigParseError FilePath
     deriving (Show, Eq)
+
+translateProject ::
+    ( WrFileSystem :> es
+    , RoFileSystem :> es
+    , CLILog :> es
+    , AI :> es
+    ) =>
+    Params ->
+    Eff es ()
+translateProject params =
+    readTranslations params.projectPath
+        >> pure ()
 
 deslopProject ::
     ( WrFileSystem :> es
