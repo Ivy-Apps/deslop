@@ -58,6 +58,10 @@
     require("telescope").load_extension("hoogle")
     -- Load live_grep_args extension
     require("telescope").load_extension("live_grep_args")
+
+    local cmp = require("cmp")
+    local cmp_autopairs = require("nvim-autopairs.completion.cmp")
+    cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
   '';
 
   keymaps = [
@@ -307,7 +311,15 @@
         };
       };
     };
-
+    nvim-autopairs = {
+      enable = true;
+      settings = {
+        # Use treesitter to check for pair status
+        # Critical for Haskell to distinguish between string literals and 
+        # primed variables (e.g. let x' = 5)
+        check_ts = true;
+      };
+    };
     cmp = {
       enable = true;
       autoEnableSources = true;
