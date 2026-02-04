@@ -81,7 +81,7 @@ translateProject params =
 
     translationFile l = translationsPath </> (T.unpack l <> ".json")
     translationsPath = params.projectPath </> "messages"
-  
+
     handleReadError = throwError ParseTranslationsError
     handleTranslateErorr = throwError . TranslateError
 
@@ -189,6 +189,21 @@ runDeslop params = do
                         if seconds < 1
                             then printf "⏱  Finished in %.2fms\n" (seconds * 1000)
                             else printf "⏱  Finished in %.2fs\n" seconds
+    putStrLn "─────────────────────────────────────────"
+    putStrLn "Translating..."
+    runEff
+        . runFileSystemIO
+        . runCLILog
+        . runAI
+        $ do
+            res <- runErrorNoCallStack @TranslationsError (translateProject params)
+            case res of
+                Left err -> liftIO $ do
+                    setSGR [SetColor Foreground Vivid Red]
+                    putStrLn $ "❌ Error: " <> show err
+                    setSGR [Reset]
+                Right _ -> liftIO $ do
+                    putStrLn "Translations success."
 
 humanReadable :: DeslopError -> String
 humanReadable (TsConfigNotFoundError path) =
