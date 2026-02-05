@@ -4,8 +4,8 @@ import Data.Aeson
 import Data.Text (Text)
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
-import Network.HTTP.Req
 import GHC.Generics (Generic)
+import Network.HTTP.Req
 
 data AIError = IncorrectApiKey | GenericError Text
 
@@ -39,17 +39,23 @@ promptGemini :: Gemini -> Text -> IO (Either AIError Text)
 promptGemini llm p = undefined
   where
     makeRequest :: IO ChatCompletionResponse
-    makeRequest = runReq defaultHttpConfig $
-        responseBody
-            <$> req
-                POST
-                (https "generativelanguage.googleapis.com" /: "v1beta" /: "models" /: modelId /: "generateContent")
-                (ReqBodyJson $ mkPayload)
-                jsonResponse
-                ("key" =: apiKey llm.apiKey)
+    makeRequest =
+        runReq defaultHttpConfig $
+            responseBody
+                <$> req
+                    POST
+                    ( https "generativelanguage.googleapis.com"
+                        /: "v1beta"
+                        /: "models"
+                        /: modelId
+                        /: "generateContent"
+                    )
+                    (ReqBodyJson $ mkPayload)
+                    jsonResponse
+                    ("key" =: apiKey llm.apiKey)
 
     modelId = case llm.model of
-      Flash2_5 -> "gemini-2.5-flash"
+        Flash2_5 -> "gemini-2.5-flash"
     apiKey (GeminiApiKey k) = k
     mkPayload =
         ChatCompletionRequest
