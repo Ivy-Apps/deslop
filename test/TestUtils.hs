@@ -73,7 +73,7 @@ runGitTest ms = interpret $ \_ -> \case
 
 runAITest ::  Eff (AI : es) a -> Eff es a
 runAITest = interpret $ \_ -> \case
-    Prompt p -> pure . Right $ p
+    PromptLLM _ p -> pure . Right $ p
 
 projectFixturePath :: FilePath
 projectFixturePath = "test/fixtures/ts-project-1"

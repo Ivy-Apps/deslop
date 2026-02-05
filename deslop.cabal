@@ -65,7 +65,8 @@ library
         extra,
         ansi-terminal,
         time,
-        process
+        process,
+        req
 
     hs-source-dirs:   src
 
