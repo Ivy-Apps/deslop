@@ -6,6 +6,7 @@ import Control.Monad ((<=<))
 import Data.Aeson
 import Data.Bifunctor (first)
 import Data.Either.Extra
+import Data.Functor
 import Data.Maybe (listToMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -13,7 +14,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import GHC.Generics (Generic)
 import Network.HTTP.Req
-import Utils 
+import Utils
 
 data AIError = IncorrectApiKey | GenericError Text
 
@@ -46,10 +47,7 @@ instance LLM Gemini where
 promptGemini :: Gemini -> Text -> IO (Either AIError Text)
 promptGemini llm p =
     try @HttpException makeRequest
-        >>= pure
-            . join
-            . fmap extractText
-            . first mapError
+        <&> join . fmap extractText . first mapError
   where
     extractText :: ChatCompletionResponseDto -> Either AIError Text
     extractText =
