@@ -92,14 +92,8 @@
     { mode = "n"; key = "<leader>K"; action = "<C-w>K"; options.desc = "Move Window Up"; }
     {
       mode = "n";
-      key = "<leader>p";
+      key = "<leader>wp";
       action = "<C-w>p";
-      options.desc = "Jump to Previous Window";
-    }
-    {
-      mode = "t";
-      key = "<leader>p";
-      action = "<C-\\><C-n><C-w>p";
       options.desc = "Jump to Previous Window";
     }
     {

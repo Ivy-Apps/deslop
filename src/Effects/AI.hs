@@ -16,7 +16,7 @@ import GHC.Generics (Generic)
 import Network.HTTP.Req
 import Utils
 
-data AIError = IncorrectApiKey | GenericError Text
+data AIError = IncorrectApiKey | GenericError Text deriving (Show, Eq)
 
 data AI :: Effect where
     PromptLLM :: (LLM l) => l -> Text -> AI m (Either AIError Text)
@@ -42,7 +42,7 @@ data Gemini = Gemini
 
 instance LLM Gemini where
     prompt :: Gemini -> Text -> IO (Either AIError Text)
-    prompt llm p = pure $ Right ""
+    prompt = promptGemini
 
 promptGemini :: Gemini -> Text -> IO (Either AIError Text)
 promptGemini llm p =
