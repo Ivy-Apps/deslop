@@ -13,7 +13,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import GHC.Generics (Generic)
 import Network.HTTP.Req
-import Utils (safeHead)
+import Utils 
 
 data AIError = IncorrectApiKey | GenericError Text
 
@@ -49,16 +49,18 @@ promptGemini llm p =
         >>= pure
             . join
             . fmap extractText
-            . first (GenericError . T.pack . show)
+            . first mapError
   where
     extractText :: ChatCompletionResponseDto -> Either AIError Text
     extractText =
-        maybeToEither (GenericError "No candidates") . safeHead . (.candidates)
+        headErr (GenericError "No candidates") . (.candidates)
             >=> fmap (.text)
-                . maybeToEither (GenericError "No parts in the message")
-                . safeHead
+                . headErr (GenericError "No parts in the message")
                 . (.parts)
                 . (.content)
+
+    mapError :: HttpException -> AIError
+    mapError = GenericError . T.pack . show
 
     makeRequest :: IO ChatCompletionResponseDto
     makeRequest =
