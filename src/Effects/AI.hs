@@ -28,7 +28,7 @@ promptLLM = (send .) . PromptLLM
 
 runAI :: (IOE :> es) => Eff (AI : es) a -> Eff es a
 runAI = interpret $ \_ -> \case
-    PromptLLM llm p -> pure . Left $ GenericError ("Not implemented: " <> p)
+    PromptLLM llm p -> liftIO $ prompt llm p
 
 class LLM l where
     prompt :: l -> Text -> IO (Either AIError Text)
