@@ -25,6 +25,8 @@ common shared-properties
         DeriveGeneric
         LambdaCase
         DataKinds
+        DeriveAnyClass
+        TypeApplications
 
 library
     import:           shared-properties

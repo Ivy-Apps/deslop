@@ -1,11 +1,19 @@
 module Effects.AI where
 
+import Control.Exception (try)
+import Control.Monad
+import Control.Monad ((<=<))
 import Data.Aeson
+import Data.Bifunctor (first)
+import Data.Either.Extra
+import Data.Maybe (listToMaybe)
 import Data.Text (Text)
+import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import GHC.Generics (Generic)
 import Network.HTTP.Req
+import Utils (safeHead)
 
 data AIError = IncorrectApiKey | GenericError Text
 
@@ -36,9 +44,23 @@ instance LLM Gemini where
     prompt llm p = pure $ Right ""
 
 promptGemini :: Gemini -> Text -> IO (Either AIError Text)
-promptGemini llm p = undefined
+promptGemini llm p =
+    try @HttpException makeRequest
+        >>= pure
+            . join
+            . fmap extractText
+            . first (GenericError . T.pack . show)
   where
-    makeRequest :: IO ChatCompletionResponse
+    extractText :: ChatCompletionResponseDto -> Either AIError Text
+    extractText =
+        maybeToEither (GenericError "No candidates") . safeHead . (.candidates)
+            >=> fmap (.text)
+                . maybeToEither (GenericError "No parts in the message")
+                . safeHead
+                . (.parts)
+                . (.content)
+
+    makeRequest :: IO ChatCompletionResponseDto
     makeRequest =
         runReq defaultHttpConfig $
             responseBody
@@ -50,55 +72,49 @@ promptGemini llm p = undefined
                         /: modelId
                         /: "generateContent"
                     )
-                    (ReqBodyJson $ mkPayload)
+                    (ReqBodyJson mkPayload)
                     jsonResponse
                     ("key" =: apiKey llm.apiKey)
 
     modelId = case llm.model of
         Flash2_5 -> "gemini-2.5-flash"
+
     apiKey (GeminiApiKey k) = k
+
     mkPayload =
-        ChatCompletionRequest
-            { contents = [GeminiChatMessage "user" [GeminiPart p]]
-            , generationConfig = GenerationConfig 0.7
+        ChatCompletionRequestDto
+            { contents = [GeminiChatMessageDto "user" [GeminiPartDto p]]
+            , generationConfig = GenerationConfigDto 0.7
             }
 
-data ChatCompletionRequest = ChatCompletionRequest
-    { contents :: [GeminiChatMessage]
-    , generationConfig :: GenerationConfig
+data ChatCompletionRequestDto = ChatCompletionRequestDto
+    { contents :: [GeminiChatMessageDto]
+    , generationConfig :: GenerationConfigDto
     }
-    deriving (Generic)
-instance ToJSON ChatCompletionRequest
+    deriving (Generic, ToJSON)
 
-data GenerationConfig = GenerationConfig
+newtype GenerationConfigDto = GenerationConfigDto
     { temperature :: Double
     }
-    deriving (Generic)
-instance ToJSON GenerationConfig
+    deriving (Generic, ToJSON)
 
-data GeminiChatMessage = GeminiChatMessage
-    { role :: Text
-    , parts :: [GeminiPart]
+newtype ChatCompletionResponseDto = ChatCompletionResponseDto
+    { candidates :: [CandidateDto]
     }
-    deriving (Generic, Show)
-instance ToJSON GeminiChatMessage
-instance FromJSON GeminiChatMessage
+    deriving (Generic, Show, FromJSON)
 
-data GeminiPart = GeminiPart
+newtype CandidateDto = CandidateDto
+    { content :: GeminiChatMessageDto
+    }
+    deriving (Generic, Show, FromJSON)
+
+data GeminiChatMessageDto = GeminiChatMessageDto
+    { role :: Text
+    , parts :: [GeminiPartDto]
+    }
+    deriving (Generic, Show, ToJSON, FromJSON)
+
+newtype GeminiPartDto = GeminiPartDto
     { text :: Text
     }
-    deriving (Generic, Show)
-instance ToJSON GeminiPart
-instance FromJSON GeminiPart
-
-data ChatCompletionResponse = ChatCompletionResponse
-    { candidates :: [Candidate]
-    }
-    deriving (Generic, Show)
-instance FromJSON ChatCompletionResponse
-
-data Candidate = Candidate
-    { content :: GeminiChatMessage
-    }
-    deriving (Generic, Show)
-instance FromJSON Candidate
+    deriving (Generic, Show, ToJSON, FromJSON)
