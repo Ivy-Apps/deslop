@@ -42,49 +42,46 @@ data Gemini = Gemini
 
 instance LLM Gemini where
     prompt :: Gemini -> Text -> IO (Either AIError Text)
-    prompt = promptGemini
+    prompt llm p =
+        try @HttpException makeRequest
+            <&> join . fmap extractText . first mapError
+      where
+        extractText :: ChatCompletionResponseDto -> Either AIError Text
+        extractText =
+            headErr (GenericError "No candidates") . (.candidates)
+                >=> fmap (.text)
+                    . headErr (GenericError "No parts in the message")
+                    . (.parts)
+                    . (.content)
 
-promptGemini :: Gemini -> Text -> IO (Either AIError Text)
-promptGemini llm p =
-    try @HttpException makeRequest
-        <&> join . fmap extractText . first mapError
-  where
-    extractText :: ChatCompletionResponseDto -> Either AIError Text
-    extractText =
-        headErr (GenericError "No candidates") . (.candidates)
-            >=> fmap (.text)
-                . headErr (GenericError "No parts in the message")
-                . (.parts)
-                . (.content)
+        mapError :: HttpException -> AIError
+        mapError = GenericError . T.pack . show
 
-    mapError :: HttpException -> AIError
-    mapError = GenericError . T.pack . show
+        makeRequest :: IO ChatCompletionResponseDto
+        makeRequest =
+            runReq defaultHttpConfig $
+                responseBody
+                    <$> req
+                        POST
+                        ( https "generativelanguage.googleapis.com"
+                            /: "v1beta"
+                            /: "models"
+                            /: (modelId <> ":generateContent")
+                        )
+                        (ReqBodyJson mkPayload)
+                        jsonResponse
+                        ("key" =: apiKey llm.apiKey)
 
-    makeRequest :: IO ChatCompletionResponseDto
-    makeRequest =
-        runReq defaultHttpConfig $
-            responseBody
-                <$> req
-                    POST
-                    ( https "generativelanguage.googleapis.com"
-                        /: "v1beta"
-                        /: "models"
-                        /: (modelId <> ":generateContent")
-                    )
-                    (ReqBodyJson mkPayload)
-                    jsonResponse
-                    ("key" =: apiKey llm.apiKey)
+        modelId = case llm.model of
+            Flash2_5 -> "gemini-2.5-flash"
 
-    modelId = case llm.model of
-        Flash2_5 -> "gemini-2.5-flash"
+        apiKey (GeminiApiKey k) = k
 
-    apiKey (GeminiApiKey k) = k
-
-    mkPayload =
-        ChatCompletionRequestDto
-            { contents = [GeminiChatMessageDto "user" [GeminiPartDto p]]
-            , generationConfig = GenerationConfigDto 0.7
-            }
+        mkPayload =
+            ChatCompletionRequestDto
+                { contents = [GeminiChatMessageDto "user" [GeminiPartDto p]]
+                , generationConfig = GenerationConfigDto 0.0
+                }
 
 data ChatCompletionRequestDto = ChatCompletionRequestDto
     { contents :: [GeminiChatMessageDto]
