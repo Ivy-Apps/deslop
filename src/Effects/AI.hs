@@ -69,8 +69,7 @@ promptGemini llm p =
                     ( https "generativelanguage.googleapis.com"
                         /: "v1beta"
                         /: "models"
-                        /: modelId
-                        /: "generateContent"
+                        /: (modelId <> ":generateContent")
                     )
                     (ReqBodyJson mkPayload)
                     jsonResponse
