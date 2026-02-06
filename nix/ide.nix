@@ -90,8 +90,18 @@
     { mode = "n"; key = "<leader>L"; action = "<C-w>L"; options.desc = "Move Window Right"; }
     { mode = "n"; key = "<leader>J"; action = "<C-w>J"; options.desc = "Move Window Down"; }
     { mode = "n"; key = "<leader>K"; action = "<C-w>K"; options.desc = "Move Window Up"; }
-
-    # --- Haskell Tools & LSP ---
+    {
+      mode = "n";
+      key = "<leader>p";
+      action = "<C-w>p";
+      options.desc = "Jump to Previous Window";
+    }
+    {
+      mode = "t";
+      key = "<leader>p";
+      action = "<C-\\><C-n><C-w>p";
+      options.desc = "Jump to Previous Window";
+    }
     {
       mode = "n";
       key = "<leader>e";
