@@ -12,7 +12,7 @@ import System.Directory (listDirectory)
 import System.FilePath (takeBaseName, takeExtension, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (runFileSystemTest, runCLILogTest)
+import TestUtils (runFileSystemTest, runCLILogTest, listFixtures)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
@@ -106,11 +106,6 @@ spec = do
                 Just actual -> do
                     let actualContent = T.unpack $ decodeUtf8 actual
                     return $ defaultGolden (testName <> "-deslop") actualContent
-
-listFixtures :: FilePath -> String -> IO [FilePath]
-listFixtures dir ext = do
-    files <- listDirectory dir
-    return $ filter (\f -> takeExtension f == ext) files
 
 reconstruct :: [TsToken] -> T.Text
 reconstruct = foldMap (.raw)

@@ -1,14 +1,23 @@
 module Translations.Translator where
 
+import Data.Aeson
+import Data.Aeson.Encode.Pretty
+import Data.Bifunctor
+import Data.Map (Map)
 import Data.Map qualified as M
 import Data.Text (Text)
 import Data.Text qualified as T
-import Effectful
-import Effects.AI
-import Translations.Parser
-import Data.Aeson.Encode.Pretty
 import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.Encoding qualified as TLE
+import Data.Void
+import Effectful
+import Effects.AI
+import Text.Megaparsec
+import Text.Megaparsec.Char
+import Translations.Parser
+import Control.Monad
+
+type Parser = Parsec Void Text
 
 translate ::
     (AI :> es) =>
@@ -33,4 +42,15 @@ translatePrompt from to ts =
   where
     lang l = T.toUpper l
     buildJson = TL.toStrict . TLE.decodeUtf8 . encodePretty . M.fromList $ ts
+
+parseTranslateResponse :: Text -> Either Text [(Text, Text)]
+parseTranslateResponse = extractJson >=> bimap T.pack M.toList . decodeTranslations
+  where
+    decodeTranslations :: TL.Text -> Either String (Map Text Text)
+    decodeTranslations = eitherDecode . TLE.encodeUtf8
+
+    extractJson = (bimap (T.pack . errorBundlePretty) TL.pack) . runParser jsonParser ""
+
+    jsonParser :: Parser String
+    jsonParser = manyTill anySingle (string "```json") *> manyTill anySingle (string "```")
 

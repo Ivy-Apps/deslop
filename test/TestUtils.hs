@@ -7,6 +7,7 @@ module TestUtils (
     defaultParams,
     projectFixturePath,
     copyDir,
+    listFixtures,
 ) where
 
 import Control.Monad (forM, forM_)
@@ -24,7 +25,7 @@ import Effects.Git
 import Effects.AI
 import System.Directory (copyFile, doesDirectoryExist, listDirectory)
 import System.Directory.Extra (createDirectoryIfMissing)
-import System.FilePath ((</>))
+import System.FilePath ((</>), takeExtension)
 
 type ModifiedFiles = [FilePath]
 
@@ -97,3 +98,8 @@ snapshot tmpDir filesToVerify = do
         let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
         return $ header <> content
     pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
+
+listFixtures :: FilePath -> String -> IO [FilePath]
+listFixtures dir ext = do
+    files <- listDirectory dir
+    return $ filter (\f -> takeExtension f == ext) files
