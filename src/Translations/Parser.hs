@@ -22,7 +22,7 @@ import Effects.FileSystem (RoFileSystem, listDirectory, readFileBS)
 import System.FilePath (takeBaseName, (</>))
 import Utils (safeHead)
 
-type Language = Text
+type LangCode = Text
 
 data Translations = Translations
     { base :: Translation
@@ -31,7 +31,7 @@ data Translations = Translations
     deriving (Show, Eq)
 
 data Translation = Translation
-    { language :: Language
+    { language :: LangCode
     , tree :: TransTree
     }
     deriving (Show, Eq)
@@ -42,7 +42,7 @@ data TransTree
     | Leaf Text Text
     deriving (Show, Eq)
 
-defaultLanguage :: Text
+defaultLanguage :: LangCode
 defaultLanguage = "en"
 
 readTranslations :: (RoFileSystem :> es) => FilePath -> Eff es (Maybe Translations)

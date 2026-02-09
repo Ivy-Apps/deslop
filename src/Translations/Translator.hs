@@ -12,12 +12,12 @@ import Data.Text.Lazy.Encoding qualified as TLE
 
 translate ::
     (AI :> es) =>
-    (Language, Language) ->
+    (LangCode, LangCode) ->
     [(Text, Text)] ->
     Eff es (Either Text [(Text, Text)])
 translate (from, to) ts = pure . Right $ ts
 
-translatePrompt :: Language -> Language -> [(Text, Text)] -> Text
+translatePrompt :: LangCode -> LangCode -> [(Text, Text)] -> Text
 translatePrompt from to ts =
     "Translate from "
         <> lang from
