@@ -15,23 +15,35 @@ import Effectful.Dispatch.Dynamic (interpret, send)
 import GHC.Generics (Generic)
 import Network.HTTP.Req
 import Utils
+import Types
+import Effectful.Reader.Static
 
 data AIError = IncorrectApiKey | GenericError Text deriving (Show, Eq)
+data LLMType = FastLLM deriving (Show, Eq)
+data AnyLLM where
+  AnyLLM :: (LLM l) => l -> AnyLLM
 
 data AI :: Effect where
-    PromptLLM :: (LLM l) => l -> Text -> AI m (Either AIError Text)
+    PromptLLM :: LLMType -> Text -> AI m (Either AIError Text)
 
 type instance DispatchOf AI = Dynamic
 
-promptLLM :: (AI :> es, LLM l) => l -> Text -> Eff es (Either AIError Text)
-promptLLM = (send .) . PromptLLM
+prompt :: (AI :> es) => LLMType -> Text -> Eff es (Either AIError Text)
+prompt = (send .) . PromptLLM
 
-runAI :: (IOE :> es) => Eff (AI : es) a -> Eff es a
+runAI :: (IOE :> es, Reader Secrets :> es) => Eff (AI : es) a -> Eff es a
 runAI = interpret $ \_ -> \case
-    PromptLLM llm p -> liftIO $ prompt llm p
+    PromptLLM llmType p -> do 
+      AnyLLM llm <- findLLM llmType
+      liftIO $ execPrompt llm p
+
+findLLM :: (Reader Secrets :> es) => LLMType -> Eff es AnyLLM
+findLLM FastLLM = do
+  apiKey <- asks @Secrets (.geminiApiKey)
+  pure . AnyLLM $ Gemini (GeminiApiKey apiKey) Flash2_5
 
 class LLM l where
-    prompt :: l -> Text -> IO (Either AIError Text)
+    execPrompt :: l -> Text -> IO (Either AIError Text)
 
 data GeminiModel = Flash2_5
 newtype GeminiApiKey = GeminiApiKey Text
@@ -41,8 +53,8 @@ data Gemini = Gemini
     }
 
 instance LLM Gemini where
-    prompt :: Gemini -> Text -> IO (Either AIError Text)
-    prompt llm p =
+    execPrompt :: Gemini -> Text -> IO (Either AIError Text)
+    execPrompt llm p =
         try @HttpException makeRequest
             <&> join . fmap extractText . first mapError
       where

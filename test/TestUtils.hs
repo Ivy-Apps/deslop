@@ -16,7 +16,6 @@ import Data.ByteString qualified as BS
 import Data.IORef
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
-import Deslop (Params (..))
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.CLILog
@@ -26,6 +25,7 @@ import Effects.AI
 import System.Directory (copyFile, doesDirectoryExist, listDirectory)
 import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath ((</>), takeExtension)
+import Types
 
 type ModifiedFiles = [FilePath]
 

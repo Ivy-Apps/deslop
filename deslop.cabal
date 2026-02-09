@@ -33,6 +33,8 @@ library
     
     exposed-modules:  
         Deslop
+        UI
+        Types
         Deslop.Imports
         TypeScript.Tokens
         TypeScript.AST
@@ -68,7 +70,8 @@ library
         ansi-terminal,
         time,
         process,
-        req
+        req,
+        fmt
 
     hs-source-dirs:   src
 

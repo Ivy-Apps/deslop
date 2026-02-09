@@ -1,6 +1,6 @@
 module E2E.ProjectGoldenSpec (spec) where
 
-import Deslop (DeslopError (..), Params (..), deslopProject)
+import Deslop (deslopProject)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
@@ -8,6 +8,7 @@ import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (copyDir, defaultParams, projectFixturePath, runCLILogTest, runGitTest, snapshot)
+import Types
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec

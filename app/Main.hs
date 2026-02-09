@@ -1,9 +1,10 @@
 module Main (main) where
 
 import Data.Version (showVersion)
-import Deslop (Params (..), runDeslop)
+import Deslop (runDeslop)
 import Options.Applicative
 import Paths_deslop (version)
+import Types
 
 pParams :: Parser Params
 pParams =

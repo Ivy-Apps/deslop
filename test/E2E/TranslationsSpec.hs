@@ -9,7 +9,7 @@ import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils
 import UnliftIO.Temporary (withSystemTempDirectory)
-
+import Types
 
 spec :: Spec
 spec = describe "NextJS Translations" $ do

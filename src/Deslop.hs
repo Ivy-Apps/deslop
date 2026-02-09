@@ -2,13 +2,11 @@ module Deslop (
     deslopFile,
     deslopProject,
     runDeslop,
-    DeslopError (..),
-    Params (..),
     translateProject,
-    TranslationsError (..),
 ) where
 
 import Control.Monad (forM_, when, (>=>))
+import Data.Aeson
 import Data.Bool
 import Data.ByteString (ByteString)
 import Data.Foldable
@@ -19,7 +17,7 @@ import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.Imports (importAliases)
-import Effectful (Eff, liftIO, runEff, type (:>))
+import Effectful (Eff, IOE, liftIO, runEff, type (:>))
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, runReader)
 import Effects.AI
@@ -35,6 +33,7 @@ import Effects.FileSystem (
     writeFileBS,
  )
 import Effects.Git
+import GHC.Generics (Generic)
 import System.Console.ANSI
 import System.FilePath
 import Text.Printf (printf)
@@ -43,24 +42,8 @@ import Translations.Parser
 import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
-
-data Params = Params
-    { projectPath :: FilePath
-    , imports :: Bool
-    , comments :: Bool
-    , modified :: Bool
-    }
-    deriving (Show, Eq)
-
-data DeslopError
-    = TsConfigNotFoundError FilePath
-    | TsConfigParseError FilePath
-    deriving (Show, Eq)
-
-data TranslationsError
-    = ParseTranslationsError
-    | TranslateError Text
-    deriving (Show, Eq)
+import Types
+import UI
 
 translateProject ::
     ( WrFileSystem :> es
@@ -163,50 +146,44 @@ removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
 runDeslop :: Params -> IO ()
 runDeslop params = do
     start <- getCurrentTime
-    setSGR [SetColor Foreground Vivid Blue, SetConsoleIntensity BoldIntensity]
-    putStrLn $ "🚀 Deslopping project: " <> params.projectPath
-    setSGR [Reset]
-    putStrLn "─────────────────────────────────────────"
-    putStrLn "Changelog:"
+    let s =
+            Secrets
+                { geminiApiKey = "TBD"
+                }
+
     runEff
         . runFileSystemIO
         . runCLILog
         . runGit
-        $ do
-            res <- runErrorNoCallStack @DeslopError (deslopProject params)
-            liftIO $ putStrLn "─────────────────────────────────────────"
-            case res of
-                Left err -> liftIO $ do
-                    setSGR [SetColor Foreground Vivid Red]
-                    putStrLn $ "❌ Error: " <> humanReadable err
-                    setSGR [Reset]
-                Right _ -> do
-                    logSummary
-                    end <- liftIO $ getCurrentTime
-                    let diff = diffUTCTime end start
-                    let seconds = realToFrac diff :: Double
-                    liftIO $
-                        if seconds < 1
-                            then printf "⏱  Finished in %.2fms\n" (seconds * 1000)
-                            else printf "⏱  Finished in %.2fs\n" seconds
-    putStrLn "─────────────────────────────────────────"
-    putStrLn "Translating..."
-    runEff
-        . runFileSystemIO
-        . runCLILog
-        . runAI
-        $ do
-            res <- runErrorNoCallStack @TranslationsError (translateProject params)
-            case res of
-                Left err -> liftIO $ do
-                    setSGR [SetColor Foreground Vivid Red]
-                    putStrLn $ "❌ Error: " <> show err
-                    setSGR [Reset]
-                Right _ -> liftIO $ do
-                    putStrLn "Translations success."
+        . runReader @Secrets s
+        $ doWork params
 
-humanReadable :: DeslopError -> String
-humanReadable (TsConfigNotFoundError path) =
-    "tsconfig.json not found in '" <> path <> "'"
-humanReadable (TsConfigParseError path) =
-    "Could not parse TS config, check: '" <> path <> "'"
+    end <- liftIO $ getCurrentTime
+    let diff = diffUTCTime end start
+    let seconds = realToFrac diff :: Double
+    printTime seconds
+
+doWork ::
+    ( WrFileSystem :> es
+    , RoFileSystem :> es
+    , Git :> es
+    , CLILog :> es
+    , IOE :> es
+    , Reader Secrets :> es
+    ) =>
+    Params ->
+    Eff es ()
+doWork params = do
+    liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack params.projectPath
+    liftIO . putStrLn $ "Changelog:"
+    res <- runErrorNoCallStack @DeslopError (deslopProject params)
+    liftIO printDivider
+    case res of
+      Left err -> liftIO . printErr . humanReadable $ err
+      Right _ -> logSummary
+    liftIO printDivider
+    liftIO . putStrLn $ "Translating..."
+    res <- runAI . runErrorNoCallStack @TranslationsError $ translateProject params
+    case res of
+      Left err -> liftIO . printErr . T.pack $ show err
+      Right _ -> liftIO . putStrLn $ "Translations success."
