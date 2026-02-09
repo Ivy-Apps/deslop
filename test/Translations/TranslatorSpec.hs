@@ -14,7 +14,8 @@ enMessages =
     ]
 
 spec :: Spec
-spec = describe "Prompt" $ do
+spec = do
+    describe "Prompt" $ do
         it "EN to ES" $ do
             let p = translatePrompt "en" "es" enMessages
             defaultGolden "prompt-en-es" (T.unpack p)
