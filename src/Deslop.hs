@@ -9,11 +9,11 @@ module Deslop (
 import Control.Monad (forM_, when, (>=>))
 import Data.Aeson
 import Data.Bifunctor
-import Data.Functor
 import Data.Bool
 import Data.ByteString (ByteString)
-import qualified Data.ByteString.Lazy as BL
+import Data.ByteString.Lazy qualified as BL
 import Data.Foldable
+import Data.Functor
 import Data.List (intersect)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
@@ -39,6 +39,7 @@ import Effects.FileSystem (
 import Effects.Git
 import GHC.Generics (Generic)
 import System.Console.ANSI
+import System.Directory (getHomeDirectory)
 import System.FilePath
 import Text.Printf (printf)
 import Translations.Manager
@@ -49,8 +50,10 @@ import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
 import Types
 import UI
 
-secretsPath :: FilePath
-secretsPath = "~/deslop/secrets.json"
+getSecretsPath :: IO FilePath
+getSecretsPath = do
+    home <- getHomeDirectory
+    pure $ home </> ".deslop" </> "secrets.json"
 
 translateProject ::
     ( WrFileSystem :> es
@@ -151,24 +154,26 @@ removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
     render = TE.encodeUtf8 . renderAst . (.ast)
 
 runDeslop :: Params -> IO ()
-runDeslop params = do
-    start <- getCurrentTime
-    let secrets =
-            Secrets
-                { geminiApiKey = "TBD"
-                }
+runDeslop params =
+    getSecretsPath
+        >>= runEff . runFileSystemIO . getSecrets
+        >>= either handleInitError run
+  where
+    run secrets = do
+        start <- getCurrentTime
+        runEff
+            . runFileSystemIO
+            . runCLILog
+            . runGit
+            . runAI secrets
+            $ doWork params secrets
 
-    runEff
-        . runFileSystemIO
-        . runCLILog
-        . runGit
-        . runAI secrets
-        $ doWork params secrets
+        end <- liftIO $ getCurrentTime
+        let diff = diffUTCTime end start
+        let seconds = realToFrac diff :: Double
+        printTime seconds
 
-    end <- liftIO $ getCurrentTime
-    let diff = diffUTCTime end start
-    let seconds = realToFrac diff :: Double
-    printTime seconds
+    handleInitError err = printErr . T.pack $ show err
 
 doWork ::
     ( WrFileSystem :> es
@@ -196,7 +201,6 @@ doWork params _ = do
         Left err -> liftIO . printErr . T.pack $ show err
         Right _ -> liftIO . putStrLn $ "Translations success."
 
-
 getSecrets :: (RoFileSystem :> es) => FilePath -> Eff es (Either InitError Secrets)
 getSecrets sp =
     fileExists sp
@@ -205,5 +209,5 @@ getSecrets sp =
     readSecrets =
         readFileBS sp
             <&> first (SecretsJsonError . T.pack)
-            . eitherDecode @Secrets
-            . BL.fromStrict
+                . eitherDecode @Secrets
+                . BL.fromStrict
