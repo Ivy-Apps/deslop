@@ -3,12 +3,16 @@ module Deslop (
     deslopProject,
     runDeslop,
     translateProject,
+    getSecrets,
 ) where
 
 import Control.Monad (forM_, when, (>=>))
 import Data.Aeson
+import Data.Bifunctor
+import Data.Functor
 import Data.Bool
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Lazy as BL
 import Data.Foldable
 import Data.List (intersect)
 import Data.Maybe (fromMaybe)
@@ -44,6 +48,9 @@ import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
 import Types
 import UI
+
+secretsPath :: FilePath
+secretsPath = "~/deslop/secrets.json"
 
 translateProject ::
     ( WrFileSystem :> es
@@ -174,17 +181,29 @@ doWork ::
     Params ->
     Secrets ->
     Eff es ()
-doWork params secrets = do
+doWork params _ = do
     liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack params.projectPath
     liftIO . putStrLn $ "Changelog:"
     res <- runErrorNoCallStack @DeslopError (deslopProject params)
     liftIO printDivider
     case res of
-      Left err -> liftIO . printErr . humanReadable $ err
-      Right _ -> logSummary
+        Left err -> liftIO . printErr . humanReadable $ err
+        Right _ -> logSummary
     liftIO printDivider
     liftIO . putStrLn $ "Translating..."
     res <- runErrorNoCallStack @TranslationsError $ translateProject params
     case res of
-      Left err -> liftIO . printErr . T.pack $ show err
-      Right _ -> liftIO . putStrLn $ "Translations success."
+        Left err -> liftIO . printErr . T.pack $ show err
+        Right _ -> liftIO . putStrLn $ "Translations success."
+
+
+getSecrets :: (RoFileSystem :> es) => FilePath -> Eff es (Either InitError Secrets)
+getSecrets sp =
+    fileExists sp
+        >>= bool (pure $ Left SecretsMissing) readSecrets
+  where
+    readSecrets =
+        readFileBS sp
+            <&> first (SecretsJsonError . T.pack)
+            . eitherDecode @Secrets
+            . BL.fromStrict

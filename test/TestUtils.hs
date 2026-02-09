@@ -8,6 +8,7 @@ module TestUtils (
     projectFixturePath,
     copyDir,
     listFixtures,
+    fixturesBasePath,
 ) where
 
 import Control.Monad (forM, forM_)
@@ -103,3 +104,6 @@ listFixtures :: FilePath -> String -> IO [FilePath]
 listFixtures dir ext = do
     files <- listDirectory dir
     return $ filter (\f -> takeExtension f == ext) files
+
+fixturesBasePath :: FilePath    
+fixturesBasePath = "test/fixtures"

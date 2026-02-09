@@ -100,6 +100,7 @@ test-suite deslop-test
     
     other-modules:
         TestUtils
+        DeslopSpec
         Deslop.ImportSpec
         TypeScript.LexerSpec
         Translations.TranslatorSpec

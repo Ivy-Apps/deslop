@@ -26,3 +26,5 @@ data TranslationsError
     = ParseTranslationsError
     | TranslateError Text
     deriving (Show, Eq)
+
+data InitError = SecretsMissing | SecretsJsonError Text deriving (Show, Eq)
