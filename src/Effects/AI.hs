@@ -31,16 +31,15 @@ type instance DispatchOf AI = Dynamic
 prompt :: (AI :> es) => LLMType -> Text -> Eff es (Either AIError Text)
 prompt = (send .) . PromptLLM
 
-runAI :: (IOE :> es, Reader Secrets :> es) => Eff (AI : es) a -> Eff es a
-runAI = interpret $ \_ -> \case
+runAI :: (IOE :> es) => Secrets -> Eff (AI : es) a -> Eff es a
+runAI secrets = interpret $ \_ -> \case
     PromptLLM llmType p -> do 
-      AnyLLM llm <- findLLM llmType
+      AnyLLM llm <- pure $ findLLM secrets llmType
       liftIO $ execPrompt llm p
 
-findLLM :: (Reader Secrets :> es) => LLMType -> Eff es AnyLLM
-findLLM FastLLM = do
-  apiKey <- asks @Secrets (.geminiApiKey)
-  pure . AnyLLM $ Gemini (GeminiApiKey apiKey) Flash2_5
+findLLM :: Secrets -> LLMType -> AnyLLM
+findLLM secrets FastLLM = 
+  AnyLLM $ Gemini (GeminiApiKey secrets.geminiApiKey) Flash2_5
 
 class LLM l where
     execPrompt :: l -> Text -> IO (Either AIError Text)

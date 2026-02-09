@@ -146,7 +146,7 @@ removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
 runDeslop :: Params -> IO ()
 runDeslop params = do
     start <- getCurrentTime
-    let s =
+    let secrets =
             Secrets
                 { geminiApiKey = "TBD"
                 }
@@ -155,8 +155,8 @@ runDeslop params = do
         . runFileSystemIO
         . runCLILog
         . runGit
-        . runReader @Secrets s
-        $ doWork params
+        . runAI secrets
+        $ doWork params secrets
 
     end <- liftIO $ getCurrentTime
     let diff = diffUTCTime end start
@@ -169,11 +169,12 @@ doWork ::
     , Git :> es
     , CLILog :> es
     , IOE :> es
-    , Reader Secrets :> es
+    , AI :> es
     ) =>
     Params ->
+    Secrets ->
     Eff es ()
-doWork params = do
+doWork params secrets = do
     liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack params.projectPath
     liftIO . putStrLn $ "Changelog:"
     res <- runErrorNoCallStack @DeslopError (deslopProject params)
@@ -183,7 +184,7 @@ doWork params = do
       Right _ -> logSummary
     liftIO printDivider
     liftIO . putStrLn $ "Translating..."
-    res <- runAI . runErrorNoCallStack @TranslationsError $ translateProject params
+    res <- runErrorNoCallStack @TranslationsError $ translateProject params
     case res of
       Left err -> liftIO . printErr . T.pack $ show err
       Right _ -> liftIO . putStrLn $ "Translations success."
