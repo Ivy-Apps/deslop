@@ -50,10 +50,70 @@ import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
 import Types
 import UI
 
+runDeslop :: Params -> IO ()
+runDeslop params =
+    getSecretsPath
+        >>= runEff . runFileSystemIO . getSecrets
+        >>= either handleInitError run
+  where
+    run secrets = do
+        start <- getCurrentTime
+        runEff
+            . runFileSystemIO
+            . runCLILog
+            . runGit
+            . runAI secrets
+            $ doWork params secrets
+
+        end <- liftIO $ getCurrentTime
+        let diff = diffUTCTime end start
+        let seconds = realToFrac diff :: Double
+        printTime seconds
+
+    handleInitError err = printErr . T.pack $ show err
+
 getSecretsPath :: IO FilePath
 getSecretsPath = do
     home <- getHomeDirectory
     pure $ home </> ".deslop" </> "secrets.json"
+
+doWork ::
+    ( WrFileSystem :> es
+    , RoFileSystem :> es
+    , Git :> es
+    , CLILog :> es
+    , IOE :> es
+    , AI :> es
+    ) =>
+    Params ->
+    Secrets ->
+    Eff es ()
+doWork params _ = do
+    liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack params.projectPath
+    liftIO . putStrLn $ "Changelog:"
+    deslopRes <- runErrorNoCallStack @DeslopError (deslopProject params)
+    liftIO printDivider
+    case deslopRes of
+        Left err -> liftIO . printErr . humanReadable $ err
+        Right _ -> logSummary
+    liftIO printDivider
+
+    liftIO . putStrLn $ "Translating..."
+    translateRes <- runErrorNoCallStack @TranslationsError (translateProject params)
+    case translateRes of
+        Left err -> liftIO . printErr . T.pack $ show err
+        Right _ -> liftIO . putStrLn $ "Translations success."
+
+getSecrets :: (RoFileSystem :> es) => FilePath -> Eff es (Either InitError Secrets)
+getSecrets sp =
+    fileExists sp
+        >>= bool (pure $ Left SecretsMissing) readSecrets
+  where
+    readSecrets =
+        readFileBS sp
+            <&> first (SecretsJsonError . T.pack)
+                . eitherDecode @Secrets
+                . BL.fromStrict
 
 translateProject ::
     ( WrFileSystem :> es
@@ -152,62 +212,3 @@ removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
             TsFile {path = p, content = TE.decodeUtf8 c}
     deslop = foldr (>=>) pure [importAliases]
     render = TE.encodeUtf8 . renderAst . (.ast)
-
-runDeslop :: Params -> IO ()
-runDeslop params =
-    getSecretsPath
-        >>= runEff . runFileSystemIO . getSecrets
-        >>= either handleInitError run
-  where
-    run secrets = do
-        start <- getCurrentTime
-        runEff
-            . runFileSystemIO
-            . runCLILog
-            . runGit
-            . runAI secrets
-            $ doWork params secrets
-
-        end <- liftIO $ getCurrentTime
-        let diff = diffUTCTime end start
-        let seconds = realToFrac diff :: Double
-        printTime seconds
-
-    handleInitError err = printErr . T.pack $ show err
-
-doWork ::
-    ( WrFileSystem :> es
-    , RoFileSystem :> es
-    , Git :> es
-    , CLILog :> es
-    , IOE :> es
-    , AI :> es
-    ) =>
-    Params ->
-    Secrets ->
-    Eff es ()
-doWork params _ = do
-    liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack params.projectPath
-    liftIO . putStrLn $ "Changelog:"
-    res <- runErrorNoCallStack @DeslopError (deslopProject params)
-    liftIO printDivider
-    case res of
-        Left err -> liftIO . printErr . humanReadable $ err
-        Right _ -> logSummary
-    liftIO printDivider
-    liftIO . putStrLn $ "Translating..."
-    res <- runErrorNoCallStack @TranslationsError $ translateProject params
-    case res of
-        Left err -> liftIO . printErr . T.pack $ show err
-        Right _ -> liftIO . putStrLn $ "Translations success."
-
-getSecrets :: (RoFileSystem :> es) => FilePath -> Eff es (Either InitError Secrets)
-getSecrets sp =
-    fileExists sp
-        >>= bool (pure $ Left SecretsMissing) readSecrets
-  where
-    readSecrets =
-        readFileBS sp
-            <&> first (SecretsJsonError . T.pack)
-                . eitherDecode @Secrets
-                . BL.fromStrict
