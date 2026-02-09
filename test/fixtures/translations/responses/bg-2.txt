@@ -1,0 +1,8 @@
+These are the translated strings to Bulgarian:
+
+```json
+{
+    "errors.subtitle": "Опитайте отново или се свържете с поддръжката.",
+    "errors.title": "Нещо се обърка!"
+}
+```

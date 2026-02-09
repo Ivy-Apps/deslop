@@ -40,5 +40,11 @@ spec = do
         it testName $ do 
           response <- TIO.readFile (responseFixturesPath </> fname)
           let res = parseTranslateResponse response
-          return $ defaultGolden ("parse-" <> testName) (ppShow res)
+          return $ defaultGolden ("parse-" <> testName) (fmtRes res)
 
+
+fmtRes :: Either Text [(Text, Text)] -> String
+fmtRes (Left e) = "Left: " <> T.unpack e
+fmtRes (Right ts) = unlines . ("Right: " :) . fmap fmtPair $ ts 
+  where
+    fmtPair (k, v) = "  " <> T.unpack k <> ": " <> T.unpack v  
