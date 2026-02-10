@@ -43,8 +43,9 @@
           devShells.default = pkgs.mkShell {
             nativeBuildInputs = [
               hpkgs.ghc
-              hpkgs.cabal-install
+              pkgs.cabal-install
               hpkgs.haskell-language-server
+              hpkgs.implicit-hie
               hpkgs.fourmolu
               hgold
               pkgs.pkg-config

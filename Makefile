@@ -16,6 +16,10 @@ update: ## Update Cabal index, get latest versions, and freeze them
 	@cabal freeze
 	@echo "Done! Dependencies updated and locked in 'cabal.project.freeze' ❄️"
 
+update-hie: ## Updates hie.yaml (must be in nix develop)
+	gen-hie > hie.yaml
+	@echo "✅ Hie updated."
+
 fix-hls: ## Fixes HLS
 	@echo "🛑 Stopping any running HLS instances..."
 	-pkill haskell-language-server || true

@@ -229,4 +229,4 @@ constraints: any.Cabal ==3.12.1.0,
              any.witherable ==0.5,
              any.zlib ==0.7.1.1,
              zlib -bundled-c-zlib +non-blocking-ffi +pkg-config
-index-state: hackage.haskell.org 2026-02-10T10:43:47Z
+index-state: hackage.haskell.org 2026-02-10T21:15:55Z
