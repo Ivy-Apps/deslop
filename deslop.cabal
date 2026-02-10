@@ -12,9 +12,15 @@ common shared-properties
     default-language: GHC2024
     
     ghc-options: 
-        -Wall -Wcompat -Widentities -Wincomplete-record-updates 
-        -Wincomplete-uni-patterns -Wmissing-export-lists 
-        -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+        -Wall 
+        -Wno-partial-fields
+        -Wno-unused-do-bind
+        -Wno-deriving-defaults
+        -Wno-redundant-constraints
+        -Wno-missing-export-lists
+        -Wno-name-shadowing
+        -Wno-unused-imports
+        -Wno-unused-packages
 
     default-extensions:
         DuplicateRecordFields
