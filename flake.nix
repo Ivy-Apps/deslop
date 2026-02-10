@@ -28,7 +28,7 @@
 
       perSystem = { config, pkgs, system, ... }:
         let
-          ghcVersion = "ghc910";
+          ghcVersion = "ghc912";
           hpkgs = pkgs.haskell.packages.${ghcVersion};
           hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
 
@@ -43,7 +43,7 @@
           devShells.default = pkgs.mkShell {
             nativeBuildInputs = [
               hpkgs.ghc
-              hpkgs.cabal-install
+              pkgs.cabal-install
               hpkgs.haskell-language-server
               hpkgs.implicit-hie
               hpkgs.fourmolu

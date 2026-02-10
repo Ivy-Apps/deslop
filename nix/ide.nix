@@ -120,7 +120,7 @@
             "${hpkgs.haskell-language-server}/bin/haskell-language-server"
             "--lsp"
           ];
-          on_attach = ''
+          onAttach = ''
             function(client, bufnr)
               local opts = { noremap = true, silent = true, buffer = bufnr }
               vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
