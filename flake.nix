@@ -28,7 +28,7 @@
 
       perSystem = { config, pkgs, system, ... }:
         let
-          ghcVersion = "ghc912";
+          ghcVersion = "ghc910";
           hpkgs = pkgs.haskell.packages.${ghcVersion};
           hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
 
