@@ -30,6 +30,7 @@
         let
           ghcVersion = "ghc910";
           hpkgs = pkgs.haskell.packages.${ghcVersion};
+          hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
 
           nixvimConfig = import ./nix/ide.nix {
             inherit pkgs hpkgs;
@@ -45,7 +46,7 @@
               hpkgs.cabal-install
               hpkgs.haskell-language-server
               hpkgs.fourmolu
-              hpkgs.hspec-golden
+              hgold
               pkgs.pkg-config
               nvim
             ] ++ sysLibs;
@@ -56,7 +57,6 @@
               export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath sysLibs}:$LD_LIBRARY_PATH
               echo "🔮 Deslop Dev env initialized."
               echo "--------------------------------------------------------"
-              # This will print the exact versions currently in the PATH
               echo "✅ GHC:  $(ghc --version)"
               echo "✅ HLS:  $(haskell-language-server --version | awk '{print $1, $2, $3, $4, $5}')"
               echo "--------------------------------------------------------"

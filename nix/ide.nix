@@ -33,6 +33,12 @@
     local cmp = require("cmp")
     local cmp_autopairs = require("nvim-autopairs.completion.cmp")
     cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
+
+    _G.HlsRestart = function()
+      vim.lsp.stop_client(vim.lsp.get_active_clients({ name = 'haskell-tools.nvim' }))
+      vim.cmd('edit') -- Reload buffer to re-trigger attachment
+      vim.notify("♻️  HLS Restarted", vim.log.levels.INFO)
+    end
   '';
 
   keymaps = [
@@ -143,7 +149,7 @@
     {
       mode = "n";
       key = "<leader>lx";
-      action = "<cmd>lua _G.NuclearHLS()<CR>";
+      action = "<cmd>lua _G.HlsRestart()<CR>";
       options.desc = "Nuclear HLS Restart";
     }
 
