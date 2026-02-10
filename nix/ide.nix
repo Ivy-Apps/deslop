@@ -27,37 +27,9 @@
   clipboard.register = "unnamedplus";
 
   extraConfigLua = ''
-    _G.NuclearHLS = function()
-      -- 1. Notify and Stop
-      vim.notify("☢️  Initiating HLS Nuclear Restart...", vim.log.levels.WARN)
-      
-      -- Stop all clients named "hls"
-      local clients = vim.lsp.get_clients({ name = "hls" })
-      for _, client in ipairs(clients) do
-        client.stop()
-      end
-
-      -- 2. Wait 1.5s for clean shutdown, then Start
-      vim.defer_fn(function()
-        vim.cmd("LspStart hls")
-        
-        -- 3. Wait 1s for attachment, then Verify & Notify
-        vim.defer_fn(function()
-          local new_clients = vim.lsp.get_clients({ name = "hls" })
-          if #new_clients > 0 then
-             vim.notify("✅ HLS successfully restarted and attached!", vim.log.levels.INFO)
-          else
-             vim.notify("❌ HLS failed to attach. Check :LspInfo", vim.log.levels.ERROR)
-          end
-        end, 1000)
-      end, 1500)
-    end
-
-    -- Load the manual extension for Hoogle
     require("telescope").load_extension("hoogle")
-    -- Load live_grep_args extension
     require("telescope").load_extension("live_grep_args")
-
+    
     local cmp = require("cmp")
     local cmp_autopairs = require("nvim-autopairs.completion.cmp")
     cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
@@ -282,18 +254,6 @@
     haskell-tools = {
       enable = true;
       settings = {
-        hls = {
-          cmd = [
-            "haskell-language-server-wrapper"
-            "--lsp"
-            "+RTS"
-            "-A128M" # Large allocation area (faster re-checking)
-            "-H2G" # Pre-allocate 2GB heap (stops early GC thrashing)
-            "-I0" # Disable Idle GC (prevents lag when you stop typing)
-            "-RTS"
-          ];
-        };
-
         tools = {
           hover.enable = true;
           log.level = "info";
@@ -301,6 +261,14 @@
             handler = "toggleterm";
           };
         };
+      };
+    };
+    lsp = {
+      enable = true;
+      capabilities = "require('cmp_nvim_lsp').default_capabilities()";
+      servers = {
+        nil_ls.enable = true;
+        hls.enable = false;
       };
     };
 
@@ -352,8 +320,6 @@
       };
     };
     luasnip.enable = true;
-    lsp.enable = true;
-    lsp.servers.nil_ls.enable = true;
     gitsigns.enable = true;
     comment.enable = true;
     lualine.enable = true;

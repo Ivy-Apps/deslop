@@ -1,0 +1,8 @@
+cradle:
+  cabal:
+    - path: "src"
+      component: "lib:deslop"
+    - path: "app/Main.hs"
+      component: "exe:deslop"
+    - path: "test/Spec.hs"
+      component: "test-suite:deslop-test"
