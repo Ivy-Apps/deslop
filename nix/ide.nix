@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, hpkgs }:
 
 {
   colorschemes.catppuccin.enable = true;
@@ -260,9 +260,22 @@
     haskell-tools = {
       enable = true;
       settings = {
+        hls = {
+          enable = true;
+          settings = {
+            haskell = {
+              formattingProvider = "fourmolu";
+              plugin = {
+                importLens = { globalOn = true; };
+                alternateNumberFormat = { globalOn = true; };
+                ghcide-type-lenses = { globalOn = true; };
+                ghcide-code-actions-fill-hole = { globalOn = true; };
+                ghcide-code-actions-imports-exports = { globalOn = true; };
+              };
+            };
+          };
+        };
         tools = {
-          hover.enable = true;
-          log.level = "info";
           repl = {
             handler = "toggleterm";
           };
@@ -340,5 +353,9 @@
     pkgs.fd
     pkgs.nixpkgs-fmt
     pkgs.xdg-utils
+    hpkgs.fourmolu
+    hpkgs.hlint
+    hpkgs.hoogle
+    hpkgs.cabal-install
   ];
 }
