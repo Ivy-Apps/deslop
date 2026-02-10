@@ -120,14 +120,11 @@
             "${hpkgs.haskell-language-server}/bin/haskell-language-server"
             "--lsp"
           ];
-          onAttach = ''
+          on_attach = ''
             function(client, bufnr)
               local opts = { noremap = true, silent = true, buffer = bufnr }
-              -- Force-bind K to LSP hover if it's being overridden
               vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
-              -- Useful for Haskell: Go to definition
               vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
-              -- Codelenes (like type signatures above functions)
               vim.keymap.set('n', '<leader>cl', vim.lsp.codelens.run, opts)
             end
           '';
