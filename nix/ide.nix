@@ -17,8 +17,6 @@
     breakindent = true;
     ignorecase = true;
     smartcase = true;
-
-    # --- Window/Split Behavior ---
     splitbelow = true;
     splitright = true;
     termguicolors = true;
@@ -36,7 +34,7 @@
 
     _G.HlsRestart = function()
       vim.lsp.stop_client(vim.lsp.get_active_clients({ name = 'haskell-tools.nvim' }))
-      vim.cmd('edit') -- Reload buffer to re-trigger attachment
+      vim.cmd('edit')
       vim.notify("♻️  HLS Restarted", vim.log.levels.INFO)
     end
   '';
@@ -87,7 +85,6 @@
       extensions.live-grep-args.enable = true;
       keymaps = {
         "<leader>ff" = "find_files";
-        # Note: <leader>fg is handled manually in keymaps to access the extension
       };
     };
 
@@ -95,8 +92,6 @@
       enable = true;
       settings = {
         highlight.enable = true;
-        # Note: Haskell Treesitter indent is often buggy, handle with care. 
-        # Formatter (fourmolu) is preferred.
         indent.enable = false;
       };
       grammarPackages = with pkgs.vimPlugins.nvim-treesitter.builtGrammars; [
@@ -160,7 +155,6 @@
     conform-nvim = {
       enable = true;
       settings = {
-        # format_on_save = { timeout_ms = 5000; lsp_fallback = true; };
         formatters_by_ft = {
           haskell = [ "fourmolu" ];
           nix = [ "nixpkgs_fmt" ];
@@ -170,9 +164,6 @@
     nvim-autopairs = {
       enable = true;
       settings = {
-        # Use treesitter to check for pair status
-        # Critical for Haskell to distinguish between string literals and 
-        # primed variables (e.g. let x' = 5)
         check_ts = true;
       };
     };
