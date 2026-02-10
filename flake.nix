@@ -28,66 +28,40 @@
 
       perSystem = { config, pkgs, system, ... }:
         let
-          ghcVersion = "ghc967";
-
-          haskellPackages = pkgs.haskell.packages.${ghcVersion}.override {
-            overrides = self: super: {
-              deslop = self.callCabal2nix "deslop" ./. { };
-            };
-          };
+          ghcVersion = "ghc914";
+          hpkgs = pkgs.haskell.packages.${ghcVersion};
 
           nixvimConfig = import ./nix/ide.nix {
-            inherit pkgs haskellPackages;
+            inherit pkgs hpkgs;
           };
-
           nvim = nixvim.legacyPackages.${system}.makeNixvim nixvimConfig;
 
-          ciDeps = [
-            haskellPackages.cabal-install
-            haskellPackages.hspec-discover
-            haskellPackages.hlint
-            pkgs.git
-          ];
-
-          localDeps = [
-            nvim
-            pkgs.just
-            haskellPackages.hspec-golden
-            haskellPackages.hpack
-          ];
-
+          sysLibs = [ pkgs.zlib pkgs.xz ];
         in
         {
-          devShells = {
-            ci = haskellPackages.shellFor {
-              packages = p: [ p.deslop ];
-              nativeBuildInputs = ciDeps;
-              buildInputs = [ pkgs.zlib pkgs.xz ];
-            };
+          devShells.default = pkgs.makeShell {
+            nativeBuildInputs = [
+              hpkgs.ghc
+              hpkgs.cabal-install
+              hpkgs.haskell-language-server
+              hpkgs.fourmolu
+              hpkgs.hspec-golden
+              pkgs.pkg-config
+              nvim
+            ] ++ sysLibs;
 
-            default = haskellPackages.shellFor {
-              packages = p: [ p.deslop ];
-              withHoogle = true;
 
-              nativeBuildInputs = ciDeps ++ localDeps;
-              buildInputs = [
-                pkgs.zlib
-                pkgs.xz
-                haskellPackages.haskell-language-server
-                haskellPackages.fourmolu
-              ];
-
-              shellHook = ''
-                echo "🔮 Deslop Dev env initialized."
-                echo "--------------------------------------------------------"
-                # This will print the exact versions currently in the PATH
-                echo "✅ GHC:  $(ghc --version)"
-                echo "✅ HLS:  $(haskell-language-server --version | awk '{print $1, $2, $3, $4, $5}')"
-                echo "--------------------------------------------------------"
+            shellHook = ''
+              export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath sysLibs}:$LD_LIBRARY_PATH
+              echo "🔮 Deslop Dev env initialized."
+              echo "--------------------------------------------------------"
+              # This will print the exact versions currently in the PATH
+              echo "✅ GHC:  $(ghc --version)"
+              echo "✅ HLS:  $(haskell-language-server --version | awk '{print $1, $2, $3, $4, $5}')"
+              echo "--------------------------------------------------------"
               
-                echo "   Run 'nvim .' to start."
-              '';
-            };
+              echo "   Run 'nvim .' to start."
+            '';
           };
         };
     };
