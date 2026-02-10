@@ -116,7 +116,10 @@
       settings = {
         hls = {
           enable = true;
-          command = "${hpkgs.haskell-language-server}/bin/haskell-language-server";
+          cmd = [
+            "${hpkgs.haskell-language-server}/bin/haskell-language-server"
+            "--lsp"
+          ];
           onAttach = ''
             function(client, bufnr)
               local opts = { noremap = true, silent = true, buffer = bufnr }

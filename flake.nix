@@ -45,6 +45,7 @@
               hpkgs.ghc
               hpkgs.cabal-install
               hpkgs.haskell-language-server
+              hpkgs.implicit-hie
               hpkgs.fourmolu
               hgold
               pkgs.pkg-config
