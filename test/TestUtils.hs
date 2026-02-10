@@ -12,20 +12,29 @@ module TestUtils (
 ) where
 
 import Control.Monad (forM, forM_)
+import Data.Aeson
+import Data.Aeson.Encode.Pretty
+import Data.Bifunctor
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.IORef
+import Data.Map (Map)
+import Data.Map qualified as M
+import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
+import Data.Text.Lazy qualified as TL
+import Data.Text.Lazy.Encoding qualified as TLE
 import Effectful
 import Effectful.Dispatch.Dynamic
+import Effects.AI
 import Effects.CLILog
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
 import Effects.Git
-import Effects.AI
 import System.Directory (copyFile, doesDirectoryExist, listDirectory)
 import System.Directory.Extra (createDirectoryIfMissing)
-import System.FilePath ((</>), takeExtension)
+import System.FilePath (takeExtension, (</>))
+import Translations.Translator
 import Types
 
 type ModifiedFiles = [FilePath]
@@ -73,9 +82,19 @@ runGitTest :: ModifiedFiles -> Eff (Git : es) a -> Eff es a
 runGitTest ms = interpret $ \_ -> \case
     ModifiedFiles -> pure ms
 
-runAITest ::  Eff (AI : es) a -> Eff es a
+runAITest :: Eff (AI : es) a -> Eff es a
 runAITest = interpret $ \_ -> \case
-    PromptLLM _ p -> pure . Right $ p
+    PromptLLM _ p -> pure . bimap GenericError asAIResponse . parseTranslateResponse $ p
+  where
+    asAIResponse :: [(Text, Text)] -> Text
+    asAIResponse ts =
+        "```json\n"
+            <> buildJson (upperCaseValues ts)
+            <> "\n```"
+
+    buildJson = TL.toStrict . TLE.decodeUtf8 . encodePretty . M.fromList
+    upperCaseValues :: [(Text, Text)] -> [(Text, Text)] 
+    upperCaseValues = fmap (\(k, v) -> (k, T.toUpper v)) 
 
 projectFixturePath :: FilePath
 projectFixturePath = "test/fixtures/ts-project-1"
@@ -105,5 +124,5 @@ listFixtures dir ext = do
     files <- listDirectory dir
     return $ filter (\f -> takeExtension f == ext) files
 
-fixturesBasePath :: FilePath    
+fixturesBasePath :: FilePath
 fixturesBasePath = "test/fixtures"

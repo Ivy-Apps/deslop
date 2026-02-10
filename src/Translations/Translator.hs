@@ -1,5 +1,6 @@
 module Translations.Translator where
 
+import Control.Monad
 import Data.Aeson
 import Data.Aeson.Encode.Pretty
 import Data.Bifunctor
@@ -15,7 +16,6 @@ import Effects.AI
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Translations.Parser
-import Control.Monad
 
 type Parser = Parsec Void Text
 
@@ -24,7 +24,12 @@ translate ::
     (LangCode, LangCode) ->
     [(Text, Text)] ->
     Eff es (Either Text [(Text, Text)])
-translate (from, to) ts = pure . Right $ ts
+translate (from, to) ts =
+    prompt FastLLM (translatePrompt from to ts)
+        >>= pure . join . fmap parseTranslateResponse . first handleAiError
+  where
+    handleAiError :: AIError -> Text
+    handleAiError = T.pack . show
 
 translatePrompt :: LangCode -> LangCode -> [(Text, Text)] -> Text
 translatePrompt from to ts =
@@ -53,4 +58,3 @@ parseTranslateResponse = extractJson >=> bimap T.pack M.toList . decodeTranslati
 
     jsonParser :: Parser String
     jsonParser = manyTill anySingle (string "```json") *> manyTill anySingle (string "```")
-

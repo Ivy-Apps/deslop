@@ -2,12 +2,12 @@
 {
   "common": {
     "buttons": {
-      "save": "Save Changes",
-      "cancel": "Cancel",
-      "delete": "Delete Item",
+      "save": "SAVE CHANGES",
+      "cancel": "CANCEL",
+      "delete": "DELETE ITEM",
       "actions": {
-        "confirm": "Are you sure?",
-        "loading": "Processing..."
+        "confirm": "ARE YOU SURE?",
+        "loading": "PROCESSING..."
       }
     },
     "errors": {
@@ -43,7 +43,7 @@
           }
         }
       },
-      "close": "Close"
+      "close": "CLOSE"
     }
   },
   "auth": {
@@ -61,7 +61,7 @@
       }
     }
   },
-  "back": "Back"
+  "back": "BACK"
 }
 
 
@@ -71,15 +71,15 @@
     "buttons": {
       "save": "Enregistrer les modifications",
       "cancel": "Annuler",
-      "delete": "Delete Item",
+      "delete": "DELETE ITEM",
       "actions": {
         "confirm": "Êtes-vous sûr ?",
         "loading": "Traitement en cours..."
       }
     },
     "errors": {
-      "not_found": "The page you are looking for does not exist.",
-      "unauthorized": "You do not have permission to access this resource."
+      "not_found": "THE PAGE YOU ARE LOOKING FOR DOES NOT EXIST.",
+      "unauthorized": "YOU DO NOT HAVE PERMISSION TO ACCESS THIS RESOURCE."
     }
   },
   "dashboard": {
@@ -110,7 +110,7 @@
           }
         }
       },
-      "close": "Close"
+      "close": "CLOSE"
     }
   },
   "auth": {
