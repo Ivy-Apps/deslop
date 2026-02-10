@@ -14,10 +14,10 @@
   };
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     flake-parts.url = "github:hercules-ci/flake-parts";
     nixvim = {
-      url = "github:nix-community/nixvim";
+      url = "github:nix-community/nixvim/nixos-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -28,7 +28,7 @@
 
       perSystem = { config, pkgs, system, ... }:
         let
-          ghcVersion = "ghc914";
+          ghcVersion = "ghc910";
           hpkgs = pkgs.haskell.packages.${ghcVersion};
 
           nixvimConfig = import ./nix/ide.nix {
@@ -39,7 +39,7 @@
           sysLibs = [ pkgs.zlib pkgs.xz ];
         in
         {
-          devShells.default = pkgs.makeShell {
+          devShells.default = pkgs.mkShell {
             nativeBuildInputs = [
               hpkgs.ghc
               hpkgs.cabal-install
@@ -52,6 +52,7 @@
 
 
             shellHook = ''
+              export HASKELL_LANGUAGE_SERVER_GHC_PATH="${hpkgs.ghc}/bin/ghc"
               export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath sysLibs}:$LD_LIBRARY_PATH
               echo "🔮 Deslop Dev env initialized."
               echo "--------------------------------------------------------"
