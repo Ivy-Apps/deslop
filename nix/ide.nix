@@ -142,10 +142,6 @@
         hls = {
           enable = true;
           installGhc = false; 
-          cmd = [
-            "${hpkgs.haskell-language-server}/bin/haskell-language-server"
-            "--lsp"
-          ];
           settings = {
              haskell = {
                formattingProvider = "fourmolu";
