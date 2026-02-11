@@ -28,8 +28,15 @@
 
       perSystem = { config, pkgs, system, ... }:
         let
-          ghcVersion = "ghc910";
-          hpkgs = pkgs.haskell.packages.${ghcVersion};
+          ghcVersion = "ghc9122";
+
+          hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
+            overrides = self: super: {
+              deslop = self.callCabal2nix "deslop" ./. { };
+              fmt = pkgs.haskell.lib.dontCheck super.fmt;
+            };
+          };
+
           hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
 
           nixvimConfig = import ./nix/ide.nix {
@@ -40,26 +47,52 @@
           sysLibs = [ pkgs.zlib pkgs.xz ];
         in
         {
-          devShells.default = pkgs.mkShell {
+          devShells.default = hpkgs.shellFor {
+            packages = p: [ p.deslop ];
+            withHoogle = true;
+
             nativeBuildInputs = [
-              hpkgs.ghc
-              pkgs.cabal-install
+              hpkgs.cabal-install
               hpkgs.haskell-language-server
               hpkgs.implicit-hie
               hpkgs.fourmolu
               hgold
               pkgs.pkg-config
               nvim
-            ] ++ sysLibs;
+            ];
 
+            buildInputs = sysLibs;
 
             shellHook = ''
+              export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
               export HASKELL_LANGUAGE_SERVER_GHC_PATH="${hpkgs.ghc}/bin/ghc"
               export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath sysLibs}:$LD_LIBRARY_PATH
+
               echo "🔮 Deslop Dev env initialized."
               echo "--------------------------------------------------------"
-              echo "✅ GHC:  $(ghc --version)"
-              echo "✅ HLS:  $(haskell-language-server --version | awk '{print $1, $2, $3, $4, $5}')"
+              
+              echo "✅ GHC:     $(ghc --version)"
+              CABAL_PATH=$(type -p cabal)
+              CABAL_VER=$(cabal --version | head -n 1)
+              if [[ "$CABAL_PATH" == *"/nix/store/"* ]]; then
+                  echo "✅ Cabal:   $CABAL_VER"
+                  echo "            Path: $CABAL_PATH"
+              else
+                  echo "❌ Cabal:   $CABAL_VER"
+                  echo "            ⚠️  WARNING: Not sourced from Nix!"
+                  echo "            Path: $CABAL_PATH"
+              fi
+
+              HLS_PATH=$(type -p haskell-language-server)
+              HLS_VER=$(haskell-language-server --version | head -n 1)
+              if [[ "$HLS_PATH" == *"/nix/store/"* ]]; then
+                  echo "✅ HLS:     $HLS_VER"
+                  echo "            Path: $HLS_PATH"
+              else
+                  echo "❌ HLS:     $HLS_VER"
+                  echo "            ⚠️  WARNING: Not sourced from Nix!"
+                  echo "            Path: $HLS_PATH"
+              fi
               echo "--------------------------------------------------------"
               
               echo "   Run 'nvim .' to start."
@@ -68,4 +101,3 @@
         };
     };
 }
-

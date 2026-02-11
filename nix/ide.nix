@@ -27,19 +27,29 @@
   extraConfigLua = ''
     require("telescope").load_extension("hoogle")
     require("telescope").load_extension("live_grep_args")
-    
+     
     local cmp = require("cmp")
     local cmp_autopairs = require("nvim-autopairs.completion.cmp")
     cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
 
     _G.HlsRestart = function()
-      vim.lsp.stop_client(vim.lsp.get_active_clients({ name = 'haskell-tools.nvim' }))
+      vim.lsp.stop_client(vim.lsp.get_active_clients({ name = 'hls' }))
       vim.cmd('edit')
       vim.notify("♻️  HLS Restarted", vim.log.levels.INFO)
     end
   '';
 
   keymaps = import ./keymaps.nix;
+
+  autoCmd = [
+    {
+      event = [ "BufEnter" "CursorHold" "InsertLeave" ];
+      pattern = [ "*.hs" ];
+      callback = {
+        __raw = "function() vim.lsp.codelens.refresh() end";
+      };
+    }
+  ];
 
   plugins = {
     web-devicons.enable = true;
@@ -105,50 +115,46 @@
       ];
     };
 
-    haskell-tools = {
-      enable = true;
-      # package = hpkgs.haskell-language-server;
-      settings = {
-        hls = {
-          enable = true;
-          cmd = [
-            "${hpkgs.haskell-language-server}/bin/haskell-language-server"
-            "--lsp"
-          ];
-          onAttach = ''
-            function(client, bufnr)
-              local opts = { noremap = true, silent = true, buffer = bufnr }
-              vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
-              vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
-              vim.keymap.set('n', '<leader>cl', vim.lsp.codelens.run, opts)
-            end
-          '';
-          settings = {
-            haskell = {
-              formattingProvider = "fourmolu";
-              plugin = {
-                importLens = { globalOn = true; };
-                alternateNumberFormat = { globalOn = true; };
-                ghcide-type-lenses = { globalOn = true; };
-                ghcide-code-actions-fill-hole = { globalOn = true; };
-                ghcide-code-actions-imports-exports = { globalOn = true; };
-              };
-            };
-          };
-        };
-        tools = {
-          repl = {
-            handler = "toggleterm";
-          };
-        };
-      };
-    };
+
     lsp = {
       enable = true;
       capabilities = "require('cmp_nvim_lsp').default_capabilities()";
+      
+      keymaps = {
+        silent = true;
+        lspBuf = {
+          "K" = "hover";
+          "gd" = "definition";
+          "<leader>ca" = "code_action";
+        };
+        extra = [
+           {
+             key = "<leader>cA";
+             action = "vim.lsp.codelens.run";
+             options.desc = "Run CodeLens";
+           }
+        ];
+      };
+
       servers = {
         nil_ls.enable = true;
-        hls.enable = false;
+        
+        hls = {
+          enable = true;
+          installGhc = false; 
+          settings = {
+             haskell = {
+               formattingProvider = "fourmolu";
+               plugin = {
+                 importLens = { globalOn = true; };
+                 alternateNumberFormat = { globalOn = true; };
+                 "ghcide-type-lenses" = { globalOn = true; };
+                 "ghcide-code-actions-fill-hole" = { globalOn = true; };
+                 "ghcide-code-actions-imports-exports" = { globalOn = true; };
+               };
+             };
+          };
+        };
       };
     };
 
