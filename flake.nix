@@ -29,7 +29,7 @@
       perSystem = { config, pkgs, system, ... }:
         let
           ghcVersion = "ghc9122";
-          
+
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
               deslop = self.callCabal2nix "deslop" ./. { };
@@ -68,16 +68,30 @@
               export HASKELL_LANGUAGE_SERVER_GHC_PATH="${hpkgs.ghc}/bin/ghc"
               export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath sysLibs}:$LD_LIBRARY_PATH
 
-              echo "🔮 Deslop Dev env initialized (shellFor mode)."
+              echo "🔮 Deslop Dev env initialized."
               echo "--------------------------------------------------------"
-              echo "✅ GHC:  $(ghc --version)"
               
-              HLS_PATH=$(which haskell-language-server)
-              if [[ "$HLS_PATH" == *"/nix/store/"* ]]; then
-                  echo "✅ HLS:  $(haskell-language-server --version | head -n 1) (sourced from Nix)"
+              echo "✅ GHC:     $(ghc --version)"
+              CABAL_PATH=$(type -p cabal)
+              CABAL_VER=$(cabal --version | head -n 1)
+              if [[ "$CABAL_PATH" == *"/nix/store/"* ]]; then
+                  echo "✅ Cabal:   $CABAL_VER"
+                  echo "            Path: $CABAL_PATH"
               else
-                  echo "❌ HLS:  NOT FOUND in Nix Store."
-                  echo "         Current path: $HLS_PATH"
+                  echo "❌ Cabal:   $CABAL_VER"
+                  echo "            ⚠️  WARNING: Not sourced from Nix!"
+                  echo "            Path: $CABAL_PATH"
+              fi
+
+              HLS_PATH=$(type -p haskell-language-server)
+              HLS_VER=$(haskell-language-server --version | head -n 1)
+              if [[ "$HLS_PATH" == *"/nix/store/"* ]]; then
+                  echo "✅ HLS:     $HLS_VER"
+                  echo "            Path: $HLS_PATH"
+              else
+                  echo "❌ HLS:     $HLS_VER"
+                  echo "            ⚠️  WARNING: Not sourced from Nix!"
+                  echo "            Path: $HLS_PATH"
               fi
               echo "--------------------------------------------------------"
               
