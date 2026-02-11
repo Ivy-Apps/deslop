@@ -28,7 +28,7 @@
 
       perSystem = { config, pkgs, system, ... }:
         let
-          ghcVersion = "ghc910";
+          ghcVersion = "ghc9122";
           hpkgs = pkgs.haskell.packages.${ghcVersion};
           hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
 
@@ -54,14 +54,22 @@
 
 
             shellHook = ''
+              export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
               export HASKELL_LANGUAGE_SERVER_GHC_PATH="${hpkgs.ghc}/bin/ghc"
               export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath sysLibs}:$LD_LIBRARY_PATH
+
               echo "🔮 Deslop Dev env initialized."
               echo "--------------------------------------------------------"
               echo "✅ GHC:  $(ghc --version)"
-              echo "✅ HLS:  $(haskell-language-server --version | awk '{print $1, $2, $3, $4, $5}')"
+              HLS_PATH=$(which haskell-language-server)
+              if [[ "$HLS_PATH" == *"/nix/store/"* ]]; then
+                  echo "✅ HLS:  $(haskell-language-server --version | head -n 1) (sourced from Nix)"
+              else
+                  echo "❌ HLS:  NOT FOUND in Nix Store. You might be missing HLS for this GHC version."
+                  echo "         Current path: $HLS_PATH"
+              fi
               echo "--------------------------------------------------------"
-              
+    
               echo "   Run 'nvim .' to start."
             '';
           };
