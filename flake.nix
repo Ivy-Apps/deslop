@@ -29,7 +29,14 @@
       perSystem = { config, pkgs, system, ... }:
         let
           ghcVersion = "ghc9122";
-          hpkgs = pkgs.haskell.packages.${ghcVersion};
+          
+          hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
+            overrides = self: super: {
+              deslop = self.callCabal2nix "deslop" ./. { };
+              fmt = pkgs.haskell.lib.dontCheck super.fmt;
+            };
+          };
+
           hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
 
           nixvimConfig = import ./nix/ide.nix {
@@ -40,40 +47,43 @@
           sysLibs = [ pkgs.zlib pkgs.xz ];
         in
         {
-          devShells.default = pkgs.mkShell {
+          devShells.default = hpkgs.shellFor {
+            packages = p: [ p.deslop ];
+            withHoogle = true;
+
             nativeBuildInputs = [
-              hpkgs.ghc
-              pkgs.cabal-install
+              hpkgs.cabal-install
               hpkgs.haskell-language-server
               hpkgs.implicit-hie
               hpkgs.fourmolu
               hgold
               pkgs.pkg-config
               nvim
-            ] ++ sysLibs;
+            ];
 
+            buildInputs = sysLibs;
 
             shellHook = ''
               export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
               export HASKELL_LANGUAGE_SERVER_GHC_PATH="${hpkgs.ghc}/bin/ghc"
               export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath sysLibs}:$LD_LIBRARY_PATH
 
-              echo "🔮 Deslop Dev env initialized."
+              echo "🔮 Deslop Dev env initialized (shellFor mode)."
               echo "--------------------------------------------------------"
               echo "✅ GHC:  $(ghc --version)"
+              
               HLS_PATH=$(which haskell-language-server)
               if [[ "$HLS_PATH" == *"/nix/store/"* ]]; then
                   echo "✅ HLS:  $(haskell-language-server --version | head -n 1) (sourced from Nix)"
               else
-                  echo "❌ HLS:  NOT FOUND in Nix Store. You might be missing HLS for this GHC version."
+                  echo "❌ HLS:  NOT FOUND in Nix Store."
                   echo "         Current path: $HLS_PATH"
               fi
               echo "--------------------------------------------------------"
-    
+              
               echo "   Run 'nvim .' to start."
             '';
           };
         };
     };
 }
-
