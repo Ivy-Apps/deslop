@@ -27,6 +27,13 @@ brew install deslop
 deslop --help
 ```
 
+Because Deslop uses Gemini to add missing next-intl translation strings, a Gemini API key is currently required to use the tool. An invalid key works, too! Just the translations feature won't work. Add:
+```~/.deslop/secrets.json
+{
+  "geminiApiKey": "invalid or a real one to enable next-intl translations"
+}
+```
+
 **To update**
 ```bash
 brew update
