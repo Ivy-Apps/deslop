@@ -69,16 +69,9 @@
   {
     mode = "n";
     key = "<leader>rr";
-    action = "<cmd>lua require('haskell-tools').repl.toggle()<CR>";
+    action = ''<cmd>lua require("toggleterm").exec("cabal repl", 1)<CR>'';
     options.desc = "Haskell REPL";
   }
-  {
-    mode = "n";
-    key = "<leader>rq";
-    action = "<cmd>lua require('haskell-tools').repl.quit()<CR>";
-    options.desc = "Quit GHCi REPL";
-  }
-  # Fixed duplicate keymap. Now 'hg' is Telescope (Interactive), 'hs' is Search (Prompt)
   {
     mode = "n";
     key = "<leader>hg";
