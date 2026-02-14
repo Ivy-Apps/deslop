@@ -12,16 +12,16 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
+import Effectful.Reader.Static
 import GHC.Generics (Generic)
 import Network.HTTP.Req
-import Utils
 import Types
-import Effectful.Reader.Static
+import Utils
 
 data AIError = IncorrectApiKey | GenericError Text deriving (Show, Eq)
 data LLMType = FastLLM deriving (Show, Eq)
 data AnyLLM where
-  AnyLLM :: (LLM l) => l -> AnyLLM
+    AnyLLM :: (LLM l) => l -> AnyLLM
 
 data AI :: Effect where
     PromptLLM :: LLMType -> Text -> AI m (Either AIError Text)
@@ -33,13 +33,13 @@ prompt = (send .) . PromptLLM
 
 runAI :: (IOE :> es) => Secrets -> Eff (AI : es) a -> Eff es a
 runAI secrets = interpret $ \_ -> \case
-    PromptLLM llmType p -> do 
-      AnyLLM llm <- pure $ findLLM secrets llmType
-      liftIO $ execPrompt llm p
+    PromptLLM llmType p -> do
+        AnyLLM llm <- pure $ findLLM secrets llmType
+        liftIO $ execPrompt llm p
 
 findLLM :: Secrets -> LLMType -> AnyLLM
-findLLM secrets FastLLM = 
-  AnyLLM $ Gemini (GeminiApiKey secrets.geminiApiKey) Flash2_5
+findLLM secrets FastLLM =
+    AnyLLM $ Gemini (GeminiApiKey secrets.geminiApiKey) Flash2_5
 
 class LLM l where
     execPrompt :: l -> Text -> IO (Either AIError Text)
@@ -98,30 +98,36 @@ data ChatCompletionRequestDto = ChatCompletionRequestDto
     { contents :: [GeminiChatMessageDto]
     , generationConfig :: GenerationConfigDto
     }
-    deriving (Generic, ToJSON)
+    deriving stock (Generic)
+    deriving anyclass (ToJSON)
 
 newtype GenerationConfigDto = GenerationConfigDto
     { temperature :: Double
     }
-    deriving (Generic, ToJSON)
+    deriving stock (Generic)
+    deriving anyclass (ToJSON)
 
 newtype ChatCompletionResponseDto = ChatCompletionResponseDto
     { candidates :: [CandidateDto]
     }
-    deriving (Generic, Show, FromJSON)
+    deriving stock (Generic, Show)
+    deriving anyclass (FromJSON)
 
 newtype CandidateDto = CandidateDto
     { content :: GeminiChatMessageDto
     }
-    deriving (Generic, Show, FromJSON)
+    deriving stock (Generic, Show)
+    deriving anyclass (FromJSON)
 
 data GeminiChatMessageDto = GeminiChatMessageDto
     { role :: Text
     , parts :: [GeminiPartDto]
     }
-    deriving (Generic, Show, ToJSON, FromJSON)
+    deriving stock (Generic, Show)
+    deriving anyclass (ToJSON, FromJSON)
 
 newtype GeminiPartDto = GeminiPartDto
     { text :: Text
     }
-    deriving (Generic, Show, ToJSON, FromJSON)
+    deriving stock (Generic, Show )
+    deriving anyclass (ToJSON, FromJSON)

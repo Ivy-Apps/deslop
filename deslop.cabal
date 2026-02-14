@@ -15,7 +15,6 @@ common shared-properties
         -Wall 
         -Wno-partial-fields
         -Wno-unused-do-bind
-        -Wno-deriving-defaults
         -Wno-redundant-constraints
         -Wno-missing-export-lists
         -Wno-name-shadowing
@@ -28,10 +27,11 @@ common shared-properties
         NoFieldSelectors
         OverloadedStrings
         TypeFamilies
-        DeriveGeneric
         LambdaCase
         DataKinds
+        DerivingStrategies
         DeriveAnyClass
+        DeriveGeneric
         TypeApplications
 
 library
