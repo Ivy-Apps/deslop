@@ -15,7 +15,6 @@ common shared-properties
         -Wall 
         -Wno-partial-fields
         -Wno-unused-do-bind
-        -Wno-redundant-constraints
         -Wno-missing-export-lists
         -Wno-unused-imports
         -Wno-unused-packages
