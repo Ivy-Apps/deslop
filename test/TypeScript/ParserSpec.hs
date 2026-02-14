@@ -13,23 +13,43 @@ spec = do
         let cases =
                 [
                     ( "import * from '@/lib/utils'"
-                    , Import "import * from '" "@/lib/utils" "'"
+                    , Import
+                        { prefix = "import * from '"
+                        , target = "@/lib/utils"
+                        , suffix = "'"
+                        }
                     )
                 ,
                     ( "import { \"hello\" as hell } from \"./Context\"\n"
-                    , Import "import { \"hello\" as hell } from \"" "./Context" "\"\n"
+                    , Import
+                        { prefix = "import { \"hello\" as hell } from \""
+                        , target = "./Context"
+                        , suffix = "\"\n"
+                        }
                     )
                 ,
                     ( "import '../../tests/viewmodel-test';"
-                    , Import "import '" "../../tests/viewmodel-test" "';"
+                    , Import
+                        { prefix = "import '"
+                        , target = "../../tests/viewmodel-test"
+                        , suffix = "';"
+                        }
                     )
                 ,
                     ( "await import ('../heavy-module');"
-                    , Import "import ('" "../heavy-module" "');"
+                    , Import
+                        { prefix = "import ('"
+                        , target = "../heavy-module"
+                        , suffix = "');"
+                        }
                     )
                 ,
                     ( "await import ('../../lib/extra').extras;"
-                    , Import "import ('" "../../lib/extra" "')"
+                    , Import
+                        { prefix = "import ('"
+                        , target = "../../lib/extra"
+                        , suffix = "')"
+                        }
                     )
                 ]
         forM_ cases $ \(input, expected) ->
