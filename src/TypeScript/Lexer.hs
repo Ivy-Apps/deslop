@@ -35,7 +35,7 @@ pImport =
 
     body d = do
         next <- lookAhead anySingle
-        let d' = currentDepth d next
+        let d' = newDepth d next
         if d' == 0 && (next == ';' || next == '\n' || next == ')')
             then void anySingle <* optional (char ';')
             else
@@ -46,12 +46,12 @@ pImport =
                     ]
                     >> parseBody d'
 
-    currentDepth :: Int -> Char -> Int
-    currentDepth d '{' = d + 1
-    currentDepth d '(' = d + 1
-    currentDepth d '}' = max 0 (d - 1)
-    currentDepth d ')' = max 0 (d - 1)
-    currentDepth d _ = d
+    newDepth :: Int -> Char -> Int
+    newDepth d '{' = d + 1
+    newDepth d '(' = d + 1
+    newDepth d '}' = max 0 (d - 1)
+    newDepth d ')' = max 0 (d - 1)
+    newDepth d _ = d
 
     pSkipString =
         choice
@@ -93,3 +93,4 @@ pRaw =
   where
     stopCondition = lookAhead $ () <$ atTokenStart <|> eof
     atTokenStart = choice [try $ string "//", string "/*", string "import"]
+

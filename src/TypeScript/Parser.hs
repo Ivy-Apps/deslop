@@ -1,10 +1,11 @@
 module TypeScript.Parser (
     TsFile (..),
     parseTs,
-    renderAst
+    renderAst,
 ) where
 
 import Data.Bifunctor
+import Data.List (foldl')
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void
@@ -13,7 +14,6 @@ import Text.Megaparsec.Char
 import TypeScript.AST
 import TypeScript.Lexer
 import TypeScript.Tokens
-import Data.List (foldl')
 
 type Parser = Parsec Void Text
 
@@ -44,20 +44,37 @@ parseImport :: Text -> Either String TsNode
 parseImport = first errorBundlePretty . runParser parser ""
   where
     -- import type { User, Permissions } from "./types";
+    -- import { "hello" as hell } from '@/lib/bug'
     parser :: Parser TsNode
     parser = do
-        (p1, q) <- manyTill_ anySingle pQuote
+        (p, q) <- consumeUntilTarget 0 ""
         t <- takeWhile1P (Just "target") (/= q)
         s <- takeRest
         pure
             Import
-                { prefix = T.pack p1 <> T.singleton q
+                { prefix = p <> T.singleton q
                 , target = t
                 , suffix = s
                 }
 
-pQuote :: Parser Char
-pQuote = char '\'' <|> char '"'
+    consumeUntilTarget :: Int -> Text -> Parser (Text, Char)
+    consumeUntilTarget d acc = do
+        next <- anySingle
+        let d' = newDepth d next
+        case targetQuote d' next of
+            Just q -> pure (acc, q)
+            Nothing -> consumeUntilTarget d' (acc <> T.singleton next)
+
+    newDepth :: Int -> Char -> Int
+    newDepth d '{' = d + 1
+    newDepth d '}' = d - 1
+    newDepth d _ = d
+
+    targetQuote :: Int -> Char -> Maybe Char
+    targetQuote 0 c
+        | c == '\'' || c == '"' = Just c
+        | otherwise = Nothing
+    targetQuote _ _ = Nothing
 
 renderAst :: [TsNode] -> Text
 renderAst = foldl' combine ""
@@ -70,3 +87,4 @@ renderAst = foldl' combine ""
     render (Docs r _) = r
     render (Comment r _) = r
     render (Import p t s) = p <> t <> s
+
