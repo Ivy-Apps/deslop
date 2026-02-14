@@ -208,7 +208,7 @@ removeSlop ::
 removeSlop p c = fromMaybe c . either (const Nothing) Just <$> pipeline
   where
     pipeline =
-        traverse (fmap render . deslop) . parseTs $
+        traverse (fmap renderProgram . deslop) . parseTs $
             TsFile {path = p, content = TE.decodeUtf8 c}
     deslop = foldr (>=>) pure [importAliases]
-    render = TE.encodeUtf8 . renderAst . (.ast)
+    renderProgram = TE.encodeUtf8 . renderAst . (.ast)

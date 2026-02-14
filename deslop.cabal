@@ -17,7 +17,6 @@ common shared-properties
         -Wno-unused-do-bind
         -Wno-redundant-constraints
         -Wno-missing-export-lists
-        -Wno-name-shadowing
         -Wno-unused-imports
         -Wno-unused-packages
 
