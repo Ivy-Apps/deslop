@@ -17,7 +17,7 @@ spec = do
             property prop_roundTrip
 
     describe "Import Parser" $ do
-        let runTest input = parse lexer "test.ts" input
+        let runTest = parse lexer "test.ts"
         let cases =
                 [
                     ( "Basic single quotes"
