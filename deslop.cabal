@@ -109,6 +109,7 @@ test-suite deslop-test
         DeslopSpec
         Deslop.ImportSpec
         TypeScript.LexerSpec
+        TypeScript.ParserSpec
         Translations.TranslatorSpec
         E2E.FileGoldenSpec
         E2E.ProjectGoldenSpec
