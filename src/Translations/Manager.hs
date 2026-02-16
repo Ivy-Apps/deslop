@@ -8,13 +8,13 @@ import Effectful
 import Effects.AI
 import Translations.Parser
 import Translations.Translator
+import Effectful.Concurrent (Concurrent)
+import Effectful.Concurrent.Async (mapConcurrently)
 
--- | Identity op for successful translations
-fixTranslations :: (AI :> es) => Translations -> Eff es (Either Text Translations)
+fixTranslations :: (AI :> es, Concurrent :> es) => Translations -> Eff es (Either Text Translations)
 fixTranslations (Translations b xs) =
-    fmap (fmap (Translations b) . sequenceA)
-        . traverse (fixTranslation b)
-        $ xs
+    mapConcurrently (fixTranslation b) xs 
+      <&> fmap (Translations b) . sequenceA
 
 fixTranslation :: (AI :> es) => Translation -> Translation -> Eff es (Either Text Translation)
 fixTranslation base target =

@@ -10,6 +10,7 @@ import Test.Hspec.Golden (defaultGolden)
 import TestUtils
 import UnliftIO.Temporary (withSystemTempDirectory)
 import Types
+import Effectful.Concurrent (runConcurrent)
 
 spec :: Spec
 spec = describe "NextJS Translations" $ do
@@ -25,10 +26,11 @@ spec = describe "NextJS Translations" $ do
                     . runErrorNoCallStack @TranslationsError
                     . runCLILogTest
                     . runAITest
+                    . runConcurrent
                     $ translateProject (defaultParams tmpDir)
 
             -- Then
-            res `shouldBe` (Right ())
+            res `shouldBe` Right ()
             let filesToVerify =
                     [ "messages/es.json"
                     , "messages/fr.json"
