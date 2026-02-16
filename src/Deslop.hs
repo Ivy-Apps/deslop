@@ -50,6 +50,7 @@ import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
 import Types
 import UI
 import Data.Either
+import Effectful.Concurrent (Concurrent, runConcurrent)
 
 runDeslop :: Params -> IO ()
 runDeslop params =
@@ -64,6 +65,7 @@ runDeslop params =
             . runCLILog
             . runGit
             . runAI secrets
+            . runConcurrent
             $ doWork params secrets
 
         end <- liftIO $ getCurrentTime
@@ -85,6 +87,7 @@ doWork ::
     , CLILog :> es
     , IOE :> es
     , AI :> es
+    , Concurrent :> es
     ) =>
     Params ->
     Secrets ->
@@ -121,6 +124,7 @@ translateProject ::
     , RoFileSystem :> es
     , CLILog :> es
     , AI :> es
+    , Concurrent :> es 
     , Error TranslationsError :> es
     ) =>
     Params ->
