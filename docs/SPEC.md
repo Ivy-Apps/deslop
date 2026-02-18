@@ -11,6 +11,8 @@ Circular dependencies [Dependency cruiser](https://github.com/sverweij/dependenc
 
 - [ ] **P0** Remove AI slop comments (e.g. // Step 1. Assign a to a; // 2. Do x y z)
 
+- [ ] **P2** Banned dependencies and imports [stewardjarod/baseline](https://github.com/stewartjarod/baseline)
+
 - [ ] **P1** Dead code removal [Knip](http://github.com/webpro-nl/knip)
 
 - [ ] **P2** Context building: turn a function and all of its dependencies for LLM-ready markdown
@@ -19,3 +21,9 @@ Circular dependencies [Dependency cruiser](https://github.com/sverweij/dependenc
 
 - [ ] **P3** Fix "as any" casts by finding an existing type that matches the signature,
 or creating a new type, or "as unknown"
+
+## Principles
+
+1. Auto-fix what is fixable.
+2. Report errors in a LLM-friendly way.
+ 
