@@ -4,6 +4,7 @@ module TestUtils (
     runCLILogTest,
     runGitTest,
     runAITest,
+    runAIAlwaysFail,
     defaultParams,
     projectFixturePath,
     copyDir,
@@ -94,7 +95,12 @@ runAITest = interpret $ \_ -> \case
 
     buildJson = TL.toStrict . TLE.decodeUtf8 . encodePretty . M.fromList
     upperCaseValues :: [(Text, Text)] -> [(Text, Text)] 
-    upperCaseValues = fmap (\(k, v) -> (k, T.toUpper v)) 
+    upperCaseValues = fmap (second T.toUpper) 
+
+
+runAIAlwaysFail :: Eff (AI : es) a -> Eff es a
+runAIAlwaysFail = interpret $ \_ -> \case
+    PromptLLM _ _ -> pure . Left . GenericError $ "Mocked to fail"
 
 projectFixturePath :: FilePath
 projectFixturePath = "test/fixtures/ts-project-1"

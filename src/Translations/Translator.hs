@@ -24,6 +24,7 @@ translate ::
     (LangCode, LangCode) ->
     [(Text, Text)] ->
     Eff es (Either Text [(Text, Text)])
+translate _ [] = pure . Right $ []
 translate (from, to) ts =
     prompt FastLLM (translatePrompt from to ts)
         >>= pure . join . fmap parseTranslateResponse . first handleAiError
