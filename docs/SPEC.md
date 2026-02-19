@@ -26,4 +26,7 @@ or creating a new type, or "as unknown"
 
 1. Auto-fix what is fixable.
 2. Report errors in a LLM-friendly way.
- 
+
+## Competitors
+
+- [continue.dev](https://github.com/continuedev/continue)
