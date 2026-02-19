@@ -7,6 +7,8 @@
 - [ ] **P0** Enforce architecture - Dependency boundaries (UI import Data Layer), custom rules,
 Circular dependencies [Dependency cruiser](https://github.com/sverweij/dependency-cruiser)
 
+- [ ] **P1** Enforce file/folders existence (e.g. tests, stories) [eslint-plugin-project-structure](https://github.com/Igorkowalski94/eslint-plugin-project-structure)
+
 - [ ] **P0** Detect duplicated code on semantic level
 
 - [ ] **P0** Remove AI slop comments (e.g. // Step 1. Assign a to a; // 2. Do x y z)
