@@ -16,19 +16,9 @@ pParams =
                 <> showDefault
             )
         <*> switch
-            ( long "imports"
-                <> short 'i'
-                <> help "Optimize imports"
-            )
-        <*> switch
-            ( long "comments"
-                <> short 'c'
-                <> help "Remove AI-generated slop comments"
-            )
-        <*> switch
             ( long "modified"
                 <> short 'm'
-                <> help "Change only git modified files"
+                <> help "Inspect only modified files in your branch (i.e. the git diff with main)"
             )
 
 versionOption :: Parser (a -> a)
@@ -49,19 +39,15 @@ optsInfo =
             <> progDesc "Removes slop from TypeScript projects."
         )
 
-myPrefs :: ParserPrefs
-myPrefs =
+parserPrefs :: ParserPrefs
+parserPrefs =
     prefs $
         showHelpOnError -- Show full help text on any error
             <> showHelpOnEmpty -- Show full help if no args are provided
             <> helpShowGlobals -- Show global options in help
 
-applyDefaults :: Params -> Params
-applyDefaults p@(Params _ i c _)
-    | not i && not c = p {imports = True, comments = True}
-    | otherwise = p
 
 main :: IO ()
 main = do
-    params <- applyDefaults <$> customExecParser myPrefs optsInfo
+    params <- customExecParser parserPrefs optsInfo
     runDeslop params

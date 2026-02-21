@@ -6,16 +6,15 @@ import GHC.Generics (Generic)
 
 data Params = Params
     { projectPath :: FilePath
-    , imports :: Bool
-    , comments :: Bool
     , modified :: Bool
     }
     deriving (Show, Eq)
 
-data Secrets = Secrets
+newtype Secrets = Secrets
     { geminiApiKey :: Text
     }
-    deriving (Show, Eq, FromJSON, Generic)
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON)
 
 data DeslopError
     = TsConfigNotFoundError FilePath

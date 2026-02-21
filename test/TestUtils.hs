@@ -74,8 +74,6 @@ defaultParams :: FilePath -> Params
 defaultParams projPath =
     Params
         { projectPath = projPath
-        , imports = True
-        , comments = True
         , modified = False
         }
 
