@@ -9,6 +9,7 @@ import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (copyDir, defaultParams, projectFixturePath, runCLILogTest, runGitTest, snapshot)
 import Types
+import Params
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec

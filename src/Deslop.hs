@@ -48,6 +48,7 @@ import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
 import Types
+import Params
 import UI
 import Data.Either
 import Effectful.Concurrent (Concurrent, runConcurrent)

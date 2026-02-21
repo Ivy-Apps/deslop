@@ -4,12 +4,6 @@ import Data.Aeson
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
-data Params = Params
-    { projectPath :: FilePath
-    , modifiedOnly :: Bool
-    , checkMode :: Bool
-    }
-    deriving (Show, Eq)
 
 newtype Secrets = Secrets
     { geminiApiKey :: Text

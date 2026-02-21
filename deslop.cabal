@@ -36,6 +36,7 @@ library
     
     exposed-modules:  
         Deslop
+        Params
         UI
         Types
         Deslop.Imports
@@ -76,7 +77,8 @@ library
         time,
         process,
         req,
-        fmt
+        fmt,
+        optparse-applicative
 
     hs-source-dirs:   src
 
@@ -106,6 +108,7 @@ test-suite deslop-test
     
     other-modules:
         TestUtils
+        ParamsSpec
         DeslopSpec
         Deslop.ImportSpec
         TypeScript.LexerSpec
@@ -132,4 +135,5 @@ test-suite deslop-test
         QuickCheck,
         containers,
         aeson,
-        aeson-pretty
+        aeson-pretty,
+        optparse-applicative

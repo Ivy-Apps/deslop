@@ -37,6 +37,7 @@ import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath (takeExtension, (</>))
 import Translations.Translator
 import Types
+import Params
 
 type ModifiedFiles = [FilePath]
 
