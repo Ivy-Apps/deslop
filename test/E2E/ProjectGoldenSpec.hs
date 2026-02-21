@@ -28,7 +28,7 @@ spec = describe "Whole Project Golden Tests" $ do
                     $ deslopProject (defaultParams tmpDir)
 
             -- Then
-            res `shouldBe` (Right ())
+            res `shouldBe` Right ()
             let filesToVerify =
                     [ "src/app/[locale]/login/page.tsx"
                     , "src/features/home/home-screen.tsx"
