@@ -156,7 +156,7 @@ deslopProject params = do
     let projPath = params.projectPath
     cfg <- tsConfig projPath
     files <- getTsFiles projPath
-    if params.modified
+    if params.modifiedOnly
         then do
             mFiles <- map normalise <$> modifiedFiles
             runReader @TsConfig cfg $

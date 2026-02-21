@@ -6,7 +6,7 @@ import GHC.Generics (Generic)
 
 data Params = Params
     { projectPath :: FilePath
-    , modified :: Bool
+    , modifiedOnly :: Bool
     }
     deriving (Show, Eq)
 

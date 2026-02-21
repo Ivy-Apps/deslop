@@ -48,7 +48,7 @@ spec = describe "Whole Project Golden Tests" $ do
             copyDir projectFixturePath tmpDir
 
             -- When
-            let params = (defaultParams tmpDir) {modified = True}
+            let params = (defaultParams tmpDir) {modifiedOnly = True}
             _ <-
                 runEff
                     . runFileSystemIO
