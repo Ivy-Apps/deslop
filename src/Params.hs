@@ -1,6 +1,6 @@
 module Params
     ( pParams
-    , optsInfo
+    , paramsParser
     , parserPrefs
     , Params(..)
     )
@@ -47,8 +47,8 @@ versionOption =
             <> help "Show version"
         )
 
-optsInfo :: ParserInfo Params
-optsInfo =
+paramsParser :: ParserInfo Params
+paramsParser =
     info
         (helper <*> versionOption <*> pParams)
         ( fullDesc

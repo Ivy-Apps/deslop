@@ -1,7 +1,7 @@
 module ParamsSpec where
 
 import Options.Applicative
-import Params (Params (..), optsInfo, parserPrefs)
+import Params (Params (..), paramsParser, parserPrefs)
 import Test.Hspec
 
 spec :: Spec
@@ -135,4 +135,4 @@ spec = describe "parseParams" $ do
         parseParams ["--version"] `shouldBe` Nothing
 
 parseParams :: [String] -> Maybe Params
-parseParams = getParseResult . execParserPure parserPrefs optsInfo
+parseParams = getParseResult . execParserPure parserPrefs paramsParser
