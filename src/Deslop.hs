@@ -69,7 +69,7 @@ runDeslop params =
             . runConcurrent
             $ doWork params secrets
 
-        end <- liftIO $ getCurrentTime
+        end <- liftIO getCurrentTime
         let diff = diffUTCTime end start
         let seconds = realToFrac diff :: Double
         printTime seconds
