@@ -20,6 +20,11 @@ pParams =
                 <> short 'm'
                 <> help "Inspect only modified files in your branch (i.e. the git diff with main)"
             )
+        <*> switch
+          ( long "check"
+            <> short 'c'
+            <> help "Check mode. Won't change files and will only report problems"
+          )
 
 versionOption :: Parser (a -> a)
 versionOption =

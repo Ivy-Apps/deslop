@@ -75,6 +75,7 @@ defaultParams projPath =
     Params
         { projectPath = projPath
         , modifiedOnly = False
+        , checkMode = False
         }
 
 runGitTest :: ModifiedFiles -> Eff (Git : es) a -> Eff es a
