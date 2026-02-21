@@ -1,7 +1,7 @@
 module Effects.CLILog where
 
+import Control.Concurrent.STM (TVar, atomically, modifyTVar', newTVarIO, readTVar)
 import Data.Function ((&))
-import Data.IORef
 import Effectful
 import Effectful.Dispatch.Dynamic
 import System.Console.ANSI
@@ -21,19 +21,19 @@ logSummary = send LogSummary
 
 runCLILog :: (IOE :> es) => Eff (CLILog : es) a -> Eff es a
 runCLILog action = do
-    counterRef <- liftIO $ newIORef (0 :: Int)
+    counterVar <- liftIO $ newTVarIO (0 :: Int)
 
     action
         & ( interpret $ \_ -> \case
                 LogModification path -> liftIO $ do
-                    modifyIORef' counterRef (+ 1)
+                    atomically $ modifyTVar' counterVar (+ 1)
                     setSGR [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
                     putStr "  modified  "
                     setSGR [Reset]
                     putStrLn path
                     hFlush stdout
                 LogSummary -> liftIO $ do
-                    count <- readIORef counterRef
+                    count <- atomically $ readTVar counterVar
                     setSGR [SetColor Foreground Vivid Green, SetConsoleIntensity BoldIntensity]
                     if count > 0
                         then
