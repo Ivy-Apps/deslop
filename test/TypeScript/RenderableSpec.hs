@@ -9,7 +9,7 @@ spec = do
     describe "Renderable TsNode" $ do
         it "renders Source as raw text" $
             renderGolden "ts-render-source" $
-                Source "  \n  "
+                Source "fun main() {\n  console.log('Hello, world!')\n}\n"
 
         it "renders Comment as raw text" $
             renderGolden "ts-render-comment" $

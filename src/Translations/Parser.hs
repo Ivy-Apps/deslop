@@ -119,23 +119,23 @@ parseTransTree bs = either (const Nothing) Just $ parseOnly rootParser bs
             _ -> fail "Expected JSON String Key/Value"
 
 instance Renderable TransTree where
-  render tree = TL.toStrict . B.toLazyText $ renderNode 0 tree
-   where
-    indentStep = 2
-    mkIndent n = B.fromText (T.replicate n " ")
-    escape = B.fromText . T.decodeUtf8 . BL.toStrict . encode
-    renderNode lvl (Root children) = renderObj lvl children
-    renderNode lvl (Branch k children) = escape k <> ": " <> renderObj lvl children
-    renderNode _ (Leaf k v) = escape k <> ": " <> escape v
-    renderObj _ [] = "{}"
-    renderObj lvl children =
-      "{"
-        <> "\n"
-        <> mconcat (intersperse ("," <> "\n") (map (renderChild (lvl + indentStep)) children))
-        <> "\n"
-        <> mkIndent lvl
-        <> "}"
-    renderChild lvl node = mkIndent lvl <> renderNode lvl node
+    render tree = (TL.toStrict . B.toLazyText $ renderNode 0 tree) <> "\n"
+      where
+        indentStep = 2
+        mkIndent n = B.fromText (T.replicate n " ")
+        escape = B.fromText . T.decodeUtf8 . BL.toStrict . encode
+        renderNode lvl (Root children) = renderObj lvl children
+        renderNode lvl (Branch k children) = escape k <> ": " <> renderObj lvl children
+        renderNode _ (Leaf k v) = escape k <> ": " <> escape v
+        renderObj _ [] = "{}"
+        renderObj lvl children =
+            "{"
+                <> "\n"
+                <> mconcat (intersperse ("," <> "\n") (map (renderChild (lvl + indentStep)) children))
+                <> "\n"
+                <> mkIndent lvl
+                <> "}"
+        renderChild lvl node = mkIndent lvl <> renderNode lvl node
 
 fkmap :: (Text -> Text -> Text) -> TransTree -> TransTree
 fkmap f = go ""
