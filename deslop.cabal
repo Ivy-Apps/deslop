@@ -52,6 +52,7 @@ library
         Effects.CLILog
         Effects.Git
         Effects.AI
+        Effects.ReportProblem
         Utils
     autogen-modules: Paths_deslop
     other-modules: Paths_deslop
