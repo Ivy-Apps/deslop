@@ -70,6 +70,7 @@ runCLILogTest :: Eff (CLILog : es) a -> Eff es a
 runCLILogTest = interpret $ \_ -> \case
     LogModification _ -> pure ()
     LogSummary -> pure ()
+    LogProblems _ -> pure ()
 
 defaultParams :: FilePath -> Params
 defaultParams projPath =

@@ -2,6 +2,7 @@ module Effects.CLILog (
     CLILog (..),
     logModification,
     logSummary,
+    logProblems,
     runCLILog,
 ) where
 
@@ -12,10 +13,12 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import System.Console.ANSI
 import System.IO (hFlush, stdout)
+import Effects.ReportProblem (Problem)
 
 data CLILog :: Effect where
     LogModification :: FilePath -> CLILog m ()
     LogSummary :: CLILog m ()
+    LogProblems :: [Problem] -> CLILog m ()
 
 type instance DispatchOf CLILog = 'Dynamic
 
@@ -24,6 +27,9 @@ logModification = send . LogModification
 
 logSummary :: (CLILog :> es) => Eff es ()
 logSummary = send LogSummary
+
+logProblems :: (CLILog :> es) => [Problem] -> Eff es ()
+logProblems = send . LogProblems
 
 runCLILog :: (IOE :> es) => Eff (CLILog : es) a -> Eff es a
 runCLILog action = do
@@ -48,5 +54,7 @@ runCLILog action = do
                         else
                             putStrLn "✨ The project is already clean!"
                     setSGR [Reset]
+                LogProblems _ps -> liftIO $ do
+                    putStrLn "TODO: Use the fmt Buildable instance to print ps"
             )
 

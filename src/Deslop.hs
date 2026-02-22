@@ -6,7 +6,7 @@ module Deslop (
     getSecrets,
 ) where
 
-import Control.Monad (when, (>=>))
+import Control.Monad (unless, when, (>=>))
 import Data.Aeson
 import Data.Bifunctor
 import Data.Bool
@@ -37,7 +37,7 @@ import Effects.FileSystem (
     writeFileBS,
  )
 import Effects.Git
-import Effects.ReportProblem (ReportProblem, runReportProblem)
+import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import Params
 import System.Directory (getHomeDirectory)
 import System.FilePath
@@ -98,9 +98,28 @@ doWork params _ = do
     liftIO printDivider
     case deslopRes of
         Left err -> liftIO . printErr . humanReadable $ err
-        Right _ -> logSummary
+        Right _ ->
+            if params.checkMode
+                then do
+                    getProblems >>= logProblems
+                else
+                    logSummary
     liftIO printDivider
 
+    unless params.checkMode (doTranslate params)
+
+doTranslate ::
+    ( WrFileSystem :> es
+    , RoFileSystem :> es
+    , Git :> es
+    , IOE :> es
+    , AI :> es
+    , CLILog :> es
+    , Concurrent :> es
+    , ReportProblem :> es
+    ) =>
+    Params -> Eff es ()
+doTranslate params = do
     liftIO . putStrLn $ "Translating..."
     translateRes <- runErrorNoCallStack @TranslationsError (translateProject params)
     case translateRes of
