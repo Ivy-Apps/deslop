@@ -14,6 +14,7 @@ import Data.Function ((&))
 import Data.Text (Text)
 import Effectful
 import Effectful.Dispatch.Dynamic
+import Fmt (Buildable (..), (+|), (|+))
 
 data Location = Location
     { file :: FilePath
@@ -35,6 +36,14 @@ data Problem = LintProblem
     , fix :: Text
     }
     deriving stock (Eq, Show)
+
+instance Buildable Problem where
+    build p =
+        let (RuleId ruleId) = p.rule
+         in "# " +| p.location.file |+ ": " +| ruleId |+ "\n"
+                +| p.description |+ "\n```ts\n"
+                +| p.location.code
+                |+ "\n```\nFix: " +| p.fix |+ ""
 
 data ReportProblem :: Effect where
     Report :: Problem -> ReportProblem m ()

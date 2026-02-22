@@ -39,6 +39,7 @@ import System.FilePath (takeExtension, (</>))
 import Test.Hspec.Golden (Golden, defaultGolden)
 import Translations.Translator
 import Types (Renderable (render))
+import UI (problemsLogText)
 
 type ModifiedFiles = [FilePath]
 
@@ -69,17 +70,15 @@ runWrFileSystemTest ref = interpret $ \_ -> \case
 
 newtype TestLogs = TestLogs
     { problems :: Text
-    } deriving (Show, Eq)
+    }
+    deriving (Show, Eq)
 
 runCLILogTest :: (IOE :> es) => IORef (Maybe TestLogs) -> Eff (CLILog : es) a -> Eff es a
 runCLILogTest ref = interpret $ \_ -> \case
     LogModification _ -> pure ()
     LogSummary -> pure ()
-    LogProblems _ps ->
-        liftIO $
-            writeIORef
-                ref
-                (Just . TestLogs $ "TODO: Use the Buildable instance for Problems")
+    LogProblems ps ->
+        liftIO $ writeIORef ref (Just . TestLogs . problemsLogText $ ps)
 
 defaultParams :: FilePath -> Params
 defaultParams projPath =

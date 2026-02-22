@@ -11,9 +11,11 @@ import Control.Concurrent.STM.TVar (readTVarIO)
 import Data.Function ((&))
 import Effectful
 import Effectful.Dispatch.Dynamic
+import Effects.ReportProblem (Problem)
+import Fmt (pretty)
 import System.Console.ANSI
 import System.IO (hFlush, stdout)
-import Effects.ReportProblem (Problem)
+import UI (ProblemsLog (..))
 
 data CLILog :: Effect where
     LogModification :: FilePath -> CLILog m ()
@@ -54,7 +56,6 @@ runCLILog action = do
                         else
                             putStrLn "✨ The project is already clean!"
                     setSGR [Reset]
-                LogProblems _ps -> liftIO $ do
-                    putStrLn "TODO: Use the fmt Buildable instance to print ps"
+                LogProblems ps -> liftIO $ do
+                    putStrLn . pretty $ ProblemsLog ps
             )
-
