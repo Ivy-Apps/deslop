@@ -31,14 +31,13 @@ import Effects.AI
 import Effects.CLILog
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
 import Effects.Git
+import Params
 import System.Directory (copyFile, doesDirectoryExist, listDirectory)
 import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath (takeExtension, (</>))
-import Translations.Translator
-import Params
-import Types (Renderable)
 import Test.Hspec.Golden (Golden, defaultGolden)
-import Types (Renderable(render))
+import Translations.Translator
+import Types (Renderable (render))
 
 type ModifiedFiles = [FilePath]
 
@@ -95,9 +94,8 @@ runAITest = interpret $ \_ -> \case
             <> "\n```"
 
     buildJson = TL.toStrict . TLE.decodeUtf8 . encodePretty . M.fromList
-    upperCaseValues :: [(Text, Text)] -> [(Text, Text)] 
-    upperCaseValues = fmap (second T.toUpper) 
-
+    upperCaseValues :: [(Text, Text)] -> [(Text, Text)]
+    upperCaseValues = fmap (second T.toUpper)
 
 runAIAlwaysFail :: Eff (AI : es) a -> Eff es a
 runAIAlwaysFail = interpret $ \_ -> \case
@@ -134,5 +132,5 @@ listFixtures dir ext = do
 fixturesBasePath :: FilePath
 fixturesBasePath = "test/fixtures"
 
-renderGolden :: Renderable r => String -> r -> Golden String
+renderGolden :: (Renderable r) => String -> r -> Golden String
 renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
