@@ -12,7 +12,7 @@ import Data.ByteString.Lazy qualified as BL
 import Data.List (sortOn)
 import Data.Map (Map)
 import Data.Map qualified as M
-import Data.Maybe (catMaybes, fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Ord (Down (Down))
 import Data.Text as T (Text, length, stripPrefix, takeWhile)
 import GHC.Generics (Generic)
@@ -55,8 +55,7 @@ parseTsConfig = fromJson >=> extractPaths >=> pure . buildConfig
     buildConfig =
         TsConfig
             . sortByLongest
-            . catMaybes
-            . fmap parseAlias
+            . mapMaybe parseAlias
             . M.toList
             . M.mapMaybe safeHead
 
@@ -68,3 +67,4 @@ parseTsConfig = fromJson >=> extractPaths >=> pure . buildConfig
 
     sortByLongest :: [ImportAlias] -> [ImportAlias]
     sortByLongest = sortOn (Down . T.length . (.label))
+
