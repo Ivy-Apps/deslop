@@ -1,0 +1,118 @@
+# /src/features/login/login.spec.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { validateUsername } from "./login-form";
+```
+FIX: Use ```import { validateUsername } from "@/features/login/login-form";``` instead.
+---------
+
+# /src/features/login/login-form.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import {
+  mockUser,
+  mockCredentials
+} from '../../tests/fixtures'
+```
+FIX: Use ```import {
+  mockUser,
+  mockCredentials
+} from '@tests/fixtures'
+``` instead.
+---------
+
+# /src/features/login/login-form.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { capitalize } from "../../lib/util";
+```
+FIX: Use ```import { capitalize } from "@/lib/util";``` instead.
+---------
+
+# /src/features/home/home.spec.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import * from "../../../tests/test-log"
+```
+FIX: Use ```import * from "@tests/test-log"
+``` instead.
+---------
+
+# /src/features/home/home.spec.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { getHomeData } from "./home-component";
+```
+FIX: Use ```import { getHomeData } from "@/features/home/home-component";``` instead.
+---------
+
+# /src/features/home/home-screen.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { Button } from "../../components/ds/Button";
+```
+FIX: Use ```import { Button } from "@/components/ds/Button";``` instead.
+---------
+
+# /src/features/home/home-screen.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { getHomeData } from "./home-component";
+```
+FIX: Use ```import { getHomeData } from "@/features/home/home-component";``` instead.
+---------
+
+# /src/features/home/home-component.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import ('../../lib/extra')
+```
+FIX: Use ```import ('@/lib/extra')``` instead.
+---------
+
+# /src/features/home/home-component.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import ('../heavy-module');
+```
+FIX: Use ```import ('@/features/heavy-module');``` instead.
+---------
+
+# /src/features/home/home-component.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { formatDate } from "../../lib/util";
+```
+FIX: Use ```import { formatDate } from "@/lib/util";``` instead.
+---------
+
+# /src/app/[locale]/login/page.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { capitalize } from '../../../lib/util';
+```
+FIX: Use ```import { capitalize } from '@/lib/util';``` instead.
+---------
+
+# /src/app/[locale]/login/page.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { validateUsername } from '../../../features/login/login-form';
+```
+FIX: Use ```import { validateUsername } from '@/features/login/login-form';``` instead.
+---------
+
+# /src/app/[locale]/page.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { getHomeData } from '../../features/home/home-component';
+```
+FIX: Use ```import { getHomeData } from '@/features/home/home-component';``` instead.
+---------
+
+# /tests/fixtures/fixtures.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { formatDate } from "../../src/lib/util";
+```
+FIX: Use ```import { formatDate } from "@/lib/util";``` instead.

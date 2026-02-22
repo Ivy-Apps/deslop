@@ -1,16 +1,17 @@
-module E2E.TranslationsSpec where
+module E2E.TranslationsSpec (spec) where
 
 import Deslop
 import Effectful
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
-import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils
 import UnliftIO.Temporary (withSystemTempDirectory)
 import Types
 import Effectful.Concurrent (runConcurrent)
+import Data.IORef (newIORef)
+import Data.IORef.Extra (readIORef)
 
 spec :: Spec
 spec = describe "NextJS Translations" $ do
@@ -18,19 +19,22 @@ spec = describe "NextJS Translations" $ do
         withSystemTempDirectory "deslop-test" $ \tmpDir -> do
             -- Given
             copyDir projectFixturePath tmpDir
+            logsRef <- newIORef Nothing
 
             -- When
             res <-
                 runEff
                     . runFileSystemIO
                     . runErrorNoCallStack @TranslationsError
-                    . runCLILogTest
+                    . runCLILogTest logsRef
                     . runAITest
                     . runConcurrent
                     $ translateProject (defaultParams tmpDir)
 
             -- Then
             res `shouldBe` Right ()
+            logs <- readIORef logsRef
+            logs `shouldBe` Nothing
             let filesToVerify =
                     [ "messages/es.json"
                     , "messages/fr.json"

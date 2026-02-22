@@ -1,18 +1,20 @@
-module Effects.AI where
+module Effects.AI (
+    AIError (..),
+    LLMType (..),
+    AI (..),
+    prompt,
+    runAI,
+    LLM (..),
+) where
 
 import Control.Exception (try)
-import Control.Monad
-import Control.Monad ((<=<))
+import Control.Monad ((<=<), (>=>))
 import Data.Aeson
 import Data.Bifunctor (first)
-import Data.Either.Extra
-import Data.Functor
-import Data.Maybe (listToMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
-import Effectful.Reader.Static
 import GHC.Generics (Generic)
 import Network.HTTP.Req
 import Types
@@ -55,7 +57,7 @@ instance LLM Gemini where
     execPrompt :: Gemini -> Text -> IO (Either AIError Text)
     execPrompt llm p =
         try @HttpException makeRequest
-            <&> join . fmap extractText . first mapError
+            >>= pure . (extractText <=< first mapError)
       where
         extractText :: ChatCompletionResponseDto -> Either AIError Text
         extractText =
@@ -129,5 +131,5 @@ data GeminiChatMessageDto = GeminiChatMessageDto
 newtype GeminiPartDto = GeminiPartDto
     { text :: Text
     }
-    deriving stock (Generic, Show )
+    deriving stock (Generic, Show)
     deriving anyclass (ToJSON, FromJSON)

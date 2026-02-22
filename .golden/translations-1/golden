@@ -65,6 +65,7 @@
 }
 
 
+
 >>> FILE: messages/fr.json
 {
   "common": {
@@ -130,6 +131,7 @@
   },
   "back": "Retour"
 }
+
 
 
 >>> FILE: messages/en.json

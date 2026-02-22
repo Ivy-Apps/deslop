@@ -1,6 +1,14 @@
-{-# OPTIONS_GHC -Wno-orphans #-}
-
-module Translations.Parser where
+module Translations.Parser (
+    Translations (..),
+    Translation (..),
+    TransTree (..),
+    LangCode,
+    defaultLanguage,
+    readTranslations,
+    readTranslation,
+    fkmap,
+    (<.>),
+) where
 
 import Data.Aeson (Value (String), encode)
 import Data.Aeson.Parser (value)
@@ -16,10 +24,11 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T (decodeUtf8)
 import Data.Text.Lazy qualified as TL
-import Data.Text.Lazy.Builder (Builder, fromText, toLazyText)
+import Data.Text.Lazy.Builder qualified as B
 import Effectful (Eff, (:>))
 import Effects.FileSystem (RoFileSystem, listDirectory, readFileBS)
 import System.FilePath (takeBaseName, (</>))
+import Types (Renderable (..))
 import Utils (safeHead)
 
 type LangCode = Text
@@ -48,7 +57,7 @@ defaultLanguage = "en"
 readTranslations :: (RoFileSystem :> es) => FilePath -> Eff es (Maybe Translations)
 readTranslations root =
     listDirectory root
-        >>= traverse readTranslation . fmap (root </>)
+        >>= traverse (readTranslation . (root </>))
         >>= pure . assemble . catMaybes
   where
     assemble :: [Translation] -> Maybe Translations
@@ -68,11 +77,11 @@ parseTransTree :: ByteString -> Maybe TransTree
 parseTransTree bs = either (const Nothing) Just $ parseOnly rootParser bs
   where
     rootParser :: Parser TransTree
-    rootParser = do
+    rootParser =
         skipSpace
-        char '{'
-        children <- parseChildren
-        pure $ Root children
+            >> char '{'
+            >> parseChildren
+            >>= pure . Root
 
     parseChildren :: Parser [TransTree]
     parseChildren = do
@@ -83,18 +92,16 @@ parseTransTree bs = either (const Nothing) Just $ parseOnly rootParser bs
             _ -> loop []
       where
         loop acc = do
-            skipSpace
+            _ <- skipSpace
             key <- parseJsonString
             skipSpace >> char ':' >> skipSpace
             next <- peekChar
             node <- case next of
                 Just '{' -> do
-                    char '{'
-                    kids <- parseChildren
-                    pure $ Branch key kids
+                    _ <- char '{'
+                    Branch key <$> parseChildren
                 Just '"' -> do
-                    val <- parseJsonString
-                    pure $ Leaf key val
+                    Leaf key <$> parseJsonString
                 _ -> fail "NextJS translations must be Strings or Objects"
 
             skipSpace
@@ -111,38 +118,24 @@ parseTransTree bs = either (const Nothing) Just $ parseOnly rootParser bs
             String t -> pure t
             _ -> fail "Expected JSON String Key/Value"
 
-render :: TransTree -> Text
-render tree = TL.toStrict . toLazyText $ renderNode 0 tree
-  where
-    indentStep :: Int
-    indentStep = 2
-
-    mkIndent :: Int -> Builder
-    mkIndent n = fromText (T.replicate n " ")
-
-    escape :: Text -> Builder
-    escape = fromText . T.decodeUtf8 . BL.toStrict . encode
-
-    renderNode :: Int -> TransTree -> Builder
-    renderNode lvl (Root children) =
-        renderObj lvl children
-    renderNode lvl (Branch k children) =
-        escape k <> ": " <> renderObj lvl children
-    renderNode _ (Leaf k v) =
-        escape k <> ": " <> escape v
-
-    renderObj :: Int -> [TransTree] -> Builder
-    renderObj _ [] = "{}"
-    renderObj lvl children =
-        "{"
-            <> "\n"
-            <> mconcat (intersperse ("," <> "\n") (map (renderChild (lvl + indentStep)) children))
-            <> "\n"
-            <> mkIndent lvl
-            <> "}"
-
-    renderChild :: Int -> TransTree -> Builder
-    renderChild lvl node = mkIndent lvl <> renderNode lvl node
+instance Renderable TransTree where
+    render tree = (TL.toStrict . B.toLazyText $ renderNode 0 tree) <> "\n"
+      where
+        indentStep = 2
+        mkIndent n = B.fromText (T.replicate n " ")
+        escape = B.fromText . T.decodeUtf8 . BL.toStrict . encode
+        renderNode lvl (Root children) = renderObj lvl children
+        renderNode lvl (Branch k children) = escape k <> ": " <> renderObj lvl children
+        renderNode _ (Leaf k v) = escape k <> ": " <> escape v
+        renderObj _ [] = "{}"
+        renderObj lvl children =
+            "{"
+                <> "\n"
+                <> mconcat (intersperse ("," <> "\n") (map (renderChild (lvl + indentStep)) children))
+                <> "\n"
+                <> mkIndent lvl
+                <> "}"
+        renderChild lvl node = mkIndent lvl <> renderNode lvl node
 
 fkmap :: (Text -> Text -> Text) -> TransTree -> TransTree
 fkmap f = go ""

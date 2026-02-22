@@ -1,4 +1,9 @@
-module Effects.Git where
+module Effects.Git (
+    Git (..),
+    modifiedFiles,
+    runGit,
+    gitModifiedFiles,
+) where
 
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
@@ -10,7 +15,7 @@ data Git :: Effect where
 type instance DispatchOf Git = Dynamic
 
 modifiedFiles :: (Git :> es) => Eff es [FilePath]
-modifiedFiles = send $ ModifiedFiles
+modifiedFiles = send ModifiedFiles
 
 runGit :: (IOE :> es) => Eff (Git : es) a -> Eff es a
 runGit = interpret $ \_ -> \case

@@ -1,4 +1,8 @@
-module Translations.Manager where
+module Translations.Manager (
+    fixTranslations,
+    fixTranslation,
+    flatten,
+) where
 
 import Data.Functor ((<&>))
 import Data.HashMap.Strict (HashMap)
@@ -10,6 +14,7 @@ import Translations.Parser
 import Translations.Translator
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.Async (mapConcurrently)
+import Data.Maybe (fromMaybe)
 
 fixTranslations :: (AI :> es, Concurrent :> es) => Translations -> Eff es (Either Text Translations)
 fixTranslations (Translations b xs) =
@@ -34,7 +39,7 @@ fixTranslation base target =
             }
 
     apply :: HashMap Text Text -> TransTree -> TransTree
-    apply m = fkmap (\k v -> maybe v id (HM.lookup k m))
+    apply m = fkmap (\k v -> fromMaybe v (HM.lookup k m))
 
 -- | Flattens a tree into dot-separated paths
 flatten :: TransTree -> HashMap Text Text

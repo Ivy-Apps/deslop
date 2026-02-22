@@ -1,16 +1,13 @@
 module TypeScript.Parser (
     TsFile (..),
     parseTs,
-    renderAst,
 ) where
 
 import Data.Bifunctor
-import Data.List (foldl')
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void
 import Text.Megaparsec
-import Text.Megaparsec.Char
 import TypeScript.AST
 import TypeScript.Lexer
 import TypeScript.Tokens
@@ -75,16 +72,4 @@ parseImport = first errorBundlePretty . runParser parser ""
         | c == '\'' || c == '"' = Just c
         | otherwise = Nothing
     targetQuote _ _ = Nothing
-
-renderAst :: [TsNode] -> Text
-renderAst = foldl' combine ""
-  where
-    combine :: Text -> TsNode -> Text
-    combine r n = r <> render n
-
-    render :: TsNode -> Text
-    render (Source r) = r
-    render (Docs r _) = r
-    render (Comment r _) = r
-    render (Import p t s) = p <> t <> s
 

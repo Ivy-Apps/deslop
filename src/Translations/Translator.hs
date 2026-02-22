@@ -1,4 +1,8 @@
-module Translations.Translator where
+module Translations.Translator (
+    translate,
+    translatePrompt,
+    parseTranslateResponse,
+) where
 
 import Control.Monad
 import Data.Aeson
@@ -27,10 +31,10 @@ translate ::
 translate _ [] = pure . Right $ []
 translate (from, to) ts =
     prompt FastLLM (translatePrompt from to ts)
-        >>= pure . join . fmap parseTranslateResponse . first handleAiError
+        >>= pure . (parseTranslateResponse <=< first mapAiError)
   where
-    handleAiError :: AIError -> Text
-    handleAiError = T.pack . show
+    mapAiError :: AIError -> Text
+    mapAiError = T.pack . show
 
 translatePrompt :: LangCode -> LangCode -> [(Text, Text)] -> Text
 translatePrompt from to ts =
@@ -46,7 +50,7 @@ translatePrompt from to ts =
         <> lang to
         <> "."
   where
-    lang l = T.toUpper l
+    lang = T.toUpper
     buildJson = TL.toStrict . TLE.decodeUtf8 . encodePretty . M.fromList $ ts
 
 parseTranslateResponse :: Text -> Either Text [(Text, Text)]
@@ -55,7 +59,7 @@ parseTranslateResponse = extractJson >=> bimap T.pack M.toList . decodeTranslati
     decodeTranslations :: TL.Text -> Either String (Map Text Text)
     decodeTranslations = eitherDecode . TLE.encodeUtf8
 
-    extractJson = (bimap (T.pack . errorBundlePretty) TL.pack) . runParser jsonParser ""
+    extractJson = bimap (T.pack . errorBundlePretty) TL.pack . runParser jsonParser ""
 
     jsonParser :: Parser String
     jsonParser = manyTill anySingle (string "```json") *> manyTill anySingle (string "```")

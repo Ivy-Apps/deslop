@@ -1,0 +1,12 @@
+---
+description: Rules for running terminal commands in this Nix-based Haskell project
+globs: **/*
+---
+# Nix Environment Requirements
+
+This is a Nix-based project. You must ensure all development commands are run within the Nix shell environment.
+
+- **Primary Rule**: Before running `cabal`, `ghc`, or `hls`, you must prefix the command with `nix develop --command`.
+- **Example**: Instead of `cabal build`, run `nix develop --command cabal build`.
+- **Interactive Tasks**: If you need to run a series of commands, prefer wrapping them in a single `nix develop --command "cmd1 && cmd2"` block.
+- **Environment**: Do not assume standard system binaries are available; always rely on the Nix flake/shell.

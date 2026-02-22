@@ -13,10 +13,7 @@ common shared-properties
     
     ghc-options: 
         -Wall 
-        -Wno-partial-fields
-        -Wno-unused-do-bind
-        -Wno-missing-export-lists
-        -Wno-unused-imports
+        -Werror
 
     default-extensions:
         DuplicateRecordFields
@@ -36,6 +33,7 @@ library
     
     exposed-modules:  
         Deslop
+        Params
         UI
         Types
         Deslop.Imports
@@ -51,12 +49,14 @@ library
         Effects.CLILog
         Effects.Git
         Effects.AI
+        Effects.ReportProblem
         Utils
     autogen-modules: Paths_deslop
     other-modules: Paths_deslop
 
     build-depends:    
         base >= 4.18 && < 5,
+        stm,
         effectful,
         effectful-core,
         aeson,
@@ -76,7 +76,8 @@ library
         time,
         process,
         req,
-        fmt
+        fmt,
+        optparse-applicative
 
     hs-source-dirs:   src
 
@@ -106,11 +107,15 @@ test-suite deslop-test
     
     other-modules:
         TestUtils
+        ParamsSpec
         DeslopSpec
         Deslop.ImportSpec
+        Effects.ReportProblemSpec
         TypeScript.LexerSpec
         TypeScript.ParserSpec
+        TypeScript.RenderableSpec
         Translations.TranslatorSpec
+        Translations.RenderableSpec
         E2E.FileGoldenSpec
         E2E.ProjectGoldenSpec
         E2E.TranslationsSpec
@@ -132,4 +137,5 @@ test-suite deslop-test
         QuickCheck,
         containers,
         aeson,
-        aeson-pretty
+        aeson-pretty,
+        optparse-applicative

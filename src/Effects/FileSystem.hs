@@ -7,6 +7,7 @@ module Effects.FileSystem (
     RoFileSystem (..),
     WrFileSystem (..),
     runFileSystemIO,
+    runRoFileSystemIO,
 ) where
 
 import Data.ByteString (ByteString)

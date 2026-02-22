@@ -10,16 +10,15 @@ module TestUtils (
     copyDir,
     listFixtures,
     fixturesBasePath,
+    renderGolden,
+    TestLogs (..),
 ) where
 
 import Control.Monad (forM, forM_)
-import Data.Aeson
 import Data.Aeson.Encode.Pretty
 import Data.Bifunctor
 import Data.ByteString (ByteString)
-import Data.ByteString qualified as BS
 import Data.IORef
-import Data.Map (Map)
 import Data.Map qualified as M
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -30,13 +29,16 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
 import Effects.CLILog
-import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
+import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..), runRoFileSystemIO)
 import Effects.Git
+import Params
 import System.Directory (copyFile, doesDirectoryExist, listDirectory)
 import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath (takeExtension, (</>))
+import Test.Hspec.Golden (Golden, defaultGolden)
 import Translations.Translator
-import Types
+import Types (Renderable (render))
+import UI (problemsLogText)
 
 type ModifiedFiles = [FilePath]
 
@@ -45,17 +47,7 @@ runFileSystemTest ::
     IORef (Maybe ByteString) ->
     Eff (WrFileSystem : RoFileSystem : es) a ->
     Eff es a
-runFileSystemTest ref = runRoFileSystemTest . runWrFileSystemTest ref
-
-runRoFileSystemTest ::
-    (IOE :> es) =>
-    Eff (RoFileSystem : es) a ->
-    Eff es a
-runRoFileSystemTest = interpret $ \_ -> \case
-    ReadFile path -> liftIO $ BS.readFile path
-    FileExists _path -> pure True
-    ListDirectory _path -> pure []
-    IsDirectory _path -> pure False
+runFileSystemTest ref = runRoFileSystemIO . runWrFileSystemTest ref
 
 runWrFileSystemTest ::
     (IOE :> es) =>
@@ -65,18 +57,24 @@ runWrFileSystemTest ::
 runWrFileSystemTest ref = interpret $ \_ -> \case
     WriteFile _path content -> liftIO $ writeIORef ref (Just content)
 
-runCLILogTest :: Eff (CLILog : es) a -> Eff es a
-runCLILogTest = interpret $ \_ -> \case
+newtype TestLogs = TestLogs
+    { problems :: Text
+    }
+    deriving (Show, Eq)
+
+runCLILogTest :: (IOE :> es) => IORef (Maybe TestLogs) -> Eff (CLILog : es) a -> Eff es a
+runCLILogTest ref = interpret $ \_ -> \case
     LogModification _ -> pure ()
     LogSummary -> pure ()
+    LogProblems ps ->
+        liftIO $ writeIORef ref (Just . TestLogs . problemsLogText $ ps)
 
 defaultParams :: FilePath -> Params
 defaultParams projPath =
     Params
         { projectPath = projPath
-        , imports = True
-        , comments = True
-        , modified = False
+        , modifiedOnly = False
+        , checkMode = False
         }
 
 runGitTest :: ModifiedFiles -> Eff (Git : es) a -> Eff es a
@@ -94,9 +92,8 @@ runAITest = interpret $ \_ -> \case
             <> "\n```"
 
     buildJson = TL.toStrict . TLE.decodeUtf8 . encodePretty . M.fromList
-    upperCaseValues :: [(Text, Text)] -> [(Text, Text)] 
-    upperCaseValues = fmap (second T.toUpper) 
-
+    upperCaseValues :: [(Text, Text)] -> [(Text, Text)]
+    upperCaseValues = fmap (second T.toUpper)
 
 runAIAlwaysFail :: Eff (AI : es) a -> Eff es a
 runAIAlwaysFail = interpret $ \_ -> \case
@@ -132,3 +129,6 @@ listFixtures dir ext = do
 
 fixturesBasePath :: FilePath
 fixturesBasePath = "test/fixtures"
+
+renderGolden :: (Renderable r) => String -> r -> Golden String
+renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)

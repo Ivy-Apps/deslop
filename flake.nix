@@ -54,6 +54,7 @@
             nativeBuildInputs = [
               hpkgs.cabal-install
               hpkgs.haskell-language-server
+              hpkgs.hlint
               hpkgs.implicit-hie
               hpkgs.fourmolu
               hgold

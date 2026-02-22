@@ -8,11 +8,11 @@ import Data.Text.IO qualified as TIO
 import Deslop (deslopFile)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
-import System.Directory (listDirectory)
-import System.FilePath (takeBaseName, takeExtension, (</>))
+import Effects.ReportProblem (runReportProblem)
+import System.FilePath (takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (runFileSystemTest, runCLILogTest, listFixtures)
+import TestUtils (defaultParams, listFixtures, runCLILogTest, runFileSystemTest)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
@@ -21,6 +21,7 @@ import TypeScript.Config (ImportAlias (ImportAlias), TsConfig (..), parseTsConfi
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser
 import TypeScript.Tokens
+import Types (Renderable (render))
 
 tsFixturesPath :: FilePath
 tsFixturesPath = "test/fixtures/typescript"
@@ -28,10 +29,10 @@ tsFixturesPath = "test/fixtures/typescript"
 spec :: Spec
 spec = do
     describe "TypeScript Tests" $
-        (runIO $ listFixtures tsFixturesPath ".ts") >>= mapM_ tsGoldenTest
+        runIO (listFixtures tsFixturesPath ".ts") >>= mapM_ tsGoldenTest
 
     describe "TSConfig Tests" $
-        (runIO $ listFixtures tsFixturesPath ".json") >>= mapM_ configGoldenTest
+        runIO (listFixtures tsFixturesPath ".json") >>= mapM_ configGoldenTest
   where
     configGoldenTest :: FilePath -> Spec
     configGoldenTest fname = do
@@ -45,7 +46,7 @@ spec = do
             let cfg = parseTsConfig cfgFile
 
             -- Then
-            return $ defaultGolden (testName) (ppShow cfg)
+            return $ defaultGolden testName (ppShow cfg)
 
     tsGoldenTest :: FilePath -> Spec
     tsGoldenTest filename = do
@@ -77,13 +78,14 @@ spec = do
             case res of
                 Left e -> fail e
                 Right p -> do
-                    renderAst p.ast `shouldBe` source
+                    render p.ast `shouldBe` source
                     return $ defaultGolden (testName <> "-parser") (ppShow p)
 
         it ("Deslop " <> testName) $ do
             -- Given
             let path = tsFixturesPath </> filename
-            captureRef <- newIORef Nothing
+            fileWriteRef <- newIORef Nothing
+            logsRef <- newIORef Nothing
             let tsCfg =
                     TsConfig
                         { paths =
@@ -94,13 +96,17 @@ spec = do
 
             -- When
             runEff
-                . runFileSystemTest captureRef
+                . runFileSystemTest fileWriteRef
                 . runReader tsCfg
-                . runCLILogTest
+                . runReader (defaultParams ".")
+                . runCLILogTest logsRef
+                . runReportProblem
                 $ deslopFile path
 
             -- Then
-            actualRes <- readIORef captureRef
+            actualRes <- readIORef fileWriteRef
+            logs <- readIORef logsRef
+            logs `shouldBe` Nothing
             case actualRes of
                 Nothing -> fail "The program did not write any output!"
                 Just actual -> do

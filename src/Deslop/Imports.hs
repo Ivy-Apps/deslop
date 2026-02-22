@@ -1,11 +1,15 @@
-module Deslop.Imports where
+module Deslop.Imports (
+    importAliases,
+    resolveTsImport,
+) where
 
-import Data.List (find, isPrefixOf, foldl')
-import Data.Maybe (fromMaybe)
+import Control.Monad (when)
+import Data.List (find, isPrefixOf)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader, asks)
+import Effects.ReportProblem (Location (..), Problem (..), ReportProblem, RuleId (..), Severity (..), report)
 import System.FilePath (
     joinPath,
     splitDirectories,
@@ -20,16 +24,31 @@ import TypeScript.Config (
     ImportAlias (ImportAlias, label, path),
     TsConfig (paths),
  )
+import Types (Renderable (render))
 import Utils (safePop)
 
-importAliases :: (Reader TsConfig :> es) => TsProgram -> Eff es TsProgram
+noRelativeImports :: (TsNode, TsNode) -> FilePath -> Problem
+noRelativeImports (old, new) path =
+    LintProblem
+        { rule = RuleId "no-relative-imports"
+        , location = Location {file = path, code = render old}
+        , severity = Error
+        , description = "Relative imports are not allowed. Use absolute path aliased ones."
+        , fix = "Use ```" <> render new <> "``` instead."
+        }
+
+importAliases :: (Reader TsConfig :> es, ReportProblem :> es) => TsProgram -> Eff es TsProgram
 importAliases prog = do
     ast' <- traverse fixImport prog.ast
     pure prog {ast = ast'}
   where
-    fixImport og@(Import _ t _) = do
+    fixImport old@(Import _ t _) = do
         t' <- fixTarget t
-        pure og {target = t'}
+        let new = old {target = t'}
+        when
+            (t /= t')
+            (report $ noRelativeImports (old, new) prog.path)
+        pure new
     fixImport x = pure x
 
     fixTarget t = do
@@ -52,10 +71,10 @@ importAliases prog = do
     absPath as = resolveTsImport prog.path . T.unpack . reverseAlias as
 
     reverseAlias as fp =
-        fromMaybe fp
-            . fmap (\(ImportAlias l p) -> T.replace l p fp)
+        maybe fp (removeAlias fp)
             . find ((`T.isInfixOf` fp) . (.label))
             $ as
+    removeAlias fp (ImportAlias l p) = T.replace l p fp
 
 resolveTsImport :: FilePath -> FilePath -> FilePath
 resolveTsImport sourcePath importPath

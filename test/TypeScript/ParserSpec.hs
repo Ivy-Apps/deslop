@@ -1,7 +1,6 @@
-module TypeScript.ParserSpec where
+module TypeScript.ParserSpec (spec) where
 
 import Control.Monad
-import Data.Text (Text)
 import Data.Text qualified as T
 import Test.Hspec
 import TypeScript.AST

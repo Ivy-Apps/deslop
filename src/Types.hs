@@ -1,21 +1,26 @@
-module Types where
+module Types (
+    Secrets (..),
+    DeslopError (..),
+    TranslationsError (..),
+    InitError (..),
+    Renderable(..)
+) where
 
 import Data.Aeson
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
-data Params = Params
-    { projectPath :: FilePath
-    , imports :: Bool
-    , comments :: Bool
-    , modified :: Bool
-    }
-    deriving (Show, Eq)
+class Renderable a where
+  render :: a -> Text
 
-data Secrets = Secrets
+instance Renderable a => Renderable [a] where
+  render = foldl' (\acc x -> acc <> render x) ""
+
+newtype Secrets = Secrets
     { geminiApiKey :: Text
     }
-    deriving (Show, Eq, FromJSON, Generic)
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON)
 
 data DeslopError
     = TsConfigNotFoundError FilePath

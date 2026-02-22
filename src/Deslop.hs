@@ -6,24 +6,24 @@ module Deslop (
     getSecrets,
 ) where
 
-import Control.Monad (forM_, when, (>=>))
+import Control.Monad (unless, when, (>=>))
 import Data.Aeson
 import Data.Bifunctor
 import Data.Bool
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as BL
+import Data.Either
 import Data.Foldable
 import Data.Functor
 import Data.List (intersect)
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.Imports (importAliases)
 import Effectful (Eff, IOE, liftIO, runEff, type (:>))
+import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Error.Static
-import Effectful.Reader.Static (Reader, runReader)
+import Effectful.Reader.Static (Reader, asks, runReader)
 import Effects.AI
 import Effects.CLILog
 import Effects.FileSystem (
@@ -37,20 +37,17 @@ import Effects.FileSystem (
     writeFileBS,
  )
 import Effects.Git
-import GHC.Generics (Generic)
-import System.Console.ANSI
+import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
+import Params
 import System.Directory (getHomeDirectory)
 import System.FilePath
-import Text.Printf (printf)
 import Translations.Manager
 import Translations.Parser
 import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
-import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
+import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types
 import UI
-import Data.Either
-import Effectful.Concurrent (Concurrent, runConcurrent)
 
 runDeslop :: Params -> IO ()
 runDeslop params =
@@ -66,9 +63,10 @@ runDeslop params =
             . runGit
             . runAI secrets
             . runConcurrent
+            . runReportProblem
             $ doWork params secrets
 
-        end <- liftIO $ getCurrentTime
+        end <- liftIO getCurrentTime
         let diff = diffUTCTime end start
         let seconds = realToFrac diff :: Double
         printTime seconds
@@ -88,6 +86,7 @@ doWork ::
     , IOE :> es
     , AI :> es
     , Concurrent :> es
+    , ReportProblem :> es
     ) =>
     Params ->
     Secrets ->
@@ -99,9 +98,23 @@ doWork params _ = do
     liftIO printDivider
     case deslopRes of
         Left err -> liftIO . printErr . humanReadable $ err
-        Right _ -> logSummary
+        Right _ -> unless params.checkMode logSummary
     liftIO printDivider
 
+    unless params.checkMode (doTranslate params)
+
+doTranslate ::
+    ( WrFileSystem :> es
+    , RoFileSystem :> es
+    , Git :> es
+    , IOE :> es
+    , AI :> es
+    , CLILog :> es
+    , Concurrent :> es
+    , ReportProblem :> es
+    ) =>
+    Params -> Eff es ()
+doTranslate params = do
     liftIO . putStrLn $ "Translating..."
     translateRes <- runErrorNoCallStack @TranslationsError (translateProject params)
     case translateRes of
@@ -124,7 +137,7 @@ translateProject ::
     , RoFileSystem :> es
     , CLILog :> es
     , AI :> es
-    , Concurrent :> es 
+    , Concurrent :> es
     , Error TranslationsError :> es
     ) =>
     Params ->
@@ -149,6 +162,7 @@ deslopProject ::
     , Git :> es
     , Error DeslopError :> es
     , CLILog :> es
+    , ReportProblem :> es
     ) =>
     Params ->
     Eff es ()
@@ -156,13 +170,15 @@ deslopProject params = do
     let projPath = params.projectPath
     cfg <- tsConfig projPath
     files <- getTsFiles projPath
-    if params.modified
-        then do
-            mFiles <- map normalise <$> modifiedFiles
-            runReader @TsConfig cfg $
+    runReader @TsConfig cfg
+        . runReader @Params params
+        $ if params.modifiedOnly
+            then do
+                mFiles <- map normalise <$> modifiedFiles
                 forM_ (mFiles `intersect` (normalise <$> files)) deslopFile
-        else
-            runReader @TsConfig cfg $ forM_ files deslopFile
+            else
+                forM_ files deslopFile
+    when params.checkMode (getProblems >>= logProblems)
 
 tsConfig ::
     ( RoFileSystem :> es
@@ -194,19 +210,22 @@ deslopFile ::
     ( RoFileSystem :> es
     , WrFileSystem :> es
     , Reader TsConfig :> es
+    , Reader Params :> es
     , CLILog :> es
+    , ReportProblem :> es
     ) =>
     FilePath ->
     Eff es ()
 deslopFile src = do
     c <- readFileBS src
     c' <- removeSlop src c
-    when (c /= c') $ do
+    checkMode <- asks @Params (.checkMode)
+    when (c /= c' && not checkMode) $ do
         writeFileBS src c'
         logModification src
 
 removeSlop ::
-    (Reader TsConfig :> es) =>
+    (Reader TsConfig :> es, ReportProblem :> es) =>
     FilePath ->
     ByteString ->
     Eff es ByteString
@@ -216,4 +235,4 @@ removeSlop p c = fromRight c <$> pipeline
         traverse (fmap renderProgram . deslop) . parseTs $
             TsFile {path = p, content = TE.decodeUtf8 c}
     deslop = foldr (>=>) pure [importAliases]
-    renderProgram = TE.encodeUtf8 . renderAst . (.ast)
+    renderProgram = TE.encodeUtf8 . render . (.ast)
