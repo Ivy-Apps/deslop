@@ -1,6 +1,9 @@
 module E2E.ProjectGoldenSpec (spec) where
 
+import Control.Monad (when)
 import Data.IORef (newIORef, readIORef)
+import Data.Maybe (fromJust, isNothing)
+import Data.Text qualified as T
 import Deslop (deslopProject)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
@@ -10,7 +13,7 @@ import Params
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (copyDir, defaultParams, projectFixturePath, runCLILogTest, runFileSystemTest, runGitTest, snapshot)
+import TestUtils (TestLogs (..), copyDir, defaultParams, projectFixturePath, runCLILogTest, runFileSystemTest, runGitTest, snapshot)
 import Types
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -72,10 +75,10 @@ spec = describe "Whole Project Golden Tests" $ do
             written <- readIORef filesRef
             written `shouldBe` Nothing
             maybeLogs <- readIORef logsRef
-            case maybeLogs of
-                Just logs ->
-                    return $ defaultGolden "ts-project-1-problem-logs" logs.problems
-                Nothing -> expectationFailure "Expected problems logs but got none"
+            when (isNothing maybeLogs) $
+                expectationFailure "Expected problems logs but got none"
+            let logs = fromJust maybeLogs
+            return $ defaultGolden "ts-project-1-problem-logs" (T.unpack logs.problems)
 
     it "transforms only modified files" $ do
         withSystemTempDirectory "deslop-test" $ \tmpDir -> do
