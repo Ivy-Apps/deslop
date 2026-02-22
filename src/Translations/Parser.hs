@@ -99,11 +99,9 @@ parseTransTree bs = either (const Nothing) Just $ parseOnly rootParser bs
             node <- case next of
                 Just '{' -> do
                     _ <- char '{'
-                    kids <- parseChildren
-                    pure $ Branch key kids
+                    Branch key <$> parseChildren
                 Just '"' -> do
-                    val <- parseJsonString
-                    pure $ Leaf key val
+                    Leaf key <$> parseJsonString
                 _ -> fail "NextJS translations must be Strings or Objects"
 
             skipSpace
