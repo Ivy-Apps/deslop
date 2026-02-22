@@ -10,6 +10,7 @@ module TestUtils (
     copyDir,
     listFixtures,
     fixturesBasePath,
+    renderGolden,
 ) where
 
 import Control.Monad (forM, forM_)
@@ -35,6 +36,9 @@ import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath (takeExtension, (</>))
 import Translations.Translator
 import Params
+import Types (Renderable)
+import Test.Hspec.Golden (Golden, defaultGolden)
+import Types (Renderable(render))
 
 type ModifiedFiles = [FilePath]
 
@@ -129,3 +133,6 @@ listFixtures dir ext = do
 
 fixturesBasePath :: FilePath
 fixturesBasePath = "test/fixtures"
+
+renderGolden :: Renderable r => String -> r -> Golden String
+renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
