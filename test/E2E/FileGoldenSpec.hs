@@ -27,10 +27,10 @@ tsFixturesPath = "test/fixtures/typescript"
 spec :: Spec
 spec = do
     describe "TypeScript Tests" $
-        (runIO $ listFixtures tsFixturesPath ".ts") >>= mapM_ tsGoldenTest
+        runIO (listFixtures tsFixturesPath ".ts") >>= mapM_ tsGoldenTest
 
     describe "TSConfig Tests" $
-        (runIO $ listFixtures tsFixturesPath ".json") >>= mapM_ configGoldenTest
+        runIO (listFixtures tsFixturesPath ".json") >>= mapM_ configGoldenTest
   where
     configGoldenTest :: FilePath -> Spec
     configGoldenTest fname = do
@@ -44,7 +44,7 @@ spec = do
             let cfg = parseTsConfig cfgFile
 
             -- Then
-            return $ defaultGolden (testName) (ppShow cfg)
+            return $ defaultGolden testName (ppShow cfg)
 
     tsGoldenTest :: FilePath -> Spec
     tsGoldenTest filename = do
