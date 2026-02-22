@@ -9,7 +9,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader, asks)
-import Effects.ReportProblem (Problem (..), ReportProblem, report, Location (..), Severity (..), RuleId (..))
+import Effects.ReportProblem (Location (..), Problem (..), ReportProblem, RuleId (..), Severity (..), report)
 import System.FilePath (
     joinPath,
     splitDirectories,
@@ -24,27 +24,31 @@ import TypeScript.Config (
     ImportAlias (ImportAlias, label, path),
     TsConfig (paths),
  )
+import Types (Renderable (render))
 import Utils (safePop)
+
+noRelativeImports :: (TsNode, TsNode) -> FilePath -> Problem
+noRelativeImports (old, new) path =
+    LintProblem
+        { rule = RuleId "no-relative-imports"
+        , location = Location {file = path, code = render old}
+        , severity = Error
+        , description = "Relative imports are not allowed. Use absolute path aliased ones."
+        , fix = "Use ```" <> render new <> "``` instead."
+        }
 
 importAliases :: (Reader TsConfig :> es, ReportProblem :> es) => TsProgram -> Eff es TsProgram
 importAliases prog = do
     ast' <- traverse fixImport prog.ast
     pure prog {ast = ast'}
   where
-    fixImport og@(Import _ t _) = do
+    fixImport old@(Import _ t _) = do
         t' <- fixTarget t
+        let new = old {target = t'}
         when
             (t /= t')
-            ( report
-                LintProblem
-                    { rule = RuleId "no-relative-imports"
-                    , location = Location {file = prog.path, code = ""}
-                    , severity = Error
-                    , description = "Relative imports are not allowed. Use full-path aliased ones."
-                    , fix = ""
-                    }
-            )
-        pure og {target = t'}
+            (report $ noRelativeImports (old, new) prog.path)
+        pure new
     fixImport x = pure x
 
     fixTarget t = do
