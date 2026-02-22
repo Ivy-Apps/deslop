@@ -110,6 +110,7 @@ test-suite deslop-test
         ParamsSpec
         DeslopSpec
         Deslop.ImportSpec
+        Effects.ReportProblemSpec
         TypeScript.LexerSpec
         TypeScript.ParserSpec
         Translations.TranslatorSpec

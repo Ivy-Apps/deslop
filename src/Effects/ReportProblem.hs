@@ -19,9 +19,13 @@ data Location = Location
     { file :: FilePath
     , code :: Text
     }
+    deriving stock (Eq, Show)
+
 newtype ProblemId = ProblemId Text
+    deriving stock (Eq, Show)
 
 data Severity = Error
+    deriving stock (Eq, Show)
 
 data Problem = Problem
     { id :: ProblemId
@@ -30,6 +34,7 @@ data Problem = Problem
     , description :: Text
     , fix :: Text
     }
+    deriving stock (Eq, Show)
 
 data ReportProblem :: Effect where
     Report :: Problem -> ReportProblem m ()
