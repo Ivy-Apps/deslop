@@ -98,12 +98,7 @@ doWork params _ = do
     liftIO printDivider
     case deslopRes of
         Left err -> liftIO . printErr . humanReadable $ err
-        Right _ ->
-            if params.checkMode
-                then do
-                    getProblems >>= logProblems
-                else
-                    logSummary
+        Right _ -> unless params.checkMode logSummary
     liftIO printDivider
 
     unless params.checkMode (doTranslate params)
@@ -183,6 +178,7 @@ deslopProject params = do
                 forM_ (mFiles `intersect` (normalise <$> files)) deslopFile
             else
                 forM_ files deslopFile
+    when params.checkMode (getProblems >>= logProblems)
 
 tsConfig ::
     ( RoFileSystem :> es
