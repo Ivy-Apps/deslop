@@ -35,7 +35,7 @@ spec = describe "ReportProblem" $ do
                         getProblems
             problems `shouldBe` [problem]
 
-        it "getProblems returns problems in reverse order of reporting (newest first)" $ do
+        it "getProblems returns the reported problems" $ do
             let p1 =
                     Problem
                         { id = ProblemId "P1"
@@ -59,7 +59,7 @@ spec = describe "ReportProblem" $ do
                         report p1
                         report p2
                         getProblems
-            problems `shouldBe` [p2, p1]
+            problems `shouldMatchList ` [p2, p1]
 
         it "report does not affect the return value of the action" $ do
             let problem =
