@@ -12,6 +12,7 @@ module Effects.ReportProblem (
 import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO, readTVarIO)
 import Data.Function ((&))
 import Data.Text (Text)
+import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Fmt (Buildable (..), (+|), (|+))
@@ -40,10 +41,12 @@ data Problem = LintProblem
 instance Buildable Problem where
     build p =
         let (RuleId ruleId) = p.rule
-         in "# " +| p.location.file |+ ": " +| ruleId |+ "\n"
-                +| p.description |+ "\n```ts\n"
-                +| p.location.code
-                |+ "\n```\nFix: " +| p.fix |+ ""
+         in problemHeader ruleId <> description <> code <> fix
+      where
+        problemHeader ruleId = "# " +| p.location.file |+ ": " +| ruleId |+ "\n"
+        code = "```ts\n" +| T.strip p.location.code |+ "\n```\n"
+        description = "" +| p.description |+ "\n"
+        fix = "FIX: " +| T.strip p.fix |+ ""
 
 data ReportProblem :: Effect where
     Report :: Problem -> ReportProblem m ()
