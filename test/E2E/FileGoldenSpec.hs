@@ -12,7 +12,7 @@ import Effects.ReportProblem (runReportProblem)
 import System.FilePath (takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (listFixtures, runCLILogTest, runFileSystemTest)
+import TestUtils (defaultParams, listFixtures, runCLILogTest, runFileSystemTest)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
@@ -97,6 +97,7 @@ spec = do
             runEff
                 . runFileSystemTest captureRef
                 . runReader tsCfg
+                . runReader (defaultParams ".")
                 . runCLILogTest
                 . runReportProblem
                 $ deslopFile path

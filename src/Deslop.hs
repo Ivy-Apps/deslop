@@ -23,7 +23,7 @@ import Deslop.Imports (importAliases)
 import Effectful (Eff, IOE, liftIO, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Error.Static
-import Effectful.Reader.Static (Reader, runReader)
+import Effectful.Reader.Static (Reader, asks, runReader)
 import Effects.AI
 import Effects.CLILog
 import Effects.FileSystem (
@@ -175,13 +175,14 @@ deslopProject params = do
     let projPath = params.projectPath
     cfg <- tsConfig projPath
     files <- getTsFiles projPath
-    if params.modifiedOnly
-        then do
-            mFiles <- map normalise <$> modifiedFiles
-            runReader @TsConfig cfg $
+    runReader @TsConfig cfg
+        . runReader @Params params
+        $ if params.modifiedOnly
+            then do
+                mFiles <- map normalise <$> modifiedFiles
                 forM_ (mFiles `intersect` (normalise <$> files)) deslopFile
-        else
-            runReader @TsConfig cfg $ forM_ files deslopFile
+            else
+                forM_ files deslopFile
 
 tsConfig ::
     ( RoFileSystem :> es
@@ -213,6 +214,7 @@ deslopFile ::
     ( RoFileSystem :> es
     , WrFileSystem :> es
     , Reader TsConfig :> es
+    , Reader Params :> es
     , CLILog :> es
     , ReportProblem :> es
     ) =>
@@ -221,7 +223,8 @@ deslopFile ::
 deslopFile src = do
     c <- readFileBS src
     c' <- removeSlop src c
-    when (c /= c') $ do
+    checkMode <- asks @Params (.checkMode)
+    when (c /= c' && not checkMode) $ do
         writeFileBS src c'
         logModification src
 
