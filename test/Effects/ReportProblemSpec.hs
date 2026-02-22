@@ -20,8 +20,8 @@ spec = describe "ReportProblem" $ do
 
         it "getProblems returns a single problem after report" $ do
             let problem =
-                    Problem
-                        { id = ProblemId "P001"
+                    LintProblem
+                        { check = CheckId "P001"
                         , location = Location {file = "src/Foo.ts", code = "x"}
                         , severity = Error
                         , description = "Something wrong"
@@ -37,16 +37,16 @@ spec = describe "ReportProblem" $ do
 
         it "getProblems returns the reported problems" $ do
             let p1 =
-                    Problem
-                        { id = ProblemId "P1"
+                    LintProblem
+                        { check = CheckId "P1"
                         , location = Location {file = "a.ts", code = "1"}
                         , severity = Error
                         , description = "First"
                         , fix = "fix1"
                         }
             let p2 =
-                    Problem
-                        { id = ProblemId "P2"
+                    LintProblem
+                        { check = CheckId "P2"
                         , location = Location {file = "b.ts", code = "2"}
                         , severity = Error
                         , description = "Second"
@@ -59,12 +59,12 @@ spec = describe "ReportProblem" $ do
                         report p1
                         report p2
                         getProblems
-            problems `shouldMatchList ` [p2, p1]
+            problems `shouldMatchList` [p2, p1]
 
         it "report does not affect the return value of the action" $ do
             let problem =
-                    Problem
-                        { id = ProblemId "P"
+                    LintProblem
+                        { check = CheckId "P"
                         , location = Location {file = "f", code = "c"}
                         , severity = Error
                         , description = "desc"
