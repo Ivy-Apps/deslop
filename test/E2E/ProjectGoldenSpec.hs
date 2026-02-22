@@ -78,7 +78,9 @@ spec = describe "Whole Project Golden Tests" $ do
             when (isNothing maybeLogs) $
                 expectationFailure "Expected problems logs but got none"
             let logs = fromJust maybeLogs
-            return $ defaultGolden "ts-project-1-problem-logs" (T.unpack logs.problems)
+            -- Removes the tmp dir path from the log so the golden test is stable
+            let problemsLogNormalized = T.unpack . T.replace (T.pack tmpDir) "" $ logs.problems
+            return $ defaultGolden "ts-project-1-problem-logs" problemsLogNormalized
 
     it "transforms only modified files" $ do
         withSystemTempDirectory "deslop-test" $ \tmpDir -> do

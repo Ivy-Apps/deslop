@@ -1,4 +1,4 @@
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/features/login/login.spec.ts: no-relative-imports
+# /src/features/login/login.spec.ts: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import { validateUsername } from "./login-form";
@@ -6,7 +6,7 @@ import { validateUsername } from "./login-form";
 FIX: Use ```import { validateUsername } from "@/features/login/login-form";``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/features/login/login-form.ts: no-relative-imports
+# /src/features/login/login-form.ts: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import {
@@ -21,7 +21,7 @@ FIX: Use ```import {
 ``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/features/login/login-form.ts: no-relative-imports
+# /src/features/login/login-form.ts: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import { capitalize } from "../../lib/util";
@@ -29,7 +29,7 @@ import { capitalize } from "../../lib/util";
 FIX: Use ```import { capitalize } from "@/lib/util";``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/features/home/home.spec.ts: no-relative-imports
+# /src/features/home/home.spec.ts: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import * from "../../../tests/test-log"
@@ -38,7 +38,7 @@ FIX: Use ```import * from "@tests/test-log"
 ``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/features/home/home.spec.ts: no-relative-imports
+# /src/features/home/home.spec.ts: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import { getHomeData } from "./home-component";
@@ -46,7 +46,7 @@ import { getHomeData } from "./home-component";
 FIX: Use ```import { getHomeData } from "@/features/home/home-component";``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/features/home/home-screen.tsx: no-relative-imports
+# /src/features/home/home-screen.tsx: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import { Button } from "../../components/ds/Button";
@@ -54,7 +54,7 @@ import { Button } from "../../components/ds/Button";
 FIX: Use ```import { Button } from "@/components/ds/Button";``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/features/home/home-screen.tsx: no-relative-imports
+# /src/features/home/home-screen.tsx: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import { getHomeData } from "./home-component";
@@ -62,7 +62,7 @@ import { getHomeData } from "./home-component";
 FIX: Use ```import { getHomeData } from "@/features/home/home-component";``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/features/home/home-component.ts: no-relative-imports
+# /src/features/home/home-component.ts: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import ('../../lib/extra')
@@ -70,7 +70,7 @@ import ('../../lib/extra')
 FIX: Use ```import ('@/lib/extra')``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/features/home/home-component.ts: no-relative-imports
+# /src/features/home/home-component.ts: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import ('../heavy-module');
@@ -78,7 +78,7 @@ import ('../heavy-module');
 FIX: Use ```import ('@/features/heavy-module');``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/features/home/home-component.ts: no-relative-imports
+# /src/features/home/home-component.ts: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import { formatDate } from "../../lib/util";
@@ -86,7 +86,7 @@ import { formatDate } from "../../lib/util";
 FIX: Use ```import { formatDate } from "@/lib/util";``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/app/[locale]/login/page.tsx: no-relative-imports
+# /src/app/[locale]/login/page.tsx: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import { capitalize } from '../../../lib/util';
@@ -94,7 +94,7 @@ import { capitalize } from '../../../lib/util';
 FIX: Use ```import { capitalize } from '@/lib/util';``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/app/[locale]/login/page.tsx: no-relative-imports
+# /src/app/[locale]/login/page.tsx: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import { validateUsername } from '../../../features/login/login-form';
@@ -102,7 +102,7 @@ import { validateUsername } from '../../../features/login/login-form';
 FIX: Use ```import { validateUsername } from '@/features/login/login-form';``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/src/app/[locale]/page.tsx: no-relative-imports
+# /src/app/[locale]/page.tsx: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import { getHomeData } from '../../features/home/home-component';
@@ -110,7 +110,7 @@ import { getHomeData } from '../../features/home/home-component';
 FIX: Use ```import { getHomeData } from '@/features/home/home-component';``` instead.
 ---------
 
-# /private/tmp/nix-shell.guMobj/deslop-test88087/tests/fixtures/fixtures.ts: no-relative-imports
+# /tests/fixtures/fixtures.ts: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
 import { formatDate } from "../../src/lib/util";
