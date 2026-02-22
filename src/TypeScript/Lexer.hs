@@ -64,7 +64,7 @@ pImport =
             ]
       where
         skipBetween q =
-            char q *> manyTill L.charLiteral (char q) *> pure ()
+            void $ char q *> manyTill L.charLiteral (char q) 
 
 pDocs :: Lexer TsToken
 pDocs =
@@ -77,7 +77,7 @@ pComment = try pLineComment <|> pBlockComment
 pLineComment :: Lexer TsToken
 pLineComment =
     uncurry TsToken . second (CommentK . T.strip)
-        <$> match (string "//" *> takeWhileP (Just "comment") ((/=) '\n') <* optional newline)
+        <$> match (string "//" *> takeWhileP (Just "comment") ('\n' /=) <* optional newline)
 
 pBlockComment :: Lexer TsToken
 pBlockComment =
@@ -94,6 +94,6 @@ pRaw =
     uncurry TsToken . second (const RawK)
         <$> match (anySingle >> manyTill anySingle stopCondition)
   where
-    stopCondition = lookAhead $ () <$ atTokenStart <|> eof
+    stopCondition = lookAhead $ void atTokenStart <|> eof
     atTokenStart = choice [try $ string "//", string "/*", string "import"]
 
