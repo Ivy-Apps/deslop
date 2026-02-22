@@ -13,8 +13,7 @@ common shared-properties
     
     ghc-options: 
         -Wall 
-        -Wno-partial-fields
-        -Wno-unused-do-bind
+        -Werror
 
     default-extensions:
         DuplicateRecordFields

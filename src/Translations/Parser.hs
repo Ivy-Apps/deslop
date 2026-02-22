@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-orphans #-}
-
 module Translations.Parser (
     Translations (..),
     Translation (..),
@@ -79,11 +77,11 @@ parseTransTree :: ByteString -> Maybe TransTree
 parseTransTree bs = either (const Nothing) Just $ parseOnly rootParser bs
   where
     rootParser :: Parser TransTree
-    rootParser = do
+    rootParser =
         skipSpace
-        char '{'
-        children <- parseChildren
-        pure $ Root children
+            >> char '{'
+            >> parseChildren
+            >>= pure . Root
 
     parseChildren :: Parser [TransTree]
     parseChildren = do
@@ -94,13 +92,13 @@ parseTransTree bs = either (const Nothing) Just $ parseOnly rootParser bs
             _ -> loop []
       where
         loop acc = do
-            skipSpace
+            _ <- skipSpace
             key <- parseJsonString
             skipSpace >> char ':' >> skipSpace
             next <- peekChar
             node <- case next of
                 Just '{' -> do
-                    char '{'
+                    _ <- char '{'
                     kids <- parseChildren
                     pure $ Branch key kids
                 Just '"' -> do
