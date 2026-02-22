@@ -8,10 +8,11 @@ import Data.Text.IO qualified as TIO
 import Deslop (deslopFile)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
+import Effects.ReportProblem (runReportProblem)
 import System.FilePath (takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (runFileSystemTest, runCLILogTest, listFixtures)
+import TestUtils (listFixtures, runCLILogTest, runFileSystemTest)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
@@ -20,6 +21,7 @@ import TypeScript.Config (ImportAlias (ImportAlias), TsConfig (..), parseTsConfi
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser
 import TypeScript.Tokens
+import Types (Renderable (render))
 
 tsFixturesPath :: FilePath
 tsFixturesPath = "test/fixtures/typescript"
@@ -76,7 +78,7 @@ spec = do
             case res of
                 Left e -> fail e
                 Right p -> do
-                    renderAst p.ast `shouldBe` source
+                    render p.ast `shouldBe` source
                     return $ defaultGolden (testName <> "-parser") (ppShow p)
 
         it ("Deslop " <> testName) $ do
@@ -96,6 +98,7 @@ spec = do
                 . runFileSystemTest captureRef
                 . runReader tsCfg
                 . runCLILogTest
+                . runReportProblem
                 $ deslopFile path
 
             -- Then

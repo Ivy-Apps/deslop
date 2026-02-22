@@ -113,7 +113,9 @@ test-suite deslop-test
         Effects.ReportProblemSpec
         TypeScript.LexerSpec
         TypeScript.ParserSpec
+        TypeScript.RenderableSpec
         Translations.TranslatorSpec
+        Translations.RenderableSpec
         E2E.FileGoldenSpec
         E2E.ProjectGoldenSpec
         E2E.TranslationsSpec

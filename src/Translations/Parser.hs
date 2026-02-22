@@ -6,7 +6,6 @@ module Translations.Parser (
     defaultLanguage,
     readTranslations,
     readTranslation,
-    render,
     fkmap,
     (<.>),
 ) where
@@ -25,10 +24,11 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T (decodeUtf8)
 import Data.Text.Lazy qualified as TL
-import Data.Text.Lazy.Builder (Builder, fromText, toLazyText)
+import Data.Text.Lazy.Builder qualified as B
 import Effectful (Eff, (:>))
 import Effects.FileSystem (RoFileSystem, listDirectory, readFileBS)
 import System.FilePath (takeBaseName, (</>))
+import Types (Renderable (..))
 import Utils (safeHead)
 
 type LangCode = Text
@@ -118,37 +118,23 @@ parseTransTree bs = either (const Nothing) Just $ parseOnly rootParser bs
             String t -> pure t
             _ -> fail "Expected JSON String Key/Value"
 
-render :: TransTree -> Text
-render tree = TL.toStrict . toLazyText $ renderNode 0 tree
-  where
-    indentStep :: Int
+instance Renderable TransTree where
+  render tree = TL.toStrict . B.toLazyText $ renderNode 0 tree
+   where
     indentStep = 2
-
-    mkIndent :: Int -> Builder
-    mkIndent n = fromText (T.replicate n " ")
-
-    escape :: Text -> Builder
-    escape = fromText . T.decodeUtf8 . BL.toStrict . encode
-
-    renderNode :: Int -> TransTree -> Builder
-    renderNode lvl (Root children) =
-        renderObj lvl children
-    renderNode lvl (Branch k children) =
-        escape k <> ": " <> renderObj lvl children
-    renderNode _ (Leaf k v) =
-        escape k <> ": " <> escape v
-
-    renderObj :: Int -> [TransTree] -> Builder
+    mkIndent n = B.fromText (T.replicate n " ")
+    escape = B.fromText . T.decodeUtf8 . BL.toStrict . encode
+    renderNode lvl (Root children) = renderObj lvl children
+    renderNode lvl (Branch k children) = escape k <> ": " <> renderObj lvl children
+    renderNode _ (Leaf k v) = escape k <> ": " <> escape v
     renderObj _ [] = "{}"
     renderObj lvl children =
-        "{"
-            <> "\n"
-            <> mconcat (intersperse ("," <> "\n") (map (renderChild (lvl + indentStep)) children))
-            <> "\n"
-            <> mkIndent lvl
-            <> "}"
-
-    renderChild :: Int -> TransTree -> Builder
+      "{"
+        <> "\n"
+        <> mconcat (intersperse ("," <> "\n") (map (renderChild (lvl + indentStep)) children))
+        <> "\n"
+        <> mkIndent lvl
+        <> "}"
     renderChild lvl node = mkIndent lvl <> renderNode lvl node
 
 fkmap :: (Text -> Text -> Text) -> TransTree -> TransTree

@@ -4,7 +4,7 @@ module TypeScript.AST (
 ) where
 
 import Data.Text (Text)
-import Types (Renderable)
+import Types (Renderable (..))
 
 data TsProgram = TsModule
     { path :: FilePath
@@ -32,5 +32,7 @@ data TsNode
     deriving (Show, Eq)
 
 instance Renderable TsNode where
-    render :: TsNode -> Text
-    render a = ""
+    render (Source r) = r
+    render (Comment r _) = r
+    render (Docs r _) = r
+    render (Import p t s) = p <> t <> s

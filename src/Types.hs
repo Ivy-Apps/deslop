@@ -13,6 +13,9 @@ import GHC.Generics (Generic)
 class Renderable a where
   render :: a -> Text
 
+instance Renderable a => Renderable [a] where
+  render = foldl' (\acc x -> acc <> render x) ""
+
 newtype Secrets = Secrets
     { geminiApiKey :: Text
     }

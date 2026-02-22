@@ -4,12 +4,13 @@ import Deslop (deslopProject)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
+import Effects.ReportProblem (ReportProblem, runReportProblem)
+import Params
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (copyDir, defaultParams, projectFixturePath, runCLILogTest, runGitTest, snapshot)
 import Types
-import Params
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
@@ -26,6 +27,7 @@ spec = describe "Whole Project Golden Tests" $ do
                     . runErrorNoCallStack @DeslopError
                     . runCLILogTest
                     . runGitTest []
+                    . runReportProblem
                     $ deslopProject (defaultParams tmpDir)
 
             -- Then
@@ -59,6 +61,7 @@ spec = describe "Whole Project Golden Tests" $ do
                         [ tmpDir </> "." </> "src/app/[locale]/login/page.tsx"
                         , tmpDir </> "src/features/home/home-screen.tsx"
                         ]
+                    . runReportProblem
                     $ deslopProject params
 
             -- Then
@@ -68,6 +71,6 @@ spec = describe "Whole Project Golden Tests" $ do
                     , "src/features/home/home-component.ts"
                     , "src/features/home/home.spec.ts"
                     , "tests/fixtures/fixtures.ts"
-                    ]
+                   ]
             fullSnapshot <- snapshot tmpDir filesToVerify
             return $ defaultGolden "ts-project-1-git-modified" fullSnapshot

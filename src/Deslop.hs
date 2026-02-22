@@ -12,6 +12,7 @@ import Data.Bifunctor
 import Data.Bool
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as BL
+import Data.Either
 import Data.Foldable
 import Data.Functor
 import Data.List (intersect)
@@ -20,6 +21,7 @@ import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.Imports (importAliases)
 import Effectful (Eff, IOE, liftIO, runEff, type (:>))
+import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, runReader)
 import Effects.AI
@@ -35,18 +37,17 @@ import Effects.FileSystem (
     writeFileBS,
  )
 import Effects.Git
+import Effects.ReportProblem (ReportProblem, runReportProblem)
+import Params
 import System.Directory (getHomeDirectory)
 import System.FilePath
 import Translations.Manager
 import Translations.Parser
 import TypeScript.AST
 import TypeScript.Config (TsConfig, parseTsConfig)
-import TypeScript.Parser (TsFile (TsFile, content, path), parseTs, renderAst)
+import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types
-import Params
 import UI
-import Data.Either
-import Effectful.Concurrent (Concurrent, runConcurrent)
 
 runDeslop :: Params -> IO ()
 runDeslop params =
@@ -62,6 +63,7 @@ runDeslop params =
             . runGit
             . runAI secrets
             . runConcurrent
+            . runReportProblem
             $ doWork params secrets
 
         end <- liftIO getCurrentTime
@@ -84,6 +86,7 @@ doWork ::
     , IOE :> es
     , AI :> es
     , Concurrent :> es
+    , ReportProblem :> es
     ) =>
     Params ->
     Secrets ->
@@ -120,7 +123,7 @@ translateProject ::
     , RoFileSystem :> es
     , CLILog :> es
     , AI :> es
-    , Concurrent :> es 
+    , Concurrent :> es
     , Error TranslationsError :> es
     ) =>
     Params ->
@@ -145,6 +148,7 @@ deslopProject ::
     , Git :> es
     , Error DeslopError :> es
     , CLILog :> es
+    , ReportProblem :> es
     ) =>
     Params ->
     Eff es ()
@@ -191,6 +195,7 @@ deslopFile ::
     , WrFileSystem :> es
     , Reader TsConfig :> es
     , CLILog :> es
+    , ReportProblem :> es
     ) =>
     FilePath ->
     Eff es ()
@@ -202,7 +207,7 @@ deslopFile src = do
         logModification src
 
 removeSlop ::
-    (Reader TsConfig :> es) =>
+    (Reader TsConfig :> es, ReportProblem :> es) =>
     FilePath ->
     ByteString ->
     Eff es ByteString
@@ -212,4 +217,4 @@ removeSlop p c = fromRight c <$> pipeline
         traverse (fmap renderProgram . deslop) . parseTs $
             TsFile {path = p, content = TE.decodeUtf8 c}
     deslop = foldr (>=>) pure [importAliases]
-    renderProgram = TE.encodeUtf8 . renderAst . (.ast)
+    renderProgram = TE.encodeUtf8 . render . (.ast)
