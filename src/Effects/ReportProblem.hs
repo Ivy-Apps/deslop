@@ -1,6 +1,6 @@
 module Effects.ReportProblem (
     Location (..),
-    CheckId (..),
+    RuleId (..),
     Severity (..),
     Problem (..),
     ReportProblem,
@@ -21,14 +21,14 @@ data Location = Location
     }
     deriving stock (Eq, Show)
 
-newtype CheckId = CheckId Text
+newtype RuleId = RuleId Text
     deriving stock (Eq, Show)
 
 data Severity = Error
     deriving stock (Eq, Show)
 
 data Problem = LintProblem
-    { check :: CheckId
+    { rule :: RuleId
     , location :: Location
     , severity :: Severity
     , description :: Text

@@ -4,6 +4,7 @@ module TypeScript.AST (
 ) where
 
 import Data.Text (Text)
+import Types (Renderable)
 
 data TsProgram = TsModule
     { path :: FilePath
@@ -29,3 +30,7 @@ data TsNode
         { raw :: Text
         }
     deriving (Show, Eq)
+
+instance Renderable TsNode where
+    render :: TsNode -> Text
+    render a = ""

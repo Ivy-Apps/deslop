@@ -3,12 +3,15 @@ module Types (
     DeslopError (..),
     TranslationsError (..),
     InitError (..),
+    Renderable(..)
 ) where
 
 import Data.Aeson
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
+class Renderable a where
+  render :: a -> Text
 
 newtype Secrets = Secrets
     { geminiApiKey :: Text

@@ -21,7 +21,7 @@ spec = describe "ReportProblem" $ do
         it "getProblems returns a single problem after report" $ do
             let problem =
                     LintProblem
-                        { check = CheckId "P001"
+                        { rule = RuleId "P001"
                         , location = Location {file = "src/Foo.ts", code = "x"}
                         , severity = Error
                         , description = "Something wrong"
@@ -38,7 +38,7 @@ spec = describe "ReportProblem" $ do
         it "getProblems returns the reported problems" $ do
             let p1 =
                     LintProblem
-                        { check = CheckId "P1"
+                        { rule = RuleId "P1"
                         , location = Location {file = "a.ts", code = "1"}
                         , severity = Error
                         , description = "First"
@@ -46,7 +46,7 @@ spec = describe "ReportProblem" $ do
                         }
             let p2 =
                     LintProblem
-                        { check = CheckId "P2"
+                        { rule = RuleId "P2"
                         , location = Location {file = "b.ts", code = "2"}
                         , severity = Error
                         , description = "Second"
@@ -64,7 +64,7 @@ spec = describe "ReportProblem" $ do
         it "report does not affect the return value of the action" $ do
             let problem =
                     LintProblem
-                        { check = CheckId "P"
+                        { rule = RuleId "P"
                         , location = Location {file = "f", code = "c"}
                         , severity = Error
                         , description = "desc"

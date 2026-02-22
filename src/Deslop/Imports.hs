@@ -3,11 +3,13 @@ module Deslop.Imports (
     resolveTsImport,
 ) where
 
+import Control.Monad (when)
 import Data.List (find, isPrefixOf)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader, asks)
+import Effects.ReportProblem (Problem (..), ReportProblem, report, Location (..), Severity (..), RuleId (..))
 import System.FilePath (
     joinPath,
     splitDirectories,
@@ -24,13 +26,24 @@ import TypeScript.Config (
  )
 import Utils (safePop)
 
-importAliases :: (Reader TsConfig :> es) => TsProgram -> Eff es TsProgram
+importAliases :: (Reader TsConfig :> es, ReportProblem :> es) => TsProgram -> Eff es TsProgram
 importAliases prog = do
     ast' <- traverse fixImport prog.ast
     pure prog {ast = ast'}
   where
     fixImport og@(Import _ t _) = do
         t' <- fixTarget t
+        when
+            (t /= t')
+            ( report
+                LintProblem
+                    { rule = RuleId "no-relative-imports"
+                    , location = Location {file = prog.path, code = ""}
+                    , severity = Error
+                    , description = "Relative imports are not allowed. Use full-path aliased ones."
+                    , fix = ""
+                    }
+            )
         pure og {target = t'}
     fixImport x = pure x
 
