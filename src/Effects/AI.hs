@@ -8,10 +8,9 @@ module Effects.AI (
 ) where
 
 import Control.Exception (try)
-import Control.Monad (join, (>=>))
+import Control.Monad ((<=<), (>=>))
 import Data.Aeson
 import Data.Bifunctor (first)
-import Data.Functor
 import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful
@@ -58,7 +57,7 @@ instance LLM Gemini where
     execPrompt :: Gemini -> Text -> IO (Either AIError Text)
     execPrompt llm p =
         try @HttpException makeRequest
-            <&> join . fmap extractText . first mapError
+            >>= pure . (extractText <=< first mapError)
       where
         extractText :: ChatCompletionResponseDto -> Either AIError Text
         extractText =
@@ -132,5 +131,5 @@ data GeminiChatMessageDto = GeminiChatMessageDto
 newtype GeminiPartDto = GeminiPartDto
     { text :: Text
     }
-    deriving stock (Generic, Show )
+    deriving stock (Generic, Show)
     deriving anyclass (ToJSON, FromJSON)

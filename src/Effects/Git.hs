@@ -15,7 +15,7 @@ data Git :: Effect where
 type instance DispatchOf Git = Dynamic
 
 modifiedFiles :: (Git :> es) => Eff es [FilePath]
-modifiedFiles = send $ ModifiedFiles
+modifiedFiles = send ModifiedFiles
 
 runGit :: (IOE :> es) => Eff (Git : es) a -> Eff es a
 runGit = interpret $ \_ -> \case
