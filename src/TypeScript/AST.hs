@@ -1,4 +1,7 @@
-module TypeScript.AST where
+module TypeScript.AST (
+    TsProgram (..),
+    TsNode (..),
+) where
 
 import Data.Text (Text)
 

@@ -1,10 +1,9 @@
-module E2E.TranslationsSpec where
+module E2E.TranslationsSpec (spec) where
 
 import Deslop
 import Effectful
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
-import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils

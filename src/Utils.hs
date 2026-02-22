@@ -1,4 +1,11 @@
-module Utils where
+module Utils (
+    Parser,
+    hush,
+    safeHead,
+    safePop,
+    headErr,
+    headOrThrow,
+) where
 
 import Data.Text
 import Data.Void
@@ -21,3 +28,6 @@ headErr :: e -> [a] -> Either e a
 headErr e [] = Left e
 headErr _ (x : _) = Right x
 
+headOrThrow :: [a] -> a
+headOrThrow [] = error "Expected the list to be non-empty"
+headOrThrow (x : _) = x

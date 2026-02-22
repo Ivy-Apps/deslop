@@ -1,4 +1,9 @@
-module Effects.Git where
+module Effects.Git (
+    Git (..),
+    modifiedFiles,
+    runGit,
+    gitModifiedFiles,
+) where
 
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)

@@ -15,8 +15,6 @@ common shared-properties
         -Wall 
         -Wno-partial-fields
         -Wno-unused-do-bind
-        -Wno-missing-export-lists
-        -Wno-unused-imports
 
     default-extensions:
         DuplicateRecordFields

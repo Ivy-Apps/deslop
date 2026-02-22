@@ -1,4 +1,9 @@
-module Types where
+module Types (
+    Secrets (..),
+    DeslopError (..),
+    TranslationsError (..),
+    InitError (..),
+) where
 
 import Data.Aeson
 import Data.Text (Text)

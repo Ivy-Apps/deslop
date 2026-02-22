@@ -1,6 +1,9 @@
-module Deslop.Imports where
+module Deslop.Imports (
+    importAliases,
+    resolveTsImport,
+) where
 
-import Data.List (find, isPrefixOf, foldl')
+import Data.List (find, isPrefixOf)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T

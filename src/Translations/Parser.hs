@@ -1,6 +1,17 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Translations.Parser where
+module Translations.Parser (
+    Translations (..),
+    Translation (..),
+    TransTree (..),
+    LangCode,
+    defaultLanguage,
+    readTranslations,
+    readTranslation,
+    render,
+    fkmap,
+    (<.>),
+) where
 
 import Data.Aeson (Value (String), encode)
 import Data.Aeson.Parser (value)

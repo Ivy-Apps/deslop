@@ -1,6 +1,11 @@
-module Effects.CLILog where
+module Effects.CLILog (
+    CLILog (..),
+    logModification,
+    logSummary,
+    runCLILog,
+) where
 
-import Control.Concurrent.STM (TVar, atomically, modifyTVar', newTVarIO, readTVar)
+import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Data.Function ((&))
 import Effectful

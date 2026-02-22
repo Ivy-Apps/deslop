@@ -1,4 +1,8 @@
-module Translations.Translator where
+module Translations.Translator (
+    translate,
+    translatePrompt,
+    parseTranslateResponse,
+) where
 
 import Control.Monad
 import Data.Aeson

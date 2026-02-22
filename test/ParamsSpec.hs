@@ -1,4 +1,4 @@
-module ParamsSpec where
+module ParamsSpec (spec) where
 
 import Options.Applicative
 import Params (Params (..), paramsParser, parserPrefs)

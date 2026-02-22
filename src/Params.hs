@@ -9,7 +9,6 @@ where
 import Data.Version (showVersion)
 import Options.Applicative
 import Paths_deslop (version)
-import Types
 
 data Params = Params
     { projectPath :: FilePath

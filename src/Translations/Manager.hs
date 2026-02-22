@@ -1,4 +1,8 @@
-module Translations.Manager where
+module Translations.Manager (
+    fixTranslations,
+    fixTranslation,
+    flatten,
+) where
 
 import Data.Functor ((<&>))
 import Data.HashMap.Strict (HashMap)

@@ -1,6 +1,4 @@
-{-# OPTIONS_GHC -Wno-x-partial #-}
-
-module Deslop.ImportSpec where
+module Deslop.ImportSpec (spec) where
 
 import Control.Monad (forM_)
 import Data.Text (Text)

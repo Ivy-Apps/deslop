@@ -1,4 +1,7 @@
-module TypeScript.Tokens where
+module TypeScript.Tokens (
+    TsToken (..),
+    TsTokenKind (..),
+) where
 
 import Data.Text (Text)
 

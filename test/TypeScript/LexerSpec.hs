@@ -1,4 +1,4 @@
-module TypeScript.LexerSpec where
+module TypeScript.LexerSpec (spec) where
 
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -9,6 +9,7 @@ import Text.Megaparsec (errorBundlePretty, parse)
 import Control.Monad
 import TypeScript.Lexer (lexer)
 import TypeScript.Tokens
+import Utils (headOrThrow)
 
 spec :: Spec
 spec = do
@@ -155,14 +156,14 @@ spec = do
         forM_ cases $ \(desc, input, expectedRaw) ->
             it ("parses: " <> desc) $ do
                 -- When
-                let res = head . filter (\n -> n.kind == ImportK) <$> runTest input
+                let res = headOrThrow . filter (\n -> n.kind == ImportK) <$> runTest input
 
                 -- Then
                 case res of
                     Left err -> expectationFailure (errorBundlePretty err)
                     Right token -> do
                         token.kind `shouldBe` ImportK
-                        T.strip (token.raw) `shouldBe` T.strip expectedRaw
+                        T.strip token.raw `shouldBe` T.strip expectedRaw
 
 -- | The core property: Reassembled tokens must match the original input exactly.
 prop_roundTrip :: TsInput -> Property

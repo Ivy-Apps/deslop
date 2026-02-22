@@ -6,7 +6,7 @@ module Deslop (
     getSecrets,
 ) where
 
-import Control.Monad (forM_, when, (>=>))
+import Control.Monad (when, (>=>))
 import Data.Aeson
 import Data.Bifunctor
 import Data.Bool
@@ -15,8 +15,6 @@ import Data.ByteString.Lazy qualified as BL
 import Data.Foldable
 import Data.Functor
 import Data.List (intersect)
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
@@ -37,11 +35,8 @@ import Effects.FileSystem (
     writeFileBS,
  )
 import Effects.Git
-import GHC.Generics (Generic)
-import System.Console.ANSI
 import System.Directory (getHomeDirectory)
 import System.FilePath
-import Text.Printf (printf)
 import Translations.Manager
 import Translations.Parser
 import TypeScript.AST

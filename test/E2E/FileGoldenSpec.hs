@@ -8,8 +8,7 @@ import Data.Text.IO qualified as TIO
 import Deslop (deslopFile)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
-import System.Directory (listDirectory)
-import System.FilePath (takeBaseName, takeExtension, (</>))
+import System.FilePath (takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (runFileSystemTest, runCLILogTest, listFixtures)

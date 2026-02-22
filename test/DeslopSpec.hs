@@ -1,4 +1,4 @@
-module DeslopSpec where
+module DeslopSpec (spec) where
 
 import Deslop
 import Effectful
@@ -12,7 +12,7 @@ spec :: Spec
 spec = describe "getSecrets" $ do
     it "missing secrets" $ do
         res <- runGetSecrets (fixturesBasePath </> "secrets" </> "missing")
-        res `shouldBe` (Left SecretsMissing)
+        res `shouldBe` Left SecretsMissing
     it "invalid secrets" $ do
         res <- runGetSecrets (fixturesBasePath </> "secrets" </> "invalid.json")
         res `shouldSatisfy` \case
@@ -21,7 +21,7 @@ spec = describe "getSecrets" $ do
     it "valid secrets" $ do
         res <- runGetSecrets (fixturesBasePath </> "secrets" </> "valid.json")
         let expected = Secrets {geminiApiKey = "test-key"}
-        res `shouldBe` (Right expected)
+        res `shouldBe` Right expected
 
 runGetSecrets :: FilePath -> IO (Either InitError Secrets)
 runGetSecrets = runEff . runFileSystemIO . getSecrets

@@ -1,4 +1,10 @@
-module UI where
+module UI (
+    printErr,
+    printDivider,
+    printTitle,
+    printTime,
+    humanReadable,
+) where
 
 import Data.Text (Text)
 import Data.Text qualified as T

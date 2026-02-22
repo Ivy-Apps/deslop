@@ -5,12 +5,10 @@ module TypeScript.Parser (
 ) where
 
 import Data.Bifunctor
-import Data.List (foldl')
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void
 import Text.Megaparsec
-import Text.Megaparsec.Char
 import TypeScript.AST
 import TypeScript.Lexer
 import TypeScript.Tokens

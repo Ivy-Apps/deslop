@@ -1,6 +1,15 @@
-module Effects.ReportProblem where
+module Effects.ReportProblem (
+    Location (..),
+    ProblemId (..),
+    Severity (..),
+    Problem (..),
+    ReportProblem,
+    report,
+    getProblems,
+    runReportProblem,
+) where
 
-import Control.Concurrent.STM (TVar, atomically, modifyTVar', newTVarIO, readTVar, readTVarIO)
+import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO, readTVarIO)
 import Data.Function ((&))
 import Data.Text (Text)
 import Effectful

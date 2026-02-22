@@ -13,13 +13,11 @@ module TestUtils (
 ) where
 
 import Control.Monad (forM, forM_)
-import Data.Aeson
 import Data.Aeson.Encode.Pretty
 import Data.Bifunctor
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.IORef
-import Data.Map (Map)
 import Data.Map qualified as M
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -36,7 +34,6 @@ import System.Directory (copyFile, doesDirectoryExist, listDirectory)
 import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath (takeExtension, (</>))
 import Translations.Translator
-import Types
 import Params
 
 type ModifiedFiles = [FilePath]

@@ -1,4 +1,7 @@
-module TypeScript.Lexer where
+module TypeScript.Lexer (
+    Lexer,
+    lexer,
+) where
 
 import Control.Monad
 import Data.Bifunctor (second)

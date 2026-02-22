@@ -1,4 +1,4 @@
-module Translations.TranslatorSpec where
+module Translations.TranslatorSpec (spec) where
 
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -8,7 +8,6 @@ import System.FilePath
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils
-import Text.Show.Pretty (ppShow)
 import Translations.Translator
 
 enMessages :: [(Text, Text)]
