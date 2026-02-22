@@ -84,7 +84,8 @@ spec = do
         it ("Deslop " <> testName) $ do
             -- Given
             let path = tsFixturesPath </> filename
-            captureRef <- newIORef Nothing
+            fileWriteRef <- newIORef Nothing
+            logsRef <- newIORef Nothing
             let tsCfg =
                     TsConfig
                         { paths =
@@ -95,15 +96,17 @@ spec = do
 
             -- When
             runEff
-                . runFileSystemTest captureRef
+                . runFileSystemTest fileWriteRef
                 . runReader tsCfg
                 . runReader (defaultParams ".")
-                . runCLILogTest
+                . runCLILogTest logsRef
                 . runReportProblem
                 $ deslopFile path
 
             -- Then
-            actualRes <- readIORef captureRef
+            actualRes <- readIORef fileWriteRef
+            logs <- readIORef logsRef
+            logs `shouldBe` Nothing
             case actualRes of
                 Nothing -> fail "The program did not write any output!"
                 Just actual -> do

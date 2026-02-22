@@ -1,5 +1,6 @@
 module E2E.ProjectGoldenSpec (spec) where
 
+import Data.IORef (newIORef, readIORef)
 import Deslop (deslopProject)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
@@ -9,7 +10,7 @@ import Params
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (copyDir, defaultParams, projectFixturePath, runCLILogTest, runGitTest, snapshot)
+import TestUtils (copyDir, defaultParams, projectFixturePath, runCLILogTest, runFileSystemTest, runGitTest, snapshot)
 import Types
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -19,19 +20,22 @@ spec = describe "Whole Project Golden Tests" $ do
         withSystemTempDirectory "deslop-test" $ \tmpDir -> do
             -- Given
             copyDir projectFixturePath tmpDir
+            logsRef <- newIORef Nothing
 
             -- When
             res <-
                 runEff
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
-                    . runCLILogTest
+                    . runCLILogTest logsRef
                     . runGitTest []
                     . runReportProblem
                     $ deslopProject (defaultParams tmpDir)
 
             -- Then
             res `shouldBe` Right ()
+            logs <- readIORef logsRef
+            logs `shouldBe` Nothing
             let filesToVerify =
                     [ "src/app/[locale]/login/page.tsx"
                     , "src/features/home/home-screen.tsx"
@@ -45,18 +49,47 @@ spec = describe "Whole Project Golden Tests" $ do
             fullSnapshot <- snapshot tmpDir filesToVerify
             return $ defaultGolden "ts-project-1-snapshot" fullSnapshot
 
+    it "checks ts-project-1" $ do
+        withSystemTempDirectory "deslop-test" $ \tmpDir -> do
+            -- Given
+            copyDir projectFixturePath tmpDir
+            filesRef <- newIORef Nothing
+            logsRef <- newIORef Nothing
+            let params = (defaultParams tmpDir) {checkMode = True}
+
+            -- When
+            res <-
+                runEff
+                    . runFileSystemTest filesRef
+                    . runErrorNoCallStack @DeslopError
+                    . runCLILogTest logsRef
+                    . runGitTest []
+                    . runReportProblem
+                    $ deslopProject params
+
+            -- Then
+            res `shouldBe` Right ()
+            written <- readIORef filesRef
+            written `shouldBe` Nothing
+            maybeLogs <- readIORef logsRef
+            case maybeLogs of
+                Just logs ->
+                    return $ defaultGolden "ts-project-1-problem-logs" logs.problems
+                Nothing -> expectationFailure "Expected problems logs but got none"
+
     it "transforms only modified files" $ do
         withSystemTempDirectory "deslop-test" $ \tmpDir -> do
             -- Given
             copyDir projectFixturePath tmpDir
+            logsRef <- newIORef Nothing
+            let params = (defaultParams tmpDir) {modifiedOnly = True}
 
             -- When
-            let params = (defaultParams tmpDir) {modifiedOnly = True}
             _ <-
                 runEff
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
-                    . runCLILogTest
+                    . runCLILogTest logsRef
                     . runGitTest
                         [ tmpDir </> "." </> "src/app/[locale]/login/page.tsx"
                         , tmpDir </> "src/features/home/home-screen.tsx"
@@ -65,12 +98,14 @@ spec = describe "Whole Project Golden Tests" $ do
                     $ deslopProject params
 
             -- Then
+            logs <- readIORef logsRef
+            logs `shouldBe` Nothing
             let filesToVerify =
                     [ "src/app/[locale]/login/page.tsx"
                     , "src/features/home/home-screen.tsx"
                     , "src/features/home/home-component.ts"
                     , "src/features/home/home.spec.ts"
                     , "tests/fixtures/fixtures.ts"
-                   ]
+                    ]
             fullSnapshot <- snapshot tmpDir filesToVerify
             return $ defaultGolden "ts-project-1-git-modified" fullSnapshot

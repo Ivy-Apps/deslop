@@ -11,6 +11,7 @@ module TestUtils (
     listFixtures,
     fixturesBasePath,
     renderGolden,
+    TestLogs (..),
 ) where
 
 import Control.Monad (forM, forM_)
@@ -66,11 +67,19 @@ runWrFileSystemTest ::
 runWrFileSystemTest ref = interpret $ \_ -> \case
     WriteFile _path content -> liftIO $ writeIORef ref (Just content)
 
-runCLILogTest :: Eff (CLILog : es) a -> Eff es a
-runCLILogTest = interpret $ \_ -> \case
+newtype TestLogs = TestLogs
+    { problems :: Text
+    } deriving (Show, Eq)
+
+runCLILogTest :: (IOE :> es) => IORef (Maybe TestLogs) -> Eff (CLILog : es) a -> Eff es a
+runCLILogTest ref = interpret $ \_ -> \case
     LogModification _ -> pure ()
     LogSummary -> pure ()
-    LogProblems _ -> pure ()
+    LogProblems _ps ->
+        liftIO $
+            writeIORef
+                ref
+                (Just . TestLogs $ "TODO: Use the Buildable instance for Problems")
 
 defaultParams :: FilePath -> Params
 defaultParams projPath =
