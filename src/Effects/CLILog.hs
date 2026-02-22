@@ -1,6 +1,7 @@
 module Effects.CLILog where
 
 import Control.Concurrent.STM (TVar, atomically, modifyTVar', newTVarIO, readTVar)
+import Control.Concurrent.STM.TVar (readTVarIO)
 import Data.Function ((&))
 import Effectful
 import Effectful.Dispatch.Dynamic
@@ -24,7 +25,8 @@ runCLILog action = do
     counterVar <- liftIO $ newTVarIO (0 :: Int)
 
     action
-        & ( interpret $ \_ -> \case
+        & interpret
+            ( \_ -> \case
                 LogModification path -> liftIO $ do
                     atomically $ modifyTVar' counterVar (+ 1)
                     setSGR [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
@@ -33,12 +35,13 @@ runCLILog action = do
                     putStrLn path
                     hFlush stdout
                 LogSummary -> liftIO $ do
-                    count <- atomically $ readTVar counterVar
+                    count <- readTVarIO counterVar
                     setSGR [SetColor Foreground Vivid Green, SetConsoleIntensity BoldIntensity]
                     if count > 0
                         then
                             putStrLn $ "✨ Cleaned " ++ show count ++ " files successfully!"
                         else
-                            putStrLn $ "✨ The project is already clean!"
+                            putStrLn "✨ The project is already clean!"
                     setSGR [Reset]
-          )
+            )
+

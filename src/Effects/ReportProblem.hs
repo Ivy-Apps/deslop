@@ -1,7 +1,10 @@
 module Effects.ReportProblem where
 
+import Control.Concurrent.STM (TVar, atomically, modifyTVar', newTVarIO, readTVar, readTVarIO)
+import Data.Function ((&))
 import Data.Text (Text)
-import Effectful (Effect)
+import Effectful
+import Effectful.Dispatch.Dynamic
 
 data Location = Location
     { file :: FilePath
@@ -20,4 +23,23 @@ data Problem = Problem
     }
 
 data ReportProblem :: Effect where
-  Report :: Problem -> ReportProblem m ()
+    Report :: Problem -> ReportProblem m ()
+    GetProblems :: ReportProblem m [Problem]
+
+type instance DispatchOf ReportProblem = 'Dynamic
+
+report :: (ReportProblem :> es) => Problem -> Eff es ()
+report = send . Report
+
+getProblems :: (ReportProblem :> es) => Eff es [Problem]
+getProblems = send GetProblems
+
+runReportProblem :: (IOE :> es) => Eff (ReportProblem : es) a -> Eff es a
+runReportProblem action = do
+    problemsVar <- liftIO $ newTVarIO []
+    action
+        & interpret
+            ( \_ -> \case
+                Report p -> liftIO . atomically $ modifyTVar' problemsVar (p :)
+                GetProblems -> liftIO . readTVarIO $ problemsVar
+            )
