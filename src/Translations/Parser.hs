@@ -57,7 +57,7 @@ defaultLanguage = "en"
 readTranslations :: (RoFileSystem :> es) => FilePath -> Eff es (Maybe Translations)
 readTranslations root =
     listDirectory root
-        >>= traverse readTranslation . fmap (root </>)
+        >>= traverse (readTranslation . (root </>))
         >>= pure . assemble . catMaybes
   where
     assemble :: [Translation] -> Maybe Translations
