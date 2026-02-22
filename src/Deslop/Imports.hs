@@ -4,7 +4,6 @@ module Deslop.Imports (
 ) where
 
 import Data.List (find, isPrefixOf)
-import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful (Eff, type (:>))
@@ -55,10 +54,10 @@ importAliases prog = do
     absPath as = resolveTsImport prog.path . T.unpack . reverseAlias as
 
     reverseAlias as fp =
-        fromMaybe fp
-            . fmap (\(ImportAlias l p) -> T.replace l p fp)
+        maybe fp (removeAlias fp)
             . find ((`T.isInfixOf` fp) . (.label))
             $ as
+    removeAlias fp (ImportAlias l p) = T.replace l p fp
 
 resolveTsImport :: FilePath -> FilePath -> FilePath
 resolveTsImport sourcePath importPath

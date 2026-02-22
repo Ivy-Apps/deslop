@@ -28,5 +28,11 @@ jobs:
     - name: Build Project
       run: cabal build all --enable-tests
 
+    - name: Install HLint
+      run: cabal install hlint --overwrite-policy=always
+
+    - name: Run HLint
+      run: hlint .
+
     - name: Run Tests
       run: cabal test all

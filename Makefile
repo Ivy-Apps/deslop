@@ -1,6 +1,9 @@
-.PHONY: sandbox update install_nix
+.PHONY: sandbox update install_nix check
 
 .DEFAULT_GOAL := help
+
+check: ## Run HLint then tests (use from nix develop); fails on lint or test errors
+	hlint . && cabal test all
 
 sandbox: ## Generate a testing '/sandbox' project dir
 	@rm -rf sandbox

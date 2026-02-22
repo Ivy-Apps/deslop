@@ -18,12 +18,12 @@ import Data.Text as T (Text, length, stripPrefix, takeWhile)
 import GHC.Generics (Generic)
 import Utils (safeHead)
 
-data TsConfigJson = TsConfigJson
+newtype TsConfigJson = TsConfigJson
     { compilerOptions :: CompilerOptionsJson
     }
     deriving (Show, Generic)
 
-data CompilerOptionsJson = CompilerOptionsJson
+newtype CompilerOptionsJson = CompilerOptionsJson
     { paths :: Maybe (Map Text [Text])
     }
     deriving (Show, Generic)
@@ -31,7 +31,7 @@ data CompilerOptionsJson = CompilerOptionsJson
 instance FromJSON TsConfigJson
 instance FromJSON CompilerOptionsJson
 
-data TsConfig = TsConfig
+newtype TsConfig = TsConfig
     { paths :: [ImportAlias]
     }
     deriving (Show, Eq)
