@@ -1,10 +1,9 @@
 module TypeScript.RenderableSpec (spec) where
 
-import Data.Text qualified as T
 import Test.Hspec
 import Types (Renderable (render))
 import TypeScript.AST
-import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
+import TypeScript.Parser
 
 spec :: Spec
 spec = do
@@ -36,7 +35,7 @@ spec = do
 
     it "round-trips with parse for import-only snippet" $ do
       let snippet = "import * from '@/lib/utils'"
-      let file = TsFile "x.ts" (T.pack snippet)
+      let file = TsFile "x.ts" snippet
       case parseTs file of
         Left _ -> pure ()
         Right prog -> render prog.ast `shouldBe` snippet

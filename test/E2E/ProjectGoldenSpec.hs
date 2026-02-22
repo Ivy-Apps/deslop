@@ -4,7 +4,7 @@ import Deslop (deslopProject)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
-import Effects.ReportProblem (ReportProblem, runReportProblem)
+import Effects.ReportProblem (runReportProblem)
 import Params
 import System.FilePath ((</>))
 import Test.Hspec

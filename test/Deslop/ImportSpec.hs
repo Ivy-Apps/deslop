@@ -9,6 +9,7 @@ import Effectful.Reader.Static
 import Test.Hspec
 import TypeScript.AST
 import TypeScript.Config
+import Effects.ReportProblem (runReportProblem)
 
 spec :: Spec
 spec = describe "importAliases" $ do
@@ -22,7 +23,7 @@ spec = describe "importAliases" $ do
                 }
 
     let runTest source target =
-            runEff . runReader cfg $
+            runEff . runReader cfg . runReportProblem $
                 importAliases (mkTestProgram source target)
 
     describe "Happy Path Resolutions" $ do
