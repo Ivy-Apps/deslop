@@ -1,0 +1,120 @@
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/features/login/login.spec.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { validateUsername } from "./login-form";
+```
+Fix: Use ```import { validateUsername } from "@/features/login/login-form";``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/features/login/login-form.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import {
+  mockUser,
+  mockCredentials
+} from '../../tests/fixtures'
+
+```
+Fix: Use ```import {
+  mockUser,
+  mockCredentials
+} from '@tests/fixtures'
+``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/features/login/login-form.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { capitalize } from "../../lib/util";
+```
+Fix: Use ```import { capitalize } from "@/lib/util";``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/features/home/home.spec.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import * from "../../../tests/test-log"
+
+```
+Fix: Use ```import * from "@tests/test-log"
+``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/features/home/home.spec.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { getHomeData } from "./home-component";
+```
+Fix: Use ```import { getHomeData } from "@/features/home/home-component";``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/features/home/home-screen.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { Button } from "../../components/ds/Button";
+```
+Fix: Use ```import { Button } from "@/components/ds/Button";``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/features/home/home-screen.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { getHomeData } from "./home-component";
+```
+Fix: Use ```import { getHomeData } from "@/features/home/home-component";``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/features/home/home-component.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import ('../../lib/extra')
+```
+Fix: Use ```import ('@/lib/extra')``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/features/home/home-component.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import ('../heavy-module');
+```
+Fix: Use ```import ('@/features/heavy-module');``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/features/home/home-component.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { formatDate } from "../../lib/util";
+```
+Fix: Use ```import { formatDate } from "@/lib/util";``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/app/[locale]/login/page.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { capitalize } from '../../../lib/util';
+```
+Fix: Use ```import { capitalize } from '@/lib/util';``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/app/[locale]/login/page.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { validateUsername } from '../../../features/login/login-form';
+```
+Fix: Use ```import { validateUsername } from '@/features/login/login-form';``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/src/app/[locale]/page.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { getHomeData } from '../../features/home/home-component';
+```
+Fix: Use ```import { getHomeData } from '@/features/home/home-component';``` instead.
+---------
+
+# /private/tmp/nix-shell.Njyngl/deslop-test82655/tests/fixtures/fixtures.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { formatDate } from "../../src/lib/util";
+```
+Fix: Use ```import { formatDate } from "@/lib/util";``` instead.

@@ -18,7 +18,6 @@ import Control.Monad (forM, forM_)
 import Data.Aeson.Encode.Pretty
 import Data.Bifunctor
 import Data.ByteString (ByteString)
-import Data.ByteString qualified as BS
 import Data.IORef
 import Data.Map qualified as M
 import Data.Text (Text)
@@ -30,7 +29,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
 import Effects.CLILog
-import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
+import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..), runRoFileSystemIO)
 import Effects.Git
 import Params
 import System.Directory (copyFile, doesDirectoryExist, listDirectory)
@@ -48,17 +47,7 @@ runFileSystemTest ::
     IORef (Maybe ByteString) ->
     Eff (WrFileSystem : RoFileSystem : es) a ->
     Eff es a
-runFileSystemTest ref = runRoFileSystemTest . runWrFileSystemTest ref
-
-runRoFileSystemTest ::
-    (IOE :> es) =>
-    Eff (RoFileSystem : es) a ->
-    Eff es a
-runRoFileSystemTest = interpret $ \_ -> \case
-    ReadFile path -> liftIO $ BS.readFile path
-    FileExists _path -> pure True
-    ListDirectory _path -> pure []
-    IsDirectory _path -> pure False
+runFileSystemTest ref = runRoFileSystemIO . runWrFileSystemTest ref
 
 runWrFileSystemTest ::
     (IOE :> es) =>
