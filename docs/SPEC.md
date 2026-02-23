@@ -29,6 +29,13 @@ or creating a new type, or "as unknown"
 1. Auto-fix what is fixable.
 2. Report errors in a LLM-friendly way.
 
+## Vibe-code Pain Points
+
+- too many optional parameters. We should prefer parameters be passed in unless semantically it makes sense
+- Unnecessary try catches (basically obfuscating what's actually happening)
+- if making translations, do it for all languages
+- Prefer server side code, unless specific use case
+
 ## Competitors
 
 - [continue.dev](https://github.com/continuedev/continue)
