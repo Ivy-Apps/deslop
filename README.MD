@@ -62,6 +62,10 @@ brew install --cask font-jetbrains-mono-nerd-font
 3. Check "Use a different font for non-ASCII text".
 4. Select the `JetBrainsMono Nerd Font`.
 
+## GitHub Actions Secrets
+
+- `NPM_TOKEN`: The NPM_TOKEN for releasing Deslop in NPM
+
 ## Devevelop Manually
 
 1. Install [GHCUP](https://www.haskell.org/ghcup/)
