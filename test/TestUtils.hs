@@ -12,6 +12,7 @@ module TestUtils (
     fixturesBasePath,
     renderGolden,
     TestLogs (..),
+    testSecrets,
 ) where
 
 import Control.Monad (forM, forM_)
@@ -37,7 +38,7 @@ import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath (takeExtension, (</>))
 import Test.Hspec.Golden (Golden, defaultGolden)
 import Translations.Translator
-import Types (Renderable (render))
+import Types (Renderable (render), Secrets (..))
 import UI (problemsLogText)
 
 type ModifiedFiles = [FilePath]
@@ -132,3 +133,9 @@ fixturesBasePath = "test/fixtures"
 
 renderGolden :: (Renderable r) => String -> r -> Golden String
 renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
+
+testSecrets :: Secrets
+testSecrets =
+    Secrets
+        { geminiApiKey = "testKey"
+        }

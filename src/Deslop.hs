@@ -1,6 +1,7 @@
 module Deslop (
     deslopFile,
     deslopProject,
+    doWork,
     runDeslop,
     translateProject,
     getSecrets,
@@ -95,11 +96,13 @@ doWork params _ = do
     liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack params.projectPath
     liftIO . putStrLn $ "Changelog:"
     deslopRes <- runErrorNoCallStack @DeslopError (deslopProject params)
-    liftIO printDivider
+    when params.checkMode (getProblems >>= logProblems)
+
+    unless params.checkMode (liftIO printDivider)
     case deslopRes of
         Left err -> liftIO . printErr . humanReadable $ err
         Right _ -> unless params.checkMode logSummary
-    liftIO printDivider
+    unless params.checkMode (liftIO printDivider)
 
     unless params.checkMode (doTranslations params)
 
@@ -178,7 +181,6 @@ deslopProject params = do
                 forM_ (mFiles `intersect` (normalise <$> files)) deslopFile
             else
                 forM_ files deslopFile
-    when params.checkMode (getProblems >>= logProblems)
 
 tsConfig ::
     ( RoFileSystem :> es

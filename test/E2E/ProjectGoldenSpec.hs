@@ -4,8 +4,9 @@ import Control.Monad (when)
 import Data.IORef (newIORef, readIORef)
 import Data.Maybe (fromJust, isNothing)
 import Data.Text qualified as T
-import Deslop (deslopProject)
+import Deslop (deslopProject, doWork)
 import Effectful (runEff)
+import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
@@ -13,7 +14,7 @@ import Params
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (TestLogs (..), copyDir, defaultParams, projectFixturePath, runCLILogTest, runFileSystemTest, runGitTest, snapshot)
+import TestUtils (TestLogs (..), copyDir, defaultParams, projectFixturePath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
 import Types
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -68,7 +69,9 @@ spec = describe "Whole Project Golden Tests" $ do
                     . runCLILogTest logsRef
                     . runGitTest []
                     . runReportProblem
-                    $ deslopProject params
+                    . runAIAlwaysFail
+                    . runConcurrent
+                    $ doWork params testSecrets
 
             -- Then
             res `shouldBe` Right ()
