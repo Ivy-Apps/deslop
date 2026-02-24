@@ -1,5 +1,6 @@
 module UI (
     printErr,
+    printSuccess,
     printDivider,
     printTitle,
     printTime,
@@ -31,6 +32,12 @@ printErr :: Text -> IO ()
 printErr err = do
     setSGR [SetColor Foreground Vivid Red]
     TIO.putStrLn $ "❌ Error: " <> err
+    setSGR [Reset]
+
+printSuccess :: Text -> IO ()
+printSuccess msg = do
+    setSGR [SetColor Foreground Vivid Green]
+    TIO.putStrLn $ "✅ Success: " <> msg
     setSGR [Reset]
 
 printDivider :: IO ()

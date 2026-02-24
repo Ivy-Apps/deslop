@@ -98,17 +98,29 @@ doWork ::
     Eff es ()
 doWork params _ = do
     liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack params.projectPath
-    liftIO . putStrLn $ "Changelog:"
+    unless params.checkMode (liftIO . putStrLn $ "Changelog:")
     deslopRes <- runErrorNoCallStack @DeslopError (deslopProject params)
-    when params.checkMode (getProblems >>= logProblems)
+
+    when params.checkMode handleCheckModeResult
 
     unless params.checkMode (liftIO printDivider)
     case deslopRes of
-        Left err -> liftIO . printErr . humanReadable $ err
+        Left err -> liftIO $ do 
+          printErr . humanReadable $ err
+          exitFailure
         Right _ -> unless params.checkMode logSummary
     unless params.checkMode (liftIO printDivider)
 
     unless params.checkMode (doTranslations params)
+  where
+    handleCheckModeResult = do
+        ps <- getProblems
+        if null ps
+            then
+                liftIO $ printSuccess "No problems found."
+            else do
+                logProblems ps
+                liftIO exitFailure
 
 deslopProject ::
     ( WrFileSystem :> es
