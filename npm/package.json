@@ -1,6 +1,5 @@
 {
   "name": "@ivy-apps/deslop",
-  "version": "0.4.3",
   "description": "Deslop - remove slop from TypeScript projects.",
   "bin": {
     "deslop": "./wrapper.js"
