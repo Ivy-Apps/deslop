@@ -39,6 +39,7 @@ import Effects.FileSystem (
  )
 import Effects.Git
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
+import Fmt (fmt, (+|), (|+))
 import Params
 import System.Directory (getHomeDirectory)
 import System.Exit (exitFailure)
@@ -115,7 +116,10 @@ doWork params _ = do
             then
                 liftIO $ printSuccess "No problems found."
             else do
+                liftIO . putStrLn . fmt $ "Found " +| length ps |+ " problems:"
+                liftIO printDivider
                 logProblems ps
+                liftIO printDivider
                 throwError CheckModeFoundProblems
 
     fixResult = do

@@ -1,5 +1,6 @@
 module UI (
     printErr,
+    withErrStyle,
     printSuccess,
     printDivider,
     printTitle,
@@ -29,9 +30,12 @@ problemsLogText :: [Problem] -> Text
 problemsLogText = T.pack . pretty . ProblemsLog
 
 printErr :: Text -> IO ()
-printErr err = do
+printErr err = withErrStyle (TIO.putStrLn $ "❌ Error: " <> err)
+
+withErrStyle :: IO () -> IO ()
+withErrStyle action = do
     setSGR [SetColor Foreground Vivid Red]
-    TIO.putStrLn $ "❌ Error: " <> err
+    action
     setSGR [Reset]
 
 printSuccess :: Text -> IO ()
@@ -62,4 +66,4 @@ humanReadable (TsConfigNotFoundError path) =
 humanReadable (TsConfigParseError path) =
     "Could not parse TS config, check: '" <> T.pack path <> "'"
 humanReadable CheckModeFoundProblems =
-    "Problems found. Run without --check to fix."
+    "Problems found. Run without deslop without --check to fix."
