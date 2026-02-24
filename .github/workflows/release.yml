@@ -1,12 +1,9 @@
-name: Release & Homebrew & NPM
+name: Release & NPM
 
 on:
   push:
     tags:
       - 'v*'
-
-permissions:
-  contents: write
 
 jobs:
   build-release:
@@ -16,10 +13,13 @@ jobs:
         include:
           - os: macos-latest
             target: darwin-arm64
-            tar_name: deslop-aarch64-apple-darwin
+            ext: ''
           - os: ubuntu-latest
             target: linux-x64
-            tar_name: deslop-x86_64-linux
+            ext: ''
+          - os: windows-latest
+            target: win32-x64
+            ext: '.exe'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -28,98 +28,33 @@ jobs:
         uses: ./.github/actions/setup-haskell
 
       - name: Build Binary
+        shell: bash
         run: |
           cabal build all --enable-tests
           mkdir -p dist
 
-          # 1. NPM fat package (deslop-darwin-arm64 / deslop-linux-x64)
-          cp $(cabal list-bin deslop) dist/deslop-${{ matrix.target }}
-          strip dist/deslop-${{ matrix.target }}
+          BIN_PATH=$(cabal list-bin deslop)
+          
+          cp "$BIN_PATH" dist/deslop-${{ matrix.target }}${{ matrix.ext }}
+          
+          # Strip symbols to save space (skip on Windows to avoid issues)
+          if [ "${{ runner.os }}" != "Windows" ]; then
+            strip dist/deslop-${{ matrix.target }}
+          fi
 
-          # 2. Homebrew / GitHub Releases tarball
-          cd dist
-          cp deslop-${{ matrix.target }} deslop
-          tar -czf ${{ matrix.tar_name }}.tar.gz deslop
-
-      - name: Upload Binary Artifact (for NPM Job)
+      - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
           name: bin-${{ matrix.target }}
-          path: dist/deslop-${{ matrix.target }}
-
-      - name: Publish Release to Homebrew Tap (macOS only)
-        if: matrix.os == 'macos-latest'
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          TAG=${{ github.ref_name }}
-          gh release create "$TAG" \
-            "dist/${{ matrix.tar_name }}.tar.gz" \
-            --repo ivy-apps/homebrew-tap \
-            --title "$TAG" \
-            --notes "Automated release of Deslop $TAG"
-
-  update-homebrew:
-    name: Update Homebrew Tap
-    needs: build-release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Tap Repository
-        uses: actions/checkout@v4
-        with:
-          repository: ivy-apps/homebrew-tap
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          path: tap
-
-      - name: Update Formula
-        run: |
-          TAG=${{ github.ref_name }}
-          VERSION=${TAG#v}
-
-          PUBLIC_URL="https://github.com/ivy-apps/homebrew-tap/releases/download/$TAG/deslop-aarch64-apple-darwin.tar.gz"
-
-          echo "Downloading from: $PUBLIC_URL"
-          wget -q -O deslop-arm.tar.gz "$PUBLIC_URL"
-          SHA_ARM=$(sha256sum deslop-arm.tar.gz | awk '{print $1}')
-
-          cat > tap/Formula/deslop.rb <<EOF
-          class Deslop < Formula
-            desc "A CLI tool for the Deslop project"
-            homepage "https://github.com/ivy-apps/deslop"
-            version "VERSION_PLACEHOLDER"
-            license "BSD-3-Clause"
-
-            # Only supporting Apple Silicon
-            if OS.mac? && Hardware::CPU.arm?
-              url "https://github.com/ivy-apps/homebrew-tap/releases/download/TAG_PLACEHOLDER/deslop-aarch64-apple-darwin.tar.gz"
-              sha256 "SHA_ARM_PLACEHOLDER"
-            end
-
-            def install
-              bin.install "deslop"
-            end
-
-            test do
-              system "#{bin}/deslop", "--help"
-            end
-          end
-          EOF
-
-          sed -i "s|VERSION_PLACEHOLDER|$VERSION|g" tap/Formula/deslop.rb
-          sed -i "s|TAG_PLACEHOLDER|$TAG|g" tap/Formula/deslop.rb
-          sed -i "s|SHA_ARM_PLACEHOLDER|$SHA_ARM|g" tap/Formula/deslop.rb
-
-          cd tap
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add Formula/deslop.rb
-          git commit -m "Update deslop formula to $TAG" || echo "No changes to commit"
-          git push
+          path: dist/deslop-${{ matrix.target }}${{ matrix.ext }}
 
   publish-npm:
     name: Publish to Public NPM
     needs: build-release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -151,4 +86,4 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd npm
-          npm publish --access public
+          npm publish --access public --provenance
