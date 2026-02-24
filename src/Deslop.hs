@@ -101,9 +101,9 @@ doWork params _ = do
         Right _ -> unless params.checkMode logSummary
     liftIO printDivider
 
-    unless params.checkMode (doTranslate params)
+    unless params.checkMode (doTranslations params)
 
-doTranslate ::
+doTranslations ::
     ( WrFileSystem :> es
     , RoFileSystem :> es
     , Git :> es
@@ -114,7 +114,7 @@ doTranslate ::
     , ReportProblem :> es
     ) =>
     Params -> Eff es ()
-doTranslate params = do
+doTranslations params = do
     liftIO . putStrLn $ "Translating..."
     translateRes <- runErrorNoCallStack @TranslationsError (translateProject params)
     case translateRes of
