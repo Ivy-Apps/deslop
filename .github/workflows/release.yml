@@ -1,4 +1,4 @@
-name: Release & Homebrew
+name: Release & Homebrew & NPM
 
 on:
   push:
@@ -10,11 +10,20 @@ permissions:
 
 jobs:
   build-release:
-    name: Build & Release (Apple Silicon)
-    runs-on: macos-latest
+    name: Build Binaries
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: darwin-arm64
+            tar_name: deslop-aarch64-apple-darwin
+          - os: ubuntu-latest
+            target: linux-x64
+            tar_name: deslop-x86_64-linux
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Haskell
         uses: ./.github/actions/setup-haskell
 
@@ -22,23 +31,30 @@ jobs:
         run: |
           cabal build all --enable-tests
           mkdir -p dist
-          cp $(cabal list-bin deslop) dist/deslop
-          strip dist/deslop
 
-      - name: Compress Binary
-        run: |
+          # 1. NPM fat package (deslop-darwin-arm64 / deslop-linux-x64)
+          cp $(cabal list-bin deslop) dist/deslop-${{ matrix.target }}
+          strip dist/deslop-${{ matrix.target }}
+
+          # 2. Homebrew / GitHub Releases tarball
           cd dist
-          tar -czf deslop-aarch64-apple-darwin.tar.gz deslop
+          cp deslop-${{ matrix.target }} deslop
+          tar -czf ${{ matrix.tar_name }}.tar.gz deslop
 
-      - name: Publish Release to Homebrew Tap
+      - name: Upload Binary Artifact (for NPM Job)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.target }}
+          path: dist/deslop-${{ matrix.target }}
+
+      - name: Publish Release to Homebrew Tap (macOS only)
+        if: matrix.os == 'macos-latest'
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           TAG=${{ github.ref_name }}
-          
-          # Create release on the remote tap repo
           gh release create "$TAG" \
-            "dist/deslop-aarch64-apple-darwin.tar.gz" \
+            "dist/${{ matrix.tar_name }}.tar.gz" \
             --repo ivy-apps/homebrew-tap \
             --title "$TAG" \
             --notes "Automated release of Deslop $TAG"
@@ -59,9 +75,9 @@ jobs:
         run: |
           TAG=${{ github.ref_name }}
           VERSION=${TAG#v}
-          
+
           PUBLIC_URL="https://github.com/ivy-apps/homebrew-tap/releases/download/$TAG/deslop-aarch64-apple-darwin.tar.gz"
-          
+
           echo "Downloading from: $PUBLIC_URL"
           wget -q -O deslop-arm.tar.gz "$PUBLIC_URL"
           SHA_ARM=$(sha256sum deslop-arm.tar.gz | awk '{print $1}')
@@ -89,15 +105,50 @@ jobs:
           end
           EOF
 
-          # Replace Placeholders
           sed -i "s|VERSION_PLACEHOLDER|$VERSION|g" tap/Formula/deslop.rb
           sed -i "s|TAG_PLACEHOLDER|$TAG|g" tap/Formula/deslop.rb
           sed -i "s|SHA_ARM_PLACEHOLDER|$SHA_ARM|g" tap/Formula/deslop.rb
 
-          # Commit and Push
           cd tap
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add Formula/deslop.rb
           git commit -m "Update deslop formula to $TAG" || echo "No changes to commit"
           git push
+
+  publish-npm:
+    name: Publish to Public NPM
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: npm/bin
+          merge-multiple: true
+
+      - name: Make binaries executable
+        run: chmod +x npm/bin/*
+
+      - name: Prepare Package Version
+        run: |
+          TAG=${{ github.ref_name }}
+          VERSION=${TAG#v}
+
+          cd npm
+          npm version $VERSION --no-git-tag-version
+
+      - name: Publish to NPM
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd npm
+          npm publish --access public

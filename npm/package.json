@@ -1,0 +1,12 @@
+{
+  "name": "@ivy-apps/deslop",
+  "version": "0.4.0",
+  "description": "High-level TypeScript linter by Ivy Apps",
+  "bin": {
+    "deslop": "./wrapper.js"
+  },
+  "scripts": {},
+  "publishConfig": {
+    "access": "public"
+  }
+}
