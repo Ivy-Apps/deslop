@@ -106,18 +106,10 @@ doWork ::
 doWork params _ = do
     liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack params.projectPath
     unless params.checkMode (liftIO . putStrLn $ "Changelog:")
-
     deslopProject params
-
-    when params.checkMode handleCheckModeResult
-
-    unless params.checkMode (liftIO printDivider)
-    unless params.checkMode logSummary
-    unless params.checkMode (liftIO printDivider)
-
-    unless params.checkMode (doTranslations params)
+    bool fixResult checkModeResult params.checkMode
   where
-    handleCheckModeResult = do
+    checkModeResult = do
         ps <- getProblems
         if null ps
             then
@@ -125,6 +117,12 @@ doWork params _ = do
             else do
                 logProblems ps
                 throwError CheckModeFoundProblems
+
+    fixResult = do
+        liftIO printDivider
+        unless params.checkMode logSummary
+        liftIO printDivider
+        doTranslations params
 
 deslopProject ::
     ( WrFileSystem :> es
