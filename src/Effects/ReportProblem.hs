@@ -11,6 +11,7 @@ module Effects.ReportProblem (
 
 import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO, readTVarIO)
 import Data.Function ((&))
+import Data.List (sort)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful
@@ -21,13 +22,13 @@ data Location = Location
     { file :: FilePath
     , code :: Text
     }
-    deriving stock (Eq, Show)
+    deriving stock (Eq, Show, Ord)
 
 newtype RuleId = RuleId Text
-    deriving stock (Eq, Show)
+    deriving stock (Eq, Show, Ord)
 
 data Severity = Error
-    deriving stock (Eq, Show)
+    deriving stock (Eq, Show, Ord)
 
 data Problem = LintProblem
     { rule :: RuleId
@@ -36,7 +37,7 @@ data Problem = LintProblem
     , description :: Text
     , fix :: Text
     }
-    deriving stock (Eq, Show)
+    deriving stock (Eq, Show, Ord)
 
 instance Buildable Problem where
     build p =
@@ -67,5 +68,5 @@ runReportProblem action = do
         & interpret
             ( \_ -> \case
                 Report p -> liftIO . atomically $ modifyTVar' problemsVar (p :)
-                GetProblems -> liftIO . readTVarIO $ problemsVar
+                GetProblems -> liftIO (sort <$> readTVarIO problemsVar)
             )

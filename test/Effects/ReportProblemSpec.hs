@@ -56,10 +56,10 @@ spec = describe "ReportProblem" $ do
                 runEff
                     . runReportProblem
                     $ do
-                        report p1
                         report p2
+                        report p1
                         getProblems
-            problems `shouldMatchList` [p2, p1]
+            problems `shouldBe` [p1, p2]
 
         it "report does not affect the return value of the action" $ do
             let problem =
