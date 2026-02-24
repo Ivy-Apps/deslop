@@ -15,7 +15,7 @@ import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (TestLogs (..), copyDir, defaultParams, projectFixturePath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
-import Types
+import Types (DeslopError (CheckModeFoundProblems))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
@@ -74,12 +74,12 @@ spec = describe "Whole Project Golden Tests" $ do
                     $ doWork params testSecrets
 
             -- Then
-            res `shouldBe` Right ()
+            res `shouldBe` Left CheckModeFoundProblems
             written <- readIORef filesRef
             written `shouldBe` Nothing
             maybeLogs <- readIORef logsRef
             when (isNothing maybeLogs) $
-                expectationFailure "Expected problems logs but got none"
+                expectationFailure "Expected problems to be logged when check mode finds problems"
             let logs = fromJust maybeLogs
             -- Removes the tmp dir path from the log so the golden test is stable
             let problemsLogNormalized = T.unpack . T.replace (T.pack tmpDir) "" $ logs.problems

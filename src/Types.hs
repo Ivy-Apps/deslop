@@ -25,6 +25,7 @@ newtype Secrets = Secrets
 data DeslopError
     = TsConfigNotFoundError FilePath
     | TsConfigParseError FilePath
+    | CheckModeFoundProblems
     deriving (Show, Eq)
 
 data TranslationsError

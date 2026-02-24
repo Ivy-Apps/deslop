@@ -61,3 +61,5 @@ humanReadable (TsConfigNotFoundError path) =
     "tsconfig.json not found in '" <> T.pack path <> "'"
 humanReadable (TsConfigParseError path) =
     "Could not parse TS config, check: '" <> T.pack path <> "'"
+humanReadable CheckModeFoundProblems =
+    "Problems found. Run without --check to fix."
