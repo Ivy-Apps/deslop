@@ -1,5 +1,7 @@
 module UI (
     printErr,
+    withErrStyle,
+    printSuccess,
     printDivider,
     printTitle,
     printTime,
@@ -28,9 +30,18 @@ problemsLogText :: [Problem] -> Text
 problemsLogText = T.pack . pretty . ProblemsLog
 
 printErr :: Text -> IO ()
-printErr err = do
+printErr err = withErrStyle (TIO.putStrLn $ "❌ Error: " <> err)
+
+withErrStyle :: IO () -> IO ()
+withErrStyle action = do
     setSGR [SetColor Foreground Vivid Red]
-    TIO.putStrLn $ "❌ Error: " <> err
+    action
+    setSGR [Reset]
+
+printSuccess :: Text -> IO ()
+printSuccess msg = do
+    setSGR [SetColor Foreground Vivid Green]
+    TIO.putStrLn $ "✅ Success: " <> msg
     setSGR [Reset]
 
 printDivider :: IO ()
@@ -54,3 +65,5 @@ humanReadable (TsConfigNotFoundError path) =
     "tsconfig.json not found in '" <> T.pack path <> "'"
 humanReadable (TsConfigParseError path) =
     "Could not parse TS config, check: '" <> T.pack path <> "'"
+humanReadable CheckModeFoundProblems =
+    "Problems found. Run without deslop without --check to fix."

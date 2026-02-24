@@ -15,7 +15,7 @@ import Effects.ReportProblem (Problem)
 import Fmt (pretty)
 import System.Console.ANSI
 import System.IO (hFlush, stdout)
-import UI (ProblemsLog (..))
+import UI (ProblemsLog (..), withErrStyle)
 
 data CLILog :: Effect where
     LogModification :: FilePath -> CLILog m ()
@@ -56,6 +56,6 @@ runCLILog action = do
                         else
                             putStrLn "✨ The project is already clean!"
                     setSGR [Reset]
-                LogProblems ps -> liftIO $ do
+                LogProblems ps -> liftIO . withErrStyle $ do
                     putStrLn . pretty $ ProblemsLog ps
             )
