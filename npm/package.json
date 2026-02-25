@@ -1,11 +1,35 @@
 {
   "name": "@ivy-apps/deslop",
+  "version": "0.0.0",
   "description": "Deslop - remove slop from TypeScript projects.",
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ivy-Apps/deslop.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Ivy-Apps/deslop/issues"
+  },
+  "homepage": "https://github.com/Ivy-Apps/deslop#readme",
+  "keywords": [
+    "typescript",
+    "cli",
+    "code-quality",
+    "deslop"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "bin": {
     "deslop": "./wrapper.js"
   },
+  "files": [
+    "bin",
+    "wrapper.js"
+  ],
   "scripts": {},
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

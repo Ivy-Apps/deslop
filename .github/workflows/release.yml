@@ -1,4 +1,4 @@
-name: Release & NPM
+name: Release to NPM
 
 on:
   push:
@@ -31,12 +31,12 @@ jobs:
           mkdir -p dist
 
           BIN_PATH=$(cabal list-bin deslop)
-          
+
           cp "$BIN_PATH" dist/deslop-${{ matrix.target }}${{ matrix.ext }}
-          
-          # Strip symbols to save space (skip on Windows to avoid issues)
+
+          # Strip symbols to reduce binary size (macOS and Linux only)
           if [ "${{ runner.os }}" != "Windows" ]; then
-            strip dist/deslop-${{ matrix.target }}
+            strip dist/deslop-${{ matrix.target }}${{ matrix.ext }}
           fi
 
       - name: Upload Binary Artifact
@@ -51,7 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -60,6 +59,10 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          scope: '@ivy-apps'
+
+      - name: Install latest npm
+        run: npm install -g npm@latest
 
       - name: Download all binaries
         uses: actions/download-artifact@v4
@@ -77,10 +80,23 @@ jobs:
 
           cd npm
           npm version $VERSION --no-git-tag-version --allow-same-version
+          npm pkg fix
+
+      - name: Configure npm for publish
+        run: |
+          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" > npm/.npmrc
+          echo "@ivy-apps:registry=https://registry.npmjs.org/" >> npm/.npmrc
+
+      - name: Verify package contents
+        run: |
+          cd npm
+          npm pack --dry-run
 
       - name: Publish to NPM
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Use our .npmrc only (avoids setup-node's deprecated always-auth)
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/npm/.npmrc
         run: |
           cd npm
-          npm publish --access public --provenance
+          npm publish --access public
