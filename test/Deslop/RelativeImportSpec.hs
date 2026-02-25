@@ -26,7 +26,7 @@ spec = describe "importAliases" $ do
             runEff . runReader cfg . runReportProblem $
                 importAliases (mkTestProgram source target)
 
-    describe "Happy Path Resolutions" $ do
+    describe "Path Resolutions" $ do
         let cases =
                 [ ("src/features/home/home.ts", "../../lib/welcome", "@/lib/welcome")
                 , ("src/features/home/home.ts", "./useHomeViewModel", "@/features/home/useHomeViewModel")
