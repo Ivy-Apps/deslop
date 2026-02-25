@@ -31,12 +31,12 @@ jobs:
           mkdir -p dist
 
           BIN_PATH=$(cabal list-bin deslop)
-          
+
           cp "$BIN_PATH" dist/deslop-${{ matrix.target }}${{ matrix.ext }}
-          
-          # Strip symbols to save space (skip on Windows to avoid issues)
+
+          # Strip symbols to reduce binary size (macOS and Linux only)
           if [ "${{ runner.os }}" != "Windows" ]; then
-            strip dist/deslop-${{ matrix.target }}
+            strip dist/deslop-${{ matrix.target }}${{ matrix.ext }}
           fi
 
       - name: Upload Binary Artifact
@@ -60,6 +60,10 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          scope: '@ivy-apps'
+
+      - name: Install latest npm
+        run: npm install -g npm@latest
 
       - name: Download all binaries
         uses: actions/download-artifact@v4
@@ -77,6 +81,11 @@ jobs:
 
           cd npm
           npm version $VERSION --no-git-tag-version --allow-same-version
+
+      - name: Verify package contents
+        run: |
+          cd npm
+          npm pack --dry-run
 
       - name: Publish to NPM
         env:
