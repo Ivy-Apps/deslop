@@ -36,7 +36,7 @@ library
         Params
         UI
         Types
-        Deslop.Imports
+        Deslop.RelativeImports
         TypeScript.Tokens
         TypeScript.AST
         TypeScript.Parser
@@ -109,7 +109,7 @@ test-suite deslop-test
         TestUtils
         ParamsSpec
         DeslopSpec
-        Deslop.ImportSpec
+        Deslop.RelativeImportSpec
         Effects.ReportProblemSpec
         TypeScript.LexerSpec
         TypeScript.ParserSpec

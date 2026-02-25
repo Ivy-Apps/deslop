@@ -1,6 +1,5 @@
-module Deslop.Imports (
+module Deslop.RelativeImports (
     importAliases,
-    resolveTsImport,
 ) where
 
 import Control.Monad (when)
@@ -63,16 +62,19 @@ importAliases prog = do
         Just (_, x', y') -> (x', y')
         Nothing -> (x, y)
 
-    useAlias as fp = applyAlias <$> findAliasForPath as
+    useAlias as fp = applyAlias <$> findAliasForPath
       where
         applyAlias (ImportAlias a p) = T.replace p a fp
-        findAliasForPath = find (\a -> a.path `T.isInfixOf` fp)
+        findAliasForPath =
+            let fpDirs = splitDirs fp
+             in find (\a -> isPathInfixOfTarget fpDirs (splitDirs a.path)) as
+        splitDirs = splitDirectories . T.unpack
 
     absPath as = resolveTsImport prog.path . T.unpack . reverseAlias as
 
     reverseAlias as fp =
         maybe fp (removeAlias fp)
-            . find ((`T.isInfixOf` fp) . (.label))
+            . find (\a -> a.label `T.isInfixOf` fp)
             $ as
     removeAlias fp (ImportAlias l p) = T.replace l p fp
 
@@ -99,3 +101,16 @@ normalizeSegments = joinPath . reverse . foldl' step [] . splitDirectories
         | segment == "." = stack
         | segment == ".." = safePop stack
         | otherwise = segment : stack
+
+-- Checks @path is infix of @target segment wise
+isPathInfixOfTarget :: [FilePath] -> [FilePath] -> Bool
+isPathInfixOfTarget target path = go target path False
+  where
+    go _ [] found = found
+    go [] _ _ = False
+    go (t : ts) op@(p : ps) False
+        | t == p = go ts ps True
+        | otherwise = go ts op False
+    go (t : ts) (p : ps) True
+        | t == p = go ts ps True
+        | otherwise = False
