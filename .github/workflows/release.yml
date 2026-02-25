@@ -81,6 +81,12 @@ jobs:
 
           cd npm
           npm version $VERSION --no-git-tag-version --allow-same-version
+          npm pkg fix
+
+      - name: Configure npm for publish
+        run: |
+          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" > npm/.npmrc
+          echo "@ivy-apps:registry=https://registry.npmjs.org/" >> npm/.npmrc
 
       - name: Verify package contents
         run: |
