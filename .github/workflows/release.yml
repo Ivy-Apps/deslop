@@ -51,7 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -96,6 +95,8 @@ jobs:
       - name: Publish to NPM
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Use our .npmrc only (avoids setup-node's deprecated always-auth)
+          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/npm/.npmrc
         run: |
           cd npm
-          npm publish --access public --provenance
+          npm publish --access public
