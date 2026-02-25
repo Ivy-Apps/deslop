@@ -6,10 +6,10 @@ import Data.Text qualified as T
 import Deslop.Imports (importAliases)
 import Effectful (runEff)
 import Effectful.Reader.Static
+import Effects.ReportProblem (runReportProblem)
 import Test.Hspec
 import TypeScript.AST
 import TypeScript.Config
-import Effects.ReportProblem (runReportProblem)
 
 spec :: Spec
 spec = describe "importAliases" $ do
@@ -17,8 +17,8 @@ spec = describe "importAliases" $ do
     let cfg =
             TsConfig
                 { paths =
-                    [ ImportAlias "@test/" "tests/"
-                    , ImportAlias "@/" "src/"
+                    [ ImportAlias {label = "@test/", path = "tests/"}
+                    , ImportAlias {label = "@/", path = "src/"}
                     ]
                 }
 
