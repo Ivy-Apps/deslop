@@ -1,9 +1,9 @@
-module Deslop.ImportSpec (spec) where
+module Deslop.RelativeImportSpec (spec) where
 
 import Control.Monad (forM_)
 import Data.Text (Text)
 import Data.Text qualified as T
-import Deslop.Imports (importAliases)
+import Deslop.RelativeImports (importAliases)
 import Effectful (runEff)
 import Effectful.Reader.Static
 import Effects.ReportProblem (runReportProblem)

@@ -1,6 +1,5 @@
-module Deslop.Imports (
+module Deslop.RelativeImports (
     importAliases,
-    resolveTsImport,
 ) where
 
 import Control.Monad (when)

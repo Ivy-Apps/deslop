@@ -20,7 +20,7 @@ import Data.List (intersect)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
-import Deslop.Imports (importAliases)
+import Deslop.RelativeImports (importAliases)
 import Effectful (Eff, IOE, liftIO, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Error.Static
