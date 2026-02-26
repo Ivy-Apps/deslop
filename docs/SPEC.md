@@ -38,5 +38,6 @@ or creating a new type, or "as unknown"
 
 ## Competitors
 
+- [Prodlint](https://prodlint.com/)
 - [continue.dev](https://github.com/continuedev/continue)
 - [Roo code](https://roocode.com/pr-fixer)
