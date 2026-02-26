@@ -24,6 +24,8 @@ Circular dependencies [Dependency cruiser](https://github.com/sverweij/dependenc
 - [ ] **P3** Fix "as any" casts by finding an existing type that matches the signature,
 or creating a new type, or "as unknown"
 
+- [ ] **P3** Committing secrets in the repo (.env, API keys, etc)
+
 ## Principles
 
 1. Auto-fix what is fixable.
