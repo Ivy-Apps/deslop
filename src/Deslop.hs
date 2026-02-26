@@ -35,7 +35,7 @@ import Effects.FileSystem (
     listDirectory,
     readFileBS,
     runFileSystemIO,
-    writeFileBS,
+    writeFileBS, directoryExists,
  )
 import Effects.Git
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
@@ -223,16 +223,19 @@ translateProject ::
     Params ->
     Eff es ()
 translateProject params =
-    readTranslations translationsPath
-        >>= maybe handleReadError pipeline
+    directoryExists translationsDir
+        >>= bool
+            handleFileNotFound
+            (readTranslations translationsDir >>= maybe handleReadError pipeline)
   where
     pipeline ts = fixTranslations ts >>= either handleTranslateErorr writeTranslations
     writeTranslations = traverse_ writeTranslation . (.extra)
     writeTranslation (Translation l t) = writeFileBS (translationFile l) (TE.encodeUtf8 $ render t)
 
-    translationFile l = translationsPath </> (T.unpack l <> ".json")
-    translationsPath = params.projectPath </> "messages"
+    translationFile l = translationsDir </> (T.unpack l <> ".json")
+    translationsDir = params.projectPath </> "messages"
 
+    handleFileNotFound = throwError MessagesNotFound
     handleReadError = throwError ParseTranslationsError
     handleTranslateErorr = throwError . TranslateError
 

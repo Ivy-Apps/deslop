@@ -3,7 +3,7 @@ module Types (
     DeslopError (..),
     TranslationsError (..),
     InitError (..),
-    Renderable(..)
+    Renderable (..),
 ) where
 
 import Data.Aeson
@@ -11,10 +11,10 @@ import Data.Text (Text)
 import GHC.Generics (Generic)
 
 class Renderable a where
-  render :: a -> Text
+    render :: a -> Text
 
-instance Renderable a => Renderable [a] where
-  render = foldl' (\acc x -> acc <> render x) ""
+instance (Renderable a) => Renderable [a] where
+    render = foldl' (\acc x -> acc <> render x) ""
 
 newtype Secrets = Secrets
     { geminiApiKey :: Text
@@ -29,7 +29,8 @@ data DeslopError
     deriving (Show, Eq)
 
 data TranslationsError
-    = ParseTranslationsError
+    = MessagesNotFound
+    | ParseTranslationsError
     | TranslateError Text
     deriving (Show, Eq)
 

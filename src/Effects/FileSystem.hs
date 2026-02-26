@@ -2,6 +2,7 @@ module Effects.FileSystem (
     readFileBS,
     writeFileBS,
     fileExists,
+    directoryExists,
     listDirectory,
     isDirectory,
     RoFileSystem (..),
@@ -19,6 +20,7 @@ import System.Directory qualified as SD
 data RoFileSystem :: Effect where
     ReadFile :: FilePath -> RoFileSystem m ByteString
     FileExists :: FilePath -> RoFileSystem m Bool
+    DirectoryExists :: FilePath -> RoFileSystem m Bool
     ListDirectory :: FilePath -> RoFileSystem m [FilePath]
     IsDirectory :: FilePath -> RoFileSystem m Bool
 
@@ -33,6 +35,9 @@ readFileBS = send . ReadFile
 
 fileExists :: (RoFileSystem :> es) => FilePath -> Eff es Bool
 fileExists = send . FileExists
+
+directoryExists :: (RoFileSystem :> es) => FilePath -> Eff es Bool
+directoryExists = send . DirectoryExists
 
 listDirectory :: (RoFileSystem :> es) => FilePath -> Eff es [FilePath]
 listDirectory = send . ListDirectory
@@ -50,6 +55,7 @@ runRoFileSystemIO :: (IOE :> es) => Eff (RoFileSystem : es) a -> Eff es a
 runRoFileSystemIO = interpret $ \_env -> \case
     ReadFile path -> liftIO $ BS.readFile path
     FileExists path -> liftIO $ SD.doesFileExist path
+    DirectoryExists path -> liftIO $ SD.doesDirectoryExist path
     ListDirectory path -> liftIO $ SD.listDirectory path
     IsDirectory path -> liftIO $ SD.doesDirectoryExist path
 
