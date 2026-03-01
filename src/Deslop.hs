@@ -4,19 +4,15 @@ module Deslop (
     doWork,
     runDeslop,
     translateProject,
-    getSecrets,
 ) where
 
 import Control.Monad (unless, when, (>=>))
-import Data.Aeson
-import Data.Bifunctor
 import Data.Bool
 import Data.ByteString (ByteString)
-import Data.ByteString.Lazy qualified as BL
 import Data.Either
 import Data.Foldable
-import Data.Functor
 import Data.List (intersect)
+import Data.Maybe (isNothing)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
@@ -30,18 +26,19 @@ import Effects.CLILog
 import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
+    directoryExists,
     fileExists,
     isDirectory,
     listDirectory,
     readFileBS,
     runFileSystemIO,
-    writeFileBS, directoryExists,
+    writeFileBS,
  )
 import Effects.Git
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import Fmt (fmt, (+|), (|+))
 import Params
-import System.Directory (getHomeDirectory)
+import Secrets (Secrets (..), defaultSecrets, readSecrets)
 import System.Exit (exitFailure)
 import System.FilePath
 import Translations.Manager
@@ -52,16 +49,18 @@ import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types
 import UI
 
-getSecretsPath :: IO FilePath
-getSecretsPath = do
-    home <- getHomeDirectory
-    pure $ home </> ".deslop" </> "secrets.json"
-
 runDeslop :: Params -> IO ()
-runDeslop params =
-    getSecretsPath
-        >>= runEff . runFileSystemIO . getSecrets
-        >>= either handleInitError run
+runDeslop params = do
+    secretsRes <- runEff . runFileSystemIO $ readSecrets
+    case secretsRes of
+        Right secrets -> do
+            when
+                (isNothing secrets.geminiApiKey)
+                (printWarning "AI features disabled because Gemini API key is not provided in ~/.deslop/secrets.json")
+            run secrets
+        Left err -> do
+            printWarning $ "AI features disabled because - " <> show err
+            run defaultSecrets
   where
     run secrets = do
         start <- getCurrentTime
@@ -85,10 +84,6 @@ runDeslop params =
                 liftIO $ printErr (humanReadable err)
                 exitFailure
             Right _ -> printTime seconds
-
-    handleInitError err = do
-        printErr . T.pack . show $ err
-        exitFailure
 
 doWork ::
     ( WrFileSystem :> es
@@ -116,7 +111,7 @@ doWork params _ = do
             then
                 liftIO $ printSuccess "No problems found."
             else do
-                liftIO $ putStderrLn (fmt $ "Found " +| length ps |+ " problems:") 
+                liftIO $ putStderrLn (fmt $ "Found " +| length ps |+ " problems:")
                 liftIO printDividerStderr
                 logProblems ps
                 liftIO printDividerStderr
@@ -238,17 +233,6 @@ translateProject params =
     handleFileNotFound = throwError MessagesNotFound
     handleReadError = throwError ParseTranslationsError
     handleTranslateErorr = throwError . TranslateError
-
-getSecrets :: (RoFileSystem :> es) => FilePath -> Eff es (Either InitError Secrets)
-getSecrets sp =
-    fileExists sp
-        >>= bool (pure $ Left SecretsMissing) readSecrets
-  where
-    readSecrets =
-        readFileBS sp
-            <&> first (SecretsJsonError . T.pack)
-                . eitherDecode @Secrets
-                . BL.fromStrict
 
 tsConfig ::
     ( RoFileSystem :> es

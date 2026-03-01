@@ -2,6 +2,7 @@ module UI (
     putStderr,
     putStderrLn,
     printErr,
+    printWarning,
     printSuccess,
     printDivider,
     printDividerStderr,
@@ -41,6 +42,12 @@ putStderr s = do
 -- | Print a string to stderr in red, followed by a newline.
 putStderrLn :: String -> IO ()
 putStderrLn s = putStderr (s ++ "\n")
+
+printWarning :: String -> IO ()
+printWarning s = do
+    setSGR [SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
+    putStrLn $ "WARNING: " <> s
+    setSGR [Reset]
 
 newtype ProblemsLog = ProblemsLog [Problem]
 

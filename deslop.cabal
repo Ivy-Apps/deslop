@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               deslop
-version:            0.4.9
+version:            0.4.10
 license:            BSD-3-Clause
 license-file:       LICENSE
 author:             Ivy Apps LTD
@@ -34,6 +34,7 @@ library
     exposed-modules:  
         Deslop
         Params
+        Secrets
         UI
         Types
         Deslop.RelativeImports
@@ -108,7 +109,7 @@ test-suite deslop-test
     other-modules:
         TestUtils
         ParamsSpec
-        DeslopSpec
+        SecretsSpec
         Deslop.RelativeImportSpec
         Effects.ReportProblemSpec
         TypeScript.LexerSpec
