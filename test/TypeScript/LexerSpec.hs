@@ -2,8 +2,11 @@ module TypeScript.LexerSpec (spec) where
 
 import Data.Text (Text)
 import Data.Text qualified as T
+import Hedgehog (Gen, PropertyT, failure, footnote, forAll, (===))
+import qualified Hedgehog.Gen as HGen
+import qualified Hedgehog.Range as Range
 import Test.Hspec
-import Test.QuickCheck
+import Test.Hspec.Hedgehog (hedgehog)
 import Text.Megaparsec (errorBundlePretty, parse)
 
 import Control.Monad
@@ -14,8 +17,8 @@ import Utils (headOrThrow)
 spec :: Spec
 spec = do
     describe "TypeScript Lexer" $ do
-        it "reconstructs the original input exactly (Round Trip)" $ do
-            property prop_roundTrip
+        it "reconstructs the original input exactly (Round Trip)" $
+            hedgehog prop_roundTrip
 
     describe "Import Parser" $ do
         let runTest = parse lexer "test.ts"
@@ -166,26 +169,24 @@ spec = do
                         T.strip token.raw `shouldBe` T.strip expectedRaw
 
 -- | The core property: Reassembled tokens must match the original input exactly.
-prop_roundTrip :: TsInput -> Property
-prop_roundTrip (TsInput input) =
+prop_roundTrip :: PropertyT IO ()
+prop_roundTrip = do
+    input <- forAll genTsInput
     let result = parse lexer "test.ts" input
-     in case result of
-            Left err ->
-                counterexample ("Parse failed:\n" <> errorBundlePretty err) False
-            Right tokens ->
-                let reconstructed = T.concat ((.raw) <$> tokens)
-                 in counterexample
-                        ("Expected:\n" <> show input <> "\nBut got:\n" <> show reconstructed)
-                        (reconstructed == input)
+    case result of
+        Left err -> do
+            footnote (errorBundlePretty err)
+            failure
+        Right tokens -> do
+            let reconstructed = T.concat ((.raw) <$> tokens)
+            reconstructed === input
 
-newtype TsInput = TsInput Text deriving (Show, Eq)
-
-instance Arbitrary TsInput where
-    arbitrary = TsInput . T.concat <$> listOf genChunk
+genTsInput :: Gen Text
+genTsInput = T.concat <$> HGen.list (Range.linear 0 30) genChunk
 
 genChunk :: Gen Text
 genChunk =
-    frequency
+    HGen.frequency
         [ (5, genImport)
         , (2, genLineComment)
         , (2, genBlockComment)
@@ -204,9 +205,9 @@ genImport = do
 genImportBody :: Gen Text
 genImportBody = do
     content <-
-        listOf $
-            frequency
-                [ (5, elements ["foo", "bar", "Baz", ",", "\n"])
+        HGen.list (Range.linear 0 20) $
+            HGen.frequency
+                [ (5, HGen.element ["foo", "bar", "Baz", ",", "\n"])
                 , (1, pure "{")
                 , (1, pure "}")
                 , (1, genStringLiteral)
@@ -215,35 +216,35 @@ genImportBody = do
 
 genStringLiteral :: Gen Text
 genStringLiteral = do
-    quote <- elements ["\"", "'", "`"]
+    quote <- HGen.element ["\"", "'", "`"]
     content <-
-        listOf $
-            frequency
-                [ (10, elements ["a", "b", "c", " ", "{", "}", ";"])
+        HGen.list (Range.linear 0 10) $
+            HGen.frequency
+                [ (10, HGen.element ["a", "b", "c", " ", "{", "}", ";"])
                 , (1, pure ("\\" <> quote)) -- Escaped quote
                 ]
     pure $ quote <> T.concat content <> quote
 
 genLineComment :: Gen Text
 genLineComment = do
-    content <- T.pack <$> listOf contentChar
+    content <- T.pack <$> HGen.list (Range.linear 0 20) contentChar
     pure $ "// " <> content <> "\n"
 
 genBlockComment :: Gen Text
 genBlockComment = do
-    content <- T.pack <$> listOf contentChar
+    content <- T.pack <$> HGen.list (Range.linear 0 20) contentChar
     pure $ "/* " <> content <> " */"
 
 genDocs :: Gen Text
 genDocs = do
-    content <- T.pack <$> listOf contentChar
+    content <- T.pack <$> HGen.list (Range.linear 0 20) contentChar
     pure $ "/** " <> content <> " */"
 
 genWhitespace :: Gen Text
-genWhitespace = T.pack <$> listOf1 contentChar
+genWhitespace = T.pack <$> HGen.list (Range.linear 1 10) contentChar
 
 genRaw :: Gen Text
-genRaw = T.pack <$> listOf1 contentChar
+genRaw = T.pack <$> HGen.list (Range.linear 1 10) contentChar
 
 contentChar :: Gen Char
-contentChar = elements (['a' .. 'z'] <> ['0' .. '9'] <> ['=', '+', '-', '(', ')'])
+contentChar = HGen.element (['a' .. 'z'] <> ['0' .. '9'] <> ['=', '+', '-', '(', ')'])
