@@ -5,6 +5,7 @@ module Effects.FileSystem (
     directoryExists,
     listDirectory,
     isDirectory,
+    getHomeDirectory,
     RoFileSystem (..),
     WrFileSystem (..),
     runFileSystemIO,
@@ -23,6 +24,7 @@ data RoFileSystem :: Effect where
     DirectoryExists :: FilePath -> RoFileSystem m Bool
     ListDirectory :: FilePath -> RoFileSystem m [FilePath]
     IsDirectory :: FilePath -> RoFileSystem m Bool
+    GetHomeDirectory :: RoFileSystem m FilePath
 
 data WrFileSystem :: Effect where
     WriteFile :: FilePath -> ByteString -> WrFileSystem m ()
@@ -45,6 +47,9 @@ listDirectory = send . ListDirectory
 isDirectory :: (RoFileSystem :> es) => FilePath -> Eff es Bool
 isDirectory = send . IsDirectory
 
+getHomeDirectory :: (RoFileSystem :> es) => Eff es FilePath
+getHomeDirectory = send GetHomeDirectory
+
 writeFileBS :: (WrFileSystem :> es) => FilePath -> ByteString -> Eff es ()
 writeFileBS path content = send $ WriteFile path content
 
@@ -58,6 +63,7 @@ runRoFileSystemIO = interpret $ \_env -> \case
     DirectoryExists path -> liftIO $ SD.doesDirectoryExist path
     ListDirectory path -> liftIO $ SD.listDirectory path
     IsDirectory path -> liftIO $ SD.doesDirectoryExist path
+    GetHomeDirectory -> liftIO SD.getHomeDirectory
 
 runWrFileSystemIO :: (IOE :> es) => Eff (WrFileSystem : es) a -> Eff es a
 runWrFileSystemIO = interpret $ \_env -> \case

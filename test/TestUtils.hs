@@ -33,12 +33,13 @@ import Effects.CLILog
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..), runRoFileSystemIO)
 import Effects.Git
 import Params
+import Secrets (GeminiApiKey (..), Secrets (..))
 import System.Directory (copyFile, doesDirectoryExist, listDirectory)
 import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath (takeExtension, (</>))
 import Test.Hspec.Golden (Golden, defaultGolden)
 import Translations.Translator
-import Types (Renderable (render), Secrets (..))
+import Types (Renderable (render))
 import UI (problemsLogText)
 
 type ModifiedFiles = [FilePath]
@@ -137,5 +138,5 @@ renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
 testSecrets :: Secrets
 testSecrets =
     Secrets
-        { geminiApiKey = "testKey"
+        { geminiApiKey = Just $ GeminiApiKey "testKey"
         }

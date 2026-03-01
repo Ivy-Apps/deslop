@@ -17,10 +17,14 @@ import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import GHC.Generics (Generic)
 import Network.HTTP.Req
-import Types
+import Secrets (GeminiApiKey (..), Secrets (..))
 import Utils
 
-data AIError = IncorrectApiKey | GenericError Text deriving (Show, Eq)
+data AIError
+    = ApiKeyNotProvided
+    | IncorrectApiKey
+    | GenericError Text
+    deriving (Show, Eq)
 data LLMType = FastLLM deriving (Show, Eq)
 data AnyLLM where
     AnyLLM :: (LLM l) => l -> AnyLLM
@@ -36,18 +40,20 @@ prompt = (send .) . PromptLLM
 runAI :: (IOE :> es) => Secrets -> Eff (AI : es) a -> Eff es a
 runAI secrets = interpret $ \_ -> \case
     PromptLLM llmType p -> do
-        AnyLLM llm <- pure $ findLLM secrets llmType
-        liftIO $ execPrompt llm p
+        case secrets.geminiApiKey of
+            Just apiKey -> do
+                AnyLLM llm <- pure $ findLLM apiKey llmType
+                liftIO $ execPrompt llm p
+            Nothing -> pure . Left $ ApiKeyNotProvided
 
-findLLM :: Secrets -> LLMType -> AnyLLM
-findLLM secrets FastLLM =
-    AnyLLM $ Gemini (GeminiApiKey secrets.geminiApiKey) Flash2_5
+findLLM :: GeminiApiKey -> LLMType -> AnyLLM
+findLLM apiKey FastLLM =
+    AnyLLM $ Gemini apiKey Flash2_5
 
 class LLM l where
     execPrompt :: l -> Text -> IO (Either AIError Text)
 
 data GeminiModel = Flash2_5
-newtype GeminiApiKey = GeminiApiKey Text
 data Gemini = Gemini
     { apiKey :: GeminiApiKey
     , model :: GeminiModel
