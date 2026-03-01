@@ -116,10 +116,10 @@ doWork params _ = do
             then
                 liftIO $ printSuccess "No problems found."
             else do
-                liftIO . putStrLn . fmt $ "Found " +| length ps |+ " problems:"
-                liftIO printDivider
+                liftIO $ putStderrLn (fmt $ "Found " +| length ps |+ " problems:") 
+                liftIO printDividerStderr
                 logProblems ps
-                liftIO printDivider
+                liftIO printDividerStderr
                 throwError CheckModeFoundProblems
 
     fixResult = do
