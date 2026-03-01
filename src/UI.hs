@@ -1,4 +1,5 @@
 module UI (
+    putStderr,
     printErr,
     printSuccess,
     printDivider,
@@ -17,8 +18,24 @@ import Data.Text.IO qualified as TIO
 import Effects.ReportProblem (Problem (..))
 import Fmt
 import System.Console.ANSI
-import System.IO (hPutStrLn, stderr)
+import System.IO (hPutStr, stderr)
 import Types
+
+-- | ANSI SGR: red foreground
+redCode :: String
+redCode = "\x1b[31m"
+
+-- | ANSI SGR: reset
+resetCode :: String
+resetCode = "\x1b[0m"
+
+-- | Print a string to stderr in red. Single function for all stderr error output.
+-- Include a trailing newline in the string if you want a line break.
+putStderr :: String -> IO ()
+putStderr s = do
+    hPutStr stderr redCode
+    hPutStr stderr s
+    hPutStr stderr resetCode
 
 newtype ProblemsLog = ProblemsLog [Problem]
 
@@ -31,7 +48,7 @@ problemsLogText :: [Problem] -> Text
 problemsLogText = T.pack . pretty . ProblemsLog
 
 printErr :: Text -> IO ()
-printErr err = TIO.hPutStrLn stderr $ "❌ Error: " <> err
+printErr err = putStderr $ T.unpack ("❌ Error: " <> err) ++ "\n"
 
 printSuccess :: Text -> IO ()
 printSuccess msg = do
@@ -42,9 +59,9 @@ printSuccess msg = do
 printDivider :: IO ()
 printDivider = putStrLn "─────────────────────────────────────────"
 
--- | Print divider to stderr (for problem/diagnostic output).
+-- | Print divider to stderr in red (for problem/diagnostic output).
 printDividerStderr :: IO ()
-printDividerStderr = hPutStrLn stderr "─────────────────────────────────────────"
+printDividerStderr = putStderr "─────────────────────────────────────────\n"
 
 printTitle :: Text -> IO ()
 printTitle t = do
