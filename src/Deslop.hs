@@ -12,6 +12,7 @@ import Data.ByteString (ByteString)
 import Data.Either
 import Data.Foldable
 import Data.List (intersect)
+import Data.Maybe (isNothing)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
@@ -52,7 +53,11 @@ runDeslop :: Params -> IO ()
 runDeslop params = do
     secretsRes <- runEff . runFileSystemIO $ readSecrets
     case secretsRes of
-        Right secrets -> run secrets
+        Right secrets -> do
+            when
+                (isNothing secrets.geminiApiKey)
+                (printWarning "AI features disabled because Gemini API key is not provided in ~/.deslop/secrets.json")
+            run secrets
         Left err -> do
             printWarning $ "AI features disabled because - " <> show err
             run defaultSecrets
