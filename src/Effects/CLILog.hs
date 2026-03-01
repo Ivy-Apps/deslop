@@ -14,8 +14,8 @@ import Effectful.Dispatch.Dynamic
 import Effects.ReportProblem (Problem)
 import Fmt (pretty)
 import System.Console.ANSI
-import System.IO (hFlush, stdout)
-import UI (ProblemsLog (..), withErrStyle)
+import System.IO (hFlush, hPutStrLn, stdout, stderr)
+import UI (ProblemsLog (..))
 
 data CLILog :: Effect where
     LogModification :: FilePath -> CLILog m ()
@@ -56,6 +56,5 @@ runCLILog action = do
                         else
                             putStrLn "✨ The project is already clean!"
                     setSGR [Reset]
-                LogProblems ps -> liftIO . withErrStyle $ do
-                    putStrLn . pretty $ ProblemsLog ps
+                LogProblems ps -> liftIO $ hPutStrLn stderr . pretty $ ProblemsLog ps
             )

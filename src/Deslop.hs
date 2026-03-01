@@ -44,6 +44,7 @@ import Params
 import System.Directory (getHomeDirectory)
 import System.Exit (exitFailure)
 import System.FilePath
+import System.IO (hPutStrLn, stderr)
 import Translations.Manager
 import Translations.Parser
 import TypeScript.AST
@@ -116,10 +117,11 @@ doWork params _ = do
             then
                 liftIO $ printSuccess "No problems found."
             else do
-                liftIO . putStrLn . fmt $ "Found " +| length ps |+ " problems:"
-                liftIO printDivider
+                liftIO $ do
+                    hPutStrLn stderr . fmt $ "Found " +| length ps |+ " problems:"
+                    printDividerStderr
                 logProblems ps
-                liftIO printDivider
+                liftIO printDividerStderr
                 throwError CheckModeFoundProblems
 
     fixResult = do

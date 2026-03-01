@@ -1,8 +1,8 @@
 module UI (
     printErr,
-    withErrStyle,
     printSuccess,
     printDivider,
+    printDividerStderr,
     printTitle,
     printTime,
     humanReadable,
@@ -17,6 +17,7 @@ import Data.Text.IO qualified as TIO
 import Effects.ReportProblem (Problem (..))
 import Fmt
 import System.Console.ANSI
+import System.IO (hPutStrLn, stderr)
 import Types
 
 newtype ProblemsLog = ProblemsLog [Problem]
@@ -30,13 +31,7 @@ problemsLogText :: [Problem] -> Text
 problemsLogText = T.pack . pretty . ProblemsLog
 
 printErr :: Text -> IO ()
-printErr err = withErrStyle (TIO.putStrLn $ "❌ Error: " <> err)
-
-withErrStyle :: IO () -> IO ()
-withErrStyle action = do
-    setSGR [SetColor Foreground Vivid Red]
-    action
-    setSGR [Reset]
+printErr err = TIO.hPutStrLn stderr $ "❌ Error: " <> err
 
 printSuccess :: Text -> IO ()
 printSuccess msg = do
@@ -46,6 +41,10 @@ printSuccess msg = do
 
 printDivider :: IO ()
 printDivider = putStrLn "─────────────────────────────────────────"
+
+-- | Print divider to stderr (for problem/diagnostic output).
+printDividerStderr :: IO ()
+printDividerStderr = hPutStrLn stderr "─────────────────────────────────────────"
 
 printTitle :: Text -> IO ()
 printTitle t = do
