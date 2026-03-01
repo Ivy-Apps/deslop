@@ -116,7 +116,7 @@ doWork params _ = do
             then
                 liftIO $ printSuccess "No problems found."
             else do
-                liftIO $ putStderr (fmt "Found " +| length ps |+ " problems:\n") 
+                liftIO $ putStderrLn (fmt $ "Found " +| length ps |+ " problems:") 
                 liftIO printDividerStderr
                 logProblems ps
                 liftIO printDividerStderr

@@ -1,5 +1,6 @@
 module UI (
     putStderr,
+    putStderrLn,
     printErr,
     printSuccess,
     printDivider,
@@ -37,6 +38,10 @@ putStderr s = do
     hPutStr stderr s
     hPutStr stderr resetCode
 
+-- | Print a string to stderr in red, followed by a newline.
+putStderrLn :: String -> IO ()
+putStderrLn s = putStderr (s ++ "\n")
+
 newtype ProblemsLog = ProblemsLog [Problem]
 
 instance Buildable ProblemsLog where
@@ -48,7 +53,7 @@ problemsLogText :: [Problem] -> Text
 problemsLogText = T.pack . pretty . ProblemsLog
 
 printErr :: Text -> IO ()
-printErr err = putStderr $ T.unpack ("❌ Error: " <> err) ++ "\n"
+printErr err = putStderrLn $ T.unpack ("❌ Error: " <> err)
 
 printSuccess :: Text -> IO ()
 printSuccess msg = do
@@ -61,7 +66,7 @@ printDivider = putStrLn "──────────────────�
 
 -- | Print divider to stderr in red (for problem/diagnostic output).
 printDividerStderr :: IO ()
-printDividerStderr = putStderr "─────────────────────────────────────────\n"
+printDividerStderr = putStderrLn "─────────────────────────────────────────"
 
 printTitle :: Text -> IO ()
 printTitle t = do
