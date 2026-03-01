@@ -44,7 +44,10 @@ putStderrLn :: String -> IO ()
 putStderrLn s = putStderr (s ++ "\n")
 
 printWarning :: String -> IO ()
-printWarning s = putStrLn $ "WARNING: " <> s 
+printWarning s = do
+    setSGR [SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
+    putStrLn $ "WARNING: " <> s
+    setSGR [Reset]
 
 newtype ProblemsLog = ProblemsLog [Problem]
 
