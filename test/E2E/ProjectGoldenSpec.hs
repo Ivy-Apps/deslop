@@ -49,6 +49,7 @@ spec = describe "Whole Project Golden Tests" $ do
                     , "src/features/login/login.spec.ts"
                     , "src/features/login/login-form.ts"
                     , "tests/fixtures/fixtures.ts"
+                    , "vitest.config.ts"
                     ]
             fullSnapshot <- snapshot tmpDir filesToVerify
             return $ defaultGolden "ts-project-1-snapshot" fullSnapshot
