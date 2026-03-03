@@ -14,7 +14,7 @@ import TypeScript.CST (TsNode (..), TsProgram (..))
 import TypeScript.Config
 
 spec :: Spec
-spec = describe "parseAst" $
+spec = describe "parseAst" $ do
     it "simple happy path" $ do
         let prog =
                 TsModule
@@ -33,5 +33,32 @@ spec = describe "parseAst" $
                 { id = ModuleId "@/lib/demo"
                 , nodes =
                     [ ImportNode {target = ModuleId "@/types/errors"}
+                    ]
+                }
+
+    it "import alias not available" $ do
+        let prog =
+                TsModule
+                    { path = "src/main.ts"
+                    , cst =
+                        [ Import
+                            { prefix = "import { useEffect } from '"
+                            , target = "react"
+                            , suffix = "';\n"
+                            }
+                        , Import
+                            { prefix = "import type { Error } from '"
+                            , target = "src/types/errors"
+                            , suffix = "';"
+                            }
+                        ]
+                    }
+        ast <- runEff . runReader @TsConfig (TsConfig []) $ parseAst prog
+        ast
+            `shouldBe` AstModule
+                { id = ModuleId "src/main"
+                , nodes =
+                    [ ImportNode {target = ModuleId "react"}
+                    , ImportNode {target = ModuleId "src/types/errors"}
                     ]
                 }
