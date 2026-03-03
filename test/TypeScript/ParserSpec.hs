@@ -57,7 +57,7 @@ spec = do
                 case parseTs file of
                     Left err -> expectationFailure err
                     Right program -> do
-                        let importsOnly = filter isImport program.ast
+                        let importsOnly = filter isImport program.cst
                         importsOnly `shouldBe` [expected]
 
 isImport :: TsNode -> Bool

@@ -78,7 +78,7 @@ spec = do
             case res of
                 Left e -> fail e
                 Right p -> do
-                    render p.ast `shouldBe` source
+                    render p.cst `shouldBe` source
                     return $ defaultGolden (testName <> "-parser") (ppShow p)
 
         it ("Deslop " <> testName) $ do

@@ -1,6 +1,6 @@
 TsModule
   { path = "test/fixtures/typescript/01-line-comments.ts"
-  , ast =
+  , cst =
       [ Import
           { prefix = "import '"
           , target = "../../tests/viewmodel-test"

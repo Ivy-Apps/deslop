@@ -187,7 +187,7 @@ removeSlop p c = fromRight c <$> pipeline
         traverse (fmap renderProgram . deslop) . parseTs $
             TsFile {path = p, content = TE.decodeUtf8 c}
     deslop = foldr (>=>) pure [importAliases]
-    renderProgram = TE.encodeUtf8 . render . (.ast)
+    renderProgram = TE.encodeUtf8 . render . (.cst)
 
 doTranslations ::
     ( WrFileSystem :> es

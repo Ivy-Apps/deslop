@@ -55,6 +55,6 @@ mkTestProgram filePath importTarget =
         ]
 
 firstTarget :: TsProgram -> Text
-firstTarget p = case p.ast of
+firstTarget p = case p.cst of
     (Import _ t _ : _) -> t
     _ -> error "The program has no imports!"

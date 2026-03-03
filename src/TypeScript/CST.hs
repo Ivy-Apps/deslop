@@ -8,7 +8,7 @@ import Types (Renderable (..))
 
 data TsProgram = TsModule
     { path :: FilePath
-    , ast :: [TsNode]
+    , cst :: [TsNode]
     }
     deriving (Show, Eq)
 

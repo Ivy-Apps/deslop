@@ -17,7 +17,7 @@ import System.FilePath (
  )
 import TypeScript.CST (
     TsNode (Import, target),
-    TsProgram (ast, path),
+    TsProgram (cst, path),
  )
 import TypeScript.Config (
     ImportAlias (ImportAlias, label, path),
@@ -38,8 +38,8 @@ noRelativeImports (old, new) path =
 
 importAliases :: (Reader TsConfig :> es, ReportProblem :> es) => TsProgram -> Eff es TsProgram
 importAliases prog = do
-    ast' <- traverse fixImport prog.ast
-    pure prog {ast = ast'}
+    cst' <- traverse fixImport prog.cst
+    pure prog {cst = cst'}
   where
     fixImport old@(Import _ t _) = do
         t' <- fixTarget t
