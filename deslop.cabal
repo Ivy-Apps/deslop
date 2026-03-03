@@ -112,6 +112,7 @@ test-suite deslop-test
         ParamsSpec
         SecretsSpec
         Deslop.RelativeImportSpec
+        Deslop.ASTSpec
         Effects.ReportProblemSpec
         TypeScript.LexerSpec
         TypeScript.ParserSpec

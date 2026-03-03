@@ -5,8 +5,15 @@ module Deslop.AST (
     parseAst,
 ) where
 
+import Data.Maybe (mapMaybe)
 import Data.Text (Text)
-import TypeScript.CST (TsProgram)
+import Data.Text qualified as T
+import Deslop.RelativeImports (fixTarget)
+import Effectful
+import Effectful.Reader.Static (Reader)
+import System.FilePath (dropExtension)
+import TypeScript.CST (TsNode (..), TsProgram (cst, path))
+import TypeScript.Config (TsConfig)
 
 newtype ModuleId = ModuleId Text deriving stock (Show, Eq)
 newtype AstNode = ImportNode
@@ -19,5 +26,22 @@ data AstModule = AstModule
     }
     deriving stock (Show, Eq)
 
-parseAst :: TsProgram -> AstModule
-parseAst = undefined
+parseAst :: (Reader TsConfig :> es) => TsProgram -> Eff es AstModule
+parseAst prog = do
+    moduleId <- programModuleId
+    pure
+        AstModule
+            { id = moduleId
+            , nodes = mapMaybe parseNode prog.cst
+            }
+  where
+    programModuleId =
+        ModuleId . T.pack . dropExtension . T.unpack
+            <$> fixTarget prog.path (T.pack prog.path)
+    parseNode :: TsNode -> Maybe AstNode
+    parseNode (Import _ t _) =
+        Just $
+            ImportNode
+                { target = ModuleId t
+                }
+    parseNode _ = Nothing
