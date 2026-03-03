@@ -1,0 +1,47 @@
+module TypeScript.ConfigSpec (spec) where
+
+import Data.ByteString qualified as BS
+import Data.Text.Encoding (encodeUtf8)
+import System.FilePath ((</>))
+import Test.Hspec
+import TestUtils (fixturesBasePath)
+import TypeScript.Config (ImportAlias (..), TsConfig (..), parseTsConfig)
+
+tsConfigFixturesPath :: FilePath
+tsConfigFixturesPath = fixturesBasePath </> "typescript"
+
+spec :: Spec
+spec = describe "parseTsConfig" $ do
+    it "returns Nothing for invalid JSON" $ do
+        content <- BS.readFile (tsConfigFixturesPath </> "tsconfig-invalid.json")
+        parseTsConfig content `shouldBe` Nothing
+
+    it "returns Nothing when compilerOptions.paths is missing" $ do
+        let content = encodeUtf8 "{\"compilerOptions\": {}}"
+        parseTsConfig content `shouldBe` Nothing
+
+    it "parses simple tsconfig with one path alias" $ do
+        content <- BS.readFile (tsConfigFixturesPath </> "tsconfig-simple.json")
+        parseTsConfig content
+            `shouldBe` Just
+                ( TsConfig
+                    { paths =
+                        [ ImportAlias {label = "@/", path = "src/"}
+                        ]
+                }
+                )
+
+    it "parses complex tsconfig with multiple path aliases sorted by longest label first" $ do
+        content <- BS.readFile (tsConfigFixturesPath </> "tsconfig-complex.json")
+        parseTsConfig content
+            `shouldBe` Just
+                ( TsConfig
+                    { paths =
+                        [ ImportAlias {label = "@components/", path = "src/components/"}
+                        , ImportAlias {label = "@assets/", path = "src/assets/"}
+                        , ImportAlias {label = "@hooks/", path = "src/hooks/"}
+                        , ImportAlias {label = "@utils/", path = "src/utils/"}
+                        , ImportAlias {label = "@/", path = "src/"}
+                        ]
+                }
+                )

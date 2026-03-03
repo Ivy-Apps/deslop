@@ -115,6 +115,7 @@ test-suite deslop-test
         Deslop.ASTSpec
         Effects.ReportProblemSpec
         TypeScript.LexerSpec
+        TypeScript.ConfigSpec
         TypeScript.ParserSpec
         TypeScript.RenderableSpec
         Translations.TranslatorSpec
