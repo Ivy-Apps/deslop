@@ -9,7 +9,6 @@ module Deslop (
 import Control.Monad (unless, when, (>=>))
 import Data.Bool
 import Data.ByteString (ByteString)
-import Data.Either
 import Data.Foldable
 import Data.List (intersect)
 import Data.Maybe (isNothing)
@@ -170,24 +169,25 @@ deslopFile ::
     Eff es ()
 deslopFile src = do
     c <- readFileBS src
-    c' <- removeSlop src c
+    cstRes <- removeSlop src c
+    let c' = either (const c) renderProgram cstRes
     checkMode <- asks @Params (.checkMode)
     when (c /= c' && not checkMode) $ do
         writeFileBS src c'
         logModification src
+  where
+    renderProgram = TE.encodeUtf8 . render . (.cst)
 
 removeSlop ::
     (Reader TsConfig :> es, ReportProblem :> es) =>
     FilePath ->
     ByteString ->
-    Eff es ByteString
-removeSlop p c = fromRight c <$> pipeline
+    Eff es (Either String TsProgram)
+removeSlop p c =
+    traverse deslop . parseTs $
+        TsFile {path = p, content = TE.decodeUtf8 c}
   where
-    pipeline =
-        traverse (fmap renderProgram . deslop) . parseTs $
-            TsFile {path = p, content = TE.decodeUtf8 c}
     deslop = foldr (>=>) pure [importAliases]
-    renderProgram = TE.encodeUtf8 . render . (.cst)
 
 doTranslations ::
     ( WrFileSystem :> es
