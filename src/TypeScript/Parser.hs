@@ -8,7 +8,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void
 import Text.Megaparsec
-import TypeScript.AST
+import TypeScript.CST
 import TypeScript.Lexer
 import TypeScript.Tokens
 
@@ -23,10 +23,10 @@ data TsFile = TsFile
 parseTs :: TsFile -> Either String TsProgram
 parseTs f =
     first errorBundlePretty $
-        TsModule f.path . buildAST <$> runParser lexer f.path f.content
+        TsModule f.path . buildCST <$> runParser lexer f.path f.content
 
-buildAST :: [TsToken] -> [TsNode]
-buildAST = fmap node
+buildCST :: [TsToken] -> [TsNode]
+buildCST = fmap node
   where
     node :: TsToken -> TsNode
     node (TsToken r RawK) = Source r

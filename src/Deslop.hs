@@ -43,7 +43,7 @@ import System.Exit (exitFailure)
 import System.FilePath
 import Translations.Manager
 import Translations.Parser
-import TypeScript.AST
+import TypeScript.CST
 import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types

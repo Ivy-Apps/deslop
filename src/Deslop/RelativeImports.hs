@@ -15,7 +15,7 @@ import System.FilePath (
     takeDirectory,
     (</>),
  )
-import TypeScript.AST (
+import TypeScript.CST (
     TsNode (Import, target),
     TsProgram (ast, path),
  )

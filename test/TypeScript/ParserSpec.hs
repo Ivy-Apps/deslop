@@ -3,7 +3,7 @@ module TypeScript.ParserSpec (spec) where
 import Control.Monad
 import Data.Text qualified as T
 import Test.Hspec
-import TypeScript.AST
+import TypeScript.CST
 import TypeScript.Parser
 
 spec :: Spec

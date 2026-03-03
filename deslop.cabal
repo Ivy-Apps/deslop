@@ -39,7 +39,7 @@ library
         Types
         Deslop.RelativeImports
         TypeScript.Tokens
-        TypeScript.AST
+        TypeScript.CST
         TypeScript.Parser
         TypeScript.Lexer
         TypeScript.Config

@@ -16,7 +16,7 @@ import TestUtils (defaultParams, listFixtures, runCLILogTest, runFileSystemTest)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
-import TypeScript.AST
+import TypeScript.CST
 import TypeScript.Config (ImportAlias (ImportAlias), TsConfig (..), parseTsConfig)
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser

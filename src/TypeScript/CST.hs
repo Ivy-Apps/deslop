@@ -1,4 +1,4 @@
-module TypeScript.AST (
+module TypeScript.CST (
     TsProgram (..),
     TsNode (..),
 ) where

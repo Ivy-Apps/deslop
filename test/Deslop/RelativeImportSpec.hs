@@ -8,7 +8,7 @@ import Effectful (runEff)
 import Effectful.Reader.Static
 import Effects.ReportProblem (runReportProblem)
 import Test.Hspec
-import TypeScript.AST
+import TypeScript.CST
 import TypeScript.Config
 
 spec :: Spec
