@@ -176,7 +176,7 @@ deslopFile src = do
     when (c /= c' && not checkMode) $ do
         writeFileBS src c'
         logModification src
-    either (pure . Left) (fmap Right . parseAst) cstRes
+    traverse parseAst cstRes
   where
     renderProgram = TE.encodeUtf8 . render . (.cst)
 
