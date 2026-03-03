@@ -13,6 +13,7 @@ module TestUtils (
     renderGolden,
     TestLogs (..),
     testSecrets,
+    defaultTsConfig,
 ) where
 
 import Control.Monad (forM, forM_)
@@ -39,6 +40,7 @@ import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath (takeExtension, (</>))
 import Test.Hspec.Golden (Golden, defaultGolden)
 import Translations.Translator
+import TypeScript.Config (ImportAlias (..), TsConfig (..))
 import Types (Renderable (render))
 import UI (problemsLogText)
 
@@ -70,12 +72,12 @@ runCLILogTest ref = interpret $ \_ -> \case
     LogSummary -> pure ()
     LogProblems ps ->
         liftIO $ writeIORef ref (Just . TestLogs . problemsLogText $ ps)
+    LogError _ -> pure ()
 
 defaultParams :: FilePath -> Params
 defaultParams projPath =
     Params
         { projectPath = projPath
-        , modifiedOnly = False
         , checkMode = False
         }
 
@@ -139,4 +141,13 @@ testSecrets :: Secrets
 testSecrets =
     Secrets
         { geminiApiKey = Just $ GeminiApiKey "testKey"
+        }
+
+defaultTsConfig :: TsConfig
+defaultTsConfig =
+    TsConfig
+        { paths =
+            [ ImportAlias {label = "@/", path = "src/"}
+            , ImportAlias {label = "@test/", path = "test/"}
+            ]
         }

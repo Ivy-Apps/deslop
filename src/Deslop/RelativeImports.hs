@@ -1,5 +1,6 @@
 module Deslop.RelativeImports (
     importAliases,
+    fixTarget,
 ) where
 
 import Control.Monad (when)
@@ -15,9 +16,9 @@ import System.FilePath (
     takeDirectory,
     (</>),
  )
-import TypeScript.AST (
+import TypeScript.CST (
     TsNode (Import, target),
-    TsProgram (ast, path),
+    TsProgram (cst, path),
  )
 import TypeScript.Config (
     ImportAlias (ImportAlias, label, path),
@@ -38,11 +39,11 @@ noRelativeImports (old, new) path =
 
 importAliases :: (Reader TsConfig :> es, ReportProblem :> es) => TsProgram -> Eff es TsProgram
 importAliases prog = do
-    ast' <- traverse fixImport prog.ast
-    pure prog {ast = ast'}
+    cst' <- traverse fixImport prog.cst
+    pure prog {cst = cst'}
   where
     fixImport old@(Import _ t _) = do
-        t' <- fixTarget t
+        t' <- fixTarget prog.path t
         let new = old {target = t'}
         when
             (t /= t')
@@ -50,13 +51,14 @@ importAliases prog = do
         pure new
     fixImport x = pure x
 
-    fixTarget t = do
-        as <- asks @TsConfig (.paths)
-        let absT = T.pack . absPath as $ t
-        case useAlias as absT of
-            Just absT' -> pure . fst $ dropCommonPre (absT', absT)
-            Nothing -> pure t
-
+fixTarget :: (Reader TsConfig :> es) => FilePath -> Text -> Eff es Text
+fixTarget progPath t = do
+    as <- asks @TsConfig (.paths)
+    let absT = T.pack . absPath as $ t
+    case useAlias as absT of
+        Just absT' -> pure . fst $ dropCommonPre (absT', absT)
+        Nothing -> pure t
+  where
     dropCommonPre :: (Text, Text) -> (Text, Text)
     dropCommonPre (x, y) = case T.commonPrefixes x y of
         Just (_, x', y') -> (x', y')
@@ -70,7 +72,7 @@ importAliases prog = do
              in find (\a -> isPathInfixOfTarget fpDirs (splitDirs a.path)) as
         splitDirs = splitDirectories . T.unpack
 
-    absPath as = resolveTsImport prog.path . T.unpack . reverseAlias as
+    absPath as = resolveTsImport progPath . T.unpack . reverseAlias as
 
     reverseAlias as fp =
         maybe fp (removeAlias fp)

@@ -2,7 +2,7 @@ module TypeScript.RenderableSpec (spec) where
 
 import Test.Hspec
 import TestUtils (renderGolden)
-import TypeScript.AST
+import TypeScript.CST
 
 spec :: Spec
 spec = do

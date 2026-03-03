@@ -1,6 +1,6 @@
 TsModule
   { path = "test/fixtures/typescript/commented-imports.ts"
-  , ast =
+  , cst =
       [ Import
           { prefix = "import { useSate } from '"
           , target = "@react/hooks"

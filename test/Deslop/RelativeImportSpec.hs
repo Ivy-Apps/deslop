@@ -8,7 +8,7 @@ import Effectful (runEff)
 import Effectful.Reader.Static
 import Effects.ReportProblem (runReportProblem)
 import Test.Hspec
-import TypeScript.AST
+import TypeScript.CST
 import TypeScript.Config
 
 spec :: Spec
@@ -55,6 +55,6 @@ mkTestProgram filePath importTarget =
         ]
 
 firstTarget :: TsProgram -> Text
-firstTarget p = case p.ast of
+firstTarget p = case p.cst of
     (Import _ t _ : _) -> t
     _ -> error "The program has no imports!"

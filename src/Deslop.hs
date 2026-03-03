@@ -9,16 +9,17 @@ module Deslop (
 import Control.Monad (unless, when, (>=>))
 import Data.Bool
 import Data.ByteString (ByteString)
-import Data.Either
+import Data.Either (partitionEithers)
 import Data.Foldable
-import Data.List (intersect)
 import Data.Maybe (isNothing)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
+import Deslop.AST (AstModule, parseAst)
 import Deslop.RelativeImports (importAliases)
 import Effectful (Eff, IOE, liftIO, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
+import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, asks, runReader)
 import Effects.AI
@@ -43,7 +44,7 @@ import System.Exit (exitFailure)
 import System.FilePath
 import Translations.Manager
 import Translations.Parser
-import TypeScript.AST
+import TypeScript.CST
 import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types
@@ -130,6 +131,7 @@ deslopProject ::
     , Error DeslopError :> es
     , CLILog :> es
     , ReportProblem :> es
+    , Concurrent :> es
     ) =>
     Params ->
     Eff es ()
@@ -137,14 +139,12 @@ deslopProject params = do
     let projPath = params.projectPath
     cfg <- tsConfig projPath
     files <- getTsFiles projPath
-    runReader @TsConfig cfg
-        . runReader @Params params
-        $ if params.modifiedOnly
-            then do
-                mFiles <- map normalise <$> modifiedFiles
-                forM_ (mFiles `intersect` (normalise <$> files)) deslopFile
-            else
-                forM_ files deslopFile
+    (errors, _asts) <-
+        fmap partitionEithers
+            . runReader @TsConfig cfg
+            . runReader @Params params
+            $ pooledMapConcurrentlyN 32 deslopFile files
+    traverse_ logError errors
 
 getTsFiles :: (RoFileSystem :> es) => FilePath -> Eff es [FilePath]
 getTsFiles dir = listDirectory dir >>= fmap concat . traverse (processEntry dir)
@@ -167,27 +167,29 @@ deslopFile ::
     , ReportProblem :> es
     ) =>
     FilePath ->
-    Eff es ()
+    Eff es (Either String AstModule)
 deslopFile src = do
     c <- readFileBS src
-    c' <- removeSlop src c
+    cstRes <- removeSlop src c
+    let c' = either (const c) renderProgram cstRes
     checkMode <- asks @Params (.checkMode)
     when (c /= c' && not checkMode) $ do
         writeFileBS src c'
         logModification src
+    traverse parseAst cstRes
+  where
+    renderProgram = TE.encodeUtf8 . render . (.cst)
 
 removeSlop ::
     (Reader TsConfig :> es, ReportProblem :> es) =>
     FilePath ->
     ByteString ->
-    Eff es ByteString
-removeSlop p c = fromRight c <$> pipeline
+    Eff es (Either String TsProgram)
+removeSlop p c =
+    traverse deslop . parseTs $
+        TsFile {path = p, content = TE.decodeUtf8 c}
   where
-    pipeline =
-        traverse (fmap renderProgram . deslop) . parseTs $
-            TsFile {path = p, content = TE.decodeUtf8 c}
     deslop = foldr (>=>) pure [importAliases]
-    renderProgram = TE.encodeUtf8 . render . (.ast)
 
 doTranslations ::
     ( WrFileSystem :> es

@@ -12,7 +12,6 @@ import Paths_deslop (version)
 
 data Params = Params
     { projectPath :: FilePath
-    , modifiedOnly :: Bool
     , checkMode :: Bool
     }
     deriving (Show, Eq)
@@ -25,11 +24,6 @@ pParams =
                 <> help "Path to the TypeScript project"
                 <> value "."
                 <> showDefault
-            )
-        <*> switch
-            ( long "modified"
-                <> short 'm'
-                <> help "Inspect only modified files in your branch (i.e. the git diff with main)"
             )
         <*> switch
           ( long "check"

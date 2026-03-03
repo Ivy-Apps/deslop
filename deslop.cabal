@@ -38,8 +38,9 @@ library
         UI
         Types
         Deslop.RelativeImports
+        Deslop.AST
         TypeScript.Tokens
-        TypeScript.AST
+        TypeScript.CST
         TypeScript.Parser
         TypeScript.Lexer
         TypeScript.Config
@@ -111,8 +112,10 @@ test-suite deslop-test
         ParamsSpec
         SecretsSpec
         Deslop.RelativeImportSpec
+        Deslop.ASTSpec
         Effects.ReportProblemSpec
         TypeScript.LexerSpec
+        TypeScript.ConfigSpec
         TypeScript.ParserSpec
         TypeScript.RenderableSpec
         Translations.TranslatorSpec

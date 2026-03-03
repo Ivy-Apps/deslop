@@ -11,7 +11,6 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
 import Params
-import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (TestLogs (..), copyDir, defaultParams, projectFixturePath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
@@ -34,6 +33,7 @@ spec = describe "Whole Project Golden Tests" $ do
                     . runCLILogTest logsRef
                     . runGitTest []
                     . runReportProblem
+                    . runConcurrent
                     $ deslopProject (defaultParams tmpDir)
 
             -- Then
@@ -85,36 +85,3 @@ spec = describe "Whole Project Golden Tests" $ do
             -- Removes the tmp dir path from the log so the golden test is stable
             let problemsLogNormalized = T.unpack . T.replace (T.pack tmpDir) "" $ logs.problems
             return $ defaultGolden "ts-project-1-problem-logs" problemsLogNormalized
-
-    it "transforms only modified files" $ do
-        withSystemTempDirectory "deslop-test" $ \tmpDir -> do
-            -- Given
-            copyDir projectFixturePath tmpDir
-            logsRef <- newIORef Nothing
-            let params = (defaultParams tmpDir) {modifiedOnly = True}
-
-            -- When
-            _ <-
-                runEff
-                    . runFileSystemIO
-                    . runErrorNoCallStack @DeslopError
-                    . runCLILogTest logsRef
-                    . runGitTest
-                        [ tmpDir </> "." </> "src/app/[locale]/login/page.tsx"
-                        , tmpDir </> "src/features/home/home-screen.tsx"
-                        ]
-                    . runReportProblem
-                    $ deslopProject params
-
-            -- Then
-            logs <- readIORef logsRef
-            logs `shouldBe` Nothing
-            let filesToVerify =
-                    [ "src/app/[locale]/login/page.tsx"
-                    , "src/features/home/home-screen.tsx"
-                    , "src/features/home/home-component.ts"
-                    , "src/features/home/home.spec.ts"
-                    , "tests/fixtures/fixtures.ts"
-                    ]
-            fullSnapshot <- snapshot tmpDir filesToVerify
-            return $ defaultGolden "ts-project-1-git-modified" fullSnapshot
