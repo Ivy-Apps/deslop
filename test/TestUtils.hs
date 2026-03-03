@@ -77,7 +77,6 @@ defaultParams :: FilePath -> Params
 defaultParams projPath =
     Params
         { projectPath = projPath
-        , modifiedOnly = False
         , checkMode = False
         }
 

@@ -11,7 +11,6 @@ spec = describe "parseParams" $ do
             `shouldBe` Just
                 ( Params
                     { projectPath = "."
-                    , modifiedOnly = False
                     , checkMode = False
                     }
                 )
@@ -21,7 +20,6 @@ spec = describe "parseParams" $ do
             `shouldBe` Just
                 ( Params
                     { projectPath = "/some/ts/project"
-                    , modifiedOnly = False
                     , checkMode = False
                     }
                 )
@@ -29,7 +27,6 @@ spec = describe "parseParams" $ do
             `shouldBe` Just
                 ( Params
                     { projectPath = "."
-                    , modifiedOnly = False
                     , checkMode = False
                     }
                 )
@@ -37,41 +34,6 @@ spec = describe "parseParams" $ do
             `shouldBe` Just
                 ( Params
                     { projectPath = "src"
-                    , modifiedOnly = False
-                    , checkMode = False
-                    }
-                )
-
-    it "parses --modified / -m and sets modifiedOnly to True" $ do
-        parseParams ["--modified"]
-            `shouldBe` Just
-                ( Params
-                    { projectPath = "."
-                    , modifiedOnly = True
-                    , checkMode = False
-                    }
-                )
-        parseParams ["-m"]
-            `shouldBe` Just
-                ( Params
-                    { projectPath = "."
-                    , modifiedOnly = True
-                    , checkMode = False
-                    }
-                )
-        parseParams ["/path", "--modified"]
-            `shouldBe` Just
-                ( Params
-                    { projectPath = "/path"
-                    , modifiedOnly = True
-                    , checkMode = False
-                    }
-                )
-        parseParams ["--modified", "other/dir"]
-            `shouldBe` Just
-                ( Params
-                    { projectPath = "other/dir"
-                    , modifiedOnly = True
                     , checkMode = False
                     }
                 )
@@ -81,7 +43,6 @@ spec = describe "parseParams" $ do
             `shouldBe` Just
                 ( Params
                     { projectPath = "."
-                    , modifiedOnly = False
                     , checkMode = True
                     }
                 )
@@ -89,7 +50,6 @@ spec = describe "parseParams" $ do
             `shouldBe` Just
                 ( Params
                     { projectPath = "."
-                    , modifiedOnly = False
                     , checkMode = True
                     }
                 )
@@ -97,33 +57,6 @@ spec = describe "parseParams" $ do
             `shouldBe` Just
                 ( Params
                     { projectPath = "/path"
-                    , modifiedOnly = False
-                    , checkMode = True
-                    }
-                )
-
-    it "parses combination of path, --modified and --check" $ do
-        parseParams ["my-project", "--modified", "--check"]
-            `shouldBe` Just
-                ( Params
-                    { projectPath = "my-project"
-                    , modifiedOnly = True
-                    , checkMode = True
-                    }
-                )
-        parseParams ["my-project", "-m", "-c"]
-            `shouldBe` Just
-                ( Params
-                    { projectPath = "my-project"
-                    , modifiedOnly = True
-                    , checkMode = True
-                    }
-                )
-        parseParams ["--modified", "--check", "lib"]
-            `shouldBe` Just
-                ( Params
-                    { projectPath = "lib"
-                    , modifiedOnly = True
                     , checkMode = True
                     }
                 )

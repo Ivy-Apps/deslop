@@ -10,7 +10,6 @@ import Control.Monad (unless, when, (>=>))
 import Data.Bool
 import Data.ByteString (ByteString)
 import Data.Foldable
-import Data.List (intersect)
 import Data.Maybe (isNothing)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
@@ -139,12 +138,7 @@ deslopProject params = do
     files <- getTsFiles projPath
     runReader @TsConfig cfg
         . runReader @Params params
-        $ if params.modifiedOnly
-            then do
-                mFiles <- map normalise <$> modifiedFiles
-                forM_ (mFiles `intersect` (normalise <$> files)) deslopFile
-            else
-                forM_ files deslopFile
+        $ forM_ files deslopFile
 
 getTsFiles :: (RoFileSystem :> es) => FilePath -> Eff es [FilePath]
 getTsFiles dir = listDirectory dir >>= fmap concat . traverse (processEntry dir)
