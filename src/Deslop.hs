@@ -15,6 +15,7 @@ import Data.Maybe (isNothing)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
+import Deslop.AST (AstModule, parseAst)
 import Deslop.RelativeImports (importAliases)
 import Effectful (Eff, IOE, liftIO, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
@@ -166,7 +167,7 @@ deslopFile ::
     , ReportProblem :> es
     ) =>
     FilePath ->
-    Eff es ()
+    Eff es (Either String AstModule)
 deslopFile src = do
     c <- readFileBS src
     cstRes <- removeSlop src c
@@ -175,6 +176,7 @@ deslopFile src = do
     when (c /= c' && not checkMode) $ do
         writeFileBS src c'
         logModification src
+    either (pure . Left) (fmap Right . parseAst) cstRes
   where
     renderProgram = TE.encodeUtf8 . render . (.cst)
 

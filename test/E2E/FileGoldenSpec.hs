@@ -95,7 +95,7 @@ spec = do
                         }
 
             -- When
-            runEff
+            _ <- runEff
                 . runFileSystemTest fileWriteRef
                 . runReader tsCfg
                 . runReader (defaultParams ".")
