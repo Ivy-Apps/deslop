@@ -72,6 +72,7 @@ runCLILogTest ref = interpret $ \_ -> \case
     LogSummary -> pure ()
     LogProblems ps ->
         liftIO $ writeIORef ref (Just . TestLogs . problemsLogText $ ps)
+    LogError _ -> pure ()
 
 defaultParams :: FilePath -> Params
 defaultParams projPath =

@@ -3,24 +3,27 @@ module Effects.CLILog (
     logModification,
     logSummary,
     logProblems,
+    logError,
     runCLILog,
 ) where
 
 import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Data.Function ((&))
+import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.ReportProblem (Problem)
 import Fmt (pretty)
 import System.Console.ANSI
 import System.IO (hFlush, stdout)
-import UI (ProblemsLog (..), putStderrLn)
+import UI (ProblemsLog (..), printErr, putStderrLn)
 
 data CLILog :: Effect where
     LogModification :: FilePath -> CLILog m ()
     LogSummary :: CLILog m ()
     LogProblems :: [Problem] -> CLILog m ()
+    LogError :: String -> CLILog m ()
 
 type instance DispatchOf CLILog = 'Dynamic
 
@@ -32,6 +35,9 @@ logSummary = send LogSummary
 
 logProblems :: (CLILog :> es) => [Problem] -> Eff es ()
 logProblems = send . LogProblems
+
+logError :: (CLILog :> es) => String -> Eff es ()
+logError = send . LogError
 
 runCLILog :: (IOE :> es) => Eff (CLILog : es) a -> Eff es a
 runCLILog action = do
@@ -57,4 +63,5 @@ runCLILog action = do
                             putStrLn "✨ The project is already clean!"
                     setSGR [Reset]
                 LogProblems ps -> liftIO . putStderrLn . pretty . ProblemsLog $ ps
+                LogError e -> liftIO . printErr . T.pack $ e
             )

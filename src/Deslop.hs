@@ -9,6 +9,7 @@ module Deslop (
 import Control.Monad (unless, when, (>=>))
 import Data.Bool
 import Data.ByteString (ByteString)
+import Data.Either (partitionEithers)
 import Data.Foldable
 import Data.Maybe (isNothing)
 import Data.Text qualified as T
@@ -18,6 +19,7 @@ import Deslop.AST (AstModule, parseAst)
 import Deslop.RelativeImports (importAliases)
 import Effectful (Eff, IOE, liftIO, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
+import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, asks, runReader)
 import Effects.AI
@@ -129,6 +131,7 @@ deslopProject ::
     , Error DeslopError :> es
     , CLILog :> es
     , ReportProblem :> es
+    , Concurrent :> es
     ) =>
     Params ->
     Eff es ()
@@ -136,9 +139,12 @@ deslopProject params = do
     let projPath = params.projectPath
     cfg <- tsConfig projPath
     files <- getTsFiles projPath
-    runReader @TsConfig cfg
-        . runReader @Params params
-        $ forM_ files deslopFile
+    (errors, _asts) <-
+        fmap partitionEithers
+            . runReader @TsConfig cfg
+            . runReader @Params params
+            $ pooledMapConcurrentlyN 32 deslopFile files
+    traverse_ logError errors
 
 getTsFiles :: (RoFileSystem :> es) => FilePath -> Eff es [FilePath]
 getTsFiles dir = listDirectory dir >>= fmap concat . traverse (processEntry dir)

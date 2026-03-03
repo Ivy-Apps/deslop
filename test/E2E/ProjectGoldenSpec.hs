@@ -33,6 +33,7 @@ spec = describe "Whole Project Golden Tests" $ do
                     . runCLILogTest logsRef
                     . runGitTest []
                     . runReportProblem
+                    . runConcurrent
                     $ deslopProject (defaultParams tmpDir)
 
             -- Then
