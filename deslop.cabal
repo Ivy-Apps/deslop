@@ -38,6 +38,7 @@ library
         UI
         Types
         Deslop.RelativeImports
+        Deslop.AST
         TypeScript.Tokens
         TypeScript.CST
         TypeScript.Parser
