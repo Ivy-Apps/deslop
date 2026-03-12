@@ -4,12 +4,17 @@ module Deslop.RuleBook (
     RuleId (..),
     RelativeModuleId (..),
     ForbiddenDto (..),
+    parseRuleBookYaml,
 ) where
 
-import Data.Aeson (FromJSON)
+import Control.Applicative ((<|>))
+import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
 import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
 import GHC.Generics (Generic)
+import Data.ByteString.Char8
+import Data.Yaml (decodeEither')
+import Data.Bifunctor (Bifunctor(first))
 
 data RuleBookDto = RuleBookDto
     { name :: Text
@@ -36,11 +41,17 @@ data ForbiddenDto = ForbiddenImportDto
     , transitive :: Maybe Bool
     }
     deriving stock (Show, Eq, Generic)
-    deriving anyclass (FromJSON)
+
+instance FromJSON ForbiddenDto where
+    parseJSON = withObject "ForbiddenDto" $ \v ->
+        ForbiddenImportDto
+            <$> (v .: "import" <|> v .: "target")
+            <*> v .:? "transitive"
 
 newtype RelativeModuleId = RelativeModuleId Text
     deriving stock (Show, Eq)
     deriving newtype (FromJSON)
 
 
--- parseRuleBookYaml :: ByteString -> Either 
+parseRuleBookYaml :: ByteString -> Either String RuleBookDto
+parseRuleBookYaml = first show .  decodeEither'
