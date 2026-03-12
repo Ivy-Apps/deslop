@@ -39,6 +39,7 @@ library
         Types
         Deslop.RelativeImports
         Deslop.AST
+        Deslop.RuleBook
         TypeScript.Tokens
         TypeScript.CST
         TypeScript.Parser
@@ -79,7 +80,8 @@ library
         process,
         req,
         fmt,
-        optparse-applicative
+        optparse-applicative,
+        yaml
 
     hs-source-dirs:   src
 
@@ -113,6 +115,7 @@ test-suite deslop-test
         SecretsSpec
         Deslop.RelativeImportSpec
         Deslop.ASTSpec
+        Deslop.RuleBookSpec
         Effects.ReportProblemSpec
         TypeScript.LexerSpec
         TypeScript.ConfigSpec
@@ -143,4 +146,5 @@ test-suite deslop-test
         containers,
         aeson,
         aeson-pretty,
-        optparse-applicative
+        optparse-applicative,
+        yaml
