@@ -7,7 +7,6 @@ module Deslop.RuleBook (
     parseRuleBookYaml,
 ) where
 
-import Control.Applicative ((<|>))
 import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
 import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
@@ -45,7 +44,7 @@ data ForbiddenDto = ForbiddenImportDto
 instance FromJSON ForbiddenDto where
     parseJSON = withObject "ForbiddenDto" $ \v ->
         ForbiddenImportDto
-            <$> (v .: "import" <|> v .: "target")
+            <$> v .: "import"
             <*> v .:? "transitive"
 
 newtype RelativeModuleId = RelativeModuleId Text
