@@ -81,7 +81,9 @@ library
         req,
         fmt,
         optparse-applicative,
-        yaml
+        yaml,
+        Glob,
+        lens
 
     hs-source-dirs:   src
 
@@ -116,6 +118,7 @@ test-suite deslop-test
         Deslop.RelativeImportSpec
         Deslop.ASTSpec
         Deslop.RuleBookSpec
+        Deslop.RuleBookFixtures
         Effects.ReportProblemSpec
         TypeScript.LexerSpec
         TypeScript.ConfigSpec
@@ -147,4 +150,6 @@ test-suite deslop-test
         aeson,
         aeson-pretty,
         optparse-applicative,
-        yaml
+        yaml,
+        Glob,
+        lens

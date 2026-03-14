@@ -1,94 +1,137 @@
+{- HLINT ignore "Monoid law, left identity" -}
+{- HLINT ignore "Monoid law, right identity" -}
 module Deslop.RuleBookSpec (spec) where
 
-import Data.ByteString.Char8 qualified as B8
-import Data.Either (isLeft)
+import Control.Lens ((&), (.~), (?~))
 import Data.List.NonEmpty (NonEmpty ((:|)))
-import Data.Text qualified as T
-import Deslop.RuleBook (
-    ForbiddenDto (..),
-    RelativeModuleId (..),
-    RuleBookDto (..),
-    RuleDto (..),
-    RuleId (..),
-    parseRuleBookYaml,
- )
+import Data.Text.Encoding qualified as TE
+import Data.Text.IO qualified as TIO
+import Deslop.RuleBook
+import Deslop.RuleBookFixtures qualified as Fix
+import System.FilePath (takeBaseName, (</>))
+import System.FilePath.Glob qualified as Glob
 import Test.Hspec
+import Test.Hspec.Golden (defaultGolden)
+import TestUtils (listFixtures)
+import Text.Show.Pretty (ppShow)
+import Utils (headOrThrow)
+
+rbFixturesPath :: FilePath
+rbFixturesPath = "test/fixtures/rulebook"
 
 spec :: Spec
 spec = do
-    describe "parseRuleBookYaml" $ do
-        it "parses a forbidden import rule without a description" $ do
-            let yaml =
-                    B8.pack
-                        "name: Demo Rulebook\n\
-                        \rules:\n\
-                        \  - id: no-ui\n\
-                        \    target:\n\
-                        \      - \"@/client/core/**/*\"\n\
-                        \    forbidden:\n\
-                        \      - import: react\n\
-                        \      - import: \"@/client/components/**/*\"\n\
-                        \        transitive: false\n"
-            let expected =
-                    RuleBookDto
-                        { name = "Demo Rulebook"
-                        , rules =
-                            [ RuleDto
-                                { id = RuleId "no-ui"
-                                , description = Nothing
-                                , target = RelativeModuleId "@/client/core/**/*" :| []
-                                , forbidden =
-                                    [ ForbiddenImportDto
-                                        { target = RelativeModuleId "react"
-                                        , transitive = Nothing
-                                        }
-                                    , ForbiddenImportDto
-                                        { target = RelativeModuleId "@/client/components/**/*"
-                                        , transitive = Just False
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-            parseRuleBookYaml yaml `shouldBe` Right expected
+    describe "parseRuleBookYaml" $
+        runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ parseRuleBookTest
 
-        it "parses a forbidden transitive import rule" $ do
-            let yaml =
-                    B8.pack
-                        "name: Demo Rulebook\n\
-                        \rules:\n\
-                        \  # P0\n\
-                        \  - id: no-react-in-core\n\
-                        \    description: \"The core must not have React dependencies\"\n\
-                        \    target:\n\
-                        \      - \"@/client/core/**/*\"\n\
-                        \      - \"@/server/**/*\"\n\
-                        \      - \"@/shared/**/*\"\n\
-                        \    forbidden:\n\
-                        \      - import: react\n\
-                        \        transitive: true\n"
-            let expected =
-                    RuleBookDto
-                        { name = T.pack "Demo Rulebook"
-                        , rules =
-                            [ RuleDto
-                                { id = RuleId "no-react-in-core"
-                                , description = Just "The core must not have React dependencies"
-                                , target =
-                                    RelativeModuleId (T.pack "@/client/core/**/*")
-                                        :| [ RelativeModuleId (T.pack "@/server/**/*")
-                                           , RelativeModuleId (T.pack "@/shared/**/*")
-                                           ]
-                                , forbidden =
-                                    [ ForbiddenImportDto
-                                        { target = RelativeModuleId "react"
-                                        , transitive = Just True
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-            parseRuleBookYaml yaml `shouldBe` Right expected
+    describe "ruleBookFromDto" $ do
+        it "preserves name" $ do
+            let dto = Fix.defaultRuleBookDto & Fix.nameL .~ "MyBook"
+            let rb = ruleBookFromDto dto
+            rb.name `shouldBe` "MyBook"
 
-        it "fails on invalid YAML" $ do
-            parseRuleBookYaml (B8.pack "invalid: [[[") `shouldSatisfy` isLeft
+        it "keeps rules that have a forbidden section" $ do
+            let dto =
+                    Fix.defaultRuleBookDto
+                        & Fix.rulesL
+                            .~ [ Fix.defaultRuleDto
+                                    & Fix.forbiddenL
+                                        ?~ [Fix.forbiddenImportDto "react" (Just False)]
+                               ]
+            length (ruleBookFromDto dto).rules `shouldBe` 1
+
+        it "drop invalid rules" $ do
+            let dto =
+                    Fix.defaultRuleBookDto
+                        & Fix.nameL .~ "Empty"
+                        & Fix.rulesL .~ [Fix.defaultRuleDto & Fix.forbiddenL .~ Nothing]
+            length (ruleBookFromDto dto).rules `shouldBe` 0
+
+        it "compiles target globs" $ do
+            let dto = Fix.defaultRuleBookDto
+            let rule = headOrThrow (ruleBookFromDto dto).rules
+            rule.target `shouldBe` (Glob.compile "*.ts" :| [])
+
+        describe "Forbidden import" $ do
+            it "defaults transitive to False when not specified" $ do
+                let dto = Fix.defaultRuleBookDto
+                let rule = headOrThrow (ruleBookFromDto dto).rules
+                let forb = headOrThrow rule.forbidden
+                forb.transitive `shouldBe` False
+
+            it "preserves transitive False when specified" $ do
+                let dto =
+                        Fix.defaultRuleBookDto
+                            & Fix.rulesL
+                                .~ [ Fix.defaultRuleDto
+                                        & Fix.forbiddenL
+                                            ?~ [Fix.forbiddenImportDto "lib" (Just False)]
+                                   ]
+                let rule = headOrThrow (ruleBookFromDto dto).rules
+                let forb = headOrThrow rule.forbidden
+                forb.transitive `shouldBe` False
+
+            it "preserves transitive True when specified" $ do
+                let dto =
+                        Fix.defaultRuleBookDto
+                            & Fix.rulesL
+                                .~ [ Fix.defaultRuleDto
+                                        & Fix.forbiddenL
+                                            ?~ [Fix.forbiddenImportDto "lib" (Just True)]
+                                   ]
+                let rule = headOrThrow (ruleBookFromDto dto).rules
+                let forb = headOrThrow rule.forbidden
+                forb.transitive `shouldBe` True
+
+    describe "RuleBook Monoid" $ do
+        it "left identity" $ do
+            let x = ruleBookFromDto Fix.defaultRuleBookDto
+            let res = mempty <> x
+            res `shouldBe` x
+            res.name `shouldBe` "Test"
+
+        it "right identity" $ do
+            let x = ruleBookFromDto Fix.defaultRuleBookDto
+            let res = mempty <> x
+            res `shouldBe` x
+            res.name `shouldBe` "Test"
+
+        it "associativity" $ do
+            let a = ruleBookFromDto (Fix.defaultRuleBookDto & Fix.nameL .~ "A")
+            let b = ruleBookFromDto (Fix.defaultRuleBookDto & Fix.nameL .~ "B")
+            let c = ruleBookFromDto (Fix.defaultRuleBookDto & Fix.nameL .~ "C")
+            ((a <> b) <> c) `shouldBe` (a <> (b <> c))
+
+        it "(<>) combines rulebooks" $ do
+            -- Given
+            let ruleOne = Fix.defaultRuleDto & idL .~ RuleId "rule-one"
+            let ruleTwo = Fix.defaultRuleDto & idL .~ RuleId "rule-two"
+            let rb1 =
+                    ruleBookFromDto
+                        ( Fix.defaultRuleBookDto
+                            & Fix.nameL .~ "Second"
+                            & Fix.rulesL .~ [ruleOne]
+                        )
+            let rb2 =
+                    ruleBookFromDto
+                        ( Fix.defaultRuleBookDto
+                            & Fix.nameL .~ "First"
+                            & Fix.rulesL .~ [ruleTwo]
+                        )
+
+            -- When
+            let combined = rb1 <> rb2
+
+            -- Then
+            combined.name `shouldBe` "First <> Second"
+            length combined.rules `shouldBe` 2
+            (headOrThrow combined.rules).id `shouldBe` RuleId "rule-one"
+            (combined.rules !! 1).id `shouldBe` RuleId "rule-two"
+  where
+    parseRuleBookTest :: FilePath -> Spec
+    parseRuleBookTest fpath = do
+        let testName = takeBaseName fpath
+        it ("case:" <> testName) $ do
+            ruleBookYaml <- TE.encodeUtf8 <$> TIO.readFile (rbFixturesPath </> fpath)
+            let ruleBookRes = parseRuleBookYaml ruleBookYaml
+            return $ defaultGolden testName (ppShow ruleBookRes)

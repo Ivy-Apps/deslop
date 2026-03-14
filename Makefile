@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := help
 
 check: ## Run HLint then tests (use from nix develop); fails on lint or test errors
-	hlint . && cabal test all
+	hlint . && cabal test all && cabal build
 
 sandbox: ## Generate a testing '/sandbox' project dir
 	@rm -rf sandbox

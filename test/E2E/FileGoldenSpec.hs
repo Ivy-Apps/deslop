@@ -3,7 +3,7 @@ module E2E.FileGoldenSpec (spec) where
 import Data.IORef (newIORef, readIORef)
 import Data.Text qualified as T
 import Data.Text.Encoding (decodeUtf8)
-import Data.Text.Encoding qualified as T
+import Data.Text.Encoding qualified as TE
 import Data.Text.IO qualified as TIO
 import Deslop (deslopFile)
 import Effectful (runEff)
@@ -40,7 +40,7 @@ spec = do
 
         it ("case: " <> testName) $ do
             -- Given
-            cfgFile <- T.encodeUtf8 <$> TIO.readFile (tsFixturesPath </> fname)
+            cfgFile <- TE.encodeUtf8 <$> TIO.readFile (tsFixturesPath </> fname)
 
             -- When
             let cfg = parseTsConfig cfgFile
