@@ -90,7 +90,7 @@ data RuleBook = RuleBook
 instance Semigroup RuleBook where
     rb1 <> rb2 =
         RuleBook
-            { name = T.intercalate " <>" . sort . filter (not . T.null) $ [rb1.name, rb2.name]
+            { name = T.intercalate " <> " . sort . filter (not . T.null) $ [rb1.name, rb2.name]
             , rules = rb1.rules <> rb2.rules
             }
 

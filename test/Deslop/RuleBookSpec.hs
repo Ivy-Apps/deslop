@@ -1,4 +1,5 @@
 {- HLINT ignore "Monoid law, left identity" -}
+{- HLINT ignore "Monoid law, right identity" -}
 module Deslop.RuleBookSpec (spec) where
 
 import Control.Lens ((&), (.~), (?~))
@@ -84,12 +85,31 @@ spec = do
 
     describe "RuleBook Monoid" $ do
         it "left identity" $ do
-            let x =
-                    RuleBook
-                        { name = "x"
-                        , rules = []
-                        }
-            (mempty <> x) `shouldBe` x
+            let x =  ruleBookFromDto Fix.defaultRuleBookDto
+            let res = mempty <> x
+            res `shouldBe` x
+            res.name `shouldBe` "Test"
+
+        it "right identity" $ do
+            let x =  ruleBookFromDto Fix.defaultRuleBookDto
+            let res = mempty <> x
+            res `shouldBe` x
+            res.name `shouldBe` "Test"
+
+        it "associativity" $ do
+            let a = ruleBookFromDto (Fix.defaultRuleBookDto & Fix.nameL .~ "A")
+            let b = ruleBookFromDto (Fix.defaultRuleBookDto & Fix.nameL .~ "B")
+            let c = ruleBookFromDto (Fix.defaultRuleBookDto & Fix.nameL .~ "C")
+            ((a <> b) <> c) `shouldBe` (a <> (b <> c))
+
+        it "(<>) combines rulebooks" $ do
+            let rb1 = ruleBookFromDto (Fix.defaultRuleBookDto & Fix.nameL .~ "Second")
+            let rb2 = ruleBookFromDto (Fix.defaultRuleBookDto & Fix.nameL .~ "First")
+            let combined = rb1 <> rb2
+            combined.name `shouldBe` "First <> Second"
+            length combined.rules `shouldBe` 2
+            (headOrThrow combined.rules).id `shouldBe` (headOrThrow rb1.rules).id
+            (combined.rules !! 1).id `shouldBe` (headOrThrow rb2.rules).id
   where
     parseRuleBookTest :: FilePath -> Spec
     parseRuleBookTest fpath = do
