@@ -13,10 +13,12 @@ module Deslop.RuleBook (
 
 import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
 import Data.Bifunctor (Bifunctor (first))
-import Data.ByteString.Char8
+import Data.ByteString.Char8 (ByteString)
+import Data.List (sort)
 import Data.List.NonEmpty (NonEmpty)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Yaml (decodeEither')
 import GHC.Generics (Generic)
 import qualified System.FilePath.Glob as Glob
@@ -63,6 +65,20 @@ data RuleBook = RuleBook
     , rules :: [Rule]
     }
     deriving stock (Show, Eq)
+
+instance Semigroup RuleBook where
+    rb1 <> rb2 =
+        RuleBook
+            { name = T.intercalate " <>" . sort . filter (not . T.null) $ [rb1.name, rb2.name]
+            , rules = rb1.rules <> rb2.rules
+            }
+
+instance Monoid RuleBook where
+    mempty =
+        RuleBook
+            { name = ""
+            , rules = []
+            }
 
 data Rule = ForbiddenRule
     { id :: RuleId

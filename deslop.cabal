@@ -117,6 +117,7 @@ test-suite deslop-test
         Deslop.RelativeImportSpec
         Deslop.ASTSpec
         Deslop.RuleBookSpec
+        Deslop.RuleBookFixtures
         Effects.ReportProblemSpec
         TypeScript.LexerSpec
         TypeScript.ConfigSpec
@@ -149,4 +150,5 @@ test-suite deslop-test
         aeson-pretty,
         optparse-applicative,
         yaml,
-        Glob
+        Glob,
+        lens
