@@ -26,7 +26,7 @@ data RuleDto = RuleDto
     { id :: RuleId
     , description :: Maybe Text
     , target :: NonEmpty GlobDto
-    , forbidden :: [ForbiddenDto]
+    , forbidden :: Maybe [ForbiddenDto]
     }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON)
