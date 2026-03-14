@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Deslop.RuleBook (
     RuleBookDto (..),
     RuleDto (..),
@@ -7,10 +8,18 @@ module Deslop.RuleBook (
     RuleBook (..),
     Rule (..),
     Forbidden (..),
+    nameL,
+    rulesL,
+    idL,
+    descriptionL,
+    targetL,
+    excludeL,
+    forbiddenL,
     parseRuleBookYaml,
     ruleBookFromDto,
 ) where
 
+import Control.Lens.TH (makeLensesWith, lensRulesFor)
 import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
 import Data.Bifunctor (Bifunctor (first))
 import Data.ByteString.Char8 (ByteString)
@@ -59,6 +68,18 @@ instance FromJSON ForbiddenDto where
 newtype GlobDto = GlobDto String
     deriving stock (Show, Eq)
     deriving newtype (FromJSON)
+
+makeLensesWith (lensRulesFor [("name", "nameL"), ("rules", "rulesL")]) ''RuleBookDto
+makeLensesWith
+    (lensRulesFor
+        [ ("id", "idL")
+        , ("description", "descriptionL")
+        , ("target", "targetL")
+        , ("exclude", "excludeL")
+        , ("forbidden", "forbiddenL")
+        ]
+    )
+    ''RuleDto
 
 data RuleBook = RuleBook
     { name :: Text

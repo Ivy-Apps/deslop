@@ -82,7 +82,8 @@ library
         fmt,
         optparse-applicative,
         yaml,
-        Glob
+        Glob,
+        lens
 
     hs-source-dirs:   src
 

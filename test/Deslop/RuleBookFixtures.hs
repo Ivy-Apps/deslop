@@ -1,17 +1,29 @@
-module Deslop.RuleBookFixtures where
+module Deslop.RuleBookFixtures (
+    defaultRuleBookDto,
+    defaultRuleDto,
+    defaultForbiddenDto,
+    nameL,
+    rulesL,
+    forbiddenL,
+    forbiddenImportDto,
+)
+where
 
-import Control.Lens (Lens')
 import Data.List.NonEmpty (NonEmpty ((:|)))
-import Data.Text (Text)
-import qualified Data.Text as T
-import Deslop.RuleBook
+import Data.Text qualified as T
+import Deslop.RuleBook (
+    ForbiddenDto (..),
+    GlobDto (..),
+    RuleBookDto (..),
+    RuleDto (..),
+    RuleId (..),
+    forbiddenL,
+    nameL,
+    rulesL,
+ )
 
-defaultRuleBookDto :: RuleBookDto
-defaultRuleBookDto =
-    RuleBookDto
-        { name = "Test"
-        , rules = [defaultRuleDto]
-        }
+defaultForbiddenDto :: ForbiddenDto
+defaultForbiddenDto = ForbiddenImportDto (GlobDto "react") Nothing
 
 defaultRuleDto :: RuleDto
 defaultRuleDto =
@@ -23,18 +35,12 @@ defaultRuleDto =
         , forbidden = Just [defaultForbiddenDto]
         }
 
-defaultForbiddenDto :: ForbiddenDto
-defaultForbiddenDto = ForbiddenImportDto (GlobDto "react") Nothing
-
--- Lenses for RuleBookDto / RuleDto (disambiguate from RuleBook / Rule same-named fields).
-nameL :: Lens' RuleBookDto Text
-nameL f (RuleBookDto n r) = fmap (`RuleBookDto` r) (f n)
-
-rulesL :: Lens' RuleBookDto [RuleDto]
-rulesL f (RuleBookDto n r) = fmap (RuleBookDto n) (f r)
-
-forbiddenL :: Lens' RuleDto (Maybe [ForbiddenDto])
-forbiddenL f (RuleDto i d t e forb) = fmap (RuleDto i d t e) (f forb)
+defaultRuleBookDto :: RuleBookDto
+defaultRuleBookDto =
+    RuleBookDto
+        { name = "Test"
+        , rules = [defaultRuleDto]
+        }
 
 forbiddenImportDto :: String -> Maybe Bool -> ForbiddenDto
 forbiddenImportDto glob = ForbiddenImportDto (GlobDto glob)
