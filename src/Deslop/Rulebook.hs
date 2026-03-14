@@ -2,7 +2,7 @@ module Deslop.RuleBook (
     RuleBookDto (..),
     RuleDto (..),
     RuleId (..),
-    RelativeModuleId (..),
+    GlobDto (..),
     ForbiddenDto (..),
     parseRuleBookYaml,
 ) where
@@ -25,7 +25,7 @@ data RuleBookDto = RuleBookDto
 data RuleDto = RuleDto
     { id :: RuleId
     , description :: Maybe Text
-    , target :: NonEmpty RelativeModuleId
+    , target :: NonEmpty GlobDto
     , forbidden :: [ForbiddenDto]
     }
     deriving stock (Show, Eq, Generic)
@@ -36,7 +36,7 @@ newtype RuleId = RuleId Text
     deriving newtype (FromJSON)
 
 data ForbiddenDto = ForbiddenImportDto
-    { target :: RelativeModuleId
+    { target :: GlobDto
     , transitive :: Maybe Bool
     }
     deriving stock (Show, Eq, Generic)
@@ -47,7 +47,7 @@ instance FromJSON ForbiddenDto where
             <$> v .: "import"
             <*> v .:? "transitive"
 
-newtype RelativeModuleId = RelativeModuleId Text
+newtype GlobDto = GlobDto Text
     deriving stock (Show, Eq)
     deriving newtype (FromJSON)
 
