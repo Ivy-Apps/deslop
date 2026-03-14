@@ -148,4 +148,5 @@ test-suite deslop-test
         aeson,
         aeson-pretty,
         optparse-applicative,
-        yaml
+        yaml,
+        Glob

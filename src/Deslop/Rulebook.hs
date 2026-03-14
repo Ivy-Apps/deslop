@@ -4,6 +4,9 @@ module Deslop.RuleBook (
     RuleId (..),
     GlobDto (..),
     ForbiddenDto (..),
+    RuleBook (..),
+    Rule (..),
+    Forbidden (..),
     parseRuleBookYaml,
     ruleBookFromDto,
 ) where
