@@ -14,6 +14,7 @@ import GHC.Generics (Generic)
 import Data.ByteString.Char8
 import Data.Yaml (decodeEither')
 import Data.Bifunctor (Bifunctor(first))
+import System.FilePath.Glob qualified as Glob
 
 data RuleBookDto = RuleBookDto
     { name :: Text
@@ -26,6 +27,7 @@ data RuleDto = RuleDto
     { id :: RuleId
     , description :: Maybe Text
     , target :: NonEmpty GlobDto
+    , exclude :: Maybe (NonEmpty GlobDto)
     , forbidden :: Maybe [ForbiddenDto]
     }
     deriving stock (Show, Eq, Generic)
@@ -51,6 +53,28 @@ newtype GlobDto = GlobDto Text
     deriving stock (Show, Eq)
     deriving newtype (FromJSON)
 
+
+data RuleBook = RuleBook
+    { name :: Text
+    , rules :: [Rule]
+    }
+    deriving stock (Show, Eq)
+
+data Rule = Rule
+    { id :: RuleId
+    , description :: Maybe Text
+    , target :: NonEmpty Glob.Pattern
+    , exclude :: Maybe (NonEmpty Glob.Pattern)
+    , forbidden :: Maybe [Forbidden]
+    }
+    deriving stock (Show, Eq)
+
+
+data Forbidden = ForbiddenImport
+    { target :: Glob.Pattern
+    , transitive :: Bool
+    }
+    deriving stock (Show, Eq)
 
 parseRuleBookYaml :: ByteString -> Either String RuleBookDto
 parseRuleBookYaml = first show .  decodeEither'

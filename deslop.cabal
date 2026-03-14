@@ -81,7 +81,8 @@ library
         req,
         fmt,
         optparse-applicative,
-        yaml
+        yaml,
+        Glob
 
     hs-source-dirs:   src
 

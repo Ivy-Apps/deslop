@@ -8,6 +8,7 @@ Right
             , target =
                 GlobDto "@/client/core/**/*" :|
                   [ GlobDto "@/server/**/*" , GlobDto "@/shared/**/*" ]
+            , exclude = Just (GlobDto "@/**/*.e2e.spec.ts" :| [])
             , forbidden =
                 Just
                   [ ForbiddenImportDto
@@ -22,6 +23,7 @@ Right
             { id = RuleId "no-test-code-in-impl"
             , description = Nothing
             , target = GlobDto "**/*.ts" :| []
+            , exclude = Just (GlobDto "**/*.spec.ts" :| [])
             , forbidden =
                 Just
                   [ ForbiddenImportDto
