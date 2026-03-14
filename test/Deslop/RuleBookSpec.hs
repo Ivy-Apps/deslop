@@ -85,13 +85,13 @@ spec = do
 
     describe "RuleBook Monoid" $ do
         it "left identity" $ do
-            let x =  ruleBookFromDto Fix.defaultRuleBookDto
+            let x = ruleBookFromDto Fix.defaultRuleBookDto
             let res = mempty <> x
             res `shouldBe` x
             res.name `shouldBe` "Test"
 
         it "right identity" $ do
-            let x =  ruleBookFromDto Fix.defaultRuleBookDto
+            let x = ruleBookFromDto Fix.defaultRuleBookDto
             let res = mempty <> x
             res `shouldBe` x
             res.name `shouldBe` "Test"
@@ -103,13 +103,30 @@ spec = do
             ((a <> b) <> c) `shouldBe` (a <> (b <> c))
 
         it "(<>) combines rulebooks" $ do
-            let rb1 = ruleBookFromDto (Fix.defaultRuleBookDto & Fix.nameL .~ "Second")
-            let rb2 = ruleBookFromDto (Fix.defaultRuleBookDto & Fix.nameL .~ "First")
+            -- Given
+            let ruleOne = Fix.defaultRuleDto & idL .~ RuleId "rule-one"
+            let ruleTwo = Fix.defaultRuleDto & idL .~ RuleId "rule-two"
+            let rb1 =
+                    ruleBookFromDto
+                        ( Fix.defaultRuleBookDto
+                            & Fix.nameL .~ "Second"
+                            & Fix.rulesL .~ [ruleOne]
+                        )
+            let rb2 =
+                    ruleBookFromDto
+                        ( Fix.defaultRuleBookDto
+                            & Fix.nameL .~ "First"
+                            & Fix.rulesL .~ [ruleTwo]
+                        )
+
+            -- When
             let combined = rb1 <> rb2
+
+            -- Then
             combined.name `shouldBe` "First <> Second"
             length combined.rules `shouldBe` 2
-            (headOrThrow combined.rules).id `shouldBe` (headOrThrow rb1.rules).id
-            (combined.rules !! 1).id `shouldBe` (headOrThrow rb2.rules).id
+            (headOrThrow combined.rules).id `shouldBe` RuleId "rule-one"
+            (combined.rules !! 1).id `shouldBe` RuleId "rule-two"
   where
     parseRuleBookTest :: FilePath -> Spec
     parseRuleBookTest fpath = do

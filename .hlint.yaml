@@ -1,1 +1,2 @@
 - ignore: {name: "Use <&>"}
+- ignore: {name: "Redundant id"}
