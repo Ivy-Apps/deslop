@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+
 module Deslop.RuleBook (
     RuleBookDto (..),
     RuleDto (..),
@@ -17,20 +18,27 @@ module Deslop.RuleBook (
     forbiddenL,
     parseRuleBookYaml,
     ruleBookFromDto,
+    ruleBookFromFile,
+    loadRuleBookFrom,
+    loadRuleBook,
 ) where
 
-import Control.Lens.TH (makeLensesWith, lensRulesFor)
+import Control.Lens.TH (lensRulesFor, makeLensesWith)
 import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
 import Data.Bifunctor (Bifunctor (first))
+import Data.Bool (bool)
 import Data.ByteString.Char8 (ByteString)
-import Data.List (sort)
 import Data.List.NonEmpty (NonEmpty)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Yaml (decodeEither')
+import Effectful
+import Effects.FileSystem
 import GHC.Generics (Generic)
+import System.FilePath ((</>))
 import qualified System.FilePath.Glob as Glob
+import Data.List (sortOn)
 
 data RuleBookDto = RuleBookDto
     { name :: Text
@@ -71,7 +79,7 @@ newtype GlobDto = GlobDto String
 
 makeLensesWith (lensRulesFor [("name", "nameL"), ("rules", "rulesL")]) ''RuleBookDto
 makeLensesWith
-    (lensRulesFor
+    ( lensRulesFor
         [ ("id", "idL")
         , ("description", "descriptionL")
         , ("target", "targetL")
@@ -90,7 +98,7 @@ data RuleBook = RuleBook
 instance Semigroup RuleBook where
     rb1 <> rb2 =
         RuleBook
-            { name = T.intercalate " <> " . sort . filter (not . T.null) $ [rb1.name, rb2.name]
+            { name = T.intercalate " <> " . filter (not . T.null) $ [rb1.name, rb2.name]
             , rules = rb1.rules <> rb2.rules
             }
 
@@ -115,6 +123,31 @@ data Forbidden = ForbiddenImport
     , transitive :: Bool
     }
     deriving stock (Show, Eq)
+
+rulesDir :: FilePath
+rulesDir = "deslop" </> "rules"
+
+loadRuleBook :: (RoFileSystem :> es) => Eff es (Either String (Maybe RuleBook))
+loadRuleBook = loadRuleBookFrom rulesDir
+
+loadRuleBookFrom :: (RoFileSystem :> es) => FilePath -> Eff es (Either String (Maybe RuleBook))
+loadRuleBookFrom dir = directoryExists dir >>= bool (pure . Right $ Nothing) loadRules
+  where
+    loadRules =
+        listDirectory dir
+            >>= traverse (ruleBookFromFile . appendDir)
+            >>= pure . fmap buildRuleBook . sequenceA
+
+    appendDir p = dir </> p
+
+    buildRuleBook [] = Nothing
+    buildRuleBook xs = Just . mconcat . sortRuleBook $ xs
+    sortRuleBook = sortOn (.name)
+
+ruleBookFromFile :: (RoFileSystem :> es) => FilePath -> Eff es (Either String RuleBook)
+ruleBookFromFile path =
+    readFileBS path
+        >>= pure . fmap ruleBookFromDto . parseRuleBookYaml
 
 parseRuleBookYaml :: ByteString -> Either String RuleBookDto
 parseRuleBookYaml = first show . decodeEither'

@@ -8,6 +8,8 @@ import Data.Text.Encoding qualified as TE
 import Data.Text.IO qualified as TIO
 import Deslop.RuleBook
 import Deslop.RuleBookFixtures qualified as Fix
+import Effectful (runEff)
+import Effects.FileSystem (runFileSystemIO)
 import System.FilePath (takeBaseName, (</>))
 import System.FilePath.Glob qualified as Glob
 import Test.Hspec
@@ -23,6 +25,12 @@ spec :: Spec
 spec = do
     describe "parseRuleBookYaml" $
         runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ parseRuleBookTest
+    describe "ruleBookFromFile" $
+        runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ ruleBookFromFileTest
+    describe "loadRuleBook" $ do
+        it "valid-rules-1" $ do
+            res <- runEff . runFileSystemIO $ loadRuleBookFrom (rbFixturesPath </> "valid-rules-1")
+            return $ defaultGolden "loadRuleBook--valid-rules-1" (ppShow res)
 
     describe "ruleBookFromDto" $ do
         it "preserves name" $ do
@@ -109,13 +117,13 @@ spec = do
             let rb1 =
                     ruleBookFromDto
                         ( Fix.defaultRuleBookDto
-                            & Fix.nameL .~ "Second"
+                            & Fix.nameL .~ "First"
                             & Fix.rulesL .~ [ruleOne]
                         )
             let rb2 =
                     ruleBookFromDto
                         ( Fix.defaultRuleBookDto
-                            & Fix.nameL .~ "First"
+                            & Fix.nameL .~ "Second"
                             & Fix.rulesL .~ [ruleTwo]
                         )
 
@@ -130,8 +138,15 @@ spec = do
   where
     parseRuleBookTest :: FilePath -> Spec
     parseRuleBookTest fpath = do
-        let testName = takeBaseName fpath
-        it ("case:" <> testName) $ do
+        let testName = "rulebook-dto-from-yaml--" <> takeBaseName fpath
+        it ("case: " <> testName) $ do
             ruleBookYaml <- TE.encodeUtf8 <$> TIO.readFile (rbFixturesPath </> fpath)
             let ruleBookRes = parseRuleBookYaml ruleBookYaml
             return $ defaultGolden testName (ppShow ruleBookRes)
+
+    ruleBookFromFileTest :: FilePath -> Spec
+    ruleBookFromFileTest fpath = do
+        let testName = "rulebook-from-file--" <> takeBaseName fpath
+        it ("case: " <> testName) $ do
+            res <- runEff . runFileSystemIO $ ruleBookFromFile (rbFixturesPath </> fpath)
+            return $ defaultGolden testName (ppShow res)

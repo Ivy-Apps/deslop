@@ -1,0 +1,13 @@
+name: Global TypeScript rules
+rules:
+  - id: no-test-code-in-impl
+    target:
+      - "**/*.ts"
+    exclude:
+      - "**/*.spec.ts"
+      - "**/*.test.ts"
+    forbidden:
+      - import: "@test/**/*"
+        transitive: true
+      - import: "@test/**/*"
+        transitive: true
