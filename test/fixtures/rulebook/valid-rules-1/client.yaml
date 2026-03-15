@@ -1,0 +1,22 @@
+name: Client-side Rules
+rules:
+  - id: no-react-in-core
+    description: The core should be pure TypeScript. Hence, no React.
+    target:
+      - "@/client/core/**/*"
+    forbidden:
+      - import: 'react'
+        transitive: true
+
+  - id: pure-design-system
+    target:
+      - "@/client/components/design-system/**/*"
+    forbidden:
+      - import: "@/client/components/**/*"
+        transitive: true
+
+  - id: no-http-in-ui
+    target:
+      - "@/client/components/**/*"
+    forbidden:
+      - import: "@/data/http-client"
