@@ -17,6 +17,7 @@ module Deslop.RuleBook (
     forbiddenL,
     parseRuleBookYaml,
     ruleBookFromDto,
+    ruleBookFromFile,
 ) where
 
 import Control.Lens.TH (makeLensesWith, lensRulesFor)
@@ -30,6 +31,8 @@ import qualified Data.Text as T
 import Data.Yaml (decodeEither')
 import GHC.Generics (Generic)
 import qualified System.FilePath.Glob as Glob
+import Effectful
+import Effects.FileSystem
 
 data RuleBookDto = RuleBookDto
     { name :: Text
@@ -114,6 +117,10 @@ data Forbidden = ForbiddenImport
     , transitive :: Bool
     }
     deriving stock (Show, Eq)
+
+ruleBookFromFile :: (RoFileSystem :> es) => FilePath -> Eff es (Either String RuleBook)
+ruleBookFromFile path = readFileBS path
+  >>= pure . fmap ruleBookFromDto . parseRuleBookYaml
 
 parseRuleBookYaml :: ByteString -> Either String RuleBookDto
 parseRuleBookYaml = first show . decodeEither'

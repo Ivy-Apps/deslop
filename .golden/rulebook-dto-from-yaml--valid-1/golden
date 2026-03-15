@@ -1,0 +1,34 @@
+Right
+  RuleBookDto
+    { name = "Demo Rulebook"
+    , rules =
+        [ RuleDto
+            { id = RuleId "no-react-in-core"
+            , description = Just "The core must not have React dependencies"
+            , target =
+                GlobDto "@/client/core/**/*" :|
+                  [ GlobDto "@/server/**/*" , GlobDto "@/shared/**/*" ]
+            , exclude = Just (GlobDto "@/**/*.e2e.spec.ts" :| [])
+            , forbidden =
+                Just
+                  [ ForbiddenImportDto
+                      { target = GlobDto "react" , transitive = Just True }
+                  , ForbiddenImportDto
+                      { target = GlobDto "@/client/components/**/*"
+                      , transitive = Nothing
+                      }
+                  ]
+            }
+        , RuleDto
+            { id = RuleId "no-test-code-in-impl"
+            , description = Nothing
+            , target = GlobDto "**/*.ts" :| []
+            , exclude = Just (GlobDto "**/*.spec.ts" :| [])
+            , forbidden =
+                Just
+                  [ ForbiddenImportDto
+                      { target = GlobDto "@test/**/*" , transitive = Just True }
+                  ]
+            }
+        ]
+    }
