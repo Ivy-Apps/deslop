@@ -38,6 +38,7 @@ import Effects.FileSystem
 import GHC.Generics (Generic)
 import System.FilePath ((</>))
 import qualified System.FilePath.Glob as Glob
+import Data.List (sortOn)
 
 data RuleBookDto = RuleBookDto
     { name :: Text
@@ -140,7 +141,8 @@ loadRuleBookFrom dir = directoryExists dir >>= bool (pure . Right $ Nothing) loa
     appendDir p = dir </> p
 
     buildRuleBook [] = Nothing
-    buildRuleBook xs = Just . mconcat $ xs
+    buildRuleBook xs = Just . mconcat . sortRuleBook $ xs
+    sortRuleBook = sortOn (.name)
 
 ruleBookFromFile :: (RoFileSystem :> es) => FilePath -> Eff es (Either String RuleBook)
 ruleBookFromFile path =

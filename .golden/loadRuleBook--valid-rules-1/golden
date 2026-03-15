@@ -1,22 +1,9 @@
 Right
   (Just
      RuleBook
-       { name = "Global TypeScript rules <> Client-side Rules"
+       { name = "Client-side Rules <> Global TypeScript rules"
        , rules =
            [ ForbiddenRule
-               { id = RuleId "no-test-code-in-impl"
-               , description = Nothing
-               , target = compile "**/*.ts" :| []
-               , exclude =
-                   Just (compile "**/*.spec.ts" :| [ compile "**/*.test.ts" ])
-               , forbidden =
-                   [ ForbiddenImport
-                       { target = compile "@test/**/*" , transitive = True }
-                   , ForbiddenImport
-                       { target = compile "@test/**/*" , transitive = True }
-                   ]
-               }
-           , ForbiddenRule
                { id = RuleId "no-react-in-core"
                , description =
                    Just "The core should be pure TypeScript. Hence, no React."
@@ -44,6 +31,19 @@ Right
                , forbidden =
                    [ ForbiddenImport
                        { target = compile "@/data/http-client" , transitive = False }
+                   ]
+               }
+           , ForbiddenRule
+               { id = RuleId "no-test-code-in-impl"
+               , description = Nothing
+               , target = compile "**/*.ts" :| []
+               , exclude =
+                   Just (compile "**/*.spec.ts" :| [ compile "**/*.test.ts" ])
+               , forbidden =
+                   [ ForbiddenImport
+                       { target = compile "@test/**/*" , transitive = True }
+                   , ForbiddenImport
+                       { target = compile "@test/**/*" , transitive = True }
                    ]
                }
            ]
