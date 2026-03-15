@@ -23,7 +23,6 @@ import Control.Lens.TH (makeLensesWith, lensRulesFor)
 import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
 import Data.Bifunctor (Bifunctor (first))
 import Data.ByteString.Char8 (ByteString)
-import Data.List (sort)
 import Data.List.NonEmpty (NonEmpty)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Text (Text)
@@ -90,7 +89,7 @@ data RuleBook = RuleBook
 instance Semigroup RuleBook where
     rb1 <> rb2 =
         RuleBook
-            { name = T.intercalate " <> " . sort . filter (not . T.null) $ [rb1.name, rb2.name]
+            { name = T.intercalate " <> " . filter (not . T.null) $ [rb1.name, rb2.name]
             , rules = rb1.rules <> rb2.rules
             }
 

@@ -109,13 +109,13 @@ spec = do
             let rb1 =
                     ruleBookFromDto
                         ( Fix.defaultRuleBookDto
-                            & Fix.nameL .~ "Second"
+                            & Fix.nameL .~ "First"
                             & Fix.rulesL .~ [ruleOne]
                         )
             let rb2 =
                     ruleBookFromDto
                         ( Fix.defaultRuleBookDto
-                            & Fix.nameL .~ "First"
+                            & Fix.nameL .~ "Second"
                             & Fix.rulesL .~ [ruleTwo]
                         )
 
