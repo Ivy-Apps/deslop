@@ -62,7 +62,7 @@
         {
           devShells.default = pkgs.mkShell {
             inputsFrom = [
-              my-nixvim.devShells.${system}.default
+              my-nixvim.devShells.${system}.haskell
               haskellDevShell
             ];
 
