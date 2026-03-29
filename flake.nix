@@ -18,7 +18,7 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
 
     my-nixvim = {
-      url = "github:ILIYANGERMANOV/my-nixvim?ref=support-haskell";
+      url = "github:ILIYANGERMANOV/my-nixvim";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
