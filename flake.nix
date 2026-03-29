@@ -42,7 +42,10 @@
 
           sysLibs = [ pkgs.zlib pkgs.xz ];
 
-          haskellDevShell = hpkgs.shellFor {
+          nvim = my-nixvim.lib.mkHaskellNvim pkgs hpkgs;
+        in
+        {
+          devShells.default = hpkgs.shellFor {
             packages = p: [ p.deslop ];
             withHoogle = true;
 
@@ -54,17 +57,10 @@
               hpkgs.fourmolu
               hgold
               pkgs.pkg-config
+              nvim
             ];
 
             buildInputs = sysLibs;
-          };
-        in
-        {
-          devShells.default = pkgs.mkShell {
-            inputsFrom = [
-              my-nixvim.devShells.${system}.haskell
-              haskellDevShell
-            ];
 
             shellHook = ''
               export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
