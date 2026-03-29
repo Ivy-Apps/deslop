@@ -1,0 +1,2 @@
+-- Disable the specific warning that triggers the error
+:set -Wno-type-defaults

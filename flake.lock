@@ -21,6 +21,7 @@
     "flake-parts_2": {
       "inputs": {
         "nixpkgs-lib": [
+          "my-nixvim",
           "nixvim",
           "nixpkgs"
         ]
@@ -60,11 +61,13 @@
     "ixx": {
       "inputs": {
         "flake-utils": [
+          "my-nixvim",
           "nixvim",
           "nuschtosSearch",
           "flake-utils"
         ],
         "nixpkgs": [
+          "my-nixvim",
           "nixvim",
           "nuschtosSearch",
           "nixpkgs"
@@ -82,6 +85,27 @@
         "owner": "NuschtOS",
         "ref": "v0.1.1",
         "repo": "ixx",
+        "type": "github"
+      }
+    },
+    "my-nixvim": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "nixvim": "nixvim"
+      },
+      "locked": {
+        "lastModified": 1774801406,
+        "narHash": "sha256-Oxl9OLXUvdVS+NsyJEKQ4ozyg3Iq1dG5lj3XLNwCaa0=",
+        "owner": "ILIYANGERMANOV",
+        "repo": "my-nixvim",
+        "rev": "18ba95b3498f32239e40da29d306b4e621ebce8c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ILIYANGERMANOV",
+        "repo": "my-nixvim",
         "type": "github"
       }
     },
@@ -120,6 +144,7 @@
       "inputs": {
         "flake-parts": "flake-parts_2",
         "nixpkgs": [
+          "my-nixvim",
           "nixpkgs"
         ],
         "nuschtosSearch": "nuschtosSearch",
@@ -145,6 +170,7 @@
         "flake-utils": "flake-utils",
         "ixx": "ixx",
         "nixpkgs": [
+          "my-nixvim",
           "nixvim",
           "nixpkgs"
         ]
@@ -166,8 +192,8 @@
     "root": {
       "inputs": {
         "flake-parts": "flake-parts",
-        "nixpkgs": "nixpkgs",
-        "nixvim": "nixvim"
+        "my-nixvim": "my-nixvim",
+        "nixpkgs": "nixpkgs"
       }
     },
     "systems": {
