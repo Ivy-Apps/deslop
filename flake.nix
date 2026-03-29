@@ -16,15 +16,16 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    nixvim = {
-      url = "github:nix-community/nixvim/nixos-25.11";
+
+    my-nixvim = {
+      url = "github:ILIYANGERMANOV/my-nixvim?ref=support-haskell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = inputs@{ self, nixpkgs, flake-parts, nixvim, ... }:
+  outputs = inputs@{ self, nixpkgs, flake-parts, my-nixvim, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "aarch64-darwin" "x86_64-darwin" ];
+      systems = nixpkgs.lib.systems.flakeExposed;
 
       perSystem = { config, pkgs, system, ... }:
         let
@@ -39,15 +40,9 @@
 
           hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
 
-          nixvimConfig = import ./nix/ide.nix {
-            inherit pkgs hpkgs;
-          };
-          nvim = nixvim.legacyPackages.${system}.makeNixvim nixvimConfig;
-
           sysLibs = [ pkgs.zlib pkgs.xz ];
-        in
-        {
-          devShells.default = hpkgs.shellFor {
+
+          haskellDevShell = hpkgs.shellFor {
             packages = p: [ p.deslop ];
             withHoogle = true;
 
@@ -59,10 +54,17 @@
               hpkgs.fourmolu
               hgold
               pkgs.pkg-config
-              nvim
             ];
 
             buildInputs = sysLibs;
+          };
+        in
+        {
+          devShells.default = pkgs.mkShell {
+            inputsFrom = [
+              my-nixvim.devShells.${system}.default
+              haskellDevShell
+            ];
 
             shellHook = ''
               export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
@@ -71,7 +73,7 @@
 
               echo "🔮 Deslop Dev env initialized."
               echo "--------------------------------------------------------"
-              
+
               echo "✅ GHC:     $(ghc --version)"
               CABAL_PATH=$(type -p cabal)
               CABAL_VER=$(cabal --version | head -n 1)
@@ -95,7 +97,7 @@
                   echo "            Path: $HLS_PATH"
               fi
               echo "--------------------------------------------------------"
-              
+
               echo "   Run 'nvim .' to start."
             '';
           };
