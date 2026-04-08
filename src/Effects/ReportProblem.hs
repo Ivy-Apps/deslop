@@ -63,10 +63,10 @@ getProblems = send GetProblems
 
 runReportProblem :: (IOE :> es) => Eff (ReportProblem : es) a -> Eff es a
 runReportProblem action = do
-    problemsVar <- liftIO $ newTVarIO []
+    problemsVar <- liftIO $ newTVarIO ([] :: [Problem])
     action
         & interpret
             ( \_ -> \case
-                Report p -> liftIO . atomically $ modifyTVar' problemsVar (p :)
+                Report p -> liftIO . atomically . modifyTVar' problemsVar $ (p :)
                 GetProblems -> liftIO (sort <$> readTVarIO problemsVar)
             )
