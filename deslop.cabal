@@ -1,155 +1,147 @@
-cabal-version:      3.0
-name:               deslop
-version:            0.4.10
-license:            BSD-3-Clause
-license-file:       LICENSE
-author:             Ivy Apps LTD
-maintainer:         iliyan@ivy-apps.com
-build-type:         Simple
-extra-doc-files:    CHANGELOG.md
+cabal-version:   3.0
+name:            deslop
+version:         0.4.10
+license:         BSD-3-Clause
+license-file:    LICENSE
+author:          Ivy Apps LTD
+maintainer:      iliyan@ivy-apps.com
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
 
 common shared-properties
-    default-language: GHC2024
-    
-    ghc-options: 
-        -Wall 
-        -Werror
-
-    default-extensions:
-        DuplicateRecordFields
-        OverloadedRecordDot
-        NoFieldSelectors
-        OverloadedStrings
-        TypeFamilies
-        LambdaCase
-        DataKinds
-        DerivingStrategies
-        DeriveAnyClass
-        DeriveGeneric
-        TypeApplications
+  default-language:   GHC2024
+  ghc-options:        -Wall -Werror
+  default-extensions:
+    DataKinds
+    DeriveAnyClass
+    DeriveGeneric
+    DerivingStrategies
+    DuplicateRecordFields
+    LambdaCase
+    NoFieldSelectors
+    OverloadedRecordDot
+    OverloadedStrings
+    TypeApplications
+    TypeFamilies
 
 library
-    import:           shared-properties
-    
-    exposed-modules:  
-        Deslop
-        Params
-        Secrets
-        UI
-        Types
-        Deslop.RelativeImports
-        Deslop.AST
-        Deslop.RuleBook
-        TypeScript.Tokens
-        TypeScript.CST
-        TypeScript.Parser
-        TypeScript.Lexer
-        TypeScript.Config
-        Translations.Parser
-        Translations.Manager
-        Translations.Translator
-        Effects.FileSystem
-        Effects.CLILog
-        Effects.Git
-        Effects.AI
-        Effects.ReportProblem
-        Utils
-    autogen-modules: Paths_deslop
-    other-modules: Paths_deslop
+  import:          shared-properties
+  exposed-modules:
+    Deslop
+    Deslop.AST
+    Deslop.RelativeImports
+    Deslop.RuleBook
+    Effects.AI
+    Effects.CLILog
+    Effects.FileSystem
+    Effects.Git
+    Effects.ReportProblem
+    Params
+    Secrets
+    Translations.Manager
+    Translations.Parser
+    Translations.Translator
+    Types
+    TypeScript.Config
+    TypeScript.CST
+    TypeScript.Lexer
+    TypeScript.Parser
+    TypeScript.Tokens
+    UI
+    Utils
 
-    build-depends:    
-        base >= 4.18 && < 5,
-        stm,
-        effectful,
-        effectful-core,
-        aeson,
-        aeson-pretty,
-        attoparsec,
-        attoparsec-aeson,
-        text,
-        bytestring,
-        containers,
-        unordered-containers,
-        ordered-containers,
-        directory,
-        filepath,
-        megaparsec,
-        extra,
-        ansi-terminal,
-        time,
-        process,
-        req,
-        fmt,
-        optparse-applicative,
-        yaml,
-        Glob,
-        lens
+  autogen-modules: Paths_deslop
+  other-modules:   Paths_deslop
+  build-depends:
+    , aeson
+    , aeson-pretty
+    , ansi-terminal
+    , attoparsec
+    , attoparsec-aeson
+    , base
+    , bytestring
+    , containers
+    , directory
+    , effectful
+    , effectful-core
+    , extra
+    , filepath
+    , fmt
+    , Glob
+    , lens
+    , megaparsec
+    , optparse-applicative
+    , ordered-containers
+    , process
+    , req
+    , stm
+    , text
+    , time
+    , unordered-containers
+    , yaml
 
-    hs-source-dirs:   src
+  hs-source-dirs:  src
 
 executable deslop
-    import:           shared-properties
-    main-is:          Main.hs
-    autogen-modules: Paths_deslop
-    other-modules: Paths_deslop
-    
-    build-depends:
-        base,
-        deslop,
-        extra,
-        ansi-terminal,
-        optparse-applicative,
-        text
+  import:          shared-properties
+  main-is:         Main.hs
+  autogen-modules: Paths_deslop
+  other-modules:   Paths_deslop
+  build-depends:
+    , ansi-terminal
+    , base
+    , deslop
+    , extra
+    , optparse-applicative
+    , text
 
-    hs-source-dirs:   app
+  hs-source-dirs:  app
 
 test-suite deslop-test
-    import:           shared-properties
-    type:             exitcode-stdio-1.0
-    hs-source-dirs:   test
-    main-is:          Spec.hs
-    
-    build-tool-depends: hspec-discover:hspec-discover
-    
-    other-modules:
-        TestUtils
-        ParamsSpec
-        SecretsSpec
-        Deslop.RelativeImportSpec
-        Deslop.ASTSpec
-        Deslop.RuleBookSpec
-        Deslop.RuleBookFixtures
-        Effects.ReportProblemSpec
-        TypeScript.LexerSpec
-        TypeScript.ConfigSpec
-        TypeScript.ParserSpec
-        TypeScript.RenderableSpec
-        Translations.TranslatorSpec
-        Translations.RenderableSpec
-        E2E.FileGoldenSpec
-        E2E.ProjectGoldenSpec
-        E2E.TranslationsSpec
+  import:             shared-properties
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            Spec.hs
+  build-tool-depends: hspec-discover:hspec-discover
+  other-modules:
+    Deslop.ASTSpec
+    Deslop.RelativeImportSpec
+    Deslop.RuleBookFixtures
+    Deslop.RuleBookSpec
+    E2E.FileGoldenSpec
+    E2E.ProjectGoldenSpec
+    E2E.TranslationsSpec
+    Effects.ReportProblemSpec
+    ParamsSpec
+    SecretsSpec
+    TestUtils
+    Translations.RenderableSpec
+    Translations.TranslatorSpec
+    TypeScript.ConfigSpec
+    TypeScript.LexerSpec
+    TypeScript.ParserSpec
+    TypeScript.RenderableSpec
 
-    build-depends:
-        base,
-        deslop,
-        hspec,
-        hspec-golden,
-        text,
-        effectful,
-        bytestring,
-        filepath,
-        directory,
-        unliftio,
-        megaparsec,
-        pretty-show,
-        extra,
-        hedgehog,
-        hspec-hedgehog,
-        containers,
-        aeson,
-        aeson-pretty,
-        optparse-applicative,
-        yaml,
-        Glob,
-        lens
+  build-depends:
+    , aeson
+    , aeson-pretty
+    , base
+    , bytestring
+    , containers
+    , deslop
+    , directory
+    , effectful
+    , extra
+    , filepath
+    , Glob
+    , hedgehog
+    , hspec
+    , hspec-golden
+    , hspec-hedgehog
+    , lens
+    , megaparsec
+    , optparse-applicative
+    , pretty-show
+    , text
+    , unliftio
+    , yaml

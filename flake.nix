@@ -1,6 +1,4 @@
 {
-  description = "Deslop: Haskell Env + Neovim IDE";
-
   nixConfig = {
     extra-substituters = [
       "https://nix-community.cachix.org"
@@ -25,11 +23,16 @@
 
   outputs = inputs@{ self, nixpkgs, flake-parts, my-nixvim, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = nixpkgs.lib.systems.flakeExposed;
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
 
       perSystem = { config, pkgs, system, ... }:
         let
-          ghcVersion = "ghc9122";
+          ghcVersion = "ghc9103";
 
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
@@ -42,30 +45,28 @@
 
           sysLibs = [ pkgs.zlib pkgs.xz ];
 
-          nvim = my-nixvim.lib.mkHaskellNvim pkgs hpkgs;
+          nvim = my-nixvim.lib.mkHaskellNvim { inherit pkgs hpkgs; };
         in
         {
           devShells.default = hpkgs.shellFor {
             packages = p: [ p.deslop ];
-            withHoogle = true;
+            withHoogle = false;
 
             nativeBuildInputs = [
-              hpkgs.cabal-install
               hpkgs.haskell-language-server
-              hpkgs.hlint
               hpkgs.implicit-hie
-              hpkgs.fourmolu
-              hgold
+              pkgs.just
               pkgs.pkg-config
+              pkgs.cabal-install
+              pkgs.hlint
               nvim
+              hgold
             ];
 
             buildInputs = sysLibs;
 
             shellHook = ''
               export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
-              export HASKELL_LANGUAGE_SERVER_GHC_PATH="${hpkgs.ghc}/bin/ghc"
-              export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath sysLibs}:$LD_LIBRARY_PATH
 
               echo "🔮 Deslop Dev env initialized."
               echo "--------------------------------------------------------"
@@ -93,7 +94,9 @@
                   echo "            Path: $HLS_PATH"
               fi
               echo "--------------------------------------------------------"
-
+              echo "🚧 cabal build"
+              cabal build
+              echo "--------------------------------------------------------"
               echo "   Run 'nvim .' to start."
             '';
           };
