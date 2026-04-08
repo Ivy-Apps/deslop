@@ -24,6 +24,21 @@ common shared-properties
     TypeApplications
     TypeFamilies
 
+executable deslop
+  import:          shared-properties
+  main-is:         Main.hs
+  autogen-modules: Paths_deslop
+  other-modules:   Paths_deslop
+  build-depends:
+    , ansi-terminal
+    , base
+    , deslop
+    , extra
+    , optparse-applicative
+    , text
+
+  hs-source-dirs:  app
+
 library
   import:          shared-properties
   exposed-modules:
@@ -81,21 +96,6 @@ library
     , yaml
 
   hs-source-dirs:  src
-
-executable deslop
-  import:          shared-properties
-  main-is:         Main.hs
-  autogen-modules: Paths_deslop
-  other-modules:   Paths_deslop
-  build-depends:
-    , ansi-terminal
-    , base
-    , deslop
-    , extra
-    , optparse-applicative
-    , text
-
-  hs-source-dirs:  app
 
 test-suite deslop-test
   import:             shared-properties
