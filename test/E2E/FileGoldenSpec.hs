@@ -9,6 +9,7 @@ import Deslop (deslopFile)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (runReportProblem)
+import FsEncoding (encodePathString)
 import System.FilePath (takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
@@ -72,7 +73,7 @@ spec = do
             source <- TIO.readFile path
 
             -- When
-            let res = parseTs TsFile {path = path, content = source}
+            let res = parseTs TsFile {path = encodePathString path, content = source}
 
             -- Then
             case res of
@@ -101,7 +102,7 @@ spec = do
                 . runReader (defaultParams ".")
                 . runCLILogTest logsRef
                 . runReportProblem
-                $ deslopFile path
+                $ deslopFile (encodePathString path)
 
             -- Then
             actualRes <- readIORef fileWriteRef

@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Translations.Parser (
     Translations (..),
     Translation (..),
@@ -27,7 +29,8 @@ import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.Builder qualified as B
 import Effectful (Eff, (:>))
 import Effects.FileSystem (RoFileSystem, listDirectory, readFileBS)
-import System.FilePath (takeBaseName, (</>))
+import FsEncoding (decodePathString)
+import System.OsPath (OsPath, takeBaseName, (</>))
 import Types (Renderable (..))
 import Utils (safeHead)
 
@@ -54,7 +57,7 @@ data TransTree
 defaultLanguage :: LangCode
 defaultLanguage = "en"
 
-readTranslations :: (RoFileSystem :> es) => FilePath -> Eff es (Maybe Translations)
+readTranslations :: (RoFileSystem :> es) => OsPath -> Eff es (Maybe Translations)
 readTranslations root =
     listDirectory root
         >>= traverse (readTranslation . (root </>))
@@ -66,12 +69,12 @@ readTranslations root =
             . bimap safeHead nonEmpty
             . partition ((== defaultLanguage) . (.language))
 
-readTranslation :: (RoFileSystem :> es) => FilePath -> Eff es (Maybe Translation)
+readTranslation :: (RoFileSystem :> es) => OsPath -> Eff es (Maybe Translation)
 readTranslation path =
     readFileBS path
         >>= pure . fmap (Translation language) . parseTransTree
   where
-    language = T.pack . takeBaseName $ path
+    language = T.pack . decodePathString . takeBaseName $ path
 
 parseTransTree :: ByteString -> Maybe TransTree
 parseTransTree bs = either (const Nothing) Just $ parseOnly rootParser bs

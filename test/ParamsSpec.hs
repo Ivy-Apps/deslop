@@ -1,5 +1,6 @@
 module ParamsSpec (spec) where
 
+import FsEncoding (encodePathString)
 import Options.Applicative
 import Params (Params (..), paramsParser, parserPrefs)
 import Test.Hspec
@@ -10,7 +11,7 @@ spec = describe "parseParams" $ do
         parseParams []
             `shouldBe` Just
                 ( Params
-                    { projectPath = "."
+                    { projectPath = encodePathString "."
                     , checkMode = False
                     }
                 )
@@ -19,21 +20,21 @@ spec = describe "parseParams" $ do
         parseParams ["/some/ts/project"]
             `shouldBe` Just
                 ( Params
-                    { projectPath = "/some/ts/project"
+                    { projectPath = encodePathString "/some/ts/project"
                     , checkMode = False
                     }
                 )
         parseParams ["."]
             `shouldBe` Just
                 ( Params
-                    { projectPath = "."
+                    { projectPath = encodePathString "."
                     , checkMode = False
                     }
                 )
         parseParams ["src"]
             `shouldBe` Just
                 ( Params
-                    { projectPath = "src"
+                    { projectPath = encodePathString "src"
                     , checkMode = False
                     }
                 )
@@ -42,21 +43,21 @@ spec = describe "parseParams" $ do
         parseParams ["--check"]
             `shouldBe` Just
                 ( Params
-                    { projectPath = "."
+                    { projectPath = encodePathString "."
                     , checkMode = True
                     }
                 )
         parseParams ["-c"]
             `shouldBe` Just
                 ( Params
-                    { projectPath = "."
+                    { projectPath = encodePathString "."
                     , checkMode = True
                     }
                 )
         parseParams ["/path", "--check"]
             `shouldBe` Just
                 ( Params
-                    { projectPath = "/path"
+                    { projectPath = encodePathString "/path"
                     , checkMode = True
                     }
                 )

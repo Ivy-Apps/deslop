@@ -17,17 +17,19 @@ import Effects.ReportProblem (Problem)
 import Fmt (pretty)
 import System.Console.ANSI
 import System.IO (hFlush, stdout)
+import FsEncoding (decodePathString)
+import System.OsPath (OsPath)
 import UI (ProblemsLog (..), printErr, putStderrLn)
 
 data CLILog :: Effect where
-    LogModification :: FilePath -> CLILog m ()
+    LogModification :: OsPath -> CLILog m ()
     LogSummary :: CLILog m ()
     LogProblems :: [Problem] -> CLILog m ()
     LogError :: String -> CLILog m ()
 
 type instance DispatchOf CLILog = 'Dynamic
 
-logModification :: (CLILog :> es) => FilePath -> Eff es ()
+logModification :: (CLILog :> es) => OsPath -> Eff es ()
 logModification = send . LogModification
 
 logSummary :: (CLILog :> es) => Eff es ()
@@ -51,7 +53,7 @@ runCLILog action = do
                     setSGR [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
                     putStr "  modified  "
                     setSGR [Reset]
-                    putStrLn path
+                    putStrLn (decodePathString path)
                     hFlush stdout
                 LogSummary -> liftIO $ do
                     count <- readTVarIO counterVar

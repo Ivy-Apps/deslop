@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Deslop (
     deslopFile,
     deslopProject,
@@ -37,11 +39,12 @@ import Effects.FileSystem (
  )
 import Effects.Git
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
+import FsEncoding (decodePathString, encodePathString)
 import Fmt (fmt, (+|), (|+))
 import Params
 import Secrets (Secrets (..), defaultSecrets, readSecrets)
 import System.Exit (exitFailure)
-import System.FilePath
+import System.OsPath (OsPath, takeExtension, (</>), osp)
 import Translations.Manager
 import Translations.Parser
 import TypeScript.CST
@@ -101,7 +104,7 @@ doWork ::
     Secrets ->
     Eff es ()
 doWork params _ = do
-    liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack params.projectPath
+    liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack (decodePathString params.projectPath)
     unless params.checkMode (liftIO . putStrLn $ "Changelog:")
     deslopProject params
     bool fixResult checkModeResult params.checkMode
@@ -146,7 +149,7 @@ deslopProject params = do
             $ pooledMapConcurrentlyN 32 deslopFile files
     traverse_ logError errors
 
-getTsFiles :: (RoFileSystem :> es) => FilePath -> Eff es [FilePath]
+getTsFiles :: (RoFileSystem :> es) => OsPath -> Eff es [OsPath]
 getTsFiles dir = listDirectory dir >>= fmap concat . traverse (processEntry dir)
   where
     processEntry root entry
@@ -155,8 +158,8 @@ getTsFiles dir = listDirectory dir >>= fmap concat . traverse (processEntry dir)
 
     resolve path = isDirectory path >>= bool (tsOrEmpty path) (getTsFiles path)
 
-    tsOrEmpty f = pure [f | takeExtension f `elem` [".ts", ".tsx"]]
-    ignored = ["node_modules", ".git", "dist", ".next"]
+    tsOrEmpty f = pure [f | takeExtension f `elem` [encodePathString ".ts", encodePathString ".tsx"]]
+    ignored = map encodePathString ["node_modules", ".git", "dist", ".next"]
 
 deslopFile ::
     ( RoFileSystem :> es
@@ -166,7 +169,7 @@ deslopFile ::
     , CLILog :> es
     , ReportProblem :> es
     ) =>
-    FilePath ->
+    OsPath ->
     Eff es (Either String AstModule)
 deslopFile src = do
     c <- readFileBS src
@@ -182,7 +185,7 @@ deslopFile src = do
 
 removeSlop ::
     (Reader TsConfig :> es, ReportProblem :> es) =>
-    FilePath ->
+    OsPath ->
     ByteString ->
     Eff es (Either String TsProgram)
 removeSlop p c =
@@ -229,8 +232,8 @@ translateProject params =
     writeTranslations = traverse_ writeTranslation . (.extra)
     writeTranslation (Translation l t) = writeFileBS (translationFile l) (TE.encodeUtf8 $ render t)
 
-    translationFile l = translationsDir </> (T.unpack l <> ".json")
-    translationsDir = params.projectPath </> "messages"
+    translationFile l = translationsDir </> encodePathString (T.unpack l <> ".json")
+    translationsDir = params.projectPath </> [osp|messages|]
 
     handleFileNotFound = throwError MessagesNotFound
     handleReadError = throwError ParseTranslationsError
@@ -240,9 +243,9 @@ tsConfig ::
     ( RoFileSystem :> es
     , Error DeslopError :> es
     ) =>
-    FilePath ->
+    OsPath ->
     Eff es TsConfig
-tsConfig projPath = loadConfig $ projPath </> "tsconfig.json"
+tsConfig projPath = loadConfig $ projPath </> [osp|tsconfig.json|]
   where
     loadConfig fp = fileExists fp >>= bool (handleMissing fp) (handleFound fp)
     handleFound fp = readFileBS fp >>= maybe (handleInvalid fp) pure . parseTsConfig

@@ -33,18 +33,20 @@ import Effects.AI
 import Effects.CLILog
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..), runRoFileSystemIO)
 import Effects.Git
+import FsEncoding (encodePathString)
 import Params
 import Secrets (GeminiApiKey (..), Secrets (..))
 import System.Directory (copyFile, doesDirectoryExist, listDirectory)
 import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath (takeExtension, (</>))
+import System.OsPath (OsPath)
 import Test.Hspec.Golden (Golden, defaultGolden)
 import Translations.Translator
 import TypeScript.Config (ImportAlias (..), TsConfig (..))
 import Types (Renderable (render))
 import UI (problemsLogText)
 
-type ModifiedFiles = [FilePath]
+type ModifiedFiles = [OsPath]
 
 runFileSystemTest ::
     (IOE :> es) =>
@@ -77,7 +79,7 @@ runCLILogTest ref = interpret $ \_ -> \case
 defaultParams :: FilePath -> Params
 defaultParams projPath =
     Params
-        { projectPath = projPath
+        { projectPath = encodePathString projPath
         , checkMode = False
         }
 

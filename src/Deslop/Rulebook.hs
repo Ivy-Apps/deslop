@@ -1,3 +1,4 @@
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Deslop.RuleBook (
@@ -28,17 +29,17 @@ import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
 import Data.Bifunctor (Bifunctor (first))
 import Data.Bool (bool)
 import Data.ByteString.Char8 (ByteString)
+import Data.List (sortOn)
 import Data.List.NonEmpty (NonEmpty)
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Text (Text)
-import qualified Data.Text as T
+import Data.Text qualified as T
 import Data.Yaml (decodeEither')
 import Effectful
 import Effects.FileSystem
 import GHC.Generics (Generic)
-import System.FilePath ((</>))
-import qualified System.FilePath.Glob as Glob
-import Data.List (sortOn)
+import System.FilePath.Glob qualified as Glob
+import System.OsPath (OsPath, osp, (</>))
 
 data RuleBookDto = RuleBookDto
     { name :: Text
@@ -124,13 +125,13 @@ data Forbidden = ForbiddenImport
     }
     deriving stock (Show, Eq)
 
-rulesDir :: FilePath
-rulesDir = "deslop" </> "rules"
+rulesDir :: OsPath
+rulesDir = [osp|deslop/rules|]
 
 loadRuleBook :: (RoFileSystem :> es) => Eff es (Either String (Maybe RuleBook))
 loadRuleBook = loadRuleBookFrom rulesDir
 
-loadRuleBookFrom :: (RoFileSystem :> es) => FilePath -> Eff es (Either String (Maybe RuleBook))
+loadRuleBookFrom :: (RoFileSystem :> es) => OsPath -> Eff es (Either String (Maybe RuleBook))
 loadRuleBookFrom dir = directoryExists dir >>= bool (pure . Right $ Nothing) loadRules
   where
     loadRules =
@@ -144,7 +145,7 @@ loadRuleBookFrom dir = directoryExists dir >>= bool (pure . Right $ Nothing) loa
     buildRuleBook xs = Just . mconcat . sortRuleBook $ xs
     sortRuleBook = sortOn (.name)
 
-ruleBookFromFile :: (RoFileSystem :> es) => FilePath -> Eff es (Either String RuleBook)
+ruleBookFromFile :: (RoFileSystem :> es) => OsPath -> Eff es (Either String RuleBook)
 ruleBookFromFile path =
     readFileBS path
         >>= pure . fmap ruleBookFromDto . parseRuleBookYaml

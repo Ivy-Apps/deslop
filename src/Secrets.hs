@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Secrets (
     Secrets (..),
     GeminiApiKey (..),
@@ -17,12 +19,12 @@ import Data.Text qualified as T
 import Effectful
 import Effects.FileSystem (RoFileSystem, fileExists, getHomeDirectory, readFileBS)
 import GHC.Generics (Generic)
-import System.FilePath ((</>))
+import System.OsPath (OsPath, osp, (</>))
 
-secretsPath :: (RoFileSystem :> es) => Eff es FilePath
+secretsPath :: (RoFileSystem :> es) => Eff es OsPath
 secretsPath = do
     home <- getHomeDirectory
-    pure $ home </> ".deslop" </> "secrets.json"
+    pure $ home </> [osp|.deslop/secrets.json|]
 
 newtype Secrets = Secrets
     { geminiApiKey :: Maybe GeminiApiKey
@@ -45,7 +47,7 @@ defaultSecrets =
 readSecrets :: (RoFileSystem :> es) => Eff es (Either SecretsError Secrets)
 readSecrets = secretsPath >>= getSecrets
 
-getSecrets :: (RoFileSystem :> es) => FilePath -> Eff es (Either SecretsError Secrets)
+getSecrets :: (RoFileSystem :> es) => OsPath -> Eff es (Either SecretsError Secrets)
 getSecrets sp =
     fileExists sp
         >>= bool (pure . Left $ MissingSecretsFile) readSecretsFile

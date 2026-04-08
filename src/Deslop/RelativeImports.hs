@@ -10,12 +10,10 @@ import Data.Text qualified as T
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader, asks)
 import Effects.ReportProblem (Location (..), Problem (..), ReportProblem, RuleId (..), Severity (..), report)
-import System.FilePath (
-    joinPath,
-    splitDirectories,
-    takeDirectory,
-    (</>),
- )
+import FsEncoding (decodePathString, encodePathString)
+import System.FilePath (splitDirectories)
+import System.OsPath (OsPath, joinPath, takeDirectory, (</>))
+import System.OsPath qualified as Os
 import TypeScript.CST (
     TsNode (Import, target),
     TsProgram (cst, path),
@@ -27,7 +25,7 @@ import TypeScript.Config (
 import Types (Renderable (render))
 import Utils (safePop)
 
-noRelativeImports :: (TsNode, TsNode) -> FilePath -> Problem
+noRelativeImports :: (TsNode, TsNode) -> OsPath -> Problem
 noRelativeImports (old, new) path =
     LintProblem
         { rule = RuleId "no-relative-imports"
@@ -51,7 +49,7 @@ importAliases prog = do
         pure new
     fixImport x = pure x
 
-fixTarget :: (Reader TsConfig :> es) => FilePath -> Text -> Eff es Text
+fixTarget :: (Reader TsConfig :> es) => OsPath -> Text -> Eff es Text
 fixTarget progPath t = do
     as <- asks @TsConfig (.paths)
     let absT = T.pack . absPath as $ t
@@ -72,7 +70,7 @@ fixTarget progPath t = do
              in find (\a -> isPathInfixOfTarget fpDirs (splitDirs a.path)) as
         splitDirs = splitDirectories . T.unpack
 
-    absPath as = resolveTsImport progPath . T.unpack . reverseAlias as
+    absPath as = decodePathString . resolveTsImport progPath . T.unpack . reverseAlias as
 
     reverseAlias as fp =
         maybe fp (removeAlias fp)
@@ -80,13 +78,13 @@ fixTarget progPath t = do
             $ as
     removeAlias fp (ImportAlias l p) = T.replace l p fp
 
-resolveTsImport :: FilePath -> FilePath -> FilePath
+resolveTsImport :: OsPath -> FilePath -> OsPath
 resolveTsImport sourcePath importPath
-    | isBareSpecifier importPath = importPath
+    | isBareSpecifier importPath = encodePathString importPath
     | otherwise =
         let
             sourceDir = takeDirectory sourcePath
-            rawCombined = sourceDir </> importPath
+            rawCombined = sourceDir </> encodePathString importPath
          in
             normalizeSegments rawCombined
 
@@ -96,12 +94,16 @@ isBareSpecifier path = not (isRelative path || isAbsolute path)
     isRelative p = "." `isPrefixOf` p -- Covers "./", "../", and just "."
     isAbsolute p = "/" `isPrefixOf` p
 
-normalizeSegments :: FilePath -> FilePath
-normalizeSegments = joinPath . reverse . foldl' step [] . splitDirectories
+dotSeg, dotdotSeg :: OsPath
+dotSeg = encodePathString "."
+dotdotSeg = encodePathString ".."
+
+normalizeSegments :: OsPath -> OsPath
+normalizeSegments = joinPath . reverse . foldl' step [] . Os.splitDirectories
   where
     step stack segment
-        | segment == "." = stack
-        | segment == ".." = safePop stack
+        | segment == dotSeg = stack
+        | segment == dotdotSeg = safePop stack
         | otherwise = segment : stack
 
 -- Checks @path is infix of @target segment wise

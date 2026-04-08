@@ -5,6 +5,7 @@ module Types (
 ) where
 
 import Data.Text (Text)
+import System.OsPath (OsPath)
 
 class Renderable a where
     render :: a -> Text
@@ -13,8 +14,8 @@ instance (Renderable a) => Renderable [a] where
     render = foldl' (\acc x -> acc <> render x) ""
 
 data DeslopError
-    = TsConfigNotFoundError FilePath
-    | TsConfigParseError FilePath
+    = TsConfigNotFoundError OsPath
+    | TsConfigParseError OsPath
     | CheckModeFoundProblems
     deriving (Show, Eq)
 
