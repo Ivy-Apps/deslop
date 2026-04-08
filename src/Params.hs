@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Params
     ( pParams
     , paramsParser
@@ -7,11 +9,13 @@ module Params
 where
 
 import Data.Version (showVersion)
+import FsEncoding (readOsPathArg)
 import Options.Applicative
 import Paths_deslop (version)
+import System.OsPath (OsPath, osp)
 
 data Params = Params
-    { projectPath :: FilePath
+    { projectPath :: OsPath
     , checkMode :: Bool
     }
     deriving (Show, Eq)
@@ -19,17 +23,17 @@ data Params = Params
 pParams :: Parser Params
 pParams =
     Params
-        <$> strArgument
+        <$> argument (eitherReader readOsPathArg)
             ( metavar "PROJECT_PATH"
                 <> help "Path to the TypeScript project"
-                <> value "."
+                <> value [osp|.|]
                 <> showDefault
             )
         <*> switch
-          ( long "check"
-            <> short 'c'
-            <> help "Check mode. Won't change files and will only report problems"
-          )
+            ( long "check"
+                <> short 'c'
+                <> help "Check mode. Won't change files and will only report problems"
+            )
 
 versionOption :: Parser (a -> a)
 versionOption =
@@ -55,4 +59,3 @@ parserPrefs =
         showHelpOnError
             <> showHelpOnEmpty
             <> helpShowGlobals
-

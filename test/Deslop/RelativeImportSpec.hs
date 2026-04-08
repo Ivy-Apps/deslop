@@ -4,6 +4,7 @@ import Control.Monad (forM_)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Deslop.RelativeImports (importAliases)
+import FsEncoding (encodePathString)
 import Effectful (runEff)
 import Effectful.Reader.Static
 import Effects.ReportProblem (runReportProblem)
@@ -46,7 +47,7 @@ spec = describe "importAliases" $ do
 mkTestProgram :: FilePath -> Text -> TsProgram
 mkTestProgram filePath importTarget =
     TsModule
-        filePath
+        (encodePathString filePath)
         [ Import
             { prefix = "import * from '"
             , target = importTarget

@@ -7,6 +7,8 @@ import Data.Bifunctor
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void
+import FsEncoding (decodePathString)
+import System.OsPath (OsPath)
 import Text.Megaparsec
 import TypeScript.CST
 import TypeScript.Lexer
@@ -15,7 +17,7 @@ import TypeScript.Tokens
 type Parser = Parsec Void Text
 
 data TsFile = TsFile
-    { path :: FilePath
+    { path :: OsPath
     , content :: Text
     }
     deriving (Show, Eq)
@@ -23,7 +25,7 @@ data TsFile = TsFile
 parseTs :: TsFile -> Either String TsProgram
 parseTs f =
     first errorBundlePretty $
-        TsModule f.path . buildCST <$> runParser lexer f.path f.content
+        TsModule f.path . buildCST <$> runParser lexer (decodePathString f.path) f.content
 
 buildCST :: [TsToken] -> [TsNode]
 buildCST = fmap node

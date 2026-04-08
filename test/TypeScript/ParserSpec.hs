@@ -2,6 +2,7 @@ module TypeScript.ParserSpec (spec) where
 
 import Control.Monad
 import Data.Text qualified as T
+import FsEncoding (encodePathString)
 import Test.Hspec
 import TypeScript.CST
 import TypeScript.Parser
@@ -53,7 +54,7 @@ spec = do
                 ]
         forM_ cases $ \(input, expected) ->
             it input $ do
-                let file = TsFile "test.ts" (T.pack input)
+                let file = TsFile (encodePathString "test.ts") (T.pack input)
                 case parseTs file of
                     Left err -> expectationFailure err
                     Right program -> do

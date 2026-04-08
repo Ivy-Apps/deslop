@@ -18,6 +18,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import Effects.ReportProblem (Problem (..))
+import FsEncoding (decodePathString)
 import Fmt
 import System.Console.ANSI
 import System.IO (hPutStr, stderr)
@@ -90,8 +91,8 @@ printTime t = fmtLn $ "⏱  Finished in " +| formatDuration
 
 humanReadable :: DeslopError -> Text
 humanReadable (TsConfigNotFoundError path) =
-    "tsconfig.json not found in '" <> T.pack path <> "'"
+    "tsconfig.json not found in '" <> T.pack (decodePathString path) <> "'"
 humanReadable (TsConfigParseError path) =
-    "Could not parse TS config, check: '" <> T.pack path <> "'"
+    "Could not parse TS config, check: '" <> T.pack (decodePathString path) <> "'"
 humanReadable CheckModeFoundProblems =
     "Problems found. Run without deslop without --check to fix."

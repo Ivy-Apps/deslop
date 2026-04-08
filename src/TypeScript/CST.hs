@@ -4,10 +4,11 @@ module TypeScript.CST (
 ) where
 
 import Data.Text (Text)
+import System.OsPath (OsPath)
 import Types (Renderable (..))
 
 data TsProgram = TsModule
-    { path :: FilePath
+    { path :: OsPath
     , cst :: [TsNode]
     }
     deriving (Show, Eq)

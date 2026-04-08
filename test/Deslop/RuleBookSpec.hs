@@ -10,6 +10,7 @@ import Deslop.RuleBook
 import Deslop.RuleBookFixtures qualified as Fix
 import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
+import FsEncoding (encodePathString)
 import System.FilePath (takeBaseName, (</>))
 import System.FilePath.Glob qualified as Glob
 import Test.Hspec
@@ -29,7 +30,7 @@ spec = do
         runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ ruleBookFromFileTest
     describe "loadRuleBook" $ do
         it "valid-rules-1" $ do
-            res <- runEff . runFileSystemIO $ loadRuleBookFrom (rbFixturesPath </> "valid-rules-1")
+            res <- runEff . runFileSystemIO $ loadRuleBookFrom (encodePathString (rbFixturesPath </> "valid-rules-1"))
             return $ defaultGolden "loadRuleBook--valid-rules-1" (ppShow res)
 
     describe "ruleBookFromDto" $ do
@@ -148,5 +149,5 @@ spec = do
     ruleBookFromFileTest fpath = do
         let testName = "rulebook-from-file--" <> takeBaseName fpath
         it ("case: " <> testName) $ do
-            res <- runEff . runFileSystemIO $ ruleBookFromFile (rbFixturesPath </> fpath)
+            res <- runEff . runFileSystemIO $ ruleBookFromFile (encodePathString (rbFixturesPath </> fpath))
             return $ defaultGolden testName (ppShow res)

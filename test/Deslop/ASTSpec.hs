@@ -1,5 +1,6 @@
 module Deslop.ASTSpec (spec) where
 
+import FsEncoding (encodePathString)
 import Deslop.AST (
     AstModule (..),
     AstNode (..),
@@ -18,7 +19,7 @@ spec = describe "parseAst" $ do
     it "simple happy path" $ do
         let prog =
                 TsModule
-                    { path = "src/lib/demo.ts"
+                    { path = encodePathString "src/lib/demo.ts"
                     , cst =
                         [ Import
                             { prefix = "import * from'"
@@ -39,7 +40,7 @@ spec = describe "parseAst" $ do
     it "import alias not available" $ do
         let prog =
                 TsModule
-                    { path = "src/main.ts"
+                    { path = encodePathString "src/main.ts"
                     , cst =
                         [ Import
                             { prefix = "import { useEffect } from '"

@@ -11,6 +11,7 @@ import Data.Text qualified as T
 import Deslop.RelativeImports (fixTarget)
 import Effectful
 import Effectful.Reader.Static (Reader)
+import FsEncoding (decodePathString)
 import System.FilePath (dropExtension)
 import TypeScript.CST (TsNode (..), TsProgram (cst, path))
 import TypeScript.Config (TsConfig)
@@ -37,7 +38,7 @@ parseAst prog = do
   where
     programModuleId =
         ModuleId . T.pack . dropExtension . T.unpack
-            <$> fixTarget prog.path (T.pack prog.path)
+            <$> fixTarget prog.path (T.pack $ decodePathString prog.path)
     parseNode :: TsNode -> Maybe AstNode
     parseNode (Import _ t _) =
         Just $

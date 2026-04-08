@@ -16,10 +16,12 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic
+import FsEncoding (decodePathString)
 import Fmt (Buildable (..), (+|), (|+))
+import System.OsPath (OsPath)
 
 data Location = Location
-    { file :: FilePath
+    { file :: OsPath
     , code :: Text
     }
     deriving stock (Eq, Show, Ord)
@@ -44,7 +46,8 @@ instance Buildable Problem where
         let (RuleId ruleId) = p.rule
          in problemHeader ruleId <> description <> code <> fix
       where
-        problemHeader ruleId = "# " +| p.location.file |+ ": " +| ruleId |+ "\n"
+        problemHeader ruleId =
+            "# " +| decodePathString p.location.file |+ ": " +| ruleId |+ "\n"
         code = "```ts\n" +| T.strip p.location.code |+ "\n```\n"
         description = "" +| p.description |+ "\n"
         fix = "FIX: " +| T.strip p.fix |+ ""
@@ -63,10 +66,10 @@ getProblems = send GetProblems
 
 runReportProblem :: (IOE :> es) => Eff (ReportProblem : es) a -> Eff es a
 runReportProblem action = do
-    problemsVar <- liftIO $ newTVarIO []
+    problemsVar <- liftIO $ newTVarIO ([] :: [Problem])
     action
         & interpret
             ( \_ -> \case
-                Report p -> liftIO . atomically $ modifyTVar' problemsVar (p :)
+                Report p -> liftIO . atomically . modifyTVar' problemsVar $ (p :)
                 GetProblems -> liftIO (sort <$> readTVarIO problemsVar)
             )
