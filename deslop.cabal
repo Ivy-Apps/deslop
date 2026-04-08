@@ -24,19 +24,14 @@ common shared-properties
     TypeApplications
     TypeFamilies
 
+  build-depends:      base
+
 executable deslop
   import:          shared-properties
   main-is:         Main.hs
   autogen-modules: Paths_deslop
   other-modules:   Paths_deslop
-  build-depends:
-    , ansi-terminal
-    , base
-    , deslop
-    , extra
-    , optparse-applicative
-    , text
-
+  build-depends:   deslop
   hs-source-dirs:  app
 
 library
@@ -73,7 +68,6 @@ library
     , ansi-terminal
     , attoparsec
     , attoparsec-aeson
-    , base
     , bytestring
     , containers
     , directory
@@ -125,7 +119,6 @@ test-suite deslop-test
   build-depends:
     , aeson
     , aeson-pretty
-    , base
     , bytestring
     , containers
     , deslop
