@@ -10,20 +10,15 @@ module Secrets (
 ) where
 
 import Data.Aeson
-import Data.Bifunctor
-import Data.Bool
 import Data.ByteString.Lazy qualified as BL
-import Data.Functor ((<&>))
-import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful
-import Effects.FileSystem (RoFileSystem, fileExists, getHomeDirectory, readFileBS)
-import GHC.Generics (Generic)
+import Effects.FileSystem (RoFileSystem, fsFileExists, fsGetHomeDirectory, fsReadFile)
 import System.OsPath (OsPath, osp, (</>))
 
 secretsPath :: (RoFileSystem :> es) => Eff es OsPath
 secretsPath = do
-    home <- getHomeDirectory
+    home <- fsGetHomeDirectory
     pure $ home </> [osp|.deslop/secrets.json|]
 
 newtype Secrets = Secrets
@@ -49,11 +44,11 @@ readSecrets = secretsPath >>= getSecrets
 
 getSecrets :: (RoFileSystem :> es) => OsPath -> Eff es (Either SecretsError Secrets)
 getSecrets sp =
-    fileExists sp
+    fsFileExists sp
         >>= bool (pure . Left $ MissingSecretsFile) readSecretsFile
   where
     readSecretsFile =
-        readFileBS sp
+        fsReadFile sp
             <&> first (InvalidSecretsJson . T.pack)
-                . eitherDecode @Secrets
-                . BL.fromStrict
+            . eitherDecode @Secrets
+            . BL.fromStrict

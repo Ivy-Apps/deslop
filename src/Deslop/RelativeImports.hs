@@ -3,9 +3,6 @@ module Deslop.RelativeImports (
     fixTarget,
 ) where
 
-import Control.Monad (when)
-import Data.List (find, isPrefixOf)
-import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader, asks)

@@ -3,7 +3,6 @@ module TypeScript.CST (
     TsNode (..),
 ) where
 
-import Data.Text (Text)
 import System.OsPath (OsPath)
 import Types (Renderable (..))
 

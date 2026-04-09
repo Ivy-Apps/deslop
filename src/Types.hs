@@ -1,10 +1,8 @@
 module Types (
     DeslopError (..),
-    TranslationsError (..),
     Renderable (..),
 ) where
 
-import Data.Text (Text)
 import System.OsPath (OsPath)
 
 class Renderable a where
@@ -17,10 +15,4 @@ data DeslopError
     = TsConfigNotFoundError OsPath
     | TsConfigParseError OsPath
     | CheckModeFoundProblems
-    deriving (Show, Eq)
-
-data TranslationsError
-    = MessagesNotFound
-    | ParseTranslationsError
-    | TranslateError Text
     deriving (Show, Eq)

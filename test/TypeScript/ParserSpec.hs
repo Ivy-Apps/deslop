@@ -1,6 +1,5 @@
 module TypeScript.ParserSpec (spec) where
 
-import Control.Monad
 import Data.Text qualified as T
 import FsEncoding (encodePathString)
 import Test.Hspec

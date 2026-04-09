@@ -3,12 +3,7 @@ module TypeScript.Lexer (
     lexer,
 ) where
 
-import Control.Monad
-import Data.Bifunctor (second)
-import Data.Bool
-import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Void
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
@@ -64,7 +59,7 @@ pImport =
             ]
       where
         skipBetween q =
-            void $ char q *> manyTill L.charLiteral (char q) 
+            void $ char q *> manyTill L.charLiteral (char q)
 
 pDocs :: Lexer TsToken
 pDocs =
@@ -96,4 +91,3 @@ pRaw =
   where
     stopCondition = lookAhead $ void atTokenStart <|> eof
     atTokenStart = choice [try $ string "//", string "/*", string "import"]
-

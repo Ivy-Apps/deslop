@@ -1,18 +1,17 @@
 module Effects.FileSystem (
-    readFileBS,
-    writeFileBS,
-    fileExists,
-    directoryExists,
-    listDirectory,
-    isDirectory,
-    getHomeDirectory,
+    fsFileExists,
+    fsReadFile,
+    fsWriteFile,
+    fsDirectoryExists,
+    fsListDirectory,
+    fsIsDirectory,
+    fsGetHomeDirectory,
     RoFileSystem (..),
     WrFileSystem (..),
     runFileSystemIO,
     runRoFileSystemIO,
 ) where
 
-import Data.ByteString (ByteString)
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import System.Directory.OsPath qualified as SDO
@@ -33,26 +32,26 @@ data WrFileSystem :: Effect where
 type instance DispatchOf RoFileSystem = Dynamic
 type instance DispatchOf WrFileSystem = Dynamic
 
-readFileBS :: (RoFileSystem :> es) => OsPath -> Eff es ByteString
-readFileBS = send . ReadFile
+fsReadFile :: (RoFileSystem :> es) => OsPath -> Eff es ByteString
+fsReadFile = send . ReadFile
 
-fileExists :: (RoFileSystem :> es) => OsPath -> Eff es Bool
-fileExists = send . FileExists
+fsFileExists :: (RoFileSystem :> es) => OsPath -> Eff es Bool
+fsFileExists = send . FileExists
 
-directoryExists :: (RoFileSystem :> es) => OsPath -> Eff es Bool
-directoryExists = send . DirectoryExists
+fsDirectoryExists :: (RoFileSystem :> es) => OsPath -> Eff es Bool
+fsDirectoryExists = send . DirectoryExists
 
-listDirectory :: (RoFileSystem :> es) => OsPath -> Eff es [OsPath]
-listDirectory = send . ListDirectory
+fsListDirectory :: (RoFileSystem :> es) => OsPath -> Eff es [OsPath]
+fsListDirectory = send . ListDirectory
 
-isDirectory :: (RoFileSystem :> es) => OsPath -> Eff es Bool
-isDirectory = send . IsDirectory
+fsIsDirectory :: (RoFileSystem :> es) => OsPath -> Eff es Bool
+fsIsDirectory = send . IsDirectory
 
-getHomeDirectory :: (RoFileSystem :> es) => Eff es OsPath
-getHomeDirectory = send GetHomeDirectory
+fsGetHomeDirectory :: (RoFileSystem :> es) => Eff es OsPath
+fsGetHomeDirectory = send GetHomeDirectory
 
-writeFileBS :: (WrFileSystem :> es) => OsPath -> ByteString -> Eff es ()
-writeFileBS path content = send $ WriteFile path content
+fsWriteFile :: (WrFileSystem :> es) => OsPath -> ByteString -> Eff es ()
+fsWriteFile path content = send $ WriteFile path content
 
 runFileSystemIO :: (IOE :> es) => Eff (WrFileSystem : RoFileSystem : es) a -> Eff es a
 runFileSystemIO = runRoFileSystemIO . runWrFileSystemIO

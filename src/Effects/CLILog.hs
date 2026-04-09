@@ -9,15 +9,13 @@ module Effects.CLILog (
 
 import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO)
 import Control.Concurrent.STM.TVar (readTVarIO)
-import Data.Function ((&))
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.ReportProblem (Problem)
 import Fmt (pretty)
-import System.Console.ANSI
-import System.IO (hFlush, stdout)
 import FsEncoding (decodePathString)
+import System.Console.ANSI
 import System.OsPath (OsPath)
 import UI (ProblemsLog (..), printErr, putStderrLn)
 

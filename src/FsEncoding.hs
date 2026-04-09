@@ -9,7 +9,7 @@ module FsEncoding (
     encodePathString,
 ) where
 
-import Control.Exception (SomeException, displayException, try)
+import Control.Exception (try)
 import System.IO.Unsafe (unsafePerformIO)
 import System.OsPath (OsPath, decodeFS, encodeFS)
 
@@ -28,5 +28,5 @@ decodePathString p = unsafePerformIO (decodeFS p)
 {-# NOINLINE encodePathString #-}
 encodePathString :: String -> OsPath
 encodePathString s = case readOsPathArg s of
-    Left err -> error ("encodePathString: " ++ err)
+    Left err -> error (toText $ "encodePathString: " <> err)
     Right p -> p

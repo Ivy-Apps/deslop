@@ -1,15 +1,12 @@
 module TypeScript.LexerSpec (spec) where
 
-import Data.Text (Text)
 import Data.Text qualified as T
 import Hedgehog (Gen, PropertyT, failure, footnote, forAll, (===))
-import qualified Hedgehog.Gen as HGen
-import qualified Hedgehog.Range as Range
+import Hedgehog.Gen qualified as HGen
+import Hedgehog.Range qualified as Range
 import Test.Hspec
 import Test.Hspec.Hedgehog (hedgehog)
 import Text.Megaparsec (errorBundlePretty, parse)
-
-import Control.Monad
 import TypeScript.Lexer (lexer)
 import TypeScript.Tokens
 import Utils (headOrThrow)

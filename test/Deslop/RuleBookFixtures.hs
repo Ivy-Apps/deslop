@@ -9,7 +9,6 @@ module Deslop.RuleBookFixtures (
 )
 where
 
-import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Text qualified as T
 import Deslop.RuleBook (
     ForbiddenDto (..),

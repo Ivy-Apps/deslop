@@ -1,8 +1,6 @@
 module E2E.ProjectGoldenSpec (spec) where
 
-import Control.Monad (when)
-import Data.IORef (newIORef, readIORef)
-import Data.Maybe (fromJust, isNothing)
+import Data.Maybe (fromJust)
 import Data.Text qualified as T
 import Deslop (deslopProject, doWork)
 import Effectful (runEff)
