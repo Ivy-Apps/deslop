@@ -8,14 +8,10 @@ module Effects.AI (
 ) where
 
 import Control.Exception (try)
-import Control.Monad ((<=<), (>=>))
 import Data.Aeson
-import Data.Bifunctor (first)
-import Data.Text (Text)
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
-import GHC.Generics (Generic)
 import Network.HTTP.Req
 import Secrets (GeminiApiKey (..), Secrets (..))
 import Utils
@@ -67,11 +63,12 @@ instance LLM Gemini where
       where
         extractText :: ChatCompletionResponseDto -> Either AIError Text
         extractText =
-            headErr (GenericError "No candidates") . (.candidates)
+            headErr (GenericError "No candidates")
+                . (.candidates)
                 >=> fmap (.text)
-                    . headErr (GenericError "No parts in the message")
-                    . (.parts)
-                    . (.content)
+                . headErr (GenericError "No parts in the message")
+                . (.parts)
+                . (.content)
 
         mapError :: HttpException -> AIError
         mapError = GenericError . T.pack . show

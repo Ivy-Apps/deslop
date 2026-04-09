@@ -5,8 +5,6 @@ module Deslop.AST (
     parseAst,
 ) where
 
-import Data.Maybe (mapMaybe)
-import Data.Text (Text)
 import Data.Text qualified as T
 import Deslop.RelativeImports (fixTarget)
 import Effectful

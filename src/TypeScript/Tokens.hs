@@ -3,8 +3,6 @@ module TypeScript.Tokens (
     TsTokenKind (..),
 ) where
 
-import Data.Text (Text)
-
 data TsToken = TsToken
     { raw :: Text
     , kind :: TsTokenKind
@@ -18,3 +16,4 @@ data TsTokenKind
     | WhitespaceK
     | RawK
     deriving (Show, Eq)
+

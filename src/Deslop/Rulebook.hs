@@ -26,18 +26,10 @@ module Deslop.RuleBook (
 
 import Control.Lens.TH (lensRulesFor, makeLensesWith)
 import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
-import Data.Bifunctor (Bifunctor (first))
-import Data.Bool (bool)
-import Data.ByteString.Char8 (ByteString)
-import Data.List (sortOn)
-import Data.List.NonEmpty (NonEmpty)
-import Data.Maybe (fromMaybe, mapMaybe)
-import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Yaml (decodeEither')
 import Effectful
-import Effects.FileSystem
-import GHC.Generics (Generic)
+import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile)
 import System.FilePath.Glob qualified as Glob
 import System.OsPath (OsPath, osp, (</>))
 
@@ -132,10 +124,10 @@ loadRuleBook :: (RoFileSystem :> es) => Eff es (Either String (Maybe RuleBook))
 loadRuleBook = loadRuleBookFrom rulesDir
 
 loadRuleBookFrom :: (RoFileSystem :> es) => OsPath -> Eff es (Either String (Maybe RuleBook))
-loadRuleBookFrom dir = directoryExists dir >>= bool (pure . Right $ Nothing) loadRules
+loadRuleBookFrom dir = fsDirectoryExists dir >>= bool (pure . Right $ Nothing) loadRules
   where
     loadRules =
-        listDirectory dir
+        fsListDirectory dir
             >>= traverse (ruleBookFromFile . appendDir)
             >>= pure . fmap buildRuleBook . sequenceA
 
@@ -147,7 +139,7 @@ loadRuleBookFrom dir = directoryExists dir >>= bool (pure . Right $ Nothing) loa
 
 ruleBookFromFile :: (RoFileSystem :> es) => OsPath -> Eff es (Either String RuleBook)
 ruleBookFromFile path =
-    readFileBS path
+    fsReadFile path
         >>= pure . fmap ruleBookFromDto . parseRuleBookYaml
 
 parseRuleBookYaml :: ByteString -> Either String RuleBookDto

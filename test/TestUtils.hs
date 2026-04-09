@@ -16,17 +16,8 @@ module TestUtils (
     defaultTsConfig,
 ) where
 
-import Control.Monad (forM, forM_)
-import Data.Aeson.Encode.Pretty
-import Data.Bifunctor
-import Data.ByteString (ByteString)
-import Data.IORef
-import Data.Map qualified as M
-import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
-import Data.Text.Lazy qualified as TL
-import Data.Text.Lazy.Encoding qualified as TLE
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
@@ -41,7 +32,6 @@ import System.Directory.Extra (createDirectoryIfMissing)
 import System.FilePath (takeExtension, (</>))
 import System.OsPath (OsPath)
 import Test.Hspec.Golden (Golden, defaultGolden)
-import Translations.Translator
 import TypeScript.Config (ImportAlias (..), TsConfig (..))
 import Types (Renderable (render))
 import UI (problemsLogText)
@@ -89,17 +79,7 @@ runGitTest ms = interpret $ \_ -> \case
 
 runAITest :: Eff (AI : es) a -> Eff es a
 runAITest = interpret $ \_ -> \case
-    PromptLLM _ p -> pure . bimap GenericError asAIResponse . parseTranslateResponse $ p
-  where
-    asAIResponse :: [(Text, Text)] -> Text
-    asAIResponse ts =
-        "```json\n"
-            <> buildJson (upperCaseValues ts)
-            <> "\n```"
-
-    buildJson = TL.toStrict . TLE.decodeUtf8 . encodePretty . M.fromList
-    upperCaseValues :: [(Text, Text)] -> [(Text, Text)]
-    upperCaseValues = fmap (second T.toUpper)
+    PromptLLM _ p -> pure . Right $ p
 
 runAIAlwaysFail :: Eff (AI : es) a -> Eff es a
 runAIAlwaysFail = interpret $ \_ -> \case

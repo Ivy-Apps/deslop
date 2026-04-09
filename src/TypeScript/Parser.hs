@@ -3,10 +3,7 @@ module TypeScript.Parser (
     parseTs,
 ) where
 
-import Data.Bifunctor
-import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Void
 import FsEncoding (decodePathString)
 import System.OsPath (OsPath)
 import Text.Megaparsec
@@ -74,4 +71,3 @@ parseImport = first errorBundlePretty . runParser parser ""
         | c == '\'' || c == '"' = Just c
         | otherwise = Nothing
     targetQuote _ _ = Nothing
-

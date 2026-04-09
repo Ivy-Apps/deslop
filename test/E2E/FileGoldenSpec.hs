@@ -1,8 +1,6 @@
 module E2E.FileGoldenSpec (spec) where
 
-import Data.IORef (newIORef, readIORef)
 import Data.Text qualified as T
-import Data.Text.Encoding (decodeUtf8)
 import Data.Text.Encoding qualified as TE
 import Data.Text.IO qualified as TIO
 import Deslop (deslopFile)
@@ -96,13 +94,14 @@ spec = do
                         }
 
             -- When
-            _ <- runEff
-                . runFileSystemTest fileWriteRef
-                . runReader tsCfg
-                . runReader (defaultParams ".")
-                . runCLILogTest logsRef
-                . runReportProblem
-                $ deslopFile (encodePathString path)
+            _ <-
+                runEff
+                    . runFileSystemTest fileWriteRef
+                    . runReader tsCfg
+                    . runReader (defaultParams ".")
+                    . runCLILogTest logsRef
+                    . runReportProblem
+                    $ deslopFile (encodePathString path)
 
             -- Then
             actualRes <- readIORef fileWriteRef

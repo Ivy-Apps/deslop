@@ -1,13 +1,11 @@
 module Deslop.RelativeImportSpec (spec) where
 
-import Control.Monad (forM_)
-import Data.Text (Text)
 import Data.Text qualified as T
 import Deslop.RelativeImports (importAliases)
-import FsEncoding (encodePathString)
 import Effectful (runEff)
 import Effectful.Reader.Static
 import Effects.ReportProblem (runReportProblem)
+import FsEncoding (encodePathString)
 import Test.Hspec
 import TypeScript.CST
 import TypeScript.Config

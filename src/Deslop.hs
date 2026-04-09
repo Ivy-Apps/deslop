@@ -5,21 +5,14 @@ module Deslop (
     deslopProject,
     doWork,
     runDeslop,
-    translateProject,
 ) where
 
-import Control.Monad (unless, when, (>=>))
-import Data.Bool
-import Data.ByteString (ByteString)
-import Data.Either (partitionEithers)
-import Data.Foldable
-import Data.Maybe (isNothing)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.AST (AstModule, parseAst)
 import Deslop.RelativeImports (importAliases)
-import Effectful (Eff, IOE, liftIO, runEff, type (:>))
+import Effectful (Eff, IOE, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static
@@ -29,24 +22,20 @@ import Effects.CLILog
 import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
-    directoryExists,
-    fileExists,
-    isDirectory,
-    listDirectory,
-    readFileBS,
+    fsFileExists,
+    fsIsDirectory,
+    fsListDirectory,
+    fsReadFile,
+    fsWriteFile,
     runFileSystemIO,
-    writeFileBS,
  )
 import Effects.Git
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
-import FsEncoding (decodePathString, encodePathString)
 import Fmt (fmt, (+|), (|+))
+import FsEncoding (decodePathString, encodePathString)
 import Params
 import Secrets (Secrets (..), defaultSecrets, readSecrets)
-import System.Exit (exitFailure)
-import System.OsPath (OsPath, takeExtension, (</>), osp)
-import Translations.Manager
-import Translations.Parser
+import System.OsPath (OsPath, osp, takeExtension, (</>))
 import TypeScript.CST
 import TypeScript.Config (TsConfig, parseTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
@@ -125,7 +114,6 @@ doWork params _ = do
         liftIO printDivider
         unless params.checkMode logSummary
         liftIO printDivider
-        doTranslations params
 
 deslopProject ::
     ( WrFileSystem :> es
@@ -150,13 +138,13 @@ deslopProject params = do
     traverse_ logError errors
 
 getTsFiles :: (RoFileSystem :> es) => OsPath -> Eff es [OsPath]
-getTsFiles dir = listDirectory dir >>= fmap concat . traverse (processEntry dir)
+getTsFiles dir = fsListDirectory dir >>= fmap concat . traverse (processEntry dir)
   where
     processEntry root entry
         | entry `elem` ignored = pure []
         | otherwise = resolve $ root </> entry
 
-    resolve path = isDirectory path >>= bool (tsOrEmpty path) (getTsFiles path)
+    resolve path = fsIsDirectory path >>= bool (tsOrEmpty path) (getTsFiles path)
 
     tsOrEmpty f = pure [f | takeExtension f `elem` [encodePathString ".ts", encodePathString ".tsx"]]
     ignored = map encodePathString ["node_modules", ".git", "dist", ".next"]
@@ -172,12 +160,12 @@ deslopFile ::
     OsPath ->
     Eff es (Either String AstModule)
 deslopFile src = do
-    c <- readFileBS src
+    c <- fsReadFile src
     cstRes <- removeSlop src c
     let c' = either (const c) renderProgram cstRes
     checkMode <- asks @Params (.checkMode)
     when (c /= c' && not checkMode) $ do
-        writeFileBS src c'
+        fsWriteFile src c'
         logModification src
     traverse parseAst cstRes
   where
@@ -194,51 +182,6 @@ removeSlop p c =
   where
     deslop = foldr (>=>) pure [importAliases]
 
-doTranslations ::
-    ( WrFileSystem :> es
-    , RoFileSystem :> es
-    , Git :> es
-    , IOE :> es
-    , AI :> es
-    , CLILog :> es
-    , Concurrent :> es
-    , ReportProblem :> es
-    ) =>
-    Params -> Eff es ()
-doTranslations params = do
-    liftIO . putStrLn $ "Translating..."
-    translateRes <- runErrorNoCallStack @TranslationsError (translateProject params)
-    case translateRes of
-        Left err -> liftIO . printErr . T.pack $ show err
-        Right _ -> liftIO . putStrLn $ "Translations success."
-
-translateProject ::
-    ( WrFileSystem :> es
-    , RoFileSystem :> es
-    , CLILog :> es
-    , AI :> es
-    , Concurrent :> es
-    , Error TranslationsError :> es
-    ) =>
-    Params ->
-    Eff es ()
-translateProject params =
-    directoryExists translationsDir
-        >>= bool
-            handleFileNotFound
-            (readTranslations translationsDir >>= maybe handleReadError pipeline)
-  where
-    pipeline ts = fixTranslations ts >>= either handleTranslateErorr writeTranslations
-    writeTranslations = traverse_ writeTranslation . (.extra)
-    writeTranslation (Translation l t) = writeFileBS (translationFile l) (TE.encodeUtf8 $ render t)
-
-    translationFile l = translationsDir </> encodePathString (T.unpack l <> ".json")
-    translationsDir = params.projectPath </> [osp|messages|]
-
-    handleFileNotFound = throwError MessagesNotFound
-    handleReadError = throwError ParseTranslationsError
-    handleTranslateErorr = throwError . TranslateError
-
 tsConfig ::
     ( RoFileSystem :> es
     , Error DeslopError :> es
@@ -247,8 +190,8 @@ tsConfig ::
     Eff es TsConfig
 tsConfig projPath = loadConfig $ projPath </> [osp|tsconfig.json|]
   where
-    loadConfig fp = fileExists fp >>= bool (handleMissing fp) (handleFound fp)
-    handleFound fp = readFileBS fp >>= maybe (handleInvalid fp) pure . parseTsConfig
+    loadConfig fp = fsFileExists fp >>= bool (handleMissing fp) (handleFound fp)
+    handleFound fp = fsReadFile fp >>= maybe (handleInvalid fp) pure . parseTsConfig
 
     handleMissing = throwError . TsConfigNotFoundError
     handleInvalid = throwError . TsConfigParseError

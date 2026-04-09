@@ -2,8 +2,8 @@
 {- HLINT ignore "Monoid law, right identity" -}
 module Deslop.RuleBookSpec (spec) where
 
-import Control.Lens ((&), (.~), (?~))
-import Data.List.NonEmpty (NonEmpty ((:|)))
+import Control.Lens ((.~), (?~))
+import Data.List ((!!))
 import Data.Text.Encoding qualified as TE
 import Data.Text.IO qualified as TIO
 import Deslop.RuleBook
@@ -43,17 +43,19 @@ spec = do
             let dto =
                     Fix.defaultRuleBookDto
                         & Fix.rulesL
-                            .~ [ Fix.defaultRuleDto
-                                    & Fix.forbiddenL
-                                        ?~ [Fix.forbiddenImportDto "react" (Just False)]
-                               ]
+                        .~ [ Fix.defaultRuleDto
+                                & Fix.forbiddenL
+                                ?~ [Fix.forbiddenImportDto "react" (Just False)]
+                           ]
             length (ruleBookFromDto dto).rules `shouldBe` 1
 
         it "drop invalid rules" $ do
             let dto =
                     Fix.defaultRuleBookDto
-                        & Fix.nameL .~ "Empty"
-                        & Fix.rulesL .~ [Fix.defaultRuleDto & Fix.forbiddenL .~ Nothing]
+                        & Fix.nameL
+                        .~ "Empty"
+                            & Fix.rulesL
+                        .~ [Fix.defaultRuleDto & Fix.forbiddenL .~ Nothing]
             length (ruleBookFromDto dto).rules `shouldBe` 0
 
         it "compiles target globs" $ do
@@ -72,10 +74,10 @@ spec = do
                 let dto =
                         Fix.defaultRuleBookDto
                             & Fix.rulesL
-                                .~ [ Fix.defaultRuleDto
-                                        & Fix.forbiddenL
-                                            ?~ [Fix.forbiddenImportDto "lib" (Just False)]
-                                   ]
+                            .~ [ Fix.defaultRuleDto
+                                    & Fix.forbiddenL
+                                    ?~ [Fix.forbiddenImportDto "lib" (Just False)]
+                               ]
                 let rule = headOrThrow (ruleBookFromDto dto).rules
                 let forb = headOrThrow rule.forbidden
                 forb.transitive `shouldBe` False
@@ -84,10 +86,10 @@ spec = do
                 let dto =
                         Fix.defaultRuleBookDto
                             & Fix.rulesL
-                                .~ [ Fix.defaultRuleDto
-                                        & Fix.forbiddenL
-                                            ?~ [Fix.forbiddenImportDto "lib" (Just True)]
-                                   ]
+                            .~ [ Fix.defaultRuleDto
+                                    & Fix.forbiddenL
+                                    ?~ [Fix.forbiddenImportDto "lib" (Just True)]
+                               ]
                 let rule = headOrThrow (ruleBookFromDto dto).rules
                 let forb = headOrThrow rule.forbidden
                 forb.transitive `shouldBe` True
@@ -118,14 +120,18 @@ spec = do
             let rb1 =
                     ruleBookFromDto
                         ( Fix.defaultRuleBookDto
-                            & Fix.nameL .~ "First"
-                            & Fix.rulesL .~ [ruleOne]
+                            & Fix.nameL
+                            .~ "First"
+                                & Fix.rulesL
+                            .~ [ruleOne]
                         )
             let rb2 =
                     ruleBookFromDto
                         ( Fix.defaultRuleBookDto
-                            & Fix.nameL .~ "Second"
-                            & Fix.rulesL .~ [ruleTwo]
+                            & Fix.nameL
+                            .~ "Second"
+                                & Fix.rulesL
+                            .~ [ruleTwo]
                         )
 
             -- When

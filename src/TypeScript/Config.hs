@@ -4,18 +4,10 @@ module TypeScript.Config (
     ImportAlias (..),
 ) where
 
-import Control.Monad (join, (>=>))
 import Data.Aeson (FromJSON, decode)
-import Data.Bifunctor (Bifunctor (bimap))
-import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as BL
-import Data.List (sortOn)
-import Data.Map (Map)
 import Data.Map qualified as M
-import Data.Maybe (fromMaybe, mapMaybe)
-import Data.Ord (Down (Down))
-import Data.Text as T (Text, length, stripPrefix, takeWhile)
-import GHC.Generics (Generic)
+import Data.Text as T (length, stripPrefix, takeWhile)
 import Utils (safeHead)
 
 newtype TsConfigJson = TsConfigJson
@@ -67,4 +59,3 @@ parseTsConfig = fromJson >=> extractPaths >=> pure . buildConfig
 
     sortByLongest :: [ImportAlias] -> [ImportAlias]
     sortByLongest = sortOn (Down . T.length . (.label))
-

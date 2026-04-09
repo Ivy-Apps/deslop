@@ -33,4 +33,5 @@ gitModifiedFiles = do
             , "origin/main"
             ]
             ""
-    either fail pure $ traverse readOsPathArg (filter (not . null) $ lines out)
+    let cleanLines = filter (/= "") . lines . toText $ out
+    either fail pure $ traverse (readOsPathArg . toString) cleanLines

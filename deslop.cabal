@@ -24,11 +24,7 @@ common shared-properties
     TypeApplications
     TypeFamilies
 
-  mixins:
-    base hiding (Prelude),
-    relude (Relude as Prelude),
-    relude
-
+  mixins:             base hiding (Prelude)
   build-depends:
     , base
     , relude
@@ -58,10 +54,8 @@ library
     Effects.ReportProblem
     FsEncoding
     Params
+    Prelude
     Secrets
-    Translations.Manager
-    Translations.Parser
-    Translations.Translator
     Types
     TypeScript.Config
     TypeScript.CST
@@ -118,13 +112,10 @@ test-suite deslop-test
     Deslop.RuleBookSpec
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
-    E2E.TranslationsSpec
     Effects.ReportProblemSpec
     ParamsSpec
     SecretsSpec
     TestUtils
-    Translations.RenderableSpec
-    Translations.TranslatorSpec
     TypeScript.ConfigSpec
     TypeScript.LexerSpec
     TypeScript.ParserSpec

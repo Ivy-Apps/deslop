@@ -1,7 +1,6 @@
 module TypeScript.ConfigSpec (spec) where
 
 import Data.ByteString qualified as BS
-import Data.Text.Encoding (encodeUtf8)
 import System.FilePath ((</>))
 import Test.Hspec
 import TestUtils (fixturesBasePath)
@@ -17,7 +16,7 @@ spec = describe "parseTsConfig" $ do
         parseTsConfig content `shouldBe` Nothing
 
     it "returns Nothing when compilerOptions.paths is missing" $ do
-        let content = encodeUtf8 "{\"compilerOptions\": {}}"
+        let content = encodeUtf8 @Text "{\"compilerOptions\": {}}"
         parseTsConfig content `shouldBe` Nothing
 
     it "parses simple tsconfig with one path alias" $ do
@@ -28,7 +27,7 @@ spec = describe "parseTsConfig" $ do
                     { paths =
                         [ ImportAlias {label = "@/", path = "src/"}
                         ]
-                }
+                    }
                 )
 
     it "parses complex tsconfig with multiple path aliases sorted by longest label first" $ do
@@ -43,5 +42,5 @@ spec = describe "parseTsConfig" $ do
                         , ImportAlias {label = "@utils/", path = "src/utils/"}
                         , ImportAlias {label = "@/", path = "src/"}
                         ]
-                }
+                    }
                 )

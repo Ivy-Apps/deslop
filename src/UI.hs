@@ -13,15 +13,13 @@ module UI (
     problemsLogText,
 ) where
 
-import Data.List (intersperse)
-import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import Effects.ReportProblem (Problem (..))
-import FsEncoding (decodePathString)
 import Fmt
+import FsEncoding (decodePathString)
 import System.Console.ANSI
-import System.IO (hPutStr, stderr)
+import System.IO (hPutStr)
 import Types
 
 -- | ANSI SGR: red foreground
@@ -32,8 +30,9 @@ redCode = "\x1b[31m"
 resetCode :: String
 resetCode = "\x1b[0m"
 
--- | Print a string to stderr in red. Single function for all stderr error output.
--- Include a trailing newline in the string if you want a line break.
+{- | Print a string to stderr in red. Single function for all stderr error output.
+Include a trailing newline in the string if you want a line break.
+-}
 putStderr :: String -> IO ()
 putStderr s = do
     hPutStr stderr redCode

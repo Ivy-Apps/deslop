@@ -7,8 +7,6 @@ module Utils (
     headOrThrow,
 ) where
 
-import Data.Text
-import Data.Void
 import Text.Megaparsec (Parsec)
 
 type Parser = Parsec Void Text
