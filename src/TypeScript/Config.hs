@@ -5,25 +5,24 @@ module TypeScript.Config (
 ) where
 
 import Data.Aeson (FromJSON, decode)
-import Data.ByteString.Lazy qualified as BL
 import Data.Map qualified as M
 import Data.Text qualified as T
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)
 import Utils (safeHead)
 
-newtype TsConfigJson = TsConfigJson
-    { compilerOptions :: CompilerOptionsJson
+newtype TsConfigDto = TsConfigDto
+    { compilerOptions :: CompilerOptionsDto
     }
     deriving (Show, Generic)
 
-newtype CompilerOptionsJson = CompilerOptionsJson
+newtype CompilerOptionsDto = CompilerOptionsDton
     { paths :: Maybe (Map Text [Text])
     }
     deriving (Show, Generic)
 
-instance FromJSON TsConfigJson
-instance FromJSON CompilerOptionsJson
+instance FromJSON TsConfigDto
+instance FromJSON CompilerOptionsDto
 
 newtype TsConfig = TsConfig
     { paths :: [ImportAlias]
@@ -40,16 +39,16 @@ data ImportAlias = ImportAlias
 parseTsConfig :: ByteString -> Maybe TsConfig
 parseTsConfig = fromJson >=> extractPaths >=> pure . buildConfig
   where
-    fromJson :: ByteString -> Maybe TsConfigJson
+    fromJson :: ByteString -> Maybe TsConfigDto
     fromJson bs = do
         -- 1. Safely decode UTF-8 to Text
         textData <- either (const Nothing) Just (decodeUtf8' bs)
         -- 2. Strip comments while preserving strings/URLs
         let cleanText = stripTsComments textData
         -- 3. Encode back to strict ByteString, then lazy, then decode
-        decode . BL.fromStrict . encodeUtf8 $ cleanText
+        decode . encodeUtf8 $ cleanText
 
-    extractPaths :: TsConfigJson -> Maybe (Map Text [Text])
+    extractPaths :: TsConfigDto -> Maybe (Map Text [Text])
     extractPaths = (.paths) . (.compilerOptions)
 
     buildConfig :: Map Text [Text] -> TsConfig
