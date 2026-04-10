@@ -44,3 +44,15 @@ spec = describe "parseTsConfig" $ do
                         ]
                     }
                 )
+
+    it "strips line comments outside of strings" $ do
+        let content = encodeUtf8 @Text "{ \"compilerOptions\": { \"paths\": { \"@/\": [\"src/\"] } } } // this is a line comment"
+        parseTsConfig content `shouldBe` Just (TsConfig {paths = [ImportAlias {label = "@/", path = "src/"}]})
+
+    it "strips block comments outside of strings" $ do
+        let content = encodeUtf8 @Text "{ \"compilerOptions\": /* block comment */ { \"paths\": { \"@/\": [\"src/\"] } } }"
+        parseTsConfig content `shouldBe` Just (TsConfig {paths = [ImportAlias {label = "@/", path = "src/"}]})
+
+    it "does not strip line comment markers inside strings" $ do
+        let content = encodeUtf8 @Text "{ \"compilerOptions\": { \"paths\": { \"@//\": [\"src//dir/\"] } } }"
+        parseTsConfig content `shouldBe` Just (TsConfig {paths = [ImportAlias {label = "@//", path = "src//dir/"}]})

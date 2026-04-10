@@ -37,32 +37,6 @@ spec = describe "Deslop project" $ do
 
     itFixes "ixartz-next-js-boilerplate" []
   where
-    itFixes project filesToCheck = it ("fixes " <> project) $ do
-        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
-            let tmpDir = encodePathString tmpFp
-            -- Given
-            let projectPath = fixturesBasePath </> encodePathString project
-            copyDir projectPath tmpDir
-            logsRef <- newIORef Nothing
-
-            -- When
-            res <-
-                runEff
-                    . runFileSystemIO
-                    . runErrorNoCallStack @DeslopError
-                    . runCLILogTest logsRef
-                    . runGitTest []
-                    . runReportProblem
-                    . runConcurrent
-                    $ deslopProject (defaultParams tmpDir)
-
-            -- Then
-            res `shouldBe` Right ()
-            logs <- readIORef logsRef
-            logs `shouldBe` Nothing
-            fullSnapshot <- snapshot tmpDir filesToCheck
-            return $ defaultGolden ("fix-" <> project) fullSnapshot
-
     itChecks project = it ("checks " <> project) $ do
         -- Given
         let projectPath = fixturesBasePath </> encodePathString project
@@ -93,4 +67,30 @@ spec = describe "Deslop project" $ do
         -- Removes the dir path from the log so the golden test is stable
         let problemsLogNormalized =
                 T.unpack . T.replace (T.pack (decodePathString projectPath)) "" $ logs.problems
-        return $ defaultGolden "ts-project-1-problem-logs" problemsLogNormalized
+        return $ defaultGolden ("check-" <> project) problemsLogNormalized
+
+    itFixes project filesToCheck = it ("fixes " <> project) $ do
+        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
+            let tmpDir = encodePathString tmpFp
+            -- Given
+            let projectPath = fixturesBasePath </> encodePathString project
+            copyDir projectPath tmpDir
+            logsRef <- newIORef Nothing
+
+            -- When
+            res <-
+                runEff
+                    . runFileSystemIO
+                    . runErrorNoCallStack @DeslopError
+                    . runCLILogTest logsRef
+                    . runGitTest []
+                    . runReportProblem
+                    . runConcurrent
+                    $ deslopProject (defaultParams tmpDir)
+
+            -- Then
+            res `shouldBe` Right ()
+            logs <- readIORef logsRef
+            logs `shouldBe` Nothing
+            fullSnapshot <- snapshot tmpDir filesToCheck
+            return $ defaultGolden ("fix-" <> project) fullSnapshot
