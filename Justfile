@@ -4,7 +4,11 @@ default:
 
 # Run HLint then tests (use from nix develop); fails on lint or test errors
 check:
-    hlint . && cabal test all && cabal build
+    hlint . 
+    cabal test all 
+    cabal build
+    just sandbox
+    cabal run deslop -- sandbox/
 
 # Generate a testing '/sandbox' project dir
 @sandbox:
