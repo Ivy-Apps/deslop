@@ -17,7 +17,7 @@ module TestUtils (
 ) where
 
 import Data.Text qualified as T
-import Data.Text.IO qualified as TIO
+import Data.Text.Encoding qualified as TE
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
@@ -27,10 +27,9 @@ import Effects.Git
 import FsEncoding (encodePathString)
 import Params
 import Secrets (GeminiApiKey (..), Secrets (..))
-import System.Directory (copyFile, doesDirectoryExist, listDirectory)
-import System.Directory.Extra (createDirectoryIfMissing)
-import System.FilePath (takeExtension, (</>))
-import System.OsPath (OsPath)
+import System.Directory.OsPath qualified as SDO
+import System.File.OsPath qualified as SFO
+import System.OsPath (OsPath, osp, takeExtension, (</>))
 import Test.Hspec.Golden (Golden, defaultGolden)
 import TypeScript.Config (ImportAlias (..), TsConfig (..))
 import Types (Renderable (render))
@@ -66,10 +65,10 @@ runCLILogTest ref = interpret $ \_ -> \case
         liftIO $ writeIORef ref (Just . TestLogs . problemsLogText $ ps)
     LogError _ -> pure ()
 
-defaultParams :: FilePath -> Params
+defaultParams :: OsPath -> Params
 defaultParams projPath =
     Params
-        { projectPath = encodePathString projPath
+        { projectPath = projPath
         , checkMode = False
         }
 
@@ -85,36 +84,38 @@ runAIAlwaysFail :: Eff (AI : es) a -> Eff es a
 runAIAlwaysFail = interpret $ \_ -> \case
     PromptLLM _ _ -> pure . Left . GenericError $ "Mocked to fail"
 
-projectFixturePath :: FilePath
-projectFixturePath = "test/fixtures/ts-project-1"
+projectFixturePath :: OsPath
+projectFixturePath = [osp|test/fixtures/ts-project-1|]
 
-copyDir :: FilePath -> FilePath -> IO ()
+copyDir :: OsPath -> OsPath -> IO ()
 copyDir src dst = do
-    createDirectoryIfMissing True dst
-    content <- listDirectory src
+    SDO.createDirectoryIfMissing True dst
+    content <- SDO.listDirectory src
     forM_ content $ \name -> do
         let srcPath = src </> name
         let dstPath = dst </> name
-        isDirectory <- doesDirectoryExist srcPath
+        isDirectory <- SDO.doesDirectoryExist srcPath
         if isDirectory
             then copyDir srcPath dstPath
-            else copyFile srcPath dstPath
+            else SDO.copyFile srcPath dstPath
 
-snapshot :: FilePath -> [FilePath] -> IO String
+snapshot :: OsPath -> [String] -> IO String
 snapshot tmpDir filesToVerify = do
     results <- forM filesToVerify $ \relPath -> do
-        content <- TIO.readFile (tmpDir </> relPath)
+        raw <- SFO.readFile' (tmpDir </> encodePathString relPath)
+        let content = TE.decodeUtf8 raw
         let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
         return $ header <> content
     pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
 
-listFixtures :: FilePath -> String -> IO [FilePath]
+listFixtures :: OsPath -> String -> IO [OsPath]
 listFixtures dir ext = do
-    files <- listDirectory dir
-    return $ filter (\f -> takeExtension f == ext) files
+    files <- SDO.listDirectory dir
+    let extOs = encodePathString ext
+    pure $ filter (\f -> takeExtension f == extOs) files
 
-fixturesBasePath :: FilePath
-fixturesBasePath = "test/fixtures"
+fixturesBasePath :: OsPath
+fixturesBasePath = [osp|test/fixtures|]
 
 renderGolden :: (Renderable r) => String -> r -> Golden String
 renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)

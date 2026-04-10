@@ -1,18 +1,18 @@
 module TypeScript.ConfigSpec (spec) where
 
-import Data.ByteString qualified as BS
-import System.FilePath ((</>))
+import System.File.OsPath qualified as SFO
+import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import TestUtils (fixturesBasePath)
 import TypeScript.Config (ImportAlias (..), TsConfig (..), parseTsConfig)
 
-tsConfigFixturesPath :: FilePath
-tsConfigFixturesPath = fixturesBasePath </> "typescript"
+tsConfigFixturesPath :: OsPath
+tsConfigFixturesPath = fixturesBasePath </> [osp|typescript|]
 
 spec :: Spec
 spec = describe "parseTsConfig" $ do
     it "returns Nothing for invalid JSON" $ do
-        content <- BS.readFile (tsConfigFixturesPath </> "tsconfig-invalid.json")
+        content <- SFO.readFile' (tsConfigFixturesPath </> [osp|tsconfig-invalid.json|])
         parseTsConfig content `shouldBe` Nothing
 
     it "returns Nothing when compilerOptions.paths is missing" $ do
@@ -20,7 +20,7 @@ spec = describe "parseTsConfig" $ do
         parseTsConfig content `shouldBe` Nothing
 
     it "parses simple tsconfig with one path alias" $ do
-        content <- BS.readFile (tsConfigFixturesPath </> "tsconfig-simple.json")
+        content <- SFO.readFile' (tsConfigFixturesPath </> [osp|tsconfig-simple.json|])
         parseTsConfig content
             `shouldBe` Just
                 ( TsConfig
@@ -31,7 +31,7 @@ spec = describe "parseTsConfig" $ do
                 )
 
     it "parses complex tsconfig with multiple path aliases sorted by longest label first" $ do
-        content <- BS.readFile (tsConfigFixturesPath </> "tsconfig-complex.json")
+        content <- SFO.readFile' (tsConfigFixturesPath </> [osp|tsconfig-complex.json|])
         parseTsConfig content
             `shouldBe` Just
                 ( TsConfig

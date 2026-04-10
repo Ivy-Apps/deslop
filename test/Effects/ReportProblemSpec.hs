@@ -2,7 +2,7 @@ module Effects.ReportProblemSpec (spec) where
 
 import Effectful
 import Effects.ReportProblem
-import FsEncoding (encodePathString)
+import System.OsPath (osp)
 import Test.Hspec
 
 spec :: Spec
@@ -23,7 +23,7 @@ spec = describe "ReportProblem" $ do
             let problem =
                     LintProblem
                         { rule = RuleId "P001"
-                        , location = Location {file = encodePathString "src/Foo.ts", code = "x"}
+                        , location = Location {file = [osp|src/Foo.ts|], code = "x"}
                         , severity = Error
                         , description = "Something wrong"
                         , fix = "Do this"
@@ -40,7 +40,7 @@ spec = describe "ReportProblem" $ do
             let p1 =
                     LintProblem
                         { rule = RuleId "P1"
-                        , location = Location {file = encodePathString "a.ts", code = "1"}
+                        , location = Location {file = [osp|a.ts|], code = "1"}
                         , severity = Error
                         , description = "First"
                         , fix = "fix1"
@@ -48,7 +48,7 @@ spec = describe "ReportProblem" $ do
             let p2 =
                     LintProblem
                         { rule = RuleId "P2"
-                        , location = Location {file = encodePathString "b.ts", code = "2"}
+                        , location = Location {file = [osp|b.ts|], code = "2"}
                         , severity = Error
                         , description = "Second"
                         , fix = "fix2"
@@ -66,7 +66,7 @@ spec = describe "ReportProblem" $ do
             let problem =
                     LintProblem
                         { rule = RuleId "P"
-                        , location = Location {file = encodePathString "f", code = "c"}
+                        , location = Location {file = [osp|f|], code = "c"}
                         , severity = Error
                         , description = "desc"
                         , fix = "fix"

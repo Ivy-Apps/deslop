@@ -8,8 +8,9 @@ import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
+import FsEncoding (decodePathString, encodePathString)
 import Params
-import System.FilePath ((</>))
+import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesBasePath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
@@ -34,9 +35,10 @@ spec = describe "Deslop project" $ do
         ]
   where
     itFixes project filesToCheck = it ("fixes " <> project) $ do
-        withSystemTempDirectory "deslop-test" $ \tmpDir -> do
+        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
+            let tmpDir = encodePathString tmpFp
             -- Given
-            let projectPath = fixturesBasePath </> project
+            let projectPath = fixturesBasePath </> encodePathString project
             copyDir projectPath tmpDir
             logsRef <- newIORef Nothing
 
@@ -60,7 +62,7 @@ spec = describe "Deslop project" $ do
 
     itChecks project = it ("checks " <> project) $ do
         -- Given
-        let projectPath = fixturesBasePath </> project
+        let projectPath = fixturesBasePath </> encodePathString project
         filesRef <- newIORef Nothing
         logsRef <- newIORef Nothing
         let params = (defaultParams projectPath) {checkMode = True}
@@ -86,5 +88,6 @@ spec = describe "Deslop project" $ do
             expectationFailure "Expected problems to be logged when check mode finds problems"
         let logs = fromJust maybeLogs
         -- Removes the dir path from the log so the golden test is stable
-        let problemsLogNormalized = T.unpack . T.replace (T.pack projectPath) "" $ logs.problems
+        let problemsLogNormalized =
+                T.unpack . T.replace (T.pack (decodePathString projectPath)) "" $ logs.problems
         return $ defaultGolden "ts-project-1-problem-logs" problemsLogNormalized

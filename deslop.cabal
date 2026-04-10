@@ -101,6 +101,9 @@ library
 
 test-suite deslop-test
   import:             shared-properties
+  default-extensions:
+    QuasiQuotes
+    TemplateHaskell
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
   main-is:            Spec.hs
@@ -129,7 +132,6 @@ test-suite deslop-test
     , deslop
     , directory             >=1.3.8.0
     , effectful
-    , extra
     , file-io
     , filepath              >=1.4.100.0
     , Glob
@@ -142,6 +144,7 @@ test-suite deslop-test
     , optparse-applicative
     , os-string
     , pretty-show
+    , template-haskell
     , text
     , unliftio
     , yaml
