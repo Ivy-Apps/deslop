@@ -1,0 +1,463 @@
+>>> FILE: .storybook/preview.ts
+import '@/styles/global.css';
+import type { Preview } from '@storybook/nextjs-vite';
+
+const preview: Preview = {
+  parameters: {
+    controls: {
+      matchers: {
+        color: /(background|color)$/i,
+        date: /Date$/i,
+      },
+    },
+    nextjs: {
+      appDirectory: true, // Enable App Router support
+    },
+    docs: {
+      toc: true, // Enable table of contents
+    },
+    a11y: {
+      test: 'todo', // Make a11y tests optional
+    },
+  },
+  tags: ['autodocs'],
+};
+
+export default preview;
+
+
+
+>>> FILE: next.config.ts
+import withBundleAnalyzer from '@next/bundle-analyzer';
+import { withSentryConfig } from '@sentry/nextjs';
+import type { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
+import '@/libs/Env';
+
+// Define the base Next.js configuration
+const baseConfig: NextConfig = {
+  devIndicators: {
+    position: 'bottom-right',
+  },
+  poweredByHeader: false,
+  reactStrictMode: true,
+  reactCompiler: process.env.NODE_ENV === 'production', // Keep the development environment fast
+  outputFileTracingIncludes: {
+    '/': ['./migrations/**/*'],
+  },
+};
+
+// Initialize the Next-Intl plugin
+let configWithPlugins = createNextIntlPlugin('./src/libs/I18n.ts')(baseConfig);
+
+// Conditionally enable bundle analysis
+if (process.env.ANALYZE === 'true') {
+  configWithPlugins = withBundleAnalyzer()(configWithPlugins);
+}
+
+// Conditionally enable Sentry configuration
+if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
+  configWithPlugins = withSentryConfig(configWithPlugins, {
+    // For all available options, see:
+    // https://www.npmjs.com/package/@sentry/webpack-plugin#options
+    org: process.env.SENTRY_ORGANIZATION,
+    project: process.env.SENTRY_PROJECT,
+
+    // Only print logs for uploading source maps in CI
+    silent: !process.env.CI,
+
+    // For all available options, see:
+    // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
+
+    // Upload a larger set of source maps for prettier stack traces (increases build time)
+    widenClientFileUpload: true,
+
+    // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
+    // This can increase your server load as well as your hosting bill.
+    // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
+    // side errors will fail.
+    tunnelRoute: '/monitoring',
+
+    webpack: {
+      reactComponentAnnotation: {
+        enabled: true,
+      },
+
+      // Tree-shake Sentry logger statements to reduce bundle size
+      treeshake: {
+        removeDebugLogging: true,
+      },
+    },
+
+    // Disable Sentry telemetry
+    telemetry: false,
+  });
+}
+
+const nextConfig = configWithPlugins;
+export default nextConfig;
+
+
+
+>>> FILE: src/components/Hello.tsx
+import { currentUser } from '@clerk/nextjs/server';
+import { getTranslations } from 'next-intl/server';
+import { Sponsors } from '@/components/Sponsors';
+
+export const Hello = async () => {
+  const t = await getTranslations('Dashboard');
+  const user = await currentUser();
+
+  return (
+    <>
+      <p>
+        {`👋 `}
+        {t('hello_message', {
+          email: user?.primaryEmailAddress?.emailAddress ?? '',
+        })}
+      </p>
+      <p>
+        {t.rich('alternative_message', {
+          url: () => (
+            <a
+              className="text-blue-700 hover:border-b-2 hover:border-blue-700"
+              href="https://nextjs-boilerplate.com/pro-saas-starter-kit"
+            >
+              Next.js Boilerplate Pro
+            </a>
+          ),
+        })}
+      </p>
+      <p>
+        {t.rich('max_message', {
+          url: () => (
+            <a
+              className="text-blue-700 hover:border-b-2 hover:border-blue-700"
+              href="https://nextjs-boilerplate.com/nextjs-multi-tenant-saas-boilerplate"
+            >
+              Next.js Boilerplate Max
+            </a>
+          ),
+        })}
+      </p>
+      <Sponsors />
+    </>
+  );
+};
+
+
+
+>>> FILE: src/libs/DB.ts
+import { createDbConnection } from '@/utils/DBConnection';
+import { Env } from '@/libs/Env';
+
+declare global {
+  var cachedDrizzle: ReturnType<typeof createDbConnection> | undefined;
+}
+
+// Stores the db connection in the global scope to prevent multiple instances due to hot reloading with Next.js
+const db = globalThis.cachedDrizzle ?? createDbConnection();
+
+// Only store in global during development to prevent hot reload issues
+if (Env.NODE_ENV !== 'production') {
+  globalThis.cachedDrizzle = db;
+}
+
+export { db };
+
+
+
+>>> FILE: src/libs/I18n.ts
+import { hasLocale } from 'next-intl';
+import { getRequestConfig } from 'next-intl/server';
+import { routing } from '@/libs/I18nRouting';
+
+// NextJS Boilerplate uses Crowdin as the localization software.
+// As a developer, you only need to take care of the English (or another default language) version.
+// Other languages are automatically generated and handled by Crowdin.
+
+// The localisation files are synced with Crowdin using GitHub Actions.
+// By default, there are 3 ways to sync the message files:
+// 1. Automatically sync on push to the `main` branch
+// 2. Run manually the workflow on GitHub Actions
+// 3. Every 24 hours at 5am, the workflow will run automatically
+
+export default getRequestConfig(async ({ requestLocale }) => {
+  // Typically corresponds to the `[locale]` segment
+  const requested = await requestLocale;
+  const locale = hasLocale(routing.locales, requested)
+    ? requested
+    : routing.defaultLocale;
+
+  return {
+    locale,
+    // oxlint-disable-next-line unicorn/no-await-expression-member
+    messages: (await import(`../locales/${locale}.json`)).default,
+  };
+});
+
+
+
+>>> FILE: src/libs/I18nNavigation.ts
+import { createNavigation } from 'next-intl/navigation';
+import { routing } from '@/libs/I18nRouting';
+
+export const { Link, usePathname, useRouter } = createNavigation(routing);
+
+
+
+>>> FILE: src/libs/Logger.ts
+import type { AsyncSink } from '@logtape/logtape';
+import {
+  configure,
+  fromAsyncSink,
+  getConsoleSink,
+  getJsonLinesFormatter,
+  getLogger,
+} from '@logtape/logtape';
+import { Env } from '@/libs/Env';
+
+const betterStackSink: AsyncSink = async (record) => {
+  await fetch(`https://${Env.NEXT_PUBLIC_BETTER_STACK_INGESTING_HOST}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${Env.NEXT_PUBLIC_BETTER_STACK_SOURCE_TOKEN}`,
+    },
+    body: JSON.stringify(record),
+  });
+};
+
+const canForwardToBetterStack =
+  Boolean(Env.NEXT_PUBLIC_BETTER_STACK_SOURCE_TOKEN) &&
+  Boolean(Env.NEXT_PUBLIC_BETTER_STACK_INGESTING_HOST);
+
+await configure({
+  sinks: {
+    console: getConsoleSink({ formatter: getJsonLinesFormatter() }),
+    betterStack: fromAsyncSink(betterStackSink),
+  },
+  loggers: [
+    {
+      category: ['logtape', 'meta'],
+      sinks: ['console'],
+      lowestLevel: 'warning',
+    },
+    {
+      category: ['app'],
+      sinks: canForwardToBetterStack ? ['console', 'betterStack'] : ['console'],
+      lowestLevel: Env.NEXT_PUBLIC_LOGGING_LEVEL,
+    },
+  ],
+});
+
+export const logger = getLogger(['app']);
+
+
+
+>>> FILE: src/proxy.ts
+import { detectBot } from '@arcjet/next';
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import createMiddleware from 'next-intl/middleware';
+import type { NextFetchEvent, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import arcjet from '@/libs/Arcjet';
+import { routing } from '@/libs/I18nRouting';
+
+const handleI18nRouting = createMiddleware(routing);
+
+const isProtectedRoute = createRouteMatcher([
+  '/dashboard(.*)',
+  '/:locale/dashboard(.*)',
+]);
+
+const isAuthPage = createRouteMatcher([
+  '/sign-in(.*)',
+  '/:locale/sign-in(.*)',
+  '/sign-up(.*)',
+  '/:locale/sign-up(.*)',
+]);
+
+// Improve security with Arcjet
+const aj = arcjet.withRule(
+  detectBot({
+    mode: 'LIVE',
+    // Block all bots except the following
+    allow: [
+      // See https://docs.arcjet.com/bot-protection/identifying-bots
+      'CATEGORY:SEARCH_ENGINE', // Allow search engines
+      'CATEGORY:PREVIEW', // Allow preview links to show OG images
+      'CATEGORY:MONITOR', // Allow uptime monitoring services
+    ],
+  })
+);
+
+export default async function proxy(
+  request: NextRequest,
+  event: NextFetchEvent
+) {
+  // Verify the request with Arcjet
+  // Use `process.env` instead of Env to reduce bundle size in middleware
+  if (process.env.ARCJET_KEY) {
+    const decision = await aj.protect(request);
+
+    if (decision.isDenied()) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+
+  // Clerk keyless mode doesn't work with i18n, this is why we need to run the middleware conditionally
+  if (isAuthPage(request) || isProtectedRoute(request)) {
+    return clerkMiddleware(async (auth, req) => {
+      if (isProtectedRoute(req)) {
+        const locale =
+          req.nextUrl.pathname.match(/(\/.*)\/dashboard/)?.at(1) ?? '';
+
+        const signInUrl = new URL(`${locale}/sign-in`, req.url);
+
+        await auth.protect({
+          unauthenticatedUrl: signInUrl.toString(),
+        });
+      }
+
+      return handleI18nRouting(req);
+    })(request, event);
+  }
+
+  return handleI18nRouting(request);
+}
+
+export const config = {
+  // Match all pathnames except for
+  // - … if they start with `/_next`, `/_vercel` or `monitoring`
+  // - … the ones containing a dot (e.g. `favicon.ico`)
+  matcher: '/((?!_next|_vercel|monitoring|.*\\..*).*)',
+};
+
+
+
+>>> FILE: src/templates/BaseTemplate.stories.tsx
+import type { Meta, StoryObj } from '@storybook/nextjs-vite';
+import { NextIntlClientProvider } from 'next-intl';
+import messages from '@/locales/en.json';
+import { BaseTemplate } from '@/templates/BaseTemplate';
+
+const meta = {
+  title: 'Example/BaseTemplate',
+  component: BaseTemplate,
+  parameters: {
+    layout: 'fullscreen',
+  },
+  decorators: [
+    (Story) => (
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <Story />
+      </NextIntlClientProvider>
+    ),
+  ],
+} satisfies Meta<typeof BaseTemplate>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const BaseWithReactComponent: Story = {
+  args: {
+    children: <div>Children node</div>,
+    leftNav: (
+      <>
+        <li>Link 1</li>
+        <li>Link 2</li>
+      </>
+    ),
+  },
+};
+
+export const BaseWithString: Story = {
+  args: {
+    ...BaseWithReactComponent.args,
+    children: 'String',
+  },
+};
+
+
+
+>>> FILE: src/templates/BaseTemplate.test.tsx
+import { NextIntlClientProvider } from 'next-intl';
+import { describe, expect, it } from 'vitest';
+import { render } from 'vitest-browser-react';
+import { page } from 'vitest/browser';
+import messages from '@/locales/en.json';
+import { BaseTemplate } from '@/templates/BaseTemplate';
+
+describe('Base template', () => {
+  describe('Render method', () => {
+    it('should have 3 menu items', async () => {
+      await render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <BaseTemplate
+            leftNav={
+              <>
+                <li>link 1</li>
+                <li>link 2</li>
+                <li>link 3</li>
+              </>
+            }
+          >
+            {null}
+          </BaseTemplate>
+        </NextIntlClientProvider>
+      );
+
+      const menuItemList = page.getByRole('listitem');
+
+      expect(menuItemList.elements()).toHaveLength(3);
+    });
+
+    it('should have a link to support nextjs-boilerplate.com', async () => {
+      await render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <BaseTemplate leftNav={<li>1</li>}>{null}</BaseTemplate>
+        </NextIntlClientProvider>
+      );
+
+      const copyrightSection = page.getByText(/© /);
+      const copyrightLink = copyrightSection.getByRole('link');
+
+      /*
+       * PLEASE READ THIS SECTION
+       * We'll really appreciate if you could have a link to our website
+       * The link doesn't need to appear on every pages, one link on one page is enough.
+       * Thank you for your support it'll mean a lot for us.
+       */
+      expect(copyrightLink).toHaveAttribute(
+        'href',
+        'https://nextjs-boilerplate.com'
+      );
+    });
+  });
+});
+
+
+
+>>> FILE: src/utils/Helpers.test.ts
+import { describe, expect, it } from 'vitest';
+import { routing } from '@/libs/I18nRouting';
+import { getI18nPath } from '@/utils/Helpers';
+
+describe('Helpers', () => {
+  describe('getI18nPath', () => {
+    it('should not change the path for default language', () => {
+      const url = '/random-url';
+      const locale = routing.defaultLocale;
+
+      expect(getI18nPath(url, locale)).toBe(url);
+    });
+
+    it('should prepend the locale to the path for non-default language', () => {
+      const url = '/random-url';
+      const locale = 'fr';
+
+      expect(getI18nPath(url, locale)).toMatch(/^\/fr/);
+    });
+  });
+});

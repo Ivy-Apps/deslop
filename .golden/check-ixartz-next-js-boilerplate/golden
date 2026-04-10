@@ -1,0 +1,86 @@
+# /.storybook/preview.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import '../src/styles/global.css';
+```
+FIX: Use ```import '@/styles/global.css';``` instead.
+---------
+
+# /next.config.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import './src/libs/Env';
+```
+FIX: Use ```import '@/libs/Env';``` instead.
+---------
+
+# /src/components/Hello.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { Sponsors } from './Sponsors';
+```
+FIX: Use ```import { Sponsors } from '@/components/Sponsors';``` instead.
+---------
+
+# /src/libs/DB.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { Env } from './Env';
+```
+FIX: Use ```import { Env } from '@/libs/Env';``` instead.
+---------
+
+# /src/libs/I18n.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { routing } from './I18nRouting';
+```
+FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
+---------
+
+# /src/libs/I18nNavigation.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { routing } from './I18nRouting';
+```
+FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
+---------
+
+# /src/libs/Logger.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { Env } from './Env';
+```
+FIX: Use ```import { Env } from '@/libs/Env';``` instead.
+---------
+
+# /src/proxy.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { routing } from './libs/I18nRouting';
+```
+FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
+---------
+
+# /src/templates/BaseTemplate.stories.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { BaseTemplate } from './BaseTemplate';
+```
+FIX: Use ```import { BaseTemplate } from '@/templates/BaseTemplate';``` instead.
+---------
+
+# /src/templates/BaseTemplate.test.tsx: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { BaseTemplate } from './BaseTemplate';
+```
+FIX: Use ```import { BaseTemplate } from '@/templates/BaseTemplate';``` instead.
+---------
+
+# /src/utils/Helpers.test.ts: no-relative-imports
+Relative imports are not allowed. Use absolute path aliased ones.
+```ts
+import { getI18nPath } from './Helpers';
+```
+FIX: Use ```import { getI18nPath } from '@/utils/Helpers';``` instead.

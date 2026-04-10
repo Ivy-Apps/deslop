@@ -1,14 +1,13 @@
 module E2E.FileGoldenSpec (spec) where
 
 import Data.Text qualified as T
-import Data.Text.Encoding qualified as TE
-import Data.Text.IO qualified as TIO
 import Deslop (deslopFile)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (runReportProblem)
-import FsEncoding (encodePathString)
-import System.FilePath (takeBaseName, (</>))
+import FsEncoding (decodePathString)
+import System.File.OsPath qualified as SFO
+import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (defaultParams, listFixtures, runCLILogTest, runFileSystemTest)
@@ -22,8 +21,8 @@ import TypeScript.Parser
 import TypeScript.Tokens
 import Types (Renderable (render))
 
-tsFixturesPath :: FilePath
-tsFixturesPath = "test/fixtures/typescript"
+tsFixturesPath :: OsPath
+tsFixturesPath = [osp|test/fixtures/typescript|]
 
 spec :: Spec
 spec = do
@@ -33,13 +32,13 @@ spec = do
     describe "TSConfig Tests" $
         runIO (listFixtures tsFixturesPath ".json") >>= mapM_ configGoldenTest
   where
-    configGoldenTest :: FilePath -> Spec
+    configGoldenTest :: OsPath -> Spec
     configGoldenTest fname = do
-        let testName = takeBaseName fname
+        let testName = decodePathString (takeBaseName fname)
 
         it ("case: " <> testName) $ do
             -- Given
-            cfgFile <- TE.encodeUtf8 <$> TIO.readFile (tsFixturesPath </> fname)
+            cfgFile <- SFO.readFile' (tsFixturesPath </> fname)
 
             -- When
             let cfg = parseTsConfig cfgFile
@@ -47,16 +46,17 @@ spec = do
             -- Then
             return $ defaultGolden testName (ppShow cfg)
 
-    tsGoldenTest :: FilePath -> Spec
+    tsGoldenTest :: OsPath -> Spec
     tsGoldenTest filename = do
-        let testName = takeBaseName filename
+        let testName = decodePathString (takeBaseName filename)
+        let fnameStr = decodePathString filename
 
         it ("Lexer " <> testName) $ do
             -- Given
-            source <- TIO.readFile (tsFixturesPath </> filename)
+            source <- decodeUtf8 <$> SFO.readFile' (tsFixturesPath </> filename)
 
             -- When
-            let res = runParser lexer filename source
+            let res = runParser lexer fnameStr source
 
             -- Then
             case res of
@@ -68,10 +68,10 @@ spec = do
         it ("Parse " <> testName) $ do
             -- Given
             let path = tsFixturesPath </> filename
-            source <- TIO.readFile path
+            source <- decodeUtf8 <$> SFO.readFile' path
 
             -- When
-            let res = parseTs TsFile {path = encodePathString path, content = source}
+            let res = parseTs TsFile {path, content = source}
 
             -- Then
             case res of
@@ -98,10 +98,10 @@ spec = do
                 runEff
                     . runFileSystemTest fileWriteRef
                     . runReader tsCfg
-                    . runReader (defaultParams ".")
+                    . runReader (defaultParams [osp|.|])
                     . runCLILogTest logsRef
                     . runReportProblem
-                    $ deslopFile (encodePathString path)
+                    $ deslopFile path
 
             -- Then
             actualRes <- readIORef fileWriteRef

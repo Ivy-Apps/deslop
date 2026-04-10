@@ -4,23 +4,22 @@ module Deslop.RuleBookSpec (spec) where
 
 import Control.Lens ((.~), (?~))
 import Data.List ((!!))
-import Data.Text.Encoding qualified as TE
-import Data.Text.IO qualified as TIO
 import Deslop.RuleBook
 import Deslop.RuleBookFixtures qualified as Fix
 import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
-import FsEncoding (encodePathString)
-import System.FilePath (takeBaseName, (</>))
+import FsEncoding (decodePathString)
+import System.File.OsPath qualified as SFO
 import System.FilePath.Glob qualified as Glob
+import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (listFixtures)
 import Text.Show.Pretty (ppShow)
 import Utils (headOrThrow)
 
-rbFixturesPath :: FilePath
-rbFixturesPath = "test/fixtures/rulebook"
+rbFixturesPath :: OsPath
+rbFixturesPath = [osp|test/fixtures/rulebook|]
 
 spec :: Spec
 spec = do
@@ -30,7 +29,7 @@ spec = do
         runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ ruleBookFromFileTest
     describe "loadRuleBook" $ do
         it "valid-rules-1" $ do
-            res <- runEff . runFileSystemIO $ loadRuleBookFrom (encodePathString (rbFixturesPath </> "valid-rules-1"))
+            res <- runEff . runFileSystemIO $ loadRuleBookFrom (rbFixturesPath </> [osp|valid-rules-1|])
             return $ defaultGolden "loadRuleBook--valid-rules-1" (ppShow res)
 
     describe "ruleBookFromDto" $ do
@@ -143,17 +142,17 @@ spec = do
             (headOrThrow combined.rules).id `shouldBe` RuleId "rule-one"
             (combined.rules !! 1).id `shouldBe` RuleId "rule-two"
   where
-    parseRuleBookTest :: FilePath -> Spec
+    parseRuleBookTest :: OsPath -> Spec
     parseRuleBookTest fpath = do
-        let testName = "rulebook-dto-from-yaml--" <> takeBaseName fpath
+        let testName = "rulebook-dto-from-yaml--" <> decodePathString (takeBaseName fpath)
         it ("case: " <> testName) $ do
-            ruleBookYaml <- TE.encodeUtf8 <$> TIO.readFile (rbFixturesPath </> fpath)
+            ruleBookYaml <- SFO.readFile' (rbFixturesPath </> fpath)
             let ruleBookRes = parseRuleBookYaml ruleBookYaml
             return $ defaultGolden testName (ppShow ruleBookRes)
 
-    ruleBookFromFileTest :: FilePath -> Spec
+    ruleBookFromFileTest :: OsPath -> Spec
     ruleBookFromFileTest fpath = do
-        let testName = "rulebook-from-file--" <> takeBaseName fpath
+        let testName = "rulebook-from-file--" <> decodePathString (takeBaseName fpath)
         it ("case: " <> testName) $ do
-            res <- runEff . runFileSystemIO $ ruleBookFromFile (encodePathString (rbFixturesPath </> fpath))
+            res <- runEff . runFileSystemIO $ ruleBookFromFile (rbFixturesPath </> fpath)
             return $ defaultGolden testName (ppShow res)

@@ -1,0 +1,39 @@
+version: '3.8'
+services:
+  app:
+    environment:
+      - "NEXT_WEBPACK_USE_POLLING=1"
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+      - ./.docker.env.development:/app/.env.development:readonly
+    ports:
+      - "3000:3000"
+  mock-server:
+    build:
+      context: .
+      target: mock
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./clean-mock-server.json:/app/mock-server.json:readonly
+  storybook:
+    build:
+      context: .
+      target: storybook
+      dockerfile: Dockerfile
+    ports:
+      - "6006:6006"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+      - /app/.next
+
+

@@ -6,6 +6,7 @@ import Effectful (runEff)
 import Effectful.Reader.Static
 import Effects.ReportProblem (runReportProblem)
 import FsEncoding (encodePathString)
+import System.OsPath (OsPath, osp)
 import Test.Hspec
 import TypeScript.CST
 import TypeScript.Config
@@ -27,12 +28,12 @@ spec = describe "importAliases" $ do
 
     describe "Path Resolutions" $ do
         let cases =
-                [ ("src/features/home/home.ts", "../../lib/welcome", "@/lib/welcome")
-                , ("src/features/home/home.ts", "./useHomeViewModel", "@/features/home/useHomeViewModel")
-                , ("src/features/auth.spec.ts", "../../tests/auth-fixture", "@test/auth-fixture")
-                , ("src/app.ts", "react", "react")
-                , ("src/feature/f1/f1.spec.ts", "@/../tests/fixtures", "@test/fixtures")
-                , ("", "vitests/config", "vitests/config")
+                [ ([osp|src/features/home/home.ts|], "../../lib/welcome", "@/lib/welcome")
+                , ([osp|src/features/home/home.ts|], "./useHomeViewModel", "@/features/home/useHomeViewModel")
+                , ([osp|src/features/auth.spec.ts|], "../../tests/auth-fixture", "@test/auth-fixture")
+                , ([osp|src/app.ts|], "react", "react")
+                , ([osp|src/feature/f1/f1.spec.ts|], "@/../tests/fixtures", "@test/fixtures")
+                , (encodePathString "", "vitests/config", "vitests/config")
                 ]
 
         forM_ cases $ \(src, target, expected) ->
@@ -42,10 +43,10 @@ spec = describe "importAliases" $ do
                 -- Then
                 firstTarget result `shouldBe` expected
 
-mkTestProgram :: FilePath -> Text -> TsProgram
+mkTestProgram :: OsPath -> Text -> TsProgram
 mkTestProgram filePath importTarget =
     TsModule
-        (encodePathString filePath)
+        filePath
         [ Import
             { prefix = "import * from '"
             , target = importTarget
