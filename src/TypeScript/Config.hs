@@ -24,48 +24,22 @@ newtype CompilerOptionsDto = CompilerOptionsDton
 instance FromJSON TsConfigDto
 instance FromJSON CompilerOptionsDto
 
-newtype TsConfigLegacy = TsConfigLegacy
-    { paths :: [ImportAlias]
+data TsConfig = TsConfig
+    { baseUrl :: Text
+    , paths :: [PathMapping]
     }
     deriving (Show, Eq)
 
-data ImportAlias = ImportAlias
-    { label :: Text
-    , path :: Text
+data PathMapping = PathMapping
+    { key :: Pattern
+    , value :: NonEmpty Pattern
     }
     deriving (Show, Eq)
 
--- | Parses the TSConfig, safely stripping comments before passing to Aeson
-parseTsConfigLegacy :: ByteString -> Maybe TsConfigLegacy
-parseTsConfigLegacy = fromJson >=> extractPaths >=> pure . buildConfig
-  where
-    fromJson :: ByteString -> Maybe TsConfigDto
-    fromJson =
-        rightToMaybe
-            . decodeUtf8'
-            >=> decode @TsConfigDto
-            . encodeUtf8
-            . stripTsComments
-
-    extractPaths :: TsConfigDto -> Maybe (Map Text [Text])
-    extractPaths = (.paths) . (.compilerOptions)
-
-    buildConfig :: Map Text [Text] -> TsConfigLegacy
-    buildConfig =
-        TsConfigLegacy
-            . sortByLongest
-            . mapMaybe parseAlias
-            . M.toList
-            . M.mapMaybe safeHead
-
-    parseAlias :: (Text, Text) -> Maybe ImportAlias
-    parseAlias = Just . uncurry ImportAlias . join bimap cleanPath
-
-    cleanPath :: Text -> Text
-    cleanPath = (fromMaybe <*> T.stripPrefix "./") . T.takeWhile (/= '*')
-
-    sortByLongest :: [ImportAlias] -> [ImportAlias]
-    sortByLongest = sortOn (Down . T.length . (.label))
+data Pattern
+    = Exact Text
+    | WildCard {pre :: Text, suff :: Text}
+    deriving (Show, Eq)
 
 --------------------------------------------------------------------------------
 -- Comment Stripping Logic
@@ -126,3 +100,50 @@ jsoncStripper =
     -- Catchall for isolated slashes
     slash :: Parser Text
     slash = chunk "/"
+
+--------------------
+-- LEGACY CODE
+--------------------
+
+newtype TsConfigLegacy = TsConfigLegacy
+    { paths :: [ImportAlias]
+    }
+    deriving (Show, Eq)
+
+data ImportAlias = ImportAlias
+    { label :: Text
+    , path :: Text
+    }
+    deriving (Show, Eq)
+
+-- | Parses the TSConfig, safely stripping comments before passing to Aeson
+parseTsConfigLegacy :: ByteString -> Maybe TsConfigLegacy
+parseTsConfigLegacy = fromJson >=> extractPaths >=> pure . buildConfig
+  where
+    fromJson :: ByteString -> Maybe TsConfigDto
+    fromJson =
+        rightToMaybe
+            . decodeUtf8'
+            >=> decode @TsConfigDto
+            . encodeUtf8
+            . stripTsComments
+
+    extractPaths :: TsConfigDto -> Maybe (Map Text [Text])
+    extractPaths = (.paths) . (.compilerOptions)
+
+    buildConfig :: Map Text [Text] -> TsConfigLegacy
+    buildConfig =
+        TsConfigLegacy
+            . sortByLongest
+            . mapMaybe parseAlias
+            . M.toList
+            . M.mapMaybe safeHead
+
+    parseAlias :: (Text, Text) -> Maybe ImportAlias
+    parseAlias = Just . uncurry ImportAlias . join bimap cleanPath
+
+    cleanPath :: Text -> Text
+    cleanPath = (fromMaybe <*> T.stripPrefix "./") . T.takeWhile (/= '*')
+
+    sortByLongest :: [ImportAlias] -> [ImportAlias]
+    sortByLongest = sortOn (Down . T.length . (.label))
