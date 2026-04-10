@@ -9,48 +9,27 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
 import Params
+import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (TestLogs (..), copyDir, defaultParams, projectFixturePath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
+import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesBasePath, projectFixturePath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
 import Types (DeslopError (CheckModeFoundProblems))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
-spec = describe "Whole Project Golden Tests" $ do
-    it "correctly transforms ts-project-1" $ do
-        withSystemTempDirectory "deslop-test" $ \tmpDir -> do
-            -- Given
-            copyDir projectFixturePath tmpDir
-            logsRef <- newIORef Nothing
-
-            -- When
-            res <-
-                runEff
-                    . runFileSystemIO
-                    . runErrorNoCallStack @DeslopError
-                    . runCLILogTest logsRef
-                    . runGitTest []
-                    . runReportProblem
-                    . runConcurrent
-                    $ deslopProject (defaultParams tmpDir)
-
-            -- Then
-            res `shouldBe` Right ()
-            logs <- readIORef logsRef
-            logs `shouldBe` Nothing
-            let filesToVerify =
-                    [ "src/app/[locale]/login/page.tsx"
-                    , "src/features/home/home-screen.tsx"
-                    , "src/features/home/home-component.ts"
-                    , "src/features/home/home.spec.ts"
-                    , "src/app/[locale]/login/page.tsx"
-                    , "src/features/login/login.spec.ts"
-                    , "src/features/login/login-form.ts"
-                    , "tests/fixtures/fixtures.ts"
-                    , "vitest.config.ts"
-                    ]
-            fullSnapshot <- snapshot tmpDir filesToVerify
-            return $ defaultGolden "ts-project-1-snapshot" fullSnapshot
+spec = describe "Deslop project" $ do
+    itFixes
+        "ts-project-1"
+        [ "src/app/[locale]/login/page.tsx"
+        , "src/features/home/home-screen.tsx"
+        , "src/features/home/home-component.ts"
+        , "src/features/home/home.spec.ts"
+        , "src/app/[locale]/login/page.tsx"
+        , "src/features/login/login.spec.ts"
+        , "src/features/login/login-form.ts"
+        , "tests/fixtures/fixtures.ts"
+        , "vitest.config.ts"
+        ]
 
     it "checks ts-project-1" $ do
         withSystemTempDirectory "deslop-test" $ \tmpDir -> do
@@ -83,3 +62,28 @@ spec = describe "Whole Project Golden Tests" $ do
             -- Removes the tmp dir path from the log so the golden test is stable
             let problemsLogNormalized = T.unpack . T.replace (T.pack tmpDir) "" $ logs.problems
             return $ defaultGolden "ts-project-1-problem-logs" problemsLogNormalized
+  where
+    itFixes project filesToCheck = it ("fixes " <> project) $ do
+        withSystemTempDirectory "deslop-test" $ \tmpDir -> do
+            -- Given
+            let projectPath = fixturesBasePath </> project
+            copyDir projectPath tmpDir
+            logsRef <- newIORef Nothing
+
+            -- When
+            res <-
+                runEff
+                    . runFileSystemIO
+                    . runErrorNoCallStack @DeslopError
+                    . runCLILogTest logsRef
+                    . runGitTest []
+                    . runReportProblem
+                    . runConcurrent
+                    $ deslopProject (defaultParams tmpDir)
+
+            -- Then
+            res `shouldBe` Right ()
+            logs <- readIORef logsRef
+            logs `shouldBe` Nothing
+            fullSnapshot <- snapshot tmpDir filesToCheck
+            return $ defaultGolden ("fix-" <> project) fullSnapshot
