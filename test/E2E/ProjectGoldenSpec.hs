@@ -12,12 +12,14 @@ import Params
 import System.FilePath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesBasePath, projectFixturePath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
+import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesBasePath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
 import Types (DeslopError (CheckModeFoundProblems))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
 spec = describe "Deslop project" $ do
+    itChecks "ts-project-1"
+
     itFixes
         "ts-project-1"
         [ "src/app/[locale]/login/page.tsx"
@@ -30,38 +32,6 @@ spec = describe "Deslop project" $ do
         , "tests/fixtures/fixtures.ts"
         , "vitest.config.ts"
         ]
-
-    it "checks ts-project-1" $ do
-        withSystemTempDirectory "deslop-test" $ \tmpDir -> do
-            -- Given
-            copyDir projectFixturePath tmpDir
-            filesRef <- newIORef Nothing
-            logsRef <- newIORef Nothing
-            let params = (defaultParams tmpDir) {checkMode = True}
-
-            -- When
-            res <-
-                runEff
-                    . runFileSystemTest filesRef
-                    . runErrorNoCallStack @DeslopError
-                    . runCLILogTest logsRef
-                    . runGitTest []
-                    . runReportProblem
-                    . runAIAlwaysFail
-                    . runConcurrent
-                    $ doWork params testSecrets
-
-            -- Then
-            res `shouldBe` Left CheckModeFoundProblems
-            written <- readIORef filesRef
-            written `shouldBe` Nothing
-            maybeLogs <- readIORef logsRef
-            when (isNothing maybeLogs) $
-                expectationFailure "Expected problems to be logged when check mode finds problems"
-            let logs = fromJust maybeLogs
-            -- Removes the tmp dir path from the log so the golden test is stable
-            let problemsLogNormalized = T.unpack . T.replace (T.pack tmpDir) "" $ logs.problems
-            return $ defaultGolden "ts-project-1-problem-logs" problemsLogNormalized
   where
     itFixes project filesToCheck = it ("fixes " <> project) $ do
         withSystemTempDirectory "deslop-test" $ \tmpDir -> do
@@ -87,3 +57,34 @@ spec = describe "Deslop project" $ do
             logs `shouldBe` Nothing
             fullSnapshot <- snapshot tmpDir filesToCheck
             return $ defaultGolden ("fix-" <> project) fullSnapshot
+
+    itChecks project = it ("checks " <> project) $ do
+        -- Given
+        let projectPath = fixturesBasePath </> project
+        filesRef <- newIORef Nothing
+        logsRef <- newIORef Nothing
+        let params = (defaultParams projectPath) {checkMode = True}
+
+        -- When
+        res <-
+            runEff
+                . runFileSystemTest filesRef
+                . runErrorNoCallStack @DeslopError
+                . runCLILogTest logsRef
+                . runGitTest []
+                . runReportProblem
+                . runAIAlwaysFail
+                . runConcurrent
+                $ doWork params testSecrets
+
+        -- Then
+        res `shouldBe` Left CheckModeFoundProblems
+        written <- readIORef filesRef
+        written `shouldBe` Nothing
+        maybeLogs <- readIORef logsRef
+        when (isNothing maybeLogs) $
+            expectationFailure "Expected problems to be logged when check mode finds problems"
+        let logs = fromJust maybeLogs
+        -- Removes the dir path from the log so the golden test is stable
+        let problemsLogNormalized = T.unpack . T.replace (T.pack projectPath) "" $ logs.problems
+        return $ defaultGolden "ts-project-1-problem-logs" problemsLogNormalized
