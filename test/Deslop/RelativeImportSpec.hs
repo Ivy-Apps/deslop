@@ -15,7 +15,7 @@ spec :: Spec
 spec = describe "importAliases" $ do
     -- Given
     let cfg =
-            TsConfig
+            TsConfigLegacy
                 { paths =
                     [ ImportAlias {label = "@test/", path = "tests/"}
                     , ImportAlias {label = "@/", path = "src/"}

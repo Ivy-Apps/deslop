@@ -17,7 +17,7 @@ import TypeScript.CST (
  )
 import TypeScript.Config (
     ImportAlias (ImportAlias, label, path),
-    TsConfig (paths),
+    TsConfigLegacy (paths),
  )
 import Types (Renderable (render))
 import Utils (safePop)
@@ -32,7 +32,7 @@ noRelativeImports (old, new) path =
         , fix = "Use ```" <> render new <> "``` instead."
         }
 
-importAliases :: (Reader TsConfig :> es, ReportProblem :> es) => TsProgram -> Eff es TsProgram
+importAliases :: (Reader TsConfigLegacy :> es, ReportProblem :> es) => TsProgram -> Eff es TsProgram
 importAliases prog = do
     cst' <- traverse fixImport prog.cst
     pure prog {cst = cst'}
@@ -46,9 +46,9 @@ importAliases prog = do
         pure new
     fixImport x = pure x
 
-fixTarget :: (Reader TsConfig :> es) => OsPath -> Text -> Eff es Text
+fixTarget :: (Reader TsConfigLegacy :> es) => OsPath -> Text -> Eff es Text
 fixTarget progPath t = do
-    as <- asks @TsConfig (.paths)
+    as <- asks @TsConfigLegacy (.paths)
     let absT = T.pack . absPath as $ t
     case useAlias as absT of
         Just absT' -> pure . fst $ dropCommonPre (absT', absT)

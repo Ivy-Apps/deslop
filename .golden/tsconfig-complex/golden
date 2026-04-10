@@ -1,5 +1,5 @@
 Just
-  TsConfig
+  TsConfigLegacy
     { paths =
         [ ImportAlias { label = "@components/" , path = "src/components/" }
         , ImportAlias { label = "@assets/" , path = "src/assets/" }

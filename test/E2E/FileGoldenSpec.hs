@@ -15,7 +15,7 @@ import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
 import TypeScript.CST
-import TypeScript.Config (ImportAlias (ImportAlias), TsConfig (..), parseTsConfig)
+import TypeScript.Config (ImportAlias (ImportAlias), TsConfigLegacy (..), parseTsConfigLegacy)
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser
 import TypeScript.Tokens
@@ -41,7 +41,7 @@ spec = do
             cfgFile <- SFO.readFile' (tsFixturesPath </> fname)
 
             -- When
-            let cfg = parseTsConfig cfgFile
+            let cfg = parseTsConfigLegacy cfgFile
 
             -- Then
             return $ defaultGolden testName (ppShow cfg)
@@ -86,7 +86,7 @@ spec = do
             fileWriteRef <- newIORef Nothing
             logsRef <- newIORef Nothing
             let tsCfg =
-                    TsConfig
+                    TsConfigLegacy
                         { paths =
                             [ ImportAlias "@/" "test/"
                             , ImportAlias "@test/" "tests/"

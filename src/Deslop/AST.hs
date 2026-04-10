@@ -12,7 +12,7 @@ import Effectful.Reader.Static (Reader)
 import FsEncoding (decodePathString)
 import System.FilePath (dropExtension)
 import TypeScript.CST (TsNode (..), TsProgram (cst, path))
-import TypeScript.Config (TsConfig)
+import TypeScript.Config (TsConfigLegacy)
 
 newtype ModuleId = ModuleId Text deriving stock (Show, Eq)
 newtype AstNode = ImportNode
@@ -25,7 +25,7 @@ data AstModule = AstModule
     }
     deriving stock (Show, Eq)
 
-parseAst :: (Reader TsConfig :> es) => TsProgram -> Eff es AstModule
+parseAst :: (Reader TsConfigLegacy :> es) => TsProgram -> Eff es AstModule
 parseAst prog = do
     moduleId <- programModuleId
     pure

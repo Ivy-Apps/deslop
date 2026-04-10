@@ -31,7 +31,7 @@ import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeExtension, (</>))
 import Test.Hspec.Golden (Golden, defaultGolden)
-import TypeScript.Config (ImportAlias (..), TsConfig (..))
+import TypeScript.Config (ImportAlias (..), TsConfigLegacy (..))
 import Types (Renderable (render))
 import UI (problemsLogText)
 
@@ -126,9 +126,9 @@ testSecrets =
         { geminiApiKey = Just $ GeminiApiKey "testKey"
         }
 
-defaultTsConfig :: TsConfig
+defaultTsConfig :: TsConfigLegacy
 defaultTsConfig =
-    TsConfig
+    TsConfigLegacy
         { paths =
             [ ImportAlias {label = "@/", path = "src/"}
             , ImportAlias {label = "@test/", path = "test/"}

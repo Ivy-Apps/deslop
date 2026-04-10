@@ -1,6 +1,6 @@
 module TypeScript.Config (
-    parseTsConfig,
-    TsConfig (..),
+    parseTsConfigLegacy,
+    TsConfigLegacy (..),
     ImportAlias (..),
 ) where
 
@@ -24,7 +24,7 @@ newtype CompilerOptionsDto = CompilerOptionsDton
 instance FromJSON TsConfigDto
 instance FromJSON CompilerOptionsDto
 
-newtype TsConfig = TsConfig
+newtype TsConfigLegacy = TsConfigLegacy
     { paths :: [ImportAlias]
     }
     deriving (Show, Eq)
@@ -36,8 +36,8 @@ data ImportAlias = ImportAlias
     deriving (Show, Eq)
 
 -- | Parses the TSConfig, safely stripping comments before passing to Aeson
-parseTsConfig :: ByteString -> Maybe TsConfig
-parseTsConfig = fromJson >=> extractPaths >=> pure . buildConfig
+parseTsConfigLegacy :: ByteString -> Maybe TsConfigLegacy
+parseTsConfigLegacy = fromJson >=> extractPaths >=> pure . buildConfig
   where
     fromJson :: ByteString -> Maybe TsConfigDto
     fromJson =
@@ -50,9 +50,9 @@ parseTsConfig = fromJson >=> extractPaths >=> pure . buildConfig
     extractPaths :: TsConfigDto -> Maybe (Map Text [Text])
     extractPaths = (.paths) . (.compilerOptions)
 
-    buildConfig :: Map Text [Text] -> TsConfig
+    buildConfig :: Map Text [Text] -> TsConfigLegacy
     buildConfig =
-        TsConfig
+        TsConfigLegacy
             . sortByLongest
             . mapMaybe parseAlias
             . M.toList
