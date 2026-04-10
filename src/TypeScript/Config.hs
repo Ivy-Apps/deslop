@@ -7,6 +7,7 @@ module TypeScript.Config (
 import Data.Aeson (FromJSON, decode)
 import Data.Map qualified as M
 import Data.Text qualified as T
+import System.OsPath (OsPath)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)
 import Utils (safeHead)
@@ -25,7 +26,7 @@ instance FromJSON TsConfigDto
 instance FromJSON CompilerOptionsDto
 
 data TsConfig = TsConfig
-    { baseUrl :: Text
+    { baseUrl :: OsPath
     , paths :: [PathMapping]
     }
     deriving (Show, Eq)
