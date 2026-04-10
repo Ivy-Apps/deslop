@@ -20,6 +20,7 @@ import UnliftIO.Temporary (withSystemTempDirectory)
 spec :: Spec
 spec = describe "Deslop project" $ do
     itChecks "ts-project-1"
+    itChecks "ixartz-next-js-boilerplate"
 
     itFixes
         "ts-project-1"
@@ -33,6 +34,8 @@ spec = describe "Deslop project" $ do
         , "tests/fixtures/fixtures.ts"
         , "vitest.config.ts"
         ]
+
+    itFixes "ixartz-next-js-boilerplate" []
   where
     itFixes project filesToCheck = it ("fixes " <> project) $ do
         withSystemTempDirectory "deslop-test" $ \tmpFp -> do
