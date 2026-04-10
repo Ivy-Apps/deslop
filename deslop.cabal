@@ -19,6 +19,7 @@ common shared-properties
     DuplicateRecordFields
     LambdaCase
     NoFieldSelectors
+    OverloadedLabels
     OverloadedRecordDot
     OverloadedStrings
     TypeApplications
@@ -104,6 +105,7 @@ test-suite deslop-test
   default-extensions:
     QuasiQuotes
     TemplateHaskell
+
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
   main-is:            Spec.hs
