@@ -26,20 +26,20 @@ instance FromJSON TsConfigDto
 instance FromJSON CompilerOptionsDto
 
 data TsConfig = TsConfig
-    { baseUrl :: OsPath
-    , paths :: [PathMapping]
+    { baseUrl :: !OsPath
+    , paths :: ![PathMapping]
     }
     deriving (Show, Eq)
 
 data PathMapping = PathMapping
-    { key :: Pattern
-    , value :: NonEmpty Pattern
+    { key :: !Pattern
+    , value :: !(NonEmpty Pattern)
     }
     deriving (Show, Eq)
 
 data Pattern
-    = Exact Text
-    | WildCard {pre :: Text, suff :: Text}
+    = Exact !Text
+    | WildCard {pre :: !Text, suff :: !Text}
     deriving (Show, Eq)
 
 --------------------------------------------------------------------------------
