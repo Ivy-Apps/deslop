@@ -1,2 +1,3 @@
+- arguments: ["-XQuasiQuotes", "-XTemplateHaskell"]
 - ignore: {name: "Use <&>"}
 - ignore: {name: "Redundant id"}
