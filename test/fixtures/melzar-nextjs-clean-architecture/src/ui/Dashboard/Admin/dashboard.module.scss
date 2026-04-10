@@ -1,0 +1,90 @@
+@import 'src/ui/common/styles/colors.module';
+
+.header {
+  flex: 0.3;
+  margin: 0 60px;
+}
+
+.container {
+  background: radial-gradient(100% 100% at 50% 0%, $san-juan, $mirage);
+  border-radius: 10px;
+  box-shadow: $box-shadow 0 -10px 15px 0;
+  display: flex;
+  flex: 1;
+  margin: 0 60px;
+  padding: 30px;
+}
+
+.containerRelative {
+  position: relative;
+}
+
+.warningMessageIcon {
+  height: 30px;
+  padding-right: 10px;
+  width: auto;
+}
+
+.warningStatus {
+  animation: pulse-red 1s infinite;
+  color: $sunset-orange;
+}
+
+.warningNumber {
+  line-height: 1.2;
+  margin-right: 10px;
+}
+
+.rowStatus {
+  margin-left: auto;
+  padding: 0 10px 0 20px;
+}
+
+.pageHeadingDashboard {
+  margin-bottom: 20px;
+}
+
+.widgetHeadingDashboard {
+  margin: auto 0 20px;
+}
+
+.widgetDashboard {
+  margin-right: 20px;
+  width: 100%;
+
+  &:last-child {
+    margin-right: initial;
+  }
+}
+
+.widgetHeadingAttention {
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.widgetTransparentDashboard {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.widgetRow {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-all;
+}
+
+@keyframes pulse-red {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.3);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}

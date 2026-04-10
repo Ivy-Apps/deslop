@@ -1,0 +1,10 @@
+@import 'src/ui/common/styles/colors.module';
+
+.primaryButton {
+  background: linear-gradient(
+    90deg,
+    $cornflower-blue 0%,
+    $dodger-blue 50%,
+    $anakiwa 100%
+  );
+}

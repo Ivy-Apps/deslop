@@ -1,0 +1,14 @@
+@import 'src/ui/common/styles/colors.module';
+
+.sideNavigation {
+  align-items: center;
+  background: linear-gradient(180deg, $waikawa-gray-dark, $rhino, $mirage);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 60px;
+}
+
+.logo {
+  width: 35px;
+}

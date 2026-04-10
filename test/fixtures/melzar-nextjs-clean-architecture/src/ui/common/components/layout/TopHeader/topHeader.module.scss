@@ -1,0 +1,26 @@
+@import 'src/ui/common/styles/colors.module';
+
+.headerWrapper {
+  background-color: $port-gore-lighter;
+  height: 80px;
+  position: fixed;
+  top: 0;
+}
+
+.headerContainer {
+  min-height: 24px;
+
+  &::before {
+    background: linear-gradient(
+      to right,
+      rgb(255 255 255 / 0%) 0%,
+      rgb(255 255 255 / 10%) 50%,
+      rgb(255 255 255 / 0%) 100%
+    );
+    bottom: -22px;
+    content: '';
+    height: 1px;
+    position: absolute;
+    width: 100%;
+  }
+}

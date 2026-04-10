@@ -1,0 +1,13 @@
+@import 'src/ui/common/styles/colors.module';
+
+.topNavigation {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  height: 60px;
+  justify-content: flex-end;
+}
+
+.topNavigationItem {
+  margin-right: 20px;
+}
