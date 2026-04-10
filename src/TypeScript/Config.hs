@@ -40,13 +40,12 @@ parseTsConfig :: ByteString -> Maybe TsConfig
 parseTsConfig = fromJson >=> extractPaths >=> pure . buildConfig
   where
     fromJson :: ByteString -> Maybe TsConfigDto
-    fromJson bs = do
-        -- 1. Safely decode UTF-8 to Text
-        textData <- either (const Nothing) Just (decodeUtf8' bs)
-        -- 2. Strip comments while preserving strings/URLs
-        let cleanText = stripTsComments textData
-        -- 3. Encode back to strict ByteString, then lazy, then decode
-        decode . encodeUtf8 $ cleanText
+    fromJson =
+        rightToMaybe
+            . decodeUtf8'
+            >=> decode @TsConfigDto
+            . encodeUtf8
+            . stripTsComments
 
     extractPaths :: TsConfigDto -> Maybe (Map Text [Text])
     extractPaths = (.paths) . (.compilerOptions)
