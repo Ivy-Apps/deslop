@@ -21,6 +21,7 @@ spec :: Spec
 spec = describe "Deslop project" $ do
     itChecks "ts-project-1"
     itChecks "ixartz-next-js-boilerplate"
+    itChecks "melzar-nextjs-clean-architecture"
 
     itFixes
         "ts-project-1"
@@ -48,6 +49,17 @@ spec = describe "Deslop project" $ do
         , "src/templates/BaseTemplate.stories.tsx"
         , "src/templates/BaseTemplate.test.tsx"
         , "src/utils/Helpers.test.ts"
+        ]
+
+    itFixes
+        "melzar-nextjs-clean-architecture"
+        [ "src/app/layout.tsx"
+        , "src/ui/common/components/layout/ContainerBox/ContainerBox.tsx"
+        , "src/ui/common/components/layout/TopHeader/TopHeader.stories.tsx"
+        , "src/ui/common/components/layout/TopNavigation/TopNavigation.tsx"
+        , "tsconfig.json"
+        , "src/middleware.ts"
+        , "src/app/page.tsx"
         ]
   where
     itChecks project = it ("checks " <> project) $ do

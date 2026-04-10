@@ -1,0 +1,213 @@
+>>> FILE: src/app/layout.tsx
+import { ReactNode } from 'react';
+
+import type { Metadata } from 'next';
+
+import { AuthenticationProvider } from 'ui/common/providers/authentication.provider';
+import { lato } from 'ui/common/assets/fonts/fonts';
+
+import 'app/globals.scss';
+
+export const metadata: Metadata = {
+  title: 'Clean Architecture Next.js React Boilerplate',
+  description: 'Boilerplate for Clean Architecture with Next.js',
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body className={lato.className}>
+        <AuthenticationProvider>{children}</AuthenticationProvider>
+      </body>
+    </html>
+  );
+}
+
+
+
+>>> FILE: src/ui/common/components/layout/ContainerBox/ContainerBox.tsx
+import { CSSProperties, ReactNode } from 'react';
+
+import styles from 'ui/common/components/layout/ContainerBox/containerBox.module.scss';
+
+type Props = {
+  children: ReactNode;
+  className?: string;
+  style?: CSSProperties;
+};
+
+export const ContainerBox = ({ children, style, className }: Props) => (
+  <div className={`mx-auto ${className} ${styles.container}`} style={style}>
+    {children}
+  </div>
+);
+
+
+
+>>> FILE: src/ui/common/components/layout/TopHeader/TopHeader.stories.tsx
+import type { Meta, StoryObj } from '@storybook/react';
+
+import { TopHeader } from 'ui/common/components/layout/TopHeader/TopHeader';
+
+const meta: Meta<typeof TopHeader> = {
+  component: TopHeader,
+};
+
+export default meta;
+type Story = StoryObj<typeof TopHeader>;
+
+export const Base: Story = {
+  args: {
+    children: <div>Top Header Content</div>,
+  },
+  render: (args) => <TopHeader>{args.children}</TopHeader>,
+};
+
+
+
+>>> FILE: src/ui/common/components/layout/TopNavigation/TopNavigation.tsx
+import React from 'react';
+
+import { TopNavigationActions } from 'ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions';
+import { TopNavigationUser } from 'ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser';
+
+import styles from 'ui/common/components/layout/TopNavigation/topNavigation.module.scss';
+
+type Props = {
+  className?: string;
+};
+
+export const TopNavigation = ({ className }: Props) => (
+  <nav className={`${styles.topNavigation} ${className}`}>
+    <TopNavigationUser />
+    <TopNavigationActions />
+  </nav>
+);
+
+
+
+>>> FILE: tsconfig.json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "paths": {
+      "core/*": [
+        "./src/core/*"
+      ],
+      "ioc/*": [
+        "./src/ioc/*"
+      ],
+      "domain/*": [
+        "./src/domain/*"
+      ],
+      "data/*": [
+        "./src/data/*"
+      ],
+      "presentation/*": [
+        "./src/presentation/*"
+      ],
+      "ui/*": [
+        "./src/ui/*"
+      ],
+      "app/*": [
+        "./src/app/*"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-auth.d.ts",
+    "next-env.d.ts",
+    "**/*.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "**/.scope.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+
+
+
+>>> FILE: src/middleware.ts
+import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
+import { NextResponse } from 'next/server';
+
+import { APP_ADMIN_ROUTES, APP_ROUTES } from 'ui/common/navigation/routes';
+
+export default withAuth(
+  function middleware(request: NextRequestWithAuth) {
+    if (request.nextUrl.pathname === '/' && !request.nextauth.token) {
+      return NextResponse.redirect(new URL(APP_ROUTES.LOGIN, request.url));
+    }
+
+    if (
+      request.nextUrl.pathname === '/' &&
+      request.nextauth.token?.role === 'member'
+    ) {
+      return NextResponse.redirect(new URL(APP_ROUTES.DASHBOARD, request.url));
+    }
+
+    if (
+      request.nextUrl.pathname === '/' &&
+      request.nextauth.token?.role === 'admin'
+    ) {
+      return NextResponse.redirect(
+        new URL(APP_ADMIN_ROUTES.DASHBOARD(), request.url)
+      );
+    }
+
+    if (
+      request.nextUrl.pathname.startsWith('/admin') &&
+      request.nextauth.token?.role !== 'admin'
+    ) {
+      return NextResponse.redirect(new URL('/forbidden', request.url));
+    }
+
+    return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: ({ token }) => !!token,
+    },
+  }
+);
+
+export const config = { matcher: ['/', '/admin/:path*'] };
+
+
+
+>>> FILE: src/app/page.tsx
+import React from 'react';
+
+export default function Home() {
+  return (
+    <main className="flex min-h-screen items-center justify-center p-24">
+      <div className="flex items-center">Home</div>
+    </main>
+  );
+}
