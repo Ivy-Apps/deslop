@@ -35,7 +35,20 @@ spec = describe "Deslop project" $ do
         , "vitest.config.ts"
         ]
 
-    itFixes "ixartz-next-js-boilerplate" []
+    itFixes
+        "ixartz-next-js-boilerplate"
+        [ ".storybook/preview.ts"
+        , "next.config.ts"
+        , "src/components/Hello.tsx"
+        , "src/libs/DB.ts"
+        , "src/libs/I18n.ts"
+        , "src/libs/I18nNavigation.ts"
+        , "src/libs/Logger.ts"
+        , "src/proxy.ts"
+        , "src/templates/BaseTemplate.stories.tsx"
+        , "src/templates/BaseTemplate.test.tsx"
+        , "src/utils/Helpers.test.ts"
+        ]
   where
     itChecks project = it ("checks " <> project) $ do
         -- Given
