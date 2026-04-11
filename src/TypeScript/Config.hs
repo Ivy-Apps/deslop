@@ -3,7 +3,6 @@ module TypeScript.Config (
     TsConfigLegacy (..),
     ImportAlias (..),
     readTsConfig,
-    parseTsConfig,
     parsePattern,
     parsePathMapping,
     TsConfig (..),
@@ -52,24 +51,31 @@ data Pattern
     deriving (Show, Eq)
 
 readTsConfig :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text TsConfig)
-readTsConfig path = fsReadAbsFile path >>= parseTsConfig path
+readTsConfig cfgPath = fsReadAbsFile cfgPath >>= parseTsConfigFromJson cfgPath
 
-parseTsConfig :: (RoFileSystem :> es) => AbsPath -> ByteString -> Eff es (Either Text TsConfig)
-parseTsConfig _p _json = pure $ Left "WIP"
+parseTsConfigFromJson :: (RoFileSystem :> es) => AbsPath -> ByteString -> Eff es (Either Text TsConfig)
+parseTsConfigFromJson cfgPath json = do
+    case decodeJson json of
+        Right dto -> Right <$> parseTsConfig cfgPath dto
+        Left err -> pure . Left $ err
   where
-    _decodeJson :: ByteString -> Either Text TsConfigDto
-    _decodeJson bs = do
+    decodeJson :: ByteString -> Either Text TsConfigDto
+    decodeJson bs = do
         cleanJson <- bimap show stripTsComments . decodeUtf8' $ bs
         maybeToRight "Failed to parse JSON" . decode' @TsConfigDto . encodeUtf8 $ cleanJson
 
-_mapToTsConfig :: (RoFileSystem :> es) => AbsPath -> TsConfigDto -> Eff es TsConfig
-_mapToTsConfig path dto = do
+parseTsConfig :: (RoFileSystem :> es) => AbsPath -> TsConfigDto -> Eff es TsConfig
+parseTsConfig cfgPath dto = do
     let baseUrl = encodeOsPath . fromMaybe "." $ dto.compilerOptions.baseUrl
-    absBaseUrl <- fsMkAbsolute $ withAbsBaseSafe path baseUrl
+    absBaseUrl <- fsMkAbsolute $ withAbsBaseSafe cfgPath baseUrl
     pure
         TsConfig
             { baseUrl = absBaseUrl
-            , paths = []
+            , paths =
+                mapMaybe parsePathMapping
+                    . M.toList
+                    . fromMaybe mempty
+                    $ dto.compilerOptions.paths
             }
 
 parsePathMapping :: (Text, [Text]) -> Maybe PathMapping
