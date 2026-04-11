@@ -14,6 +14,8 @@ module Effects.FileSystem (
     AbsPath (..),
     fsMkAbsolute,
     withAbsDir,
+    fsIsAbsDirectory,
+    fsReadAbsFile,
 ) where
 
 import Effectful
@@ -22,18 +24,23 @@ import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, (</>))
 
-newtype AbsPath = AbsPath OsPath deriving (Show, Eq)
+newtype AbsPath = AbsPath
+    { osPath :: OsPath
+    }
+    deriving (Show, Eq)
 
 withAbsDir :: AbsPath -> OsPath -> AbsPath
 withAbsDir (AbsPath d) p = AbsPath (d </> p)
 
 data RoFileSystem :: Effect where
     ReadFile :: OsPath -> RoFileSystem m ByteString
+    ReadAbsFile :: AbsPath -> RoFileSystem m ByteString
     FileExists :: OsPath -> RoFileSystem m Bool
     DirectoryExists :: OsPath -> RoFileSystem m Bool
     ListDirectory :: OsPath -> RoFileSystem m [OsPath]
     ListAbsDirectory :: AbsPath -> RoFileSystem m [AbsPath]
     IsDirectory :: OsPath -> RoFileSystem m Bool
+    IsAbsDirectory :: AbsPath -> RoFileSystem m Bool
     GetHomeDirectory :: RoFileSystem m OsPath
     MkAbsolute :: OsPath -> RoFileSystem m AbsPath
 
@@ -45,6 +52,9 @@ type instance DispatchOf WrFileSystem = Dynamic
 
 fsReadFile :: (RoFileSystem :> es) => OsPath -> Eff es ByteString
 fsReadFile = send . ReadFile
+
+fsReadAbsFile :: (RoFileSystem :> es) => AbsPath -> Eff es ByteString
+fsReadAbsFile = send . ReadAbsFile
 
 fsFileExists :: (RoFileSystem :> es) => OsPath -> Eff es Bool
 fsFileExists = send . FileExists
@@ -61,6 +71,9 @@ fsListAbsDirectory = send . ListAbsDirectory
 fsIsDirectory :: (RoFileSystem :> es) => OsPath -> Eff es Bool
 fsIsDirectory = send . IsDirectory
 
+fsIsAbsDirectory :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
+fsIsAbsDirectory = send . IsAbsDirectory
+
 fsGetHomeDirectory :: (RoFileSystem :> es) => Eff es OsPath
 fsGetHomeDirectory = send GetHomeDirectory
 
@@ -76,6 +89,7 @@ runFileSystemIO = runRoFileSystemIO . runWrFileSystemIO
 runRoFileSystemIO :: (IOE :> es) => Eff (RoFileSystem : es) a -> Eff es a
 runRoFileSystemIO = interpret $ \_env -> \case
     ReadFile path -> liftIO $ SFO.readFile' path
+    ReadAbsFile (AbsPath path) -> liftIO $ SFO.readFile' path
     FileExists path -> liftIO $ SDO.doesFileExist path
     DirectoryExists path -> liftIO $ SDO.doesDirectoryExist path
     ListDirectory path -> liftIO $ SDO.listDirectory path
@@ -85,6 +99,7 @@ runRoFileSystemIO = interpret $ \_env -> \case
             . SDO.listDirectory
             $ p
     IsDirectory path -> liftIO $ SDO.doesDirectoryExist path
+    IsAbsDirectory (AbsPath path) -> liftIO $ SDO.doesDirectoryExist path
     GetHomeDirectory -> liftIO SDO.getHomeDirectory
     MkAbsolute path -> liftIO . fmap AbsPath . SDO.canonicalizePath $ path
 
