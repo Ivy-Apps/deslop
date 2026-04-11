@@ -80,6 +80,19 @@ parseTsConfig cfgPath dto = do
                     $ dto.compilerOptions.paths
             }
 
+sortPathMappings :: [PathMapping] -> [PathMapping]
+sortPathMappings = sortOn (Down . patternSortKey . (.key))
+  where
+    -- 'Down' reverses the default ascending sort, meaning higher numbers come first.
+    patternSortKey :: Pattern -> (Int, Int, Int)
+    patternSortKey (Exact _) =
+        -- Priority 1: Exact matches always float to the top.
+        (1, 0, 0)
+    patternSortKey (Wildcard pre suff) =
+        -- Priority 0: Wildcards come after Exact matches.
+        -- They are sub-sorted by prefix length, then suffix length.
+        (0, T.length pre, T.length suff)
+
 parsePathMapping :: (Text, [Text]) -> Maybe PathMapping
 parsePathMapping (_, []) = Nothing
 parsePathMapping (k, vs) = do
