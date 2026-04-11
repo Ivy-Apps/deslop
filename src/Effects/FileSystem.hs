@@ -11,7 +11,7 @@ module Effects.FileSystem (
     WrFileSystem (..),
     runFileSystemIO,
     runRoFileSystemIO,
-    AbsPath,
+    AbsPath (..),
     fsMkAbsolute,
     withAbsDir,
 ) where

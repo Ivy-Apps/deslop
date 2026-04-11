@@ -117,6 +117,7 @@ test-suite deslop-test
     Deslop.RuleBookSpec
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
+    Effects.FileSystemSpec
     Effects.ReportProblemSpec
     ParamsSpec
     SecretsSpec
