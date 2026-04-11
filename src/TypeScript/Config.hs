@@ -2,12 +2,15 @@ module TypeScript.Config (
     parseTsConfigLegacy,
     TsConfigLegacy (..),
     ImportAlias (..),
+    readTsConfig,
+    parseTsConfig,
 ) where
 
-import Data.Aeson (FromJSON, decode)
+import Data.Aeson (FromJSON, decode, decode')
 import Data.Map qualified as M
 import Data.Text qualified as T
-import System.OsPath (OsPath)
+import Effectful
+import Effects.FileSystem (AbsPath, RoFileSystem, fsReadAbsFile)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)
 import Utils (safeHead)
@@ -26,7 +29,7 @@ instance FromJSON TsConfigDto
 instance FromJSON CompilerOptionsDto
 
 data TsConfig = TsConfig
-    { baseUrl :: !OsPath
+    { baseUrl :: !AbsPath
     , paths :: ![PathMapping]
     }
     deriving (Show, Eq)
@@ -41,6 +44,17 @@ data Pattern
     = Exact !Text
     | WildCard {pre :: !Text, suff :: !Text}
     deriving (Show, Eq)
+
+readTsConfig :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text TsConfig)
+readTsConfig = fsReadAbsFile >=> pure . parseTsConfig
+
+parseTsConfig :: ByteString -> Either Text TsConfig
+parseTsConfig json = Left "WIP"
+  where
+    decodeJson :: ByteString -> Either Text TsConfigDto
+    decodeJson bs = do
+        cleanJson <- bimap show stripTsComments . decodeUtf8' $ bs
+        maybeToRight "Failed to parse JSON" . decode' @TsConfigDto . encodeUtf8 $ cleanJson
 
 --------------------------------------------------------------------------------
 -- Comment Stripping Logic
