@@ -3,12 +3,12 @@ Right
     { baseUrl =
         AbsPath
           { osPath =
-              "~/test/fixtures/typescript"
+              "~/test/fixtures/typescript/config"
           }
     , paths =
         [ PathMapping
             { key = Wildcard { pre = "@/" , suff = "" }
-            , values = Wildcard { pre = "./src/" , suff = "" } :| []
+            , values = Wildcard { pre = "./" , suff = "" } :| []
             }
         ]
     }

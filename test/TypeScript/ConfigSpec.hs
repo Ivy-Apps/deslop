@@ -90,14 +90,15 @@ spec = describe "TsConfig" $ do
 
     describe "readTsConfig from file (E2E)" $ do
         let cases =
-                [ "tsconfig-simple.json"
-                , "tsconfig-invalid.json"
-                , "tsconfig-complex.json"
-                , "tsconfig-minimal.json"
-                , "tsconfig-base-url.json"
+                [ "simple.json"
+                , "invalid.json"
+                , "complex.json"
+                , "minimal.json"
+                , "base-url.json"
+                , "sorting-and-comments.json"
                 ]
         forM_ cases $ \file ->
             it file $ do
-                cfgPath <- mkAbsolute ([osp|test/fixtures/typescript|] </> (encodeOsPath $ T.pack file))
+                cfgPath <- mkAbsolute ([osp|test/fixtures/typescript/config|] </> (encodeOsPath $ T.pack file))
                 res <- runEff . runFileSystemIO $ readTsConfig cfgPath
                 pathSafeGolden ("readTsConfig-" <> file) (ppShow res)

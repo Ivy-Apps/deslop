@@ -1,0 +1,47 @@
+Right
+  TsConfig
+    { baseUrl =
+        AbsPath
+          { osPath =
+              "~/test/fixtures/typescript/config"
+          }
+    , paths =
+        [ PathMapping
+            { key = Exact "a-very-very-long-exact-match"
+            , values = Exact "./exact/long.ts" :| []
+            }
+        , PathMapping
+            { key = Exact "a-short-exact"
+            , values = Exact "./exact/short.ts" :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "@app/features/" , suff = "" }
+            , values =
+                Wildcard { pre = "./src/app/features/" , suff = "" } :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "module-" , suff = "-longest" }
+            , values = Wildcard { pre = "./modules/long/" , suff = "" } :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "module-" , suff = "-short" }
+            , values = Wildcard { pre = "./modules/short/" , suff = "" } :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "@app/" , suff = "" }
+            , values = Wildcard { pre = "./src/app/" , suff = "" } :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "same" , suff = "longer" }
+            , values = Wildcard { pre = "/longer/" , suff = "" } :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "same" , suff = "short" }
+            , values = Wildcard { pre = "/short/" , suff = "" } :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "" , suff = "" }
+            , values = Wildcard { pre = "./vendor/" , suff = "" } :| []
+            }
+        ]
+    }

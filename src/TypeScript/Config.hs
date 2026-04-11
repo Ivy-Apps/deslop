@@ -63,7 +63,7 @@ parseTsConfigFromJson cfgPath json = do
     decodeJson :: ByteString -> Either Text TsConfigDto
     decodeJson bs = do
         cleanJson <- bimap show stripTsComments . decodeUtf8' $ bs
-        maybeToRight "Failed to parse JSON" . decode' @TsConfigDto . encodeUtf8 $ cleanJson
+        maybeToRight "Invalid TSConfig JSON" . decode' @TsConfigDto . encodeUtf8 $ cleanJson
 
 parseTsConfig :: (RoFileSystem :> es) => AbsPath -> TsConfigDto -> Eff es TsConfig
 parseTsConfig cfgPath dto = do
@@ -74,7 +74,8 @@ parseTsConfig cfgPath dto = do
         TsConfig
             { baseUrl = absBaseUrl
             , paths =
-                mapMaybe parsePathMapping
+                sortPathMappings
+                    . mapMaybe parsePathMapping
                     . M.toList
                     . fromMaybe mempty
                     $ dto.compilerOptions.paths
@@ -85,9 +86,9 @@ sortPathMappings = sortOn (Down . patternSortKey . (.key))
   where
     -- 'Down' reverses the default ascending sort, meaning higher numbers come first.
     patternSortKey :: Pattern -> (Int, Int, Int)
-    patternSortKey (Exact _) =
+    patternSortKey (Exact k) =
         -- Priority 1: Exact matches always float to the top.
-        (1, 0, 0)
+        (1, T.length k, 0)
     patternSortKey (Wildcard pre suff) =
         -- Priority 0: Wildcards come after Exact matches.
         -- They are sub-sorted by prefix length, then suffix length.

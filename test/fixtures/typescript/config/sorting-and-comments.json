@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      // --------------------------------------------------------
+      // CASE 3: WILDCARD TIE-BREAKERS (Same prefix, varying suffix)
+      // --------------------------------------------------------
+      "same*short": ["/short/*"],
+      "same*longer": ["/longer/*"],
+      "module-*-short": ["./modules/short/*"],
+      "module-*-longest": ["./modules/long/*"],
+      /* Block comments 
+         Delete me!
+      */
+      // --------------------------------------------------------
+      // CASE 4: THE CATCH-ALL (Shortest prefix, shortest suffix)
+      // --------------------------------------------------------
+      "*": ["./vendor/*"],
+
+      // --------------------------------------------------------
+      // CASE 1: EXACT MATCHES (Highest priority, regardless of length)
+      // --------------------------------------------------------
+      "a-short-exact": ["./exact/short.ts"],
+      "a-very-very-long-exact-match": ["./exact/long.ts"],
+
+      // --------------------------------------------------------
+      // CASE 2: WILDCARD PREFIXES (Longer prefix beats shorter prefix)
+      // --------------------------------------------------------
+      "@app/*": ["./src/app/*"],
+      "@app/features/*": ["./src/app/features/*"]
+    }
+  }
+}
