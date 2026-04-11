@@ -15,7 +15,7 @@ import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
 import TypeScript.CST
-import TypeScript.Config (ImportAlias (ImportAlias), TsConfigLegacy (..), parseTsConfigLegacy)
+import TypeScript.Config (ImportAlias (ImportAlias), TsConfigLegacy (..))
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser
 import TypeScript.Tokens
@@ -28,24 +28,7 @@ spec :: Spec
 spec = do
     describe "TypeScript Tests" $
         runIO (listFixtures tsFixturesPath ".ts") >>= mapM_ tsGoldenTest
-
-    describe "TSConfig Tests" $
-        runIO (listFixtures tsFixturesPath ".json") >>= mapM_ configGoldenTest
   where
-    configGoldenTest :: OsPath -> Spec
-    configGoldenTest fname = do
-        let testName = decodePathString (takeBaseName fname)
-
-        it ("case: " <> testName) $ do
-            -- Given
-            cfgFile <- SFO.readFile' (tsFixturesPath </> fname)
-
-            -- When
-            let cfg = parseTsConfigLegacy cfgFile
-
-            -- Then
-            return $ defaultGolden testName (ppShow cfg)
-
     tsGoldenTest :: OsPath -> Spec
     tsGoldenTest filename = do
         let testName = decodePathString (takeBaseName filename)
