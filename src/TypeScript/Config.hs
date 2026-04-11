@@ -4,13 +4,17 @@ module TypeScript.Config (
     ImportAlias (..),
     readTsConfig,
     parseTsConfig,
+    parsePattern,
+    TsConfig (..),
+    PathMapping (..),
+    Pattern (..),
 ) where
 
 import Data.Aeson (FromJSON, decode, decode')
 import Data.Map qualified as M
 import Data.Text qualified as T
 import Effectful
-import Effects.FileSystem (AbsPath, RoFileSystem, fsReadAbsFile)
+import Effects.FileSystem (AbsPath, RoFileSystem, encodeOsPath, fsMkAbsolute, fsReadAbsFile, withAbsBaseSafe)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)
 import Utils (safeHead)
@@ -57,11 +61,30 @@ parseTsConfig _p _json = pure $ Left "WIP"
         cleanJson <- bimap show stripTsComments . decodeUtf8' $ bs
         maybeToRight "Failed to parse JSON" . decode' @TsConfigDto . encodeUtf8 $ cleanJson
 
-_mapToTsConfig :: (RoFileSystem :> es) => AbsPath -> TsConfigDto -> Eff es Text
-_mapToTsConfig _path _dto = do
-    -- let baseUrl = OSP.encodeUtf . fromMaybe "." $ dto.compilerOptions.baseUrl
-    -- absBaseUrl <- fsMkAbsolute $ withAbsBaseSafe path baseUrl
-    pure "WIP"
+_mapToTsConfig :: (RoFileSystem :> es) => AbsPath -> TsConfigDto -> Eff es TsConfig
+_mapToTsConfig path dto = do
+    let baseUrl = encodeOsPath . fromMaybe "." $ dto.compilerOptions.baseUrl
+    absBaseUrl <- fsMkAbsolute $ withAbsBaseSafe path baseUrl
+    pure
+        TsConfig
+            { baseUrl = absBaseUrl
+            , paths = []
+            }
+
+_parsePathMapping :: (Text, [Text]) -> Maybe PathMapping
+_parsePathMapping _ =
+    Just $
+        PathMapping
+            { key = Exact ""
+            , value = Exact "" :| []
+            }
+
+parsePattern :: Text -> Maybe Pattern
+parsePattern "" = Nothing
+parsePattern t = case T.count "*" t of
+    0 -> Just $ Exact t
+    1 -> let (pre, suff) = T.breakOn "*" t in Just $ WildCard pre (T.drop 1 suff)
+    _ -> Nothing
 
 --------------------------------------------------------------------------------
 -- Comment Stripping Logic

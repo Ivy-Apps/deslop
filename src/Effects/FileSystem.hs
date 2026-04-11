@@ -14,6 +14,7 @@ module Effects.FileSystem (
     AbsPath (osPath),
     fsMkAbsolute,
     withAbsBaseUnsafe,
+    withAbsBaseSafe,
     fsIsAbsDirectory,
     fsReadAbsFile,
     encodeOsPath,
@@ -32,7 +33,10 @@ newtype AbsPath = AbsPath
     deriving (Show, Eq)
 
 withAbsBaseUnsafe :: AbsPath -> OsPath -> AbsPath
-withAbsBaseUnsafe (AbsPath d) p = AbsPath (d </> p)
+withAbsBaseUnsafe (AbsPath b) p = AbsPath (b </> p)
+
+withAbsBaseSafe :: AbsPath -> OsPath -> OsPath
+withAbsBaseSafe (AbsPath b) p = b </> p
 
 encodeOsPath :: Text -> OsPath
 encodeOsPath = unsafeEncodeUtf . T.unpack

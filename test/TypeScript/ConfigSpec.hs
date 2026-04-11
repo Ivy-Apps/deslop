@@ -4,13 +4,46 @@ import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import TestUtils (fixturesBasePath)
-import TypeScript.Config (ImportAlias (..), TsConfigLegacy (..), parseTsConfigLegacy)
+import TypeScript.Config (ImportAlias (..), Pattern (..), TsConfigLegacy (..), parsePattern, parseTsConfigLegacy)
 
 tsConfigFixturesPath :: OsPath
 tsConfigFixturesPath = fixturesBasePath </> [osp|typescript|]
 
 spec :: Spec
-spec = describe "parseTsConfig" $ do
+spec = describe "TsConfig" $ do
+    describe "parsePattern" $ do
+        it "empty text is invalid" $ do
+            parsePattern "" `shouldBe` Nothing
+
+        it "exact paths (no wildcards)" $ do
+            parsePattern "hello" `shouldBe` Just (Exact "hello")
+            parsePattern "ui/component" `shouldBe` Just (Exact "ui/component")
+            parsePattern "@angular/core/testing" `shouldBe` Just (Exact "@angular/core/testing")
+            parsePattern ".hidden-dir/index.js" `shouldBe` Just (Exact ".hidden-dir/index.js")
+
+        it "bare catch-all wildcard" $ do
+            parsePattern "*" `shouldBe` Just (WildCard "" "")
+
+        it "wildcard at the end (prefix matching)" $ do
+            parsePattern "@/*" `shouldBe` Just (WildCard "@/" "")
+            parsePattern "./*" `shouldBe` Just (WildCard "./" "")
+            parsePattern "src/*" `shouldBe` Just (WildCard "src/" "")
+            parsePattern "utils*" `shouldBe` Just (WildCard "utils" "")
+
+        it "wildcard at the beginning (suffix matching)" $ do
+            parsePattern "*.spec.ts" `shouldBe` Just (WildCard "" ".spec.ts")
+            parsePattern "*-user" `shouldBe` Just (WildCard "" "-user")
+
+        it "wildcard in the middle (infix matching)" $ do
+            parsePattern "@/data/*-dto" `shouldBe` Just (WildCard "@/data/" "-dto")
+            parsePattern "~/*/types" `shouldBe` Just (WildCard "~/" "/types")
+
+        it "invalid: more than one wildcard" $ do
+            parsePattern "src/*/*" `shouldBe` Nothing
+            parsePattern "**" `shouldBe` Nothing
+            parsePattern "a*b*c" `shouldBe` Nothing
+            parsePattern "*/utils/*" `shouldBe` Nothing
+
     it "returns Nothing for invalid JSON" $ do
         content <- SFO.readFile' (tsConfigFixturesPath </> [osp|tsconfig-invalid.json|])
         parseTsConfigLegacy content `shouldBe` Nothing
