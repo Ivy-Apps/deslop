@@ -1,0 +1,14 @@
+Right
+  TsConfig
+    { baseUrl =
+        AbsPath
+          { osPath =
+              "~/test/fixtures/typescript/tsconfig-simple.json"
+          }
+    , paths =
+        [ PathMapping
+            { key = Wildcard { pre = "@/" , suff = "" }
+            , values = Wildcard { pre = "./src/" , suff = "" } :| []
+            }
+        ]
+    }

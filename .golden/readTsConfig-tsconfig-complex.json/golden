@@ -1,0 +1,30 @@
+Right
+  TsConfig
+    { baseUrl =
+        AbsPath
+          { osPath =
+              "~/test/fixtures/typescript/tsconfig-complex.json"
+          }
+    , paths =
+        [ PathMapping
+            { key = Wildcard { pre = "@/" , suff = "" }
+            , values = Wildcard { pre = "./src/" , suff = "" } :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "@assets/" , suff = "" }
+            , values = Wildcard { pre = "./src/assets/" , suff = "" } :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "@components/" , suff = "" }
+            , values = Wildcard { pre = "./src/components/" , suff = "" } :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "@hooks/" , suff = "" }
+            , values = Wildcard { pre = "./src/hooks/" , suff = "" } :| []
+            }
+        , PathMapping
+            { key = Wildcard { pre = "@utils/" , suff = "" }
+            , values = Wildcard { pre = "./src/utils/" , suff = "" } :| []
+            }
+        ]
+    }
