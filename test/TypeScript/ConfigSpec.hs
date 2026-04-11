@@ -93,6 +93,8 @@ spec = describe "TsConfig" $ do
                 [ "tsconfig-simple.json"
                 , "tsconfig-invalid.json"
                 , "tsconfig-complex.json"
+                , "tsconfig-minimal.json"
+                , "tsconfig-base-url.json"
                 ]
         forM_ cases $ \file ->
             it file $ do

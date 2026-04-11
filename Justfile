@@ -28,6 +28,13 @@ check:
     gen-hie > hie.yaml
     echo "✅ Hie updated."
 
+# Update the HSpec Golden tests
+@update-golden:
+    rm -rf .golden/*
+    mkdir -p .golden
+    cabal test
+    hgold
+
 # Fixes HLS by purging caches and rebuilding
 @fix-hls:
     echo "🛑 Stopping any running HLS instances..."

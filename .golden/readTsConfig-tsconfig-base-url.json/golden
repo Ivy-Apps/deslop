@@ -3,12 +3,12 @@ Right
     { baseUrl =
         AbsPath
           { osPath =
-              "/Users/iliyangermanov/ivy-apps/repo/deslop/test/fixtures/typescript/tsconfig-simple.json"
+              "~/test/fixtures/typescript/tsconfig-base-url.json/src"
           }
     , paths =
         [ PathMapping
             { key = Wildcard { pre = "@/" , suff = "" }
-            , values = Wildcard { pre = "./src/" , suff = "" } :| []
+            , values = Wildcard { pre = "./" , suff = "" } :| []
             }
         ]
     }
