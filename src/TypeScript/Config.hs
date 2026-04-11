@@ -63,7 +63,10 @@ parseTsConfigFromJson cfgPath json = do
     decodeJson :: ByteString -> Either Text TsConfigDto
     decodeJson bs = do
         cleanJson <- bimap show stripTsComments . decodeUtf8' $ bs
-        maybeToRight "Invalid TSConfig JSON" . decode' @TsConfigDto . encodeUtf8 $ cleanJson
+        maybeToRight ("Invalid TSConfig JSON: " <> show cfgPath.osPath)
+            . decode' @TsConfigDto
+            . encodeUtf8
+            $ cleanJson
 
 parseTsConfig :: (RoFileSystem :> es) => AbsPath -> TsConfigDto -> Eff es TsConfig
 parseTsConfig cfgPath dto = do
