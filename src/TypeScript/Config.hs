@@ -5,6 +5,7 @@ module TypeScript.Config (
     readTsConfig,
     parseTsConfig,
     parsePattern,
+    parsePathMapping,
     TsConfig (..),
     PathMapping (..),
     Pattern (..),
@@ -41,13 +42,13 @@ data TsConfig = TsConfig
 
 data PathMapping = PathMapping
     { key :: !Pattern
-    , value :: !(NonEmpty Pattern)
+    , values :: !(NonEmpty Pattern)
     }
     deriving (Show, Eq)
 
 data Pattern
     = Exact !Text
-    | WildCard {pre :: !Text, suff :: !Text}
+    | Wildcard {pre :: !Text, suff :: !Text}
     deriving (Show, Eq)
 
 readTsConfig :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text TsConfig)
@@ -71,19 +72,22 @@ _mapToTsConfig path dto = do
             , paths = []
             }
 
-_parsePathMapping :: (Text, [Text]) -> Maybe PathMapping
-_parsePathMapping _ =
-    Just $
+parsePathMapping :: (Text, [Text]) -> Maybe PathMapping
+parsePathMapping (_, []) = Nothing
+parsePathMapping (k, vs) = do
+    key <- parsePattern k
+    values <- nonEmpty . mapMaybe parsePattern $ vs
+    Just
         PathMapping
-            { key = Exact ""
-            , value = Exact "" :| []
+            { key = key
+            , values = values
             }
 
 parsePattern :: Text -> Maybe Pattern
 parsePattern "" = Nothing
 parsePattern t = case T.count "*" t of
     0 -> Just $ Exact t
-    1 -> let (pre, suff) = T.breakOn "*" t in Just $ WildCard pre (T.drop 1 suff)
+    1 -> let (pre, suff) = T.breakOn "*" t in Just $ Wildcard pre (T.drop 1 suff)
     _ -> Nothing
 
 --------------------------------------------------------------------------------
