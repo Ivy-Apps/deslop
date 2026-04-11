@@ -13,7 +13,7 @@ import Params
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesBasePath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
+import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesPath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
 import Types (DeslopError (CheckModeFoundProblems))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -64,7 +64,7 @@ spec = describe "Deslop project" $ do
   where
     itChecks project = it ("checks " <> project) $ do
         -- Given
-        let projectPath = fixturesBasePath </> encodePathString project
+        let projectPath = fixturesPath </> encodePathString project
         filesRef <- newIORef Nothing
         logsRef <- newIORef Nothing
         let params = (defaultParams projectPath) {checkMode = True}
@@ -98,7 +98,7 @@ spec = describe "Deslop project" $ do
         withSystemTempDirectory "deslop-test" $ \tmpFp -> do
             let tmpDir = encodePathString tmpFp
             -- Given
-            let projectPath = fixturesBasePath </> encodePathString project
+            let projectPath = fixturesPath </> encodePathString project
             copyDir projectPath tmpDir
             logsRef <- newIORef Nothing
 

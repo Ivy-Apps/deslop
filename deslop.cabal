@@ -79,7 +79,6 @@ library
     , directory             >=1.3.8.0
     , effectful
     , effectful-core
-    , extra
     , file-io
     , filepath              >=1.4.100.0
     , fmt
@@ -117,6 +116,7 @@ test-suite deslop-test
     Deslop.RuleBookSpec
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
+    Effects.FileSystemSpec
     Effects.ReportProblemSpec
     ParamsSpec
     SecretsSpec

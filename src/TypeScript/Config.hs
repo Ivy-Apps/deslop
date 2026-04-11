@@ -1,73 +1,119 @@
 module TypeScript.Config (
-    parseTsConfig,
-    TsConfig (..),
+    parseTsConfigLegacy,
+    TsConfigLegacy (..),
     ImportAlias (..),
+    readTsConfig,
+    parsePattern,
+    parsePathMapping,
+    TsConfig (..),
+    PathMapping (..),
+    Pattern (..),
 ) where
 
-import Data.Aeson (FromJSON, decode)
-import Data.ByteString.Lazy qualified as BL
+import Data.Aeson (FromJSON, decode, decode')
 import Data.Map qualified as M
 import Data.Text qualified as T
+import Effectful
+import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, encodeOsPath, fsMkAbsolute, fsReadAbsFile, withAbsBaseSafe)
+import System.OsPath (takeDirectory)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)
 import Utils (safeHead)
 
-newtype TsConfigJson = TsConfigJson
-    { compilerOptions :: CompilerOptionsJson
+newtype TsConfigDto = TsConfigDto
+    { compilerOptions :: CompilerOptionsDto
     }
     deriving (Show, Generic)
 
-newtype CompilerOptionsJson = CompilerOptionsJson
-    { paths :: Maybe (Map Text [Text])
+data CompilerOptionsDto = CompilerOptionsDto
+    { baseUrl :: Maybe Text
+    , paths :: Maybe (Map Text [Text])
     }
     deriving (Show, Generic)
 
-instance FromJSON TsConfigJson
-instance FromJSON CompilerOptionsJson
+instance FromJSON TsConfigDto
+instance FromJSON CompilerOptionsDto
 
-newtype TsConfig = TsConfig
-    { paths :: [ImportAlias]
+data TsConfig = TsConfig
+    { baseUrl :: !AbsPath
+    , paths :: ![PathMapping]
     }
     deriving (Show, Eq)
 
-data ImportAlias = ImportAlias
-    { label :: Text
-    , path :: Text
+data PathMapping = PathMapping
+    { key :: !Pattern
+    , values :: !(NonEmpty Pattern)
     }
     deriving (Show, Eq)
 
--- | Parses the TSConfig, safely stripping comments before passing to Aeson
-parseTsConfig :: ByteString -> Maybe TsConfig
-parseTsConfig = fromJson >=> extractPaths >=> pure . buildConfig
+data Pattern
+    = Exact !Text
+    | Wildcard {pre :: !Text, suff :: !Text}
+    deriving (Show, Eq)
+
+readTsConfig :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text TsConfig)
+readTsConfig cfgPath = fsReadAbsFile cfgPath >>= parseTsConfigFromJson cfgPath
+
+parseTsConfigFromJson :: (RoFileSystem :> es) => AbsPath -> ByteString -> Eff es (Either Text TsConfig)
+parseTsConfigFromJson cfgPath json = do
+    case decodeJson json of
+        Right dto -> Right <$> parseTsConfig cfgPath dto
+        Left err -> pure . Left $ err
   where
-    fromJson :: ByteString -> Maybe TsConfigJson
-    fromJson bs = do
-        -- 1. Safely decode UTF-8 to Text
-        textData <- either (const Nothing) Just (decodeUtf8' bs)
-        -- 2. Strip comments while preserving strings/URLs
-        let cleanText = stripTsComments textData
-        -- 3. Encode back to strict ByteString, then lazy, then decode
-        decode . BL.fromStrict . encodeUtf8 $ cleanText
+    decodeJson :: ByteString -> Either Text TsConfigDto
+    decodeJson bs = do
+        cleanJson <- bimap show stripTsComments . decodeUtf8' $ bs
+        maybeToRight ("Invalid TSConfig JSON: " <> show cfgPath.osPath)
+            . decode' @TsConfigDto
+            . encodeUtf8
+            $ cleanJson
 
-    extractPaths :: TsConfigJson -> Maybe (Map Text [Text])
-    extractPaths = (.paths) . (.compilerOptions)
-
-    buildConfig :: Map Text [Text] -> TsConfig
-    buildConfig =
+parseTsConfig :: (RoFileSystem :> es) => AbsPath -> TsConfigDto -> Eff es TsConfig
+parseTsConfig cfgPath dto = do
+    let baseUrl = encodeOsPath . fromMaybe "." $ dto.compilerOptions.baseUrl
+    let cfgDir = absPathUnsafe . takeDirectory $ cfgPath.osPath
+    absBaseUrl <- fsMkAbsolute $ withAbsBaseSafe cfgDir baseUrl
+    pure
         TsConfig
-            . sortByLongest
-            . mapMaybe parseAlias
-            . M.toList
-            . M.mapMaybe safeHead
+            { baseUrl = absBaseUrl
+            , paths =
+                sortPathMappings
+                    . mapMaybe parsePathMapping
+                    . M.toList
+                    . fromMaybe mempty
+                    $ dto.compilerOptions.paths
+            }
 
-    parseAlias :: (Text, Text) -> Maybe ImportAlias
-    parseAlias = Just . uncurry ImportAlias . join bimap cleanPath
+sortPathMappings :: [PathMapping] -> [PathMapping]
+sortPathMappings = sortOn (Down . patternSortKey . (.key))
+  where
+    -- 'Down' reverses the default ascending sort, meaning higher numbers come first.
+    patternSortKey :: Pattern -> (Int, Int, Int)
+    patternSortKey (Exact k) =
+        -- Priority 1: Exact matches always float to the top.
+        (1, T.length k, 0)
+    patternSortKey (Wildcard pre suff) =
+        -- Priority 0: Wildcards come after Exact matches.
+        -- They are sub-sorted by prefix length, then suffix length.
+        (0, T.length pre, T.length suff)
 
-    cleanPath :: Text -> Text
-    cleanPath = (fromMaybe <*> T.stripPrefix "./") . T.takeWhile (/= '*')
+parsePathMapping :: (Text, [Text]) -> Maybe PathMapping
+parsePathMapping (_, []) = Nothing
+parsePathMapping (k, vs) = do
+    key <- parsePattern k
+    values <- nonEmpty . mapMaybe parsePattern $ vs
+    Just
+        PathMapping
+            { key = key
+            , values = values
+            }
 
-    sortByLongest :: [ImportAlias] -> [ImportAlias]
-    sortByLongest = sortOn (Down . T.length . (.label))
+parsePattern :: Text -> Maybe Pattern
+parsePattern "" = Nothing
+parsePattern t = case T.count "*" t of
+    0 -> Just $ Exact t
+    1 -> let (pre, suff) = T.breakOn "*" t in Just $ Wildcard pre (T.drop 1 suff)
+    _ -> Nothing
 
 --------------------------------------------------------------------------------
 -- Comment Stripping Logic
@@ -128,3 +174,50 @@ jsoncStripper =
     -- Catchall for isolated slashes
     slash :: Parser Text
     slash = chunk "/"
+
+--------------------
+-- LEGACY CODE
+--------------------
+
+newtype TsConfigLegacy = TsConfigLegacy
+    { paths :: [ImportAlias]
+    }
+    deriving (Show, Eq)
+
+data ImportAlias = ImportAlias
+    { label :: Text
+    , path :: Text
+    }
+    deriving (Show, Eq)
+
+-- | Parses the TSConfig, safely stripping comments before passing to Aeson
+parseTsConfigLegacy :: ByteString -> Maybe TsConfigLegacy
+parseTsConfigLegacy = fromJson >=> extractPaths >=> pure . buildConfig
+  where
+    fromJson :: ByteString -> Maybe TsConfigDto
+    fromJson =
+        rightToMaybe
+            . decodeUtf8'
+            >=> decode @TsConfigDto
+            . encodeUtf8
+            . stripTsComments
+
+    extractPaths :: TsConfigDto -> Maybe (Map Text [Text])
+    extractPaths = (.paths) . (.compilerOptions)
+
+    buildConfig :: Map Text [Text] -> TsConfigLegacy
+    buildConfig =
+        TsConfigLegacy
+            . sortByLongest
+            . mapMaybe parseAlias
+            . M.toList
+            . M.mapMaybe safeHead
+
+    parseAlias :: (Text, Text) -> Maybe ImportAlias
+    parseAlias = Just . uncurry ImportAlias . join bimap cleanPath
+
+    cleanPath :: Text -> Text
+    cleanPath = (fromMaybe <*> T.stripPrefix "./") . T.takeWhile (/= '*')
+
+    sortByLongest :: [ImportAlias] -> [ImportAlias]
+    sortByLongest = sortOn (Down . T.length . (.label))

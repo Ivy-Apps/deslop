@@ -28,7 +28,7 @@ spec = describe "parseAst" $ do
                             }
                         ]
                     }
-        ast <- runEff . runReader @TsConfig defaultTsConfig $ parseAst prog
+        ast <- runEff . runReader @TsConfigLegacy defaultTsConfig $ parseAst prog
         ast
             `shouldBe` AstModule
                 { id = ModuleId "@/lib/demo"
@@ -54,7 +54,7 @@ spec = describe "parseAst" $ do
                             }
                         ]
                     }
-        ast <- runEff . runReader @TsConfig (TsConfig []) $ parseAst prog
+        ast <- runEff . runReader @TsConfigLegacy (TsConfigLegacy []) $ parseAst prog
         ast
             `shouldBe` AstModule
                 { id = ModuleId "src/main"

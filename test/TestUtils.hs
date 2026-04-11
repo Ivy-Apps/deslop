@@ -9,11 +9,13 @@ module TestUtils (
     projectFixturePath,
     copyDir,
     listFixtures,
-    fixturesBasePath,
+    fixturesPath,
     renderGolden,
     TestLogs (..),
     testSecrets,
     defaultTsConfig,
+    mkAbsolute,
+    pathSafeGolden,
 ) where
 
 import Data.Text qualified as T
@@ -22,7 +24,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
 import Effects.CLILog
-import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..), runRoFileSystemIO)
+import Effects.FileSystem (AbsPath (osPath), RoFileSystem (..), WrFileSystem (..), fsMkAbsolute, runFileSystemIO, runRoFileSystemIO)
 import Effects.Git
 import FsEncoding (encodePathString)
 import Params
@@ -31,7 +33,7 @@ import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeExtension, (</>))
 import Test.Hspec.Golden (Golden, defaultGolden)
-import TypeScript.Config (ImportAlias (..), TsConfig (..))
+import TypeScript.Config (ImportAlias (..), TsConfigLegacy (..))
 import Types (Renderable (render))
 import UI (problemsLogText)
 
@@ -114,11 +116,20 @@ listFixtures dir ext = do
     let extOs = encodePathString ext
     pure $ filter (\f -> takeExtension f == extOs) files
 
-fixturesBasePath :: OsPath
-fixturesBasePath = [osp|test/fixtures|]
+fixturesPath :: OsPath
+fixturesPath = [osp|test/fixtures|]
+
+mkAbsolute :: OsPath -> IO AbsPath
+mkAbsolute = runEff . runFileSystemIO . fsMkAbsolute
 
 renderGolden :: (Renderable r) => String -> r -> Golden String
 renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
+
+pathSafeGolden :: String -> String -> IO (Golden String)
+pathSafeGolden name content = do
+    baseAbsPath <- (T.replace "\"" "" . T.pack . show . (.osPath)) <$> mkAbsolute [osp|.|]
+    let cleanContent = T.replace baseAbsPath "~" (T.pack content)
+    pure $ defaultGolden name (T.unpack cleanContent)
 
 testSecrets :: Secrets
 testSecrets =
@@ -126,9 +137,9 @@ testSecrets =
         { geminiApiKey = Just $ GeminiApiKey "testKey"
         }
 
-defaultTsConfig :: TsConfig
+defaultTsConfig :: TsConfigLegacy
 defaultTsConfig =
-    TsConfig
+    TsConfigLegacy
         { paths =
             [ ImportAlias {label = "@/", path = "src/"}
             , ImportAlias {label = "@test/", path = "test/"}
