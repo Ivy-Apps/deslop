@@ -49,10 +49,10 @@ readTsConfig :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text TsConfig)
 readTsConfig = fsReadAbsFile >=> pure . parseTsConfig
 
 parseTsConfig :: ByteString -> Either Text TsConfig
-parseTsConfig json = Left "WIP"
+parseTsConfig _json = Left "WIP"
   where
-    decodeJson :: ByteString -> Either Text TsConfigDto
-    decodeJson bs = do
+    _decodeJson :: ByteString -> Either Text TsConfigDto
+    _decodeJson bs = do
         cleanJson <- bimap show stripTsComments . decodeUtf8' $ bs
         maybeToRight "Failed to parse JSON" . decode' @TsConfigDto . encodeUtf8 $ cleanJson
 

@@ -17,7 +17,7 @@ spec = describe "FileSystem" $ do
         AbsPath absPath <- runEff . runRoFileSystemIO $ fsMkAbsolute path
 
         -- Then
-        (OS.length absPath) `shouldSatisfy` (> OS.length path)
+        OS.length absPath `shouldSatisfy` (> OS.length path)
         absPath `shouldSatisfy` isAbsolute
         SDO.doesFileExist absPath `shouldReturn` True
 
@@ -30,4 +30,4 @@ spec = describe "FileSystem" $ do
         entries <- runEff . runRoFileSystemIO $ fsListAbsDirectory absPath
 
         -- Then
-        entries `shouldSatisfy` (and . fmap (isAbsolute . (.osPath)))
+        entries `shouldSatisfy` all (isAbsolute . (.osPath))
