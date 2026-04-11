@@ -61,6 +61,7 @@ library
     TypeScript.Config
     TypeScript.CST
     TypeScript.Lexer
+    TypeScript.ModuleResolver
     TypeScript.Parser
     TypeScript.Tokens
     UI

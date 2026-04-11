@@ -1,5 +1,4 @@
 module Deslop.AST (
-    ModuleId (..),
     AstNode (..),
     AstModule (..),
     parseAst,
@@ -13,8 +12,8 @@ import FsEncoding (decodePathString)
 import System.FilePath (dropExtension)
 import TypeScript.CST (TsNode (..), TsProgram (cst, path))
 import TypeScript.Config (TsConfigLegacy)
+import TypeScript.ModuleResolver (ModuleId (..))
 
-newtype ModuleId = ModuleId Text deriving stock (Show, Eq)
 newtype AstNode = ImportNode
     { target :: ModuleId
     }
