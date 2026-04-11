@@ -34,6 +34,7 @@ check:
     mkdir -p .golden
     cabal test
     hgold
+    git add .golden
 
 # Fixes HLS by purging caches and rebuilding
 @fix-hls:

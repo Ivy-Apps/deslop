@@ -14,7 +14,8 @@ import Data.Aeson (FromJSON, decode, decode')
 import Data.Map qualified as M
 import Data.Text qualified as T
 import Effectful
-import Effects.FileSystem (AbsPath, RoFileSystem, encodeOsPath, fsMkAbsolute, fsReadAbsFile, withAbsBaseSafe)
+import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, encodeOsPath, fsMkAbsolute, fsReadAbsFile, withAbsBaseSafe)
+import System.OsPath (takeDirectory)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)
 import Utils (safeHead)
@@ -67,7 +68,8 @@ parseTsConfigFromJson cfgPath json = do
 parseTsConfig :: (RoFileSystem :> es) => AbsPath -> TsConfigDto -> Eff es TsConfig
 parseTsConfig cfgPath dto = do
     let baseUrl = encodeOsPath . fromMaybe "." $ dto.compilerOptions.baseUrl
-    absBaseUrl <- fsMkAbsolute $ withAbsBaseSafe cfgPath baseUrl
+    let cfgDir = absPathUnsafe . takeDirectory $ cfgPath.osPath
+    absBaseUrl <- fsMkAbsolute $ withAbsBaseSafe cfgDir baseUrl
     pure
         TsConfig
             { baseUrl = absBaseUrl

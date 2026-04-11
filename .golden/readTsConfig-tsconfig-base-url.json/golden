@@ -3,7 +3,7 @@ Right
     { baseUrl =
         AbsPath
           { osPath =
-              "~/test/fixtures/typescript/tsconfig-base-url.json/src"
+              "~/test/fixtures/typescript/src"
           }
     , paths =
         [ PathMapping

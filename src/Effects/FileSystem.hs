@@ -18,6 +18,7 @@ module Effects.FileSystem (
     fsIsAbsDirectory,
     fsReadAbsFile,
     encodeOsPath,
+    absPathUnsafe,
 ) where
 
 import Data.Text qualified as T
@@ -31,6 +32,9 @@ newtype AbsPath = AbsPath
     { osPath :: OsPath
     }
     deriving (Show, Eq)
+
+absPathUnsafe :: OsPath -> AbsPath
+absPathUnsafe = AbsPath
 
 withAbsBaseUnsafe :: AbsPath -> OsPath -> AbsPath
 withAbsBaseUnsafe (AbsPath b) p = AbsPath (b </> p)
