@@ -20,8 +20,9 @@ newtype TsConfigDto = TsConfigDto
     }
     deriving (Show, Generic)
 
-newtype CompilerOptionsDto = CompilerOptionsDton
-    { paths :: Maybe (Map Text [Text])
+data CompilerOptionsDto = CompilerOptionsDto
+    { baseUrl :: Maybe Text
+    , paths :: Maybe (Map Text [Text])
     }
     deriving (Show, Generic)
 
@@ -46,15 +47,21 @@ data Pattern
     deriving (Show, Eq)
 
 readTsConfig :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text TsConfig)
-readTsConfig = fsReadAbsFile >=> pure . parseTsConfig
+readTsConfig path = fsReadAbsFile path >>= parseTsConfig path
 
-parseTsConfig :: ByteString -> Either Text TsConfig
-parseTsConfig _json = Left "WIP"
+parseTsConfig :: (RoFileSystem :> es) => AbsPath -> ByteString -> Eff es (Either Text TsConfig)
+parseTsConfig _p _json = pure $ Left "WIP"
   where
     _decodeJson :: ByteString -> Either Text TsConfigDto
     _decodeJson bs = do
         cleanJson <- bimap show stripTsComments . decodeUtf8' $ bs
         maybeToRight "Failed to parse JSON" . decode' @TsConfigDto . encodeUtf8 $ cleanJson
+
+_mapToTsConfig :: (RoFileSystem :> es) => AbsPath -> TsConfigDto -> Eff es Text
+_mapToTsConfig _path _dto = do
+    -- let baseUrl = OSP.encodeUtf . fromMaybe "." $ dto.compilerOptions.baseUrl
+    -- absBaseUrl <- fsMkAbsolute $ withAbsBaseSafe path baseUrl
+    pure "WIP"
 
 --------------------------------------------------------------------------------
 -- Comment Stripping Logic

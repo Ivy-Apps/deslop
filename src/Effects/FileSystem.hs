@@ -16,13 +16,15 @@ module Effects.FileSystem (
     withAbsBaseUnsafe,
     fsIsAbsDirectory,
     fsReadAbsFile,
+    encodeOsPath,
 ) where
 
+import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
-import System.OsPath (OsPath, (</>))
+import System.OsPath (OsPath, unsafeEncodeUtf, (</>))
 
 newtype AbsPath = AbsPath
     { osPath :: OsPath
@@ -31,6 +33,9 @@ newtype AbsPath = AbsPath
 
 withAbsBaseUnsafe :: AbsPath -> OsPath -> AbsPath
 withAbsBaseUnsafe (AbsPath d) p = AbsPath (d </> p)
+
+encodeOsPath :: Text -> OsPath
+encodeOsPath = unsafeEncodeUtf . T.unpack
 
 data RoFileSystem :: Effect where
     ReadFile :: OsPath -> RoFileSystem m ByteString
