@@ -14,12 +14,12 @@ spec = describe "FileSystem" $ do
         let path = [osp|./test/../deslop.cabal|]
 
         -- When
-        AbsPath absPath <- runEff . runRoFileSystemIO $ fsMkAbsolute path
+        absPath <- runEff . runRoFileSystemIO $ fsMkAbsolute path
 
         -- Then
-        OS.length absPath `shouldSatisfy` (> OS.length path)
-        absPath `shouldSatisfy` isAbsolute
-        SDO.doesFileExist absPath `shouldReturn` True
+        OS.length absPath.osPath `shouldSatisfy` (> OS.length path)
+        absPath.osPath `shouldSatisfy` isAbsolute
+        SDO.doesFileExist absPath.osPath `shouldReturn` True
 
     it "fsListAbsDirectory" $ do
         -- Given

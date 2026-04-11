@@ -11,9 +11,9 @@ module Effects.FileSystem (
     WrFileSystem (..),
     runFileSystemIO,
     runRoFileSystemIO,
-    AbsPath (..),
+    AbsPath (osPath),
     fsMkAbsolute,
-    withAbsDir,
+    withAbsBaseUnsafe,
     fsIsAbsDirectory,
     fsReadAbsFile,
 ) where
@@ -29,8 +29,8 @@ newtype AbsPath = AbsPath
     }
     deriving (Show, Eq)
 
-withAbsDir :: AbsPath -> OsPath -> AbsPath
-withAbsDir (AbsPath d) p = AbsPath (d </> p)
+withAbsBaseUnsafe :: AbsPath -> OsPath -> AbsPath
+withAbsBaseUnsafe (AbsPath d) p = AbsPath (d </> p)
 
 data RoFileSystem :: Effect where
     ReadFile :: OsPath -> RoFileSystem m ByteString
@@ -95,7 +95,7 @@ runRoFileSystemIO = interpret $ \_env -> \case
     ListDirectory path -> liftIO $ SDO.listDirectory path
     ListAbsDirectory absP@(AbsPath p) ->
         liftIO
-            . fmap (fmap (withAbsDir absP))
+            . fmap (fmap (withAbsBaseUnsafe absP))
             . SDO.listDirectory
             $ p
     IsDirectory path -> liftIO $ SDO.doesDirectoryExist path
