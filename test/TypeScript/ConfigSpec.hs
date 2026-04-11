@@ -99,6 +99,6 @@ spec = describe "TsConfig" $ do
                 ]
         forM_ cases $ \file ->
             it file $ do
-                cfgPath <- mkAbsolute ([osp|test/fixtures/typescript/config|] </> (encodeOsPath $ T.pack file))
+                cfgPath <- mkAbsolute ([osp|test/fixtures/typescript/config|] </> encodeOsPath (T.pack file))
                 res <- runEff . runFileSystemIO $ readTsConfig cfgPath
                 pathSafeGolden ("readTsConfig-" <> file) (ppShow res)

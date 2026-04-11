@@ -127,7 +127,7 @@ renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
 
 pathSafeGolden :: String -> String -> IO (Golden String)
 pathSafeGolden name content = do
-    baseAbsPath <- (T.replace "\"" "" . T.pack . show . (.osPath)) <$> mkAbsolute [osp|.|]
+    baseAbsPath <- T.replace "\"" "" . T.pack . show . (.osPath) <$> mkAbsolute [osp|.|]
     let cleanContent = T.replace baseAbsPath "~" (T.pack content)
     pure $ defaultGolden name (T.unpack cleanContent)
 
