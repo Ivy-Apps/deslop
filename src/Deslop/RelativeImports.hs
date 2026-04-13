@@ -22,7 +22,7 @@ import TypeScript.Config (
     TsConfigLegacy (paths),
  )
 import Types (Renderable (render))
-import Utils (safePop)
+import Utils (dropCommonPre, safePop)
 
 noRelativeImports :: (TsNode, TsNode) -> OsPath -> Problem
 noRelativeImports (old, new) path =
@@ -56,11 +56,6 @@ fixTarget progPath t = do
         Just absT' -> pure . fst $ dropCommonPre (absT', absT)
         Nothing -> pure t
   where
-    dropCommonPre :: (Text, Text) -> (Text, Text)
-    dropCommonPre (x, y) = case T.commonPrefixes x y of
-        Just (_, x', y') -> (x', y')
-        Nothing -> (x, y)
-
     useAlias as fp = applyAlias <$> findAliasForPath
       where
         applyAlias (ImportAlias a p) = T.replace p a fp

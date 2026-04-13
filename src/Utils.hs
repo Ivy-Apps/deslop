@@ -5,8 +5,10 @@ module Utils (
     safePop,
     headErr,
     headOrThrow,
+    dropCommonPre,
 ) where
 
+import Data.Text qualified as T
 import Text.Megaparsec (Parsec)
 
 type Parser = Parsec Void Text
@@ -29,3 +31,8 @@ headErr _ (x : _) = Right x
 headOrThrow :: [a] -> a
 headOrThrow [] = error "Expected the list to be non-empty"
 headOrThrow (x : _) = x
+
+dropCommonPre :: (Text, Text) -> (Text, Text)
+dropCommonPre (x, y) = case T.commonPrefixes x y of
+    Just (_, x', y') -> (x', y')
+    Nothing -> (x, y)
