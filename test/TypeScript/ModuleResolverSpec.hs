@@ -1,8 +1,14 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module TypeScript.ModuleResolverSpec (spec) where
 
+import Effectful (runPureEff)
+import Effectful.Reader.Static (runReader)
+import Effects.FileSystem (absPathUnsafe)
+import System.OsPath (osp)
 import Test.Hspec (Spec, describe, it, shouldBe)
-import TypeScript.Config (Pattern (..))
-import TypeScript.ModuleResolver (Match (..), match)
+import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
+import TypeScript.ModuleResolver (Match (..), ModuleId (..), encode, match)
 
 spec :: Spec
 spec = describe "ModuleResolver" $ do
@@ -66,3 +72,62 @@ spec = describe "ModuleResolver" $ do
             match pattern "auth.ts" `shouldBe` Nothing
             -- Fails on empty string
             match pattern "" `shouldBe` Nothing
+
+        describe "encode (Reverse Path Resolution)" $ do
+            let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
+            let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
+
+            let mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)
+
+            let runEncodeTest cfg pathStr =
+                    let path = absPathUnsafe pathStr
+                     in runPureEff
+                            . runReader cfg
+                            $ encode path
+
+            it "resolves relative to baseUrl when there are no path mappings" $ do
+                let result = runEncodeTest baseCfg [osp|/home/repo/src/lib/util.tsx|]
+                result `shouldBe` ModuleId "src/lib/util"
+
+            it "resolves relative to baseUrl when mappings exist but do not match" $ do
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "@/*" "") [Wildcard "src/*" ""]]}
+                let result = runEncodeTest cfg [osp|/home/repo/test/util.ts|]
+                result `shouldBe` ModuleId "test/util"
+
+            it "applies an Exact path mapping" $ do
+                let cfg =
+                        baseCfg
+                            { paths = [mkMapping (Exact "jquery") [Exact "node_modules/jquery/dist/jquery"]]
+                            }
+                let result = runEncodeTest cfg [osp|/home/repo/node_modules/jquery/dist/jquery.js|]
+                result `shouldBe` ModuleId "jquery"
+
+            it "applies a Suffix Wildcard path mapping" $ do
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "@/*" "") [Wildcard "src/*" ""]]}
+                let result = runEncodeTest cfg [osp|/home/repo/src/lib/util.tsx|]
+                result `shouldBe` ModuleId "@/lib/util"
+
+            it "applies an Infix Wildcard path mapping" $ do
+                let cfg =
+                        baseCfg
+                            { paths = [mkMapping (Wildcard "@dto/" "-dto") [Wildcard "src/types/" "-dto"]]
+                            }
+                let resMatch = runEncodeTest cfg [osp|/home/repo/src/types/user/account-dto.ts|]
+                resMatch `shouldBe` ModuleId "@dto/user/account-dto"
+                let resNotFound = runEncodeTest cfg [osp|/home/repo/src/types/user/account.ts|]
+                resNotFound `shouldBe` ModuleId "src/types/user/account"
+
+            it "handles fallback values in mapping array (matches the second value)" $ do
+                let cfg =
+                        baseCfg
+                            { paths =
+                                [ mkMapping
+                                    (Wildcard "@utils/*" "")
+                                    [ Wildcard "src/utils/*" ""
+                                    , Wildcard "shared/utils/*" ""
+                                    ]
+                                ]
+                            }
+                -- Matches the second value "shared/utils/*"
+                let result = runEncodeTest cfg [osp|/home/repo/shared/utils/math.ts|]
+                result `shouldBe` ModuleId "@utils/math"
