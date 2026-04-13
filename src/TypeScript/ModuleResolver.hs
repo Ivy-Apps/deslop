@@ -40,7 +40,7 @@ relative to the configuration's base URL.
 Example:
 /home/repo/src/lib/util.tsx -> \@/lib/util (if alias mapped) OR src/lib/util
 -}
-encode :: (RoFileSystem :> es, Reader TsConfig :> es) => AbsPath -> Eff es ModuleId
+encode :: (Reader TsConfig :> es) => AbsPath -> Eff es ModuleId
 encode absFilePath = do
     cfg <- ask @TsConfig
     let noExtAbsFp = dropExtension absFilePath.osPath
