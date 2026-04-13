@@ -7,30 +7,45 @@ Right
           }
     , paths =
         [ PathMapping
-            { key = KeyPattern Wildcard { pre = "@components/" , suff = "" }
+            { key =
+                KeyPattern
+                  { pattern = Wildcard { pre = "@components/" , suff = "" } }
             , values =
-                ValuePattern Wildcard { pre = "./src/components/" , suff = "" } :|
+                ValuePattern
+                  { pattern = Wildcard { pre = "./src/components/" , suff = "" } } :|
                   []
             }
         , PathMapping
-            { key = KeyPattern Wildcard { pre = "@assets/" , suff = "" }
+            { key =
+                KeyPattern { pattern = Wildcard { pre = "@assets/" , suff = "" } }
             , values =
-                ValuePattern Wildcard { pre = "./src/assets/" , suff = "" } :| []
+                ValuePattern
+                  { pattern = Wildcard { pre = "./src/assets/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = KeyPattern Wildcard { pre = "@hooks/" , suff = "" }
+            { key =
+                KeyPattern { pattern = Wildcard { pre = "@hooks/" , suff = "" } }
             , values =
-                ValuePattern Wildcard { pre = "./src/hooks/" , suff = "" } :| []
+                ValuePattern
+                  { pattern = Wildcard { pre = "./src/hooks/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = KeyPattern Wildcard { pre = "@utils/" , suff = "" }
+            { key =
+                KeyPattern { pattern = Wildcard { pre = "@utils/" , suff = "" } }
             , values =
-                ValuePattern Wildcard { pre = "./src/utils/" , suff = "" } :| []
+                ValuePattern
+                  { pattern = Wildcard { pre = "./src/utils/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = KeyPattern Wildcard { pre = "@/" , suff = "" }
+            { key =
+                KeyPattern { pattern = Wildcard { pre = "@/" , suff = "" } }
             , values =
-                ValuePattern Wildcard { pre = "./src/" , suff = "" } :| []
+                ValuePattern
+                  { pattern = Wildcard { pre = "./src/" , suff = "" } } :|
+                  []
             }
         ]
     }

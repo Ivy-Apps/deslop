@@ -7,50 +7,74 @@ Right
           }
     , paths =
         [ PathMapping
-            { key = KeyPattern (Exact "a-very-very-long-exact-match")
-            , values = ValuePattern (Exact "./exact/long.ts") :| []
+            { key =
+                KeyPattern { pattern = Exact "a-very-very-long-exact-match" }
+            , values = ValuePattern { pattern = Exact "./exact/long.ts" } :| []
             }
         , PathMapping
-            { key = KeyPattern (Exact "a-short-exact")
-            , values = ValuePattern (Exact "./exact/short.ts") :| []
+            { key = KeyPattern { pattern = Exact "a-short-exact" }
+            , values =
+                ValuePattern { pattern = Exact "./exact/short.ts" } :| []
             }
         , PathMapping
-            { key = KeyPattern Wildcard { pre = "@app/features/" , suff = "" }
+            { key =
+                KeyPattern
+                  { pattern = Wildcard { pre = "@app/features/" , suff = "" } }
             , values =
                 ValuePattern
-                  Wildcard { pre = "./src/app/features/" , suff = "" } :|
+                  { pattern = Wildcard { pre = "./src/app/features/" , suff = "" }
+                  } :|
                   []
             }
         , PathMapping
-            { key = KeyPattern Wildcard { pre = "module-" , suff = "-longest" }
+            { key =
+                KeyPattern
+                  { pattern = Wildcard { pre = "module-" , suff = "-longest" } }
             , values =
-                ValuePattern Wildcard { pre = "./modules/long/" , suff = "" } :| []
-            }
-        , PathMapping
-            { key = KeyPattern Wildcard { pre = "module-" , suff = "-short" }
-            , values =
-                ValuePattern Wildcard { pre = "./modules/short/" , suff = "" } :|
+                ValuePattern
+                  { pattern = Wildcard { pre = "./modules/long/" , suff = "" } } :|
                   []
             }
         , PathMapping
-            { key = KeyPattern Wildcard { pre = "@app/" , suff = "" }
+            { key =
+                KeyPattern
+                  { pattern = Wildcard { pre = "module-" , suff = "-short" } }
             , values =
-                ValuePattern Wildcard { pre = "./src/app/" , suff = "" } :| []
+                ValuePattern
+                  { pattern = Wildcard { pre = "./modules/short/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = KeyPattern Wildcard { pre = "same" , suff = "longer" }
+            { key =
+                KeyPattern { pattern = Wildcard { pre = "@app/" , suff = "" } }
             , values =
-                ValuePattern Wildcard { pre = "/longer/" , suff = "" } :| []
+                ValuePattern
+                  { pattern = Wildcard { pre = "./src/app/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = KeyPattern Wildcard { pre = "same" , suff = "short" }
+            { key =
+                KeyPattern
+                  { pattern = Wildcard { pre = "same" , suff = "longer" } }
             , values =
-                ValuePattern Wildcard { pre = "/short/" , suff = "" } :| []
+                ValuePattern
+                  { pattern = Wildcard { pre = "/longer/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = KeyPattern Wildcard { pre = "" , suff = "" }
+            { key =
+                KeyPattern { pattern = Wildcard { pre = "same" , suff = "short" } }
             , values =
-                ValuePattern Wildcard { pre = "./vendor/" , suff = "" } :| []
+                ValuePattern
+                  { pattern = Wildcard { pre = "/short/" , suff = "" } } :|
+                  []
+            }
+        , PathMapping
+            { key = KeyPattern { pattern = Wildcard { pre = "" , suff = "" } }
+            , values =
+                ValuePattern
+                  { pattern = Wildcard { pre = "./vendor/" , suff = "" } } :|
+                  []
             }
         ]
     }

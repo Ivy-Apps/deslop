@@ -34,8 +34,14 @@ data PathMapping = PathMapping
     }
     deriving (Show, Eq)
 
-newtype KeyPattern = KeyPattern Pattern deriving (Show, Eq)
-newtype ValuePattern = ValuePattern Pattern deriving (Show, Eq)
+newtype KeyPattern = KeyPattern
+    { pattern :: Pattern
+    }
+    deriving (Show, Eq)
+newtype ValuePattern = ValuePattern
+    { pattern :: Pattern
+    }
+    deriving (Show, Eq)
 
 data Pattern
     = Exact !Text
