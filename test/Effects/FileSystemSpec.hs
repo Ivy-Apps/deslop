@@ -1,7 +1,7 @@
 module Effects.FileSystemSpec (spec) where
 
 import Effectful (runEff)
-import Effects.FileSystem (AbsPath (..), encodeOsPath, fsListAbsDirectory, fsMkAbsolute, runRoFileSystemIO)
+import Effects.FileSystem (AbsPath (..), decodeOsPath, encodeOsPath, encodeOsPathString, fsListAbsDirectory, fsMkAbsolute, runRoFileSystemIO)
 import System.Directory.OsPath qualified as SDO
 import System.OsPath (isAbsolute, osp)
 import System.OsString qualified as OS
@@ -33,11 +33,14 @@ spec = describe "FileSystem" $ do
         entries `shouldSatisfy` all (isAbsolute . (.osPath))
 
     it "encodeOsPath" $ do
-        -- Given
         let validText = "src/Main.hs"
-
-        -- When
         let result = encodeOsPath validText
-
-        -- Then
         result `shouldBe` [osp|src/Main.hs|]
+
+    it "encode <> decode OsPath" $ do
+        let fp = "src/Main.hs" :: FilePath
+        let osPath = encodeOsPathString fp
+        osPath `shouldBe` [osp|src/Main.hs|]
+        let ospText = decodeOsPath osPath
+        ospText `shouldBe` "src/Main.hs"
+        encodeOsPath ospText `shouldBe` [osp|src/Main.hs|]

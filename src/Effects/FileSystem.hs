@@ -1,4 +1,13 @@
 module Effects.FileSystem (
+    encodeOsPath,
+    encodeOsPathString,
+    decodeOsPath,
+    absPathUnsafe,
+    withAbsBaseUnsafe,
+    withAbsBaseSafe,
+    RoFileSystem (..),
+    WrFileSystem (..),
+    AbsPath (osPath),
     fsFileExists,
     fsReadFile,
     fsWriteFile,
@@ -7,26 +16,34 @@ module Effects.FileSystem (
     fsListAbsDirectory,
     fsIsDirectory,
     fsGetHomeDirectory,
-    RoFileSystem (..),
-    WrFileSystem (..),
-    runFileSystemIO,
-    runRoFileSystemIO,
-    AbsPath (osPath),
     fsMkAbsolute,
-    withAbsBaseUnsafe,
-    withAbsBaseSafe,
     fsIsAbsDirectory,
     fsReadAbsFile,
-    encodeOsPath,
-    absPathUnsafe,
+    runFileSystemIO,
+    runRoFileSystemIO,
 ) where
 
+import Control.Monad.Catch.Pure (runCatch)
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
-import System.OsPath (OsPath, unsafeEncodeUtf, (</>))
+import System.OsPath (OsPath, decodeUtf, encodeUtf, (</>))
+
+encodeOsPath :: Text -> OsPath
+encodeOsPath = encodeOsPathString . T.unpack
+
+encodeOsPathString :: FilePath -> OsPath
+encodeOsPathString p =
+    case runCatch (encodeUtf p) of
+        Right path -> path
+        Left err -> error $ "encodeOsPath failed: " <> show err
+
+decodeOsPath :: OsPath -> Text
+decodeOsPath = either handleErr T.pack . runCatch . decodeUtf
+  where
+    handleErr err = error $ "decodeOsPath failed: " <> show err
 
 newtype AbsPath = AbsPath
     { osPath :: OsPath
@@ -41,9 +58,6 @@ withAbsBaseUnsafe (AbsPath b) p = AbsPath (b </> p)
 
 withAbsBaseSafe :: AbsPath -> OsPath -> OsPath
 withAbsBaseSafe (AbsPath b) p = b </> p
-
-encodeOsPath :: Text -> OsPath
-encodeOsPath = unsafeEncodeUtf . T.unpack
 
 data RoFileSystem :: Effect where
     ReadFile :: OsPath -> RoFileSystem m ByteString
