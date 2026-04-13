@@ -7,8 +7,8 @@ Right
           }
     , paths =
         [ PathMapping
-            { key = Wildcard { pre = "@/" , suff = "" }
-            , values = Wildcard { pre = "./" , suff = "" } :| []
+            { key = KeyPattern Wildcard { pre = "@/" , suff = "" }
+            , values = ValuePattern Wildcard { pre = "./" , suff = "" } :| []
             }
         ]
     }

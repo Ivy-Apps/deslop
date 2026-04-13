@@ -7,7 +7,7 @@ import System.OsPath (osp, (</>))
 import Test.Hspec
 import TestUtils (mkAbsolute, pathSafeGolden)
 import Text.Show.Pretty (ppShow)
-import TypeScript.Config (PathMapping (..), Pattern (..), parsePathMapping, parsePattern, readTsConfig)
+import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), ValuePattern (..), parsePathMapping, parsePattern, readTsConfig)
 
 spec :: Spec
 spec = describe "TsConfig" $ do
@@ -27,32 +27,34 @@ spec = describe "TsConfig" $ do
             parsePathMapping ("@app/*", ["./src/*", "./invalid/*/*", "./lib/*"])
                 `shouldBe` Just
                     PathMapping
-                        { key = Wildcard "@app/" ""
-                        , values = Wildcard "./src/" "" :| [Wildcard "./lib/" ""]
+                        { key = KeyPattern $ Wildcard "@app/" ""
+                        , values = fmap ValuePattern $ Wildcard "./src/" "" :| [Wildcard "./lib/" ""]
                         }
 
         it "parses exact string mappings (no wildcards)" $ do
             parsePathMapping ("jquery", ["./vendor/jquery.js"])
                 `shouldBe` Just
                     PathMapping
-                        { key = Exact "jquery"
-                        , values = Exact "./vendor/jquery.js" :| []
+                        { key = KeyPattern $ Exact "jquery"
+                        , values = fmap ValuePattern $ Exact "./vendor/jquery.js" :| []
                         }
 
         it "parses wildcard mappings with multiple fallback targets" $ do
             parsePathMapping ("~/*-types", ["./src/types/*", "./shared/types/*-types.d.ts"])
                 `shouldBe` Just
                     PathMapping
-                        { key = Wildcard "~/" "-types"
-                        , values = Wildcard "./src/types/" "" :| [Wildcard "./shared/types/" "-types.d.ts"]
+                        { key = KeyPattern $ Wildcard "~/" "-types"
+                        , values =
+                            fmap ValuePattern $
+                                Wildcard "./src/types/" "" :| [Wildcard "./shared/types/" "-types.d.ts"]
                         }
 
         it "parses wildcard keys mapped to exact targets (valid in TS)" $ do
             parsePathMapping ("*.css", ["./src/mocks/style-mock.ts"])
                 `shouldBe` Just
                     PathMapping
-                        { key = Wildcard "" ".css"
-                        , values = Exact "./src/mocks/style-mock.ts" :| []
+                        { key = KeyPattern $ Wildcard "" ".css"
+                        , values = fmap ValuePattern $ Exact "./src/mocks/style-mock.ts" :| []
                         }
 
         describe "parsePattern" $ do

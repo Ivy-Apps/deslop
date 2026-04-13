@@ -8,6 +8,8 @@ module TypeScript.Config (
     TsConfig (..),
     PathMapping (..),
     Pattern (..),
+    KeyPattern (..),
+    ValuePattern (..),
 ) where
 
 import Data.Aeson (FromJSON, decode, decode')
@@ -41,10 +43,13 @@ data TsConfig = TsConfig
     deriving (Show, Eq)
 
 data PathMapping = PathMapping
-    { key :: !Pattern
-    , values :: !(NonEmpty Pattern)
+    { key :: !KeyPattern
+    , values :: !(NonEmpty ValuePattern)
     }
     deriving (Show, Eq)
+
+newtype KeyPattern = KeyPattern Pattern deriving (Show, Eq)
+newtype ValuePattern = ValuePattern Pattern deriving (Show, Eq)
 
 data Pattern
     = Exact !Text
@@ -85,8 +90,10 @@ parseTsConfig cfgPath dto = do
             }
 
 sortPathMappings :: [PathMapping] -> [PathMapping]
-sortPathMappings = sortOn (Down . patternSortKey . (.key))
+sortPathMappings = sortOn (Down . patternSortKey . extractPattern . (.key))
   where
+    extractPattern :: KeyPattern -> Pattern
+    extractPattern (KeyPattern p) = p
     -- 'Down' reverses the default ascending sort, meaning higher numbers come first.
     patternSortKey :: Pattern -> (Int, Int, Int)
     patternSortKey (Exact k) =
@@ -104,8 +111,8 @@ parsePathMapping (k, vs) = do
     values <- nonEmpty . mapMaybe parsePattern $ vs
     Just
         PathMapping
-            { key = key
-            , values = values
+            { key = KeyPattern key
+            , values = ValuePattern <$> values
             }
 
 parsePattern :: Text -> Maybe Pattern
