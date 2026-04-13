@@ -8,7 +8,7 @@ import Effects.FileSystem (absPathUnsafe)
 import System.OsPath (osp)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
-import TypeScript.ModuleResolver (Match (..), ModuleId (..), encode, match)
+import TypeScript.ModuleResolver (Match (..), ModuleId (..), match, reverseResolve)
 
 spec :: Spec
 spec = describe "ModuleResolver" $ do
@@ -83,7 +83,7 @@ spec = describe "ModuleResolver" $ do
                 let path = absPathUnsafe pathStr
                  in runPureEff
                         . runReader cfg
-                        $ encode path
+                        $ reverseResolve path
 
         it "resolves relative to baseUrl when there are no path mappings" $ do
             let result = runEncodeTest baseCfg [osp|/home/repo/src/lib/util.tsx|]

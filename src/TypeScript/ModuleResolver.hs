@@ -2,9 +2,9 @@
 
 module TypeScript.ModuleResolver (
     ModuleId (..),
-    encode,
-    encodeImport,
-    decode,
+    reverseResolve,
+    reverseResolveImport,
+    resolve,
     match,
     Match (..),
 ) where
@@ -40,8 +40,8 @@ relative to the configuration's base URL.
 Example:
 /home/repo/src/lib/util.tsx -> \@/lib/util (if alias mapped) OR src/lib/util
 -}
-encode :: (Reader TsConfig :> es) => AbsPath -> Eff es ModuleId
-encode absFilePath = do
+reverseResolve :: (Reader TsConfig :> es) => AbsPath -> Eff es ModuleId
+reverseResolve absFilePath = do
     cfg <- ask @TsConfig
     let noExtAbsFp = dropExtension absFilePath.osPath
     -- src/lib/util
@@ -67,11 +67,15 @@ encode absFilePath = do
         | Just found <- match p t = Just found
         | otherwise = matchValues ps t
 
-encodeImport :: (RoFileSystem :> es, Reader TsConfig :> es) => AbsPath -> AbsPath -> Eff es ModuleId
-encodeImport _modulePath _importTarget = pure (ModuleId "")
+reverseResolveImport ::
+    ( RoFileSystem :> es
+    , Reader TsConfig :> es
+    ) =>
+    AbsPath -> ModuleId -> Eff es ModuleId
+reverseResolveImport _modulePath _importTarget = pure (ModuleId "")
 
-decode :: (RoFileSystem :> es, Reader TsConfig :> es) => ModuleId -> Eff es AbsPath
-decode _ = pure $ absPathUnsafe [osp|wip|]
+resolve :: (RoFileSystem :> es, Reader TsConfig :> es) => ModuleId -> Eff es AbsPath
+resolve _ = pure $ absPathUnsafe [osp|wip|]
 
 data Match = ExactMatch | WildcardMatch Text deriving (Show, Eq)
 
