@@ -24,9 +24,8 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
 import Effects.CLILog
-import Effects.FileSystem (AbsPath (osPath), RoFileSystem (..), WrFileSystem (..), fsMkAbsolute, runFileSystemIO, runRoFileSystemIO)
+import Effects.FileSystem (AbsPath (osPath), RoFileSystem (..), WrFileSystem (..), encodeOsPathString, fsMkAbsolute, runFileSystemIO, runRoFileSystemIO)
 import Effects.Git
-import FsEncoding (encodePathString)
 import Params
 import Secrets (GeminiApiKey (..), Secrets (..))
 import System.Directory.OsPath qualified as SDO
@@ -104,7 +103,7 @@ copyDir src dst = do
 snapshot :: OsPath -> [String] -> IO String
 snapshot tmpDir filesToVerify = do
     results <- forM filesToVerify $ \relPath -> do
-        raw <- SFO.readFile' (tmpDir </> encodePathString relPath)
+        raw <- SFO.readFile' (tmpDir </> encodeOsPathString relPath)
         let content = TE.decodeUtf8 raw
         let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
         return $ header <> content
@@ -113,7 +112,7 @@ snapshot tmpDir filesToVerify = do
 listFixtures :: OsPath -> String -> IO [OsPath]
 listFixtures dir ext = do
     files <- SDO.listDirectory dir
-    let extOs = encodePathString ext
+    let extOs = encodeOsPathString ext
     pure $ filter (\f -> takeExtension f == extOs) files
 
 fixturesPath :: OsPath

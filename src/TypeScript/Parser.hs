@@ -4,7 +4,7 @@ module TypeScript.Parser (
 ) where
 
 import Data.Text qualified as T
-import FsEncoding (decodePathString)
+import Effects.FileSystem (decodeOsPath)
 import System.OsPath (OsPath)
 import Text.Megaparsec
 import TypeScript.CST
@@ -22,7 +22,7 @@ data TsFile = TsFile
 parseTs :: TsFile -> Either String TsProgram
 parseTs f =
     first errorBundlePretty $
-        TsModule f.path . buildCST <$> runParser lexer (decodePathString f.path) f.content
+        TsModule f.path . buildCST <$> runParser lexer (T.unpack . decodeOsPath $ f.path) f.content
 
 buildCST :: [TsToken] -> [TsNode]
 buildCST = fmap node

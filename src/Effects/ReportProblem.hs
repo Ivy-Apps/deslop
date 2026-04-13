@@ -13,8 +13,8 @@ import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO, readTVarIO)
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic
+import Effects.FileSystem (decodeOsPath)
 import Fmt (Buildable (..), (+|), (|+))
-import FsEncoding (decodePathString)
 import System.OsPath (OsPath)
 
 data Location = Location
@@ -44,7 +44,7 @@ instance Buildable Problem where
          in problemHeader ruleId <> description <> code <> fixText
       where
         problemHeader ruleId =
-            "# " +| decodePathString p.location.file |+ ": " +| ruleId |+ "\n"
+            "# " +| decodeOsPath p.location.file |+ ": " +| ruleId |+ "\n"
         code = "```ts\n" +| T.strip p.location.code |+ "\n```\n"
         description = "" +| p.description |+ "\n"
         fixText = "FIX: " +| T.strip p.fix |+ ""

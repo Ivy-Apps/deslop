@@ -12,9 +12,9 @@ import Control.Concurrent.STM.TVar (readTVarIO)
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic
+import Effects.FileSystem (decodeOsPath)
 import Effects.ReportProblem (Problem)
 import Fmt (pretty)
-import FsEncoding (decodePathString)
 import System.Console.ANSI
 import System.OsPath (OsPath)
 import UI (ProblemsLog (..), printErr, putStderrLn)
@@ -51,7 +51,7 @@ runCLILog action = do
                     setSGR [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
                     putStr "  modified  "
                     setSGR [Reset]
-                    putStrLn (decodePathString path)
+                    putStrLn (T.unpack . decodeOsPath $ path)
                     hFlush stdout
                 LogSummary -> liftIO $ do
                     count <- readTVarIO counterVar
