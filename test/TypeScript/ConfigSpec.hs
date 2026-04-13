@@ -57,6 +57,9 @@ spec = describe "TsConfig" $ do
                         , values = fmap ValuePattern $ Exact "./src/mocks/style-mock.ts" :| []
                         }
 
+        it "fails if key is Exact but the values are Wildcard" $ do
+            parsePathMapping ("react", ["*.css"]) `shouldBe` Nothing
+
         describe "parsePattern" $ do
             it "empty text is invalid" $ do
                 parsePattern "" `shouldBe` Nothing

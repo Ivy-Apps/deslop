@@ -114,12 +114,16 @@ parsePathMapping :: (Text, [Text]) -> Maybe PathMapping
 parsePathMapping (_, []) = Nothing
 parsePathMapping (k, vs) = do
     key <- parsePattern k
-    values <- nonEmpty . mapMaybe parsePattern $ vs
+    values <- nonEmpty . filter (validKeyValuePair key) . mapMaybe parsePattern $ vs
     Just
         PathMapping
             { key = KeyPattern key
             , values = ValuePattern <$> values
             }
+  where
+    validKeyValuePair :: Pattern -> Pattern -> Bool
+    validKeyValuePair (Exact _) (Wildcard _ _) = False
+    validKeyValuePair _ _ = True
 
 parsePattern :: Text -> Maybe Pattern
 parsePattern "" = Nothing
