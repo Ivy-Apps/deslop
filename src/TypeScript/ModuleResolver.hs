@@ -13,7 +13,7 @@ import Data.Text qualified as T
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, decodeOsPath)
-import System.OsPath (osp)
+import System.OsPath (dropExtension, osp)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import Utils (dropCommonPre)
 
@@ -25,17 +25,29 @@ data ExactPathMapping = ExactPathMapping
     }
     deriving (Show, Eq)
 
+-- home/repo/src/lib/util.tsx -> @/lib/util OR src/lib/util
 encode :: (RoFileSystem :> es, Reader TsConfig :> es) => AbsPath -> Eff es ModuleId
 encode absFilePath = do
     cfg <- ask @TsConfig
-    let (_fpRelToCfg, _) = dropCommonPre (decodeOsPath absFilePath.osPath, decodeOsPath cfg.baseUrl.osPath)
+    let noExtAbsFp = dropExtension absFilePath.osPath
+    -- src/lib/util
+    let (moduleRelToCfg, _) = dropCommonPre (decodeOsPath noExtAbsFp, decodeOsPath cfg.baseUrl.osPath)
 
     pure $ ModuleId ""
   where
-    _findMatchingPath :: (RoFileSystem :> es) => Text -> [PathMapping] -> Eff es (Maybe KeyPattern)
-    _findMatchingPath _ [] = pure Nothing
-    _findMatchingPath _fpRelToCfg ((PathMapping _k _vs) : _xs) = do
-        pure Nothing
+    applyPathMapping :: [PathMapping] -> Text -> Maybe Text
+    applyPathMapping [] _ = Nothing
+    applyPathMapping (x : xs) moduleRelToCfg
+        | Just found <- matchValues (toList x.values) moduleRelToCfg = case found of
+            ExactMatch -> Nothing
+            WildcardMatch capture -> Nothing
+        | otherwise = applyPathMapping xs moduleRelToCfg
+
+    matchValues :: [ValuePattern] -> Text -> Maybe Match
+    matchValues [] _ = Nothing
+    matchValues (ValuePattern p : ps) t
+        | Just found <- match p t = Just found
+        | otherwise = matchValues ps t
 
 encodeImport :: (RoFileSystem :> es, Reader TsConfig :> es) => AbsPath -> AbsPath -> Eff es ModuleId
 encodeImport _modulePath _importTarget = pure (ModuleId "")
