@@ -124,6 +124,7 @@ test-suite deslop-test
     TestUtils
     TypeScript.ConfigSpec
     TypeScript.LexerSpec
+    TypeScript.ModuleResolverSpec
     TypeScript.ParserSpec
     TypeScript.RenderableSpec
     UtilsSpec

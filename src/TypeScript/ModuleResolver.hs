@@ -5,13 +5,15 @@ module TypeScript.ModuleResolver (
     encode,
     encodeImport,
     decode,
+    match,
 ) where
 
+import Data.Text qualified as T
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe)
 import System.OsPath (osp)
-import TypeScript.Config (TsConfig (..))
+import TypeScript.Config (Pattern (..), TsConfig (..))
 
 newtype ModuleId = ModuleId Text deriving stock (Show, Eq)
 
@@ -26,3 +28,10 @@ encodeImport _modulePath _importTarget = pure (ModuleId "")
 
 decode :: (RoFileSystem :> es, Reader TsConfig :> es) => ModuleId -> Eff es AbsPath
 decode _ = pure $ absPathUnsafe [osp|wip|]
+
+match :: Pattern -> Text -> Bool
+match (Exact p) t = p == t
+match (Wildcard pre suff) t =
+    pre `T.isPrefixOf` t
+        && suff `T.isSuffixOf` t
+        && T.length t > T.length pre + T.length suff
