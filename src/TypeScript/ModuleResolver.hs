@@ -17,6 +17,7 @@ import System.OsPath (dropExtension, osp)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import Utils (dropCommonPre)
 
+-- | Logical TS module id - e.g. @/lib/util or /src/lib/util (relative to the nearest TS config)
 newtype ModuleId = ModuleId Text deriving stock (Show, Eq)
 
 data ExactPathMapping = ExactPathMapping
