@@ -6,6 +6,7 @@ module TypeScript.ModuleResolver (
     encodeImport,
     decode,
     match,
+    Match (..),
 ) where
 
 import Data.Text qualified as T
@@ -42,9 +43,15 @@ encodeImport _modulePath _importTarget = pure (ModuleId "")
 decode :: (RoFileSystem :> es, Reader TsConfig :> es) => ModuleId -> Eff es AbsPath
 decode _ = pure $ absPathUnsafe [osp|wip|]
 
-match :: Pattern -> Text -> Bool
-match (Exact p) t = p == t
-match (Wildcard pre suff) t =
-    pre `T.isPrefixOf` t
-        && suff `T.isSuffixOf` t
-        && T.length t > T.length pre + T.length suff
+data Match = ExactMatch | WildcardMatch Text deriving (Show, Eq)
+
+match :: Pattern -> Text -> Maybe Match
+match (Exact p) t
+    | p == t = Just ExactMatch
+    | otherwise = Nothing
+match (Wildcard pre suff) t
+    | T.length t >= T.length pre + T.length suff
+    , Just rest <- T.stripPrefix pre t
+    , Just capture <- T.stripSuffix suff rest =
+        Just (WildcardMatch capture)
+    | otherwise = Nothing
