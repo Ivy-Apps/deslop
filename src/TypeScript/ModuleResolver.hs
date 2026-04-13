@@ -12,8 +12,8 @@ module TypeScript.ModuleResolver (
 import Data.Text qualified as T
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
-import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, decodeOsPath)
-import System.OsPath (dropExtension, osp)
+import Effects.FileSystem (AbsPath (..), RoFileSystem, decodeOsPath, encodeOsPath, fsFileExistsAbs, fsMkAbsolute, withAbsBaseSafe)
+import System.OsPath (dropExtension)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import Utils (dropCommonPre)
 
@@ -53,11 +53,12 @@ reverseResolve absFilePath = do
     applyPathMapping :: [PathMapping] -> Text -> Maybe Text
     applyPathMapping [] _ = Nothing
     applyPathMapping (x : xs) moduleRelToCfg
-        | Just found <- matchValues (toList x.values) moduleRelToCfg = case found of
+        | Just valueMatch <- matchValues (toList x.values) moduleRelToCfg = case valueMatch of
             ExactMatch -> case x.key of
                 (KeyPattern (Exact t)) -> Just t
                 (KeyPattern (Wildcard pre suff)) -> Just (pre <> suff)
             WildcardMatch capture -> case x.key of
+                -- invalid: Exact Key with Wildcard Value
                 (KeyPattern (Exact _)) -> applyPathMapping xs moduleRelToCfg
                 (KeyPattern (Wildcard pre suff)) -> Just (pre <> capture <> suff)
         | otherwise = applyPathMapping xs moduleRelToCfg
@@ -76,7 +77,40 @@ reverseResolveImport ::
 reverseResolveImport _modulePath _importTarget = pure (ModuleId "")
 
 resolve :: (RoFileSystem :> es, Reader TsConfig :> es) => ModuleId -> Eff es AbsPath
-resolve _ = pure $ absPathUnsafe [osp|wip|]
+resolve (ModuleId mId) = do
+    cfg <- ask @TsConfig
+    maybePathMapping <- reversePathMapping cfg cfg.paths
+    case maybePathMapping of
+        Just absPath -> pure absPath
+        Nothing -> fsMkAbsolute $ withAbsBaseSafe cfg.baseUrl (encodeOsPath mId)
+  where
+    reversePathMapping :: (RoFileSystem :> es) => TsConfig -> [PathMapping] -> Eff es (Maybe AbsPath)
+    reversePathMapping _ [] = pure Nothing
+    reversePathMapping cfg (p : ps)
+        | Just keyMatch <- match p.key.pattern mId = do
+            maybeAbsPath <- tryValues cfg keyMatch (toList p.values)
+            case maybeAbsPath of
+                Just absPath -> pure $ Just absPath
+                Nothing -> reversePathMapping cfg ps
+        | otherwise = reversePathMapping cfg ps
+
+    tryValues :: (RoFileSystem :> es) => TsConfig -> Match -> [ValuePattern] -> Eff es (Maybe AbsPath)
+    tryValues _ _ [] = pure Nothing
+    tryValues cfg keyMatch ((ValuePattern v) : vs) = do
+        let maybeRelToCfg = case (keyMatch, v) of
+                (ExactMatch, (Exact t)) -> Just t
+                -- invalid: Exact Key with Wildcard Value
+                (ExactMatch, (Wildcard _ _)) -> Nothing
+                ((WildcardMatch _), (Exact t)) -> Just t
+                ((WildcardMatch capture), (Wildcard pre suf)) -> Just (pre <> capture <> suf)
+        case (withAbsBaseSafe cfg.baseUrl . encodeOsPath) <$> maybeRelToCfg of
+            Nothing -> tryValues cfg keyMatch vs
+            Just filePath -> do
+                absFilePath <- fsMkAbsolute filePath
+                exists <- fsFileExistsAbs absFilePath
+                if exists
+                    then pure $ Just absFilePath
+                    else tryValues cfg keyMatch vs
 
 data Match = ExactMatch | WildcardMatch Text deriving (Show, Eq)
 
