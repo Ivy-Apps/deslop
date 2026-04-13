@@ -25,22 +25,39 @@ data ExactPathMapping = ExactPathMapping
     }
     deriving (Show, Eq)
 
--- home/repo/src/lib/util.tsx -> @/lib/util OR src/lib/util
+{- | Resolves a TypeScript file's absolute path to a logical 'ModuleId'.
+
+This function performs a "reverse resolution" to determine how a file
+should be imported. It processes the path in the following order:
+1. Strips the file extension from the absolute path.
+2. Calculates the module's path relative to the 'TsConfig' @baseUrl@.
+3. Iterates through the TSConfig @paths@ mappings to find an applicable alias.
+
+If a valid path mapping is found, it substitutes the captured path into the
+corresponding alias key. If no mappings match, it falls back to the path
+relative to the configuration's base URL.
+
+Example:
+/home/repo/src/lib/util.tsx -> \@/lib/util (if alias mapped) OR src/lib/util
+-}
 encode :: (RoFileSystem :> es, Reader TsConfig :> es) => AbsPath -> Eff es ModuleId
 encode absFilePath = do
     cfg <- ask @TsConfig
     let noExtAbsFp = dropExtension absFilePath.osPath
     -- src/lib/util
     let (moduleRelToCfg, _) = dropCommonPre (decodeOsPath noExtAbsFp, decodeOsPath cfg.baseUrl.osPath)
-
-    pure $ ModuleId ""
+    pure . ModuleId . fromMaybe moduleRelToCfg $ applyPathMapping cfg.paths moduleRelToCfg
   where
     applyPathMapping :: [PathMapping] -> Text -> Maybe Text
     applyPathMapping [] _ = Nothing
     applyPathMapping (x : xs) moduleRelToCfg
         | Just found <- matchValues (toList x.values) moduleRelToCfg = case found of
-            ExactMatch -> Nothing
-            WildcardMatch capture -> Nothing
+            ExactMatch -> case x.key of
+                (KeyPattern (Exact t)) -> Just t
+                (KeyPattern (Wildcard pre suff)) -> Just (pre <> suff)
+            WildcardMatch capture -> case x.key of
+                (KeyPattern (Exact _)) -> applyPathMapping xs moduleRelToCfg
+                (KeyPattern (Wildcard pre suff)) -> Just (pre <> capture <> suff)
         | otherwise = applyPathMapping xs moduleRelToCfg
 
     matchValues :: [ValuePattern] -> Text -> Maybe Match
