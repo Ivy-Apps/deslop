@@ -107,6 +107,7 @@ resolve (ModuleId mId) = do
             Nothing -> tryValues cfg keyMatch vs
             Just filePath -> do
                 absFilePath <- fsMkAbsolute filePath
+                -- TODO: The file extension is missing! Probe ".ts", ".tsx"
                 exists <- fsFileExistsAbs absFilePath
                 if exists
                     then pure $ Just absFilePath
