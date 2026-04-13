@@ -22,20 +22,6 @@ import Text.Megaparsec
 import Text.Megaparsec.Char (char)
 import Utils (safeHead)
 
-newtype TsConfigDto = TsConfigDto
-    { compilerOptions :: CompilerOptionsDto
-    }
-    deriving (Show, Generic)
-
-data CompilerOptionsDto = CompilerOptionsDto
-    { baseUrl :: Maybe Text
-    , paths :: Maybe (Map Text [Text])
-    }
-    deriving (Show, Generic)
-
-instance FromJSON TsConfigDto
-instance FromJSON CompilerOptionsDto
-
 data TsConfig = TsConfig
     { baseUrl :: !AbsPath
     , paths :: ![PathMapping]
@@ -55,6 +41,20 @@ data Pattern
     = Exact !Text
     | Wildcard {pre :: !Text, suff :: !Text}
     deriving (Show, Eq)
+
+newtype TsConfigDto = TsConfigDto
+    { compilerOptions :: CompilerOptionsDto
+    }
+    deriving (Show, Generic)
+
+data CompilerOptionsDto = CompilerOptionsDto
+    { baseUrl :: Maybe Text
+    , paths :: Maybe (Map Text [Text])
+    }
+    deriving (Show, Generic)
+
+instance FromJSON TsConfigDto
+instance FromJSON CompilerOptionsDto
 
 readTsConfig :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text TsConfig)
 readTsConfig cfgPath = fsReadAbsFile cfgPath >>= parseTsConfigFromJson cfgPath
