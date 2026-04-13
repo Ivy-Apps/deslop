@@ -117,6 +117,14 @@ spec = describe "ModuleResolver" $ do
                 let resNotFound = runEncodeTest cfg [osp|/home/repo/src/types/user/account.ts|]
                 resNotFound `shouldBe` ModuleId "src/types/user/account"
 
+            it "handles prefix wildcards (*-spec)" $ do
+                let cfg =
+                        baseCfg
+                            { paths = [mkMapping (Wildcard "@tests/" "-spec") [Wildcard "src/tests/" "-spec"]]
+                            }
+                let result = runEncodeTest cfg [osp|/home/repo/src/tests/auth-spec.ts|]
+                result `shouldBe` ModuleId "@tests/auth-spec"
+
             it "handles fallback values in mapping array (matches the second value)" $ do
                 let cfg =
                         baseCfg
@@ -131,3 +139,39 @@ spec = describe "ModuleResolver" $ do
                 -- Matches the second value "shared/utils/*"
                 let result = runEncodeTest cfg [osp|/home/repo/shared/utils/math.ts|]
                 result `shouldBe` ModuleId "@utils/math"
+
+            it "picks the first matched mapping (ensures correct priority execution)" $ do
+                let cfg =
+                        baseCfg
+                            { paths =
+                                [ mkMapping (Exact "@utils/math") [Exact "src/utils/math"]
+                                , mkMapping (Wildcard "@utils/*" "") [Wildcard "src/utils/*" ""]
+                                ]
+                            }
+                -- Even though "src/utils/*" would match, the exact match is listed first.
+                let result = runEncodeTest cfg [osp|/home/repo/src/utils/math.ts|]
+                result `shouldBe` ModuleId "@utils/math"
+
+            it "recovers via fall-through if an invalid Exact-Key to Wildcard-Value match is encountered" $ do
+                let cfg =
+                        baseCfg
+                            { paths =
+                                -- The first mapping is technically invalid TS (Exact to Wildcard)
+                                [ mkMapping (Exact "invalid-exact") [Wildcard "src/libs/*" ""]
+                                , mkMapping (Wildcard "@libs/*" "") [Wildcard "src/libs/*" ""]
+                                ]
+                            }
+                -- It should hit the first mapping, realize it can't apply a capture to an Exact key,
+                -- safely fall through, and successfully match the second mapping.
+                let result = runEncodeTest cfg [osp|/home/repo/src/libs/logger.ts|]
+                result `shouldBe` ModuleId "@libs/logger"
+
+            it "handles Wildcard keys mapped to Exact values" $ do
+                let cfg =
+                        baseCfg
+                            { paths = [mkMapping (Wildcard "@core/*" "") [Exact "src/core"]]
+                            }
+                let result = runEncodeTest cfg [osp|/home/repo/src/core.ts|]
+                -- Candidate "src/core" matches Exact "src/core" -> ExactMatch
+                -- Applying ExactMatch to Wildcard "@core/" "" -> "@core/" <> "" <> "" -> "@core/"
+                result `shouldBe` ModuleId "@core/"

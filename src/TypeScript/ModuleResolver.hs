@@ -45,7 +45,8 @@ encode absFilePath = do
     cfg <- ask @TsConfig
     let noExtAbsFp = dropExtension absFilePath.osPath
     -- src/lib/util
-    let (moduleRelToCfg, _) = dropCommonPre (decodeOsPath noExtAbsFp, decodeOsPath cfg.baseUrl.osPath)
+    let (rawRelToCfg, _) = dropCommonPre (decodeOsPath noExtAbsFp, decodeOsPath cfg.baseUrl.osPath)
+    let moduleRelToCfg = fromMaybe rawRelToCfg $ T.stripPrefix "/" rawRelToCfg
     pure . ModuleId . fromMaybe moduleRelToCfg $ applyPathMapping cfg.paths moduleRelToCfg
   where
     applyPathMapping :: [PathMapping] -> Text -> Maybe Text
