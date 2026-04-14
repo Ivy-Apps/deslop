@@ -5,7 +5,7 @@ module TypeScript.ModuleResolverSpec (spec) where
 import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, runMockRoFileSystem)
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
-import Effects.FileSystem (absPathUnsafe, encodeOsPath)
+import Effects.FileSystem (absPathUnsafe)
 import System.OsPath (osp)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
@@ -222,8 +222,8 @@ spec = describe "ModuleResolver" $ do
 
         let mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)
 
-        -- Helper to run the resolve function with a simulated file system
-        let runResolveTest cfg existingFiles mId =
+        -- Helper to run the resolve function from a specific importing file
+        let runResolveTestFrom importerAbsPath cfg existingFiles mId =
                 let mockFs =
                         defaultMockRoFileSystem
                             { mockFileExistsAbs = \p -> pure $ p `elem` existingFiles
@@ -231,7 +231,10 @@ spec = describe "ModuleResolver" $ do
                  in runPureEff
                         . runMockRoFileSystem mockFs
                         . runReader cfg
-                        $ resolve (absPathUnsafe . encodeOsPath $ "/wip") (ModuleId mId)
+                        $ resolve importerAbsPath (ModuleId mId)
+
+        -- Default helper for non-relative tests to avoid rewriting existing cases
+        let runResolveTest = runResolveTestFrom (absPathUnsafe [osp|/home/repo/src/main.ts|])
 
         it "resolves relative to baseUrl with a .ts extension" $ do
             let existingFiles = [absPathUnsafe [osp|/home/repo/src/lib/util.ts|]]
@@ -374,3 +377,51 @@ spec = describe "ModuleResolver" $ do
             -- fail all `baseUrl` extensions, and finally return the raw absolute path.
             let result = runResolveTest cfg existingFiles "@/missing/module"
             result `shouldBe` absPathUnsafe [osp|/home/repo/@/missing/module|]
+
+        it "resolves a same-directory relative import (./) with extension probing" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/pages/LoginView.tsx|]]
+
+            let result = runResolveTestFrom importer baseCfg existingFiles "./LoginView"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/pages/LoginView.tsx|]
+
+        it "resolves a parent-directory relative import (../)" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/utils/math.ts|]]
+
+            let result = runResolveTestFrom importer baseCfg existingFiles "../utils/math"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/utils/math.ts|]
+
+        it "resolves current directory root (.) to an index file" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/pages/index.ts|]]
+
+            let result = runResolveTestFrom importer baseCfg existingFiles "."
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/pages/index.ts|]
+
+        it "resolves parent directory root (..) to an index file" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/index.ts|]]
+
+            let result = runResolveTestFrom importer baseCfg existingFiles ".."
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/index.ts|]
+
+        it "resolves multi-level parent directory relative imports (../../)" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/dashboard/User.tsx|]
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/lib/api.ts|]]
+
+            let result = runResolveTestFrom importer baseCfg existingFiles "../../lib/api"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/lib/api.ts|]
+
+        it "strictly bypasses TSConfig path mappings for relative imports" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg =
+                    baseCfg
+                        { paths = [mkMapping (Wildcard "./utils/" "") [Wildcard "src/hacked/utils/" ""]]
+                        }
+            -- Even though a path mapping matches the prefix exactly, TS ignores it completely
+            -- because relative paths are tightly bound to the disk, never the compiler mappings.
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/pages/utils/math.ts|]]
+
+            let result = runResolveTestFrom importer cfg existingFiles "./utils/math"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/pages/utils/math.ts|]
