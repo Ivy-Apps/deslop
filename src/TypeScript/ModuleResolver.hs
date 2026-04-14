@@ -36,7 +36,7 @@ reverseResolveImport importingFile target =
 reverseResolve :: (Reader TsConfig :> es) => AbsPath -> Eff es (Maybe ModuleId)
 reverseResolve absFilePath = do
     cfg <- ask @TsConfig
-    let noExtAbsFp = dropExtension absFilePath.osPath
+    let noExtAbsFp = dropTypeScriptExtension absFilePath.osPath
     let targetSegs = splitDirectories noExtAbsFp
     let baseUrlSegs = splitDirectories cfg.baseUrl.osPath
     let (tRemainderOsp, bRemainderOsp) = dropCommonSegments targetSegs baseUrlSegs
@@ -52,6 +52,15 @@ reverseResolve absFilePath = do
                 then pure . Just . ModuleId $ moduleRelToCfg
                 else pure Nothing
   where
+    dropTypeScriptExtension :: OsPath -> OsPath
+    dropTypeScriptExtension osp
+        | let
+            path = decodeOsPath osp
+           in
+            any (`T.isSuffixOf` path) [".ts", ".tsx", ".js", ".jsx"] =
+            dropExtension osp
+        | otherwise = osp
+
     dropCommonSegments :: (Eq a) => [a] -> [a] -> ([a], [a])
     dropCommonSegments (x : xs) (y : ys) | x == y = dropCommonSegments xs ys
     dropCommonSegments xs ys = (xs, ys)
