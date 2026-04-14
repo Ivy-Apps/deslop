@@ -610,7 +610,7 @@ spec = describe "ModuleResolver" $ do
         it "resolves a Next.js root alias (@/) correctly" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/app/dashboard/page.tsx|]
             -- Next.js 13+ default alias
-            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "./" ""]]}
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "" ""]]}
             let existingFiles = [absPathUnsafe [osp|/home/repo/src/lib/utils.ts|]]
 
             let result = runRRTest importer cfg existingFiles "../../lib/utils"
