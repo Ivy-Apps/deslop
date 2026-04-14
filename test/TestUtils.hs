@@ -1,6 +1,5 @@
 module TestUtils (
     snapshot,
-    runFileSystemTest,
     runCLILogTest,
     runGitTest,
     runAITest,
@@ -26,7 +25,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
 import Effects.CLILog
-import Effects.FileSystem (AbsPath (osPath), RoFileSystem (..), WrFileSystem (..), absPathUnsafe, encodeOsPathString, fsMkAbsolute, runFileSystemIO, runRoFileSystemIO)
+import Effects.FileSystem (AbsPath (osPath), absPathUnsafe, encodeOsPathString, fsMkAbsolute, runFileSystemIO)
 import Effects.Git
 import Params
 import Secrets (GeminiApiKey (..), Secrets (..))
@@ -39,21 +38,6 @@ import Types (Renderable (render))
 import UI (problemsLogText)
 
 type ModifiedFiles = [OsPath]
-
-runFileSystemTest ::
-    (IOE :> es) =>
-    IORef (Maybe ByteString) ->
-    Eff (WrFileSystem : RoFileSystem : es) a ->
-    Eff es a
-runFileSystemTest ref = runRoFileSystemIO . runWrFileSystemTest ref
-
-runWrFileSystemTest ::
-    (IOE :> es) =>
-    IORef (Maybe ByteString) ->
-    Eff (WrFileSystem : es) a ->
-    Eff es a
-runWrFileSystemTest ref = interpret $ \_ -> \case
-    WriteFile _path content -> liftIO $ writeIORef ref (Just content)
 
 newtype TestLogs = TestLogs
     { problems :: Text

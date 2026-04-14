@@ -3,16 +3,17 @@ module E2E.ProjectGoldenSpec (spec) where
 import Data.Maybe (fromJust)
 import Data.Text qualified as T
 import Deslop (deslopProject, doWork)
+import Doubles.FileSystem (runMockWrFileSystem)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effects.FileSystem (encodeOsPathString, runFileSystemIO)
+import Effects.FileSystem (encodeOsPathString, runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
 import Params
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesPath, pathSafeGolden, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
+import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesPath, pathSafeGolden, runAIAlwaysFail, runCLILogTest, runGitTest, snapshot, testSecrets)
 import Types (DeslopError (CheckModeFoundProblems))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -71,7 +72,8 @@ spec = describe "Deslop project" $ do
         -- When
         res <-
             runEff
-                . runFileSystemTest filesRef
+                . runMockWrFileSystem filesRef
+                . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
                 . runCLILogTest logsRef
                 . runGitTest []

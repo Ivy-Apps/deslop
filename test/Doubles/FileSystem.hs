@@ -2,6 +2,7 @@ module Doubles.FileSystem (
     MockRoFileSystem (..),
     defaultMockRoFileSystem,
     runMockRoFileSystem,
+    runMockWrFileSystem,
 ) where
 
 import Data.Text qualified as T
@@ -10,11 +11,20 @@ import Effectful.Dispatch.Dynamic (interpret)
 import Effects.FileSystem (
     AbsPath (..),
     RoFileSystem (..),
+    WrFileSystem (..),
     absPathUnsafe,
     decodeOsPath,
     encodeOsPath,
  )
 import System.OsPath (OsPath, (</>))
+
+runMockWrFileSystem ::
+    (IOE :> es) =>
+    IORef (Maybe ByteString) ->
+    Eff (WrFileSystem : es) a ->
+    Eff es a
+runMockWrFileSystem ref = interpret $ \_ -> \case
+    WriteFile _path content -> liftIO $ writeIORef ref (Just content)
 
 {- | A product type containing mock implementations for all RoFileSystem operations.
 Parameterized over `es` so your mocks can utilize other effects in your test stack

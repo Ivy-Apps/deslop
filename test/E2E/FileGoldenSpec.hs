@@ -2,6 +2,7 @@ module E2E.FileGoldenSpec (spec) where
 
 import Data.Text qualified as T
 import Deslop (deslopFile)
+import Doubles.FileSystem (defaultMockRoFileSystem, runMockRoFileSystem, runMockWrFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.FileSystem (absPathUnsafe, decodeOsPath)
@@ -10,7 +11,7 @@ import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (defaultParams, listFixtures, mkMapping, runCLILogTest, runFileSystemTest)
+import TestUtils (defaultParams, listFixtures, mkMapping, runCLILogTest)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
@@ -80,7 +81,8 @@ spec = do
             -- When
             _ <-
                 runEff
-                    . runFileSystemTest fileWriteRef
+                    . runMockWrFileSystem fileWriteRef
+                    . runMockRoFileSystem defaultMockRoFileSystem
                     . runReader tsCfg
                     . runReader (defaultParams [osp|.|])
                     . runCLILogTest logsRef
