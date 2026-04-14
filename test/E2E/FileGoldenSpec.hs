@@ -72,8 +72,8 @@ spec = do
                     TsConfig
                         { baseUrl = absPathUnsafe [osp|/home/repo|]
                         , paths =
-                            [ mkMapping (Wildcard "@/" "") [Wildcard "test/" ""]
-                            , mkMapping (Wildcard "@test/" "") [Wildcard "tests/" ""]
+                            [ mkMapping (Wildcard "@test/" "") [Wildcard "tests/" ""]
+                            , mkMapping (Wildcard "@/" "") [Wildcard "test/" ""]
                             ]
                         }
 
