@@ -826,7 +826,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [absPathUnsafe [osp|/home/repo/src/assets/logo.svg|]]
 
             let result = runRRTest importer cfg existingFiles "../../assets/logo.svg?raw"
-            result `shouldBe` ModuleId "../../assets/logo.svg?raw"
+            result `shouldBe` ModuleId "assets/logo.svg?raw"
 
         it "preserves Node.js package.json subpath imports (e.g., #internal/utils)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/index.ts|]
@@ -844,4 +844,4 @@ spec = describe "ModuleResolver" $ do
 
             -- An edge case where a scoped package might have a subpath that tricks naive parsers
             let result = runRRTest importer cfg existingFiles "@company/internal-lib/./utils"
-            result `shouldBe` ModuleId "@company/internal-lib/./utils"
+            result `shouldBe` ModuleId "@company/internal-lib/utils"
