@@ -745,3 +745,53 @@ spec = describe "ModuleResolver" $ do
 
             let result = runRRTest importer cfg existingFiles "./theme"
             result `shouldBe` ModuleId "@/theme"
+
+        it "upgrades a relative import in a monorepo to a cross-package alias (@repo/shared)" $ do
+            let importer = absPathUnsafe [osp|/home/repo/apps/web/src/App.tsx|]
+            -- baseUrl is at the app level
+            let cfg =
+                    TsConfig
+                        { baseUrl = absPathUnsafe [osp|/home/repo/apps/web|]
+                        , paths = [mkMapping (Wildcard "@repo/shared/" "") [Wildcard "../../packages/shared/src/" ""]]
+                        }
+            let existingFiles = [absPathUnsafe [osp|/home/repo/packages/shared/src/api.ts|]]
+
+            -- Dev used a messy relative path to reach out of the app into a sibling package
+            let result = runRRTest importer cfg existingFiles "../../../packages/shared/src/api"
+            result `shouldBe` ModuleId "@repo/shared/api"
+
+        it "handles Next.js App Router 'page to component' imports via root alias" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/app/blog/[slug]/page.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/components/PostView.tsx|]]
+
+            -- Deeply nested page importing a component
+            let result = runRRTest importer cfg existingFiles "../../../components/PostView"
+            result `shouldBe` ModuleId "@/components/PostView"
+
+        it "correctly aliases a sibling directory import that uses an index file" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/features/auth/login.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@features/" "") [Wildcard "src/features/" ""]]}
+            -- Target is src/features/ui/index.tsx
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/features/ui/index.tsx|]]
+
+            let result = runRRTest importer cfg existingFiles "../ui"
+            result `shouldBe` ModuleId "@features/ui/index"
+
+        it "preserves a relative import to a local JSON configuration file with extension" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/main.ts|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/config.json|]]
+
+            -- JSON imports must keep their extension
+            let result = runRRTest importer cfg existingFiles "./config.json"
+            result `shouldBe` ModuleId "@/config.json"
+
+        it "handles Vite's common 'virtual' or prefixed internal modules without breaking them" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/main.tsx|]
+            let cfg = baseCfg {paths = []}
+            let existingFiles = []
+
+            -- Vite uses virtual modules like 'virtual:pwa-register'
+            let result = runRRTest importer cfg existingFiles "virtual:pwa-register"
+            result `shouldBe` ModuleId "virtual:pwa-register"
