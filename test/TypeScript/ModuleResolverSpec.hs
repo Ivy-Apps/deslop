@@ -209,6 +209,36 @@ spec = describe "ModuleResolver" $ do
 
             result `shouldBe` Nothing
 
+        it "resolves a Vite-style alias with a custom symbol ($)" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "$utils/" "") [Wildcard "src/utils/" ""]]}
+            let result = runEncodeTest cfg [osp|/home/repo/src/utils/formatter.ts|]
+            result `shouldBe` (Just $ ModuleId "$utils/formatter")
+
+        it "resolves to the first available mapping in a multi-value fallback array" $ do
+            let cfg =
+                    baseCfg
+                        { paths =
+                            [ mkMapping
+                                (Wildcard "@lib/" "")
+                                [ Wildcard "src/lib/" ""
+                                , Wildcard "shared/lib/" ""
+                                ]
+                            ]
+                        }
+            -- If the file is in the first target path
+            let result = runEncodeTest cfg [osp|/home/repo/src/lib/core.ts|]
+            result `shouldBe` (Just $ ModuleId "@lib/core")
+
+        it "resolves a shared assets folder alias common in React/Vite" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@assets/" "") [Wildcard "src/assets/" ""]]}
+            let result = runEncodeTest cfg [osp|/home/repo/src/assets/images/logo.png|]
+            result `shouldBe` (Just $ ModuleId "@assets/images/logo.png")
+
+        it "resolves a root-level config file using an exact alias" $ do
+            let cfg = baseCfg {paths = [mkMapping (Exact "config") [Exact "constants/app-config"]]}
+            let result = runEncodeTest cfg [osp|/home/repo/constants/app-config.ts|]
+            result `shouldBe` (Just $ ModuleId "config")
+
     describe "isRelativeImport" $ do
         it "identifies strict current directory (.)" $ do
             isRelativeImport (ModuleId ".") `shouldBe` True
