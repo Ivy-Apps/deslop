@@ -24,12 +24,6 @@ or /home/repo/src/lib/util
 -}
 newtype ModuleId = ModuleId Text deriving stock (Show, Eq)
 
-data ExactPathMapping = ExactPathMapping
-    { key :: KeyPattern
-    , value :: ValuePattern
-    }
-    deriving (Show, Eq)
-
 reverseResolveImport ::
     ( RoFileSystem :> es
     , Reader TsConfig :> es
