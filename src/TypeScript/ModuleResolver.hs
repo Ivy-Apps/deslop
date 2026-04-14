@@ -82,8 +82,13 @@ resolve (ModuleId mId) = do
     maybePathMapping <- reversePathMapping cfg cfg.paths
     case maybePathMapping of
         Just absPath -> pure absPath
-        Nothing -> fsMkAbsolute $ withAbsBaseSafe cfg.baseUrl (encodeOsPath mId)
+        Nothing -> do
+            let fallbackPath = withAbsBaseSafe cfg.baseUrl (encodeOsPath mId)
+            tryExtensions fallbackPath tsExtensions
+                >>= maybe (fsMkAbsolute fallbackPath) pure
   where
+    tsExtensions = [".ts", ".tsx", "/index.ts", "/index.tsx"]
+
     reversePathMapping :: (RoFileSystem :> es) => TsConfig -> [PathMapping] -> Eff es (Maybe AbsPath)
     reversePathMapping _ [] = pure Nothing
     reversePathMapping cfg (p : ps)
@@ -103,10 +108,11 @@ resolve (ModuleId mId) = do
                 (ExactMatch, (Wildcard _ _)) -> Nothing
                 ((WildcardMatch _), (Exact t)) -> Just t
                 ((WildcardMatch capture), (Wildcard pre suf)) -> Just (pre <> capture <> suf)
-        case (withAbsBaseSafe cfg.baseUrl . encodeOsPath) <$> maybeRelToCfg of
+        let maybeFilePath = (withAbsBaseSafe cfg.baseUrl . encodeOsPath) <$> maybeRelToCfg
+        case maybeFilePath of
             Nothing -> tryValues cfg keyMatch vs
             Just filePath ->
-                tryExtensions filePath [".ts", ".tsx"]
+                tryExtensions filePath tsExtensions
                     >>= maybe (tryValues cfg keyMatch vs) (pure . Just)
 
     tryExtensions :: (RoFileSystem :> es) => OsPath -> [Text] -> Eff es (Maybe AbsPath)
