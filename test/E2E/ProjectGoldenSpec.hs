@@ -1,6 +1,5 @@
 module E2E.ProjectGoldenSpec (spec) where
 
-import Data.Maybe (fromJust)
 import Data.Text qualified as T
 import Deslop (deslopProject, doWork)
 import Doubles.FileSystem (runMockWrFileSystem)
@@ -13,7 +12,7 @@ import Params
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesPath, pathSafeGolden, runAIAlwaysFail, runCLILogTest, runGitTest, snapshot, testSecrets)
+import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesPath, pathSafeGolden, requireJust, runAIAlwaysFail, runCLILogTest, runGitTest, snapshot, testSecrets)
 import Types (DeslopError (CheckModeFoundProblems))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -87,9 +86,8 @@ spec = describe "Deslop project" $ do
         written <- readIORef filesRef
         written `shouldBe` Nothing
         maybeLogs <- readIORef logsRef
-        when (isNothing maybeLogs) $
-            expectationFailure "Expected problems to be logged when check mode finds problems"
-        let logs = fromJust maybeLogs
+
+        logs <- requireJust "Expected problems to be logged when check mode finds problems" maybeLogs
         pathSafeGolden ("check-" <> project) (T.unpack logs.problems)
 
     itFixes project filesToCheck = it ("fixes " <> project) $ do
