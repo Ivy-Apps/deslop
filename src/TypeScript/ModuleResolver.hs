@@ -13,7 +13,7 @@ import Data.Text qualified as T
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (AbsPath (..), RoFileSystem, decodeOsPath, encodeOsPath, fsFileExistsAbs, fsMkAbsolute, withAbsBaseSafe)
-import System.OsPath (dropExtension)
+import System.OsPath (OsPath, dropExtension)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import Utils (dropCommonPre)
 
@@ -105,13 +105,18 @@ resolve (ModuleId mId) = do
                 ((WildcardMatch capture), (Wildcard pre suf)) -> Just (pre <> capture <> suf)
         case (withAbsBaseSafe cfg.baseUrl . encodeOsPath) <$> maybeRelToCfg of
             Nothing -> tryValues cfg keyMatch vs
-            Just filePath -> do
-                absFilePath <- fsMkAbsolute filePath
-                -- TODO: The file extension is missing! Probe ".ts", ".tsx"
-                exists <- fsFileExistsAbs absFilePath
-                if exists
-                    then pure $ Just absFilePath
-                    else tryValues cfg keyMatch vs
+            Just filePath ->
+                tryExtensions filePath [".ts", ".tsx"]
+                    >>= maybe (tryValues cfg keyMatch vs) (pure . Just)
+
+    tryExtensions :: (RoFileSystem :> es) => OsPath -> [Text] -> Eff es (Maybe AbsPath)
+    tryExtensions _ [] = pure Nothing
+    tryExtensions fp (ext : es) = do
+        absFilePath <- fsMkAbsolute (fp <> encodeOsPath ext)
+        exists <- fsFileExistsAbs absFilePath
+        if exists
+            then pure $ Just absFilePath
+            else tryExtensions fp es
 
 data Match = ExactMatch | WildcardMatch Text deriving (Show, Eq)
 
