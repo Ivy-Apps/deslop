@@ -88,12 +88,12 @@ spec = describe "ModuleResolver" $ do
 
         it "resolves relative to baseUrl when there are no path mappings" $ do
             let result = runEncodeTest baseCfg [osp|/home/repo/src/lib/util.tsx|]
-            result `shouldBe` ModuleId "src/lib/util"
+            result `shouldBe` (Just $ ModuleId "src/lib/util")
 
         it "resolves relative to baseUrl when mappings exist but do not match" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/test/util.ts|]
-            result `shouldBe` ModuleId "test/util"
+            result `shouldBe` (Just $ ModuleId "test/util")
 
         it "applies an Exact path mapping" $ do
             let cfg =
@@ -101,12 +101,12 @@ spec = describe "ModuleResolver" $ do
                         { paths = [mkMapping (Exact "jquery") [Exact "node_modules/jquery/dist/jquery"]]
                         }
             let result = runEncodeTest cfg [osp|/home/repo/node_modules/jquery/dist/jquery.js|]
-            result `shouldBe` ModuleId "jquery"
+            result `shouldBe` (Just $ ModuleId "jquery")
 
         it "applies a Suffix Wildcard path mapping" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/lib/util.tsx|]
-            result `shouldBe` ModuleId "@/lib/util"
+            result `shouldBe` (Just $ ModuleId "@/lib/util")
 
         it "applies an Infix Wildcard path mapping" $ do
             let cfg =
@@ -114,9 +114,9 @@ spec = describe "ModuleResolver" $ do
                         { paths = [mkMapping (Wildcard "@dto/" "-dto") [Wildcard "src/types/" "-dto"]]
                         }
             let resMatch = runEncodeTest cfg [osp|/home/repo/src/types/user/account-dto.ts|]
-            resMatch `shouldBe` ModuleId "@dto/user/account-dto"
+            resMatch `shouldBe` (Just $ ModuleId "@dto/user/account-dto")
             let resNotFound = runEncodeTest cfg [osp|/home/repo/src/types/user/account.ts|]
-            resNotFound `shouldBe` ModuleId "src/types/user/account"
+            resNotFound `shouldBe` (Just $ ModuleId "src/types/user/account")
 
         it "handles prefix wildcards (*-spec)" $ do
             let cfg =
@@ -124,7 +124,7 @@ spec = describe "ModuleResolver" $ do
                         { paths = [mkMapping (Wildcard "@tests/" "-spec") [Wildcard "src/tests/" "-spec"]]
                         }
             let result = runEncodeTest cfg [osp|/home/repo/src/tests/auth-spec.ts|]
-            result `shouldBe` ModuleId "@tests/auth-spec"
+            result `shouldBe` (Just $ ModuleId "@tests/auth-spec")
 
         it "handles fallback values in mapping array (matches the second value)" $ do
             let cfg =
@@ -139,7 +139,7 @@ spec = describe "ModuleResolver" $ do
                         }
             -- Matches the second value "shared/utils/*"
             let result = runEncodeTest cfg [osp|/home/repo/shared/utils/math.ts|]
-            result `shouldBe` ModuleId "@utils/math"
+            result `shouldBe` (Just $ ModuleId "@utils/math")
 
         it "picks the first matched mapping (ensures correct priority execution)" $ do
             let cfg =
@@ -151,7 +151,7 @@ spec = describe "ModuleResolver" $ do
                         }
             -- Even though "src/utils/*" would match, the exact match is listed first.
             let result = runEncodeTest cfg [osp|/home/repo/src/utils/math.ts|]
-            result `shouldBe` ModuleId "@utils/math"
+            result `shouldBe` (Just $ ModuleId "@utils/math")
 
         it "recovers via fall-through if an invalid Exact-Key to Wildcard-Value match is encountered" $ do
             let cfg =
@@ -165,7 +165,7 @@ spec = describe "ModuleResolver" $ do
             -- It should hit the first mapping, realize it can't apply a capture to an Exact key,
             -- safely fall through, and successfully match the second mapping.
             let result = runEncodeTest cfg [osp|/home/repo/src/libs/logger.ts|]
-            result `shouldBe` ModuleId "@libs/logger"
+            result `shouldBe` (Just $ ModuleId "@libs/logger")
 
         it "handles Wildcard keys mapped to Exact values" $ do
             let cfg =
@@ -175,7 +175,7 @@ spec = describe "ModuleResolver" $ do
             let result = runEncodeTest cfg [osp|/home/repo/src/core.ts|]
             -- Candidate "src/core" matches Exact "src/core" -> ExactMatch
             -- Applying ExactMatch to Wildcard "@core/" "" -> "@core/" <> "" <> "" -> "@core/"
-            result `shouldBe` ModuleId "@core/"
+            result `shouldBe` (Just $ ModuleId "@core/")
 
     describe "isRelativeImport" $ do
         it "identifies strict current directory (.)" $ do

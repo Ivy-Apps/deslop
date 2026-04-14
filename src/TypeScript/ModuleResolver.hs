@@ -28,24 +28,12 @@ reverseResolveImport ::
     , Reader TsConfig :> es
     ) =>
     AbsPath -> ModuleId -> Eff es ModuleId
-reverseResolveImport importingFile target = resolve importingFile target >>= reverseResolve
+reverseResolveImport importingFile target =
+    resolve importingFile target
+        >>= reverseResolve
+        >>= pure . fromMaybe target
 
-{- | Resolves a TypeScript file's absolute path to a logical 'ModuleId'.
-
-This function performs a "reverse resolution" to determine how a file
-should be imported. It processes the path in the following order:
-1. Strips the file extension from the absolute path.
-2. Calculates the module's path relative to the 'TsConfig' @baseUrl@.
-3. Iterates through the TSConfig @paths@ mappings to find an applicable alias.
-
-If a valid path mapping is found, it substitutes the captured path into the
-corresponding alias key. If no mappings match, it falls back to the path
-relative to the configuration's base URL.
-
-Example:
-/home/repo/src/lib/util.tsx -> \@/lib/util (if alias mapped) OR src/lib/util
--}
-reverseResolve :: (Reader TsConfig :> es) => AbsPath -> Eff es ModuleId
+reverseResolve :: (Reader TsConfig :> es) => AbsPath -> Eff es (Maybe ModuleId)
 reverseResolve absFilePath = do
     cfg <- ask @TsConfig
     let noExtAbsFp = dropExtension absFilePath.osPath
@@ -55,11 +43,11 @@ reverseResolve absFilePath = do
     let tRemainder = decodeOsPath <$> tRemainderOsp
     let moduleRelToCfg = T.intercalate "/" tRemainder
     case applyPathMapping cfg.paths moduleRelToCfg of
-        Just alias -> pure $ ModuleId alias
+        Just alias -> pure . Just . ModuleId $ alias
         Nothing ->
             if null bRemainderOsp
-                then pure $ ModuleId moduleRelToCfg
-                else pure . ModuleId . decodeOsPath $ noExtAbsFp
+                then pure . Just . ModuleId $ moduleRelToCfg
+                else pure Nothing
   where
     dropCommonSegments :: (Eq a) => [a] -> [a] -> ([a], [a])
     dropCommonSegments (x : xs) (y : ys) | x == y = dropCommonSegments xs ys
