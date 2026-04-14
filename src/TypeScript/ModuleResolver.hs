@@ -13,8 +13,8 @@ module TypeScript.ModuleResolver (
 import Data.Text qualified as T
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
-import Effects.FileSystem (AbsPath (..), RoFileSystem, decodeOsPath, encodeOsPath, fsFileExistsAbs, fsMkAbsolute, withAbsBaseSafe)
-import System.OsPath (OsPath, dropExtension)
+import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, decodeOsPath, encodeOsPath, fsFileExistsAbs, fsMkAbsolute, withAbsBaseSafe)
+import System.OsPath (OsPath, dropExtension, takeDirectory)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import Utils (dropCommonPre)
 
@@ -80,26 +80,34 @@ reverseResolveImport ::
     AbsPath -> ModuleId -> Eff es ModuleId
 reverseResolveImport _modulePath _importTarget = pure (ModuleId "")
 
-isRelativeImport :: ModuleId -> Bool
-isRelativeImport (ModuleId ".") = True
-isRelativeImport (ModuleId "..") = True
-isRelativeImport (ModuleId t) =
-    "./" `T.isPrefixOf` t
-        || "../" `T.isPrefixOf` t
-        || "/" `T.isPrefixOf` t
-
 resolve :: (RoFileSystem :> es, Reader TsConfig :> es) => AbsPath -> ModuleId -> Eff es AbsPath
-resolve _modulePath (ModuleId mId) = do
-    cfg <- ask @TsConfig
-    maybePathMapping <- reversePathMapping cfg cfg.paths
-    case maybePathMapping of
-        Just absPath -> pure absPath
-        Nothing -> do
-            let fallbackPath = withAbsBaseSafe cfg.baseUrl (encodeOsPath mId)
-            tryExtensions fallbackPath tsExtensions
-                >>= maybe (fsMkAbsolute fallbackPath) pure
+resolve importingFile m@(ModuleId mId) =
+    if isRelativeImport m
+        then
+            resolveRelativeImport
+        else
+            resolveNonRelativeImport
   where
     tsExtensions = [".ts", ".tsx", "/index.ts", "/index.tsx"]
+
+    resolveRelativeImport :: (RoFileSystem :> es) => Eff es AbsPath
+    resolveRelativeImport = do
+        let importerDir = absPathUnsafe . takeDirectory $ importingFile.osPath
+        let targetPath = withAbsBaseSafe importerDir (encodeOsPath mId)
+
+        tryExtensions targetPath tsExtensions
+            >>= maybe (fsMkAbsolute targetPath) pure
+
+    resolveNonRelativeImport :: (RoFileSystem :> es, Reader TsConfig :> es) => Eff es AbsPath
+    resolveNonRelativeImport = do
+        cfg <- ask @TsConfig
+        maybePathMapping <- reversePathMapping cfg cfg.paths
+        case maybePathMapping of
+            Just absPath -> pure absPath
+            Nothing -> do
+                let fallbackPath = withAbsBaseSafe cfg.baseUrl (encodeOsPath mId)
+                tryExtensions fallbackPath tsExtensions
+                    >>= maybe (fsMkAbsolute fallbackPath) pure
 
     reversePathMapping :: (RoFileSystem :> es) => TsConfig -> [PathMapping] -> Eff es (Maybe AbsPath)
     reversePathMapping _ [] = pure Nothing
@@ -136,6 +144,14 @@ resolve _modulePath (ModuleId mId) = do
         if exists
             then pure $ Just absFilePath
             else tryExtensions fp es
+
+isRelativeImport :: ModuleId -> Bool
+isRelativeImport (ModuleId ".") = True
+isRelativeImport (ModuleId "..") = True
+isRelativeImport (ModuleId t) =
+    "./" `T.isPrefixOf` t
+        || "../" `T.isPrefixOf` t
+        || "/" `T.isPrefixOf` t
 
 data Match = ExactMatch | WildcardMatch Text deriving (Show, Eq)
 
