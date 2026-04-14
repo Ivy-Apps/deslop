@@ -53,7 +53,6 @@ library
     Effects.FileSystem
     Effects.Git
     Effects.ReportProblem
-    FsEncoding
     Params
     Prelude
     Secrets
@@ -61,6 +60,7 @@ library
     TypeScript.Config
     TypeScript.CST
     TypeScript.Lexer
+    TypeScript.ModuleResolver
     TypeScript.Parser
     TypeScript.Tokens
     UI
@@ -79,6 +79,7 @@ library
     , directory             >=1.3.8.0
     , effectful
     , effectful-core
+    , exceptions
     , file-io
     , filepath              >=1.4.100.0
     , fmt
@@ -114,6 +115,7 @@ test-suite deslop-test
     Deslop.RelativeImportSpec
     Deslop.RuleBookFixtures
     Deslop.RuleBookSpec
+    Doubles.FileSystem
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
@@ -123,6 +125,7 @@ test-suite deslop-test
     TestUtils
     TypeScript.ConfigSpec
     TypeScript.LexerSpec
+    TypeScript.ModuleResolverSpec
     TypeScript.ParserSpec
     TypeScript.RenderableSpec
 

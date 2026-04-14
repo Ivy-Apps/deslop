@@ -1,15 +1,16 @@
 {-# LANGUAGE QuasiQuotes #-}
 
-module Params
-    ( pParams
-    , paramsParser
-    , parserPrefs
-    , Params(..)
-    )
+module Params (
+    pParams,
+    paramsParser,
+    parserPrefs,
+    Params (..),
+)
 where
 
+import Data.Text qualified as T
 import Data.Version (showVersion)
-import FsEncoding (readOsPathArg)
+import Effects.FileSystem (encodeOsPath)
 import Options.Applicative
 import Paths_deslop (version)
 import System.OsPath (OsPath, osp)
@@ -23,7 +24,8 @@ data Params = Params
 pParams :: Parser Params
 pParams =
     Params
-        <$> argument (eitherReader readOsPathArg)
+        <$> argument
+            (eitherReader (Right . encodeOsPath . T.pack))
             ( metavar "PROJECT_PATH"
                 <> help "Path to the TypeScript project"
                 <> value [osp|.|]

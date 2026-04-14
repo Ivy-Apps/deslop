@@ -7,41 +7,72 @@ Right
           }
     , paths =
         [ PathMapping
-            { key = Exact "a-very-very-long-exact-match"
-            , values = Exact "./exact/long.ts" :| []
+            { key =
+                KeyPattern { pattern = Exact "a-very-very-long-exact-match" }
+            , values = ValuePattern { pattern = Exact "exact/long.ts" } :| []
             }
         , PathMapping
-            { key = Exact "a-short-exact"
-            , values = Exact "./exact/short.ts" :| []
+            { key = KeyPattern { pattern = Exact "a-short-exact" }
+            , values = ValuePattern { pattern = Exact "exact/short.ts" } :| []
             }
         , PathMapping
-            { key = Wildcard { pre = "@app/features/" , suff = "" }
+            { key =
+                KeyPattern
+                  { pattern = Wildcard { pre = "@app/features/" , suff = "" } }
             , values =
-                Wildcard { pre = "./src/app/features/" , suff = "" } :| []
+                ValuePattern
+                  { pattern = Wildcard { pre = "src/app/features/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = Wildcard { pre = "module-" , suff = "-longest" }
-            , values = Wildcard { pre = "./modules/long/" , suff = "" } :| []
+            { key =
+                KeyPattern
+                  { pattern = Wildcard { pre = "module-" , suff = "-longest" } }
+            , values =
+                ValuePattern
+                  { pattern = Wildcard { pre = "modules/long/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = Wildcard { pre = "module-" , suff = "-short" }
-            , values = Wildcard { pre = "./modules/short/" , suff = "" } :| []
+            { key =
+                KeyPattern
+                  { pattern = Wildcard { pre = "module-" , suff = "-short" } }
+            , values =
+                ValuePattern
+                  { pattern = Wildcard { pre = "modules/short/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = Wildcard { pre = "@app/" , suff = "" }
-            , values = Wildcard { pre = "./src/app/" , suff = "" } :| []
+            { key =
+                KeyPattern { pattern = Wildcard { pre = "@app/" , suff = "" } }
+            , values =
+                ValuePattern
+                  { pattern = Wildcard { pre = "src/app/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = Wildcard { pre = "same" , suff = "longer" }
-            , values = Wildcard { pre = "/longer/" , suff = "" } :| []
+            { key =
+                KeyPattern
+                  { pattern = Wildcard { pre = "same" , suff = "longer" } }
+            , values =
+                ValuePattern
+                  { pattern = Wildcard { pre = "/longer/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = Wildcard { pre = "same" , suff = "short" }
-            , values = Wildcard { pre = "/short/" , suff = "" } :| []
+            { key =
+                KeyPattern { pattern = Wildcard { pre = "same" , suff = "short" } }
+            , values =
+                ValuePattern
+                  { pattern = Wildcard { pre = "/short/" , suff = "" } } :|
+                  []
             }
         , PathMapping
-            { key = Wildcard { pre = "" , suff = "" }
-            , values = Wildcard { pre = "./vendor/" , suff = "" } :| []
+            { key = KeyPattern { pattern = Wildcard { pre = "" , suff = "" } }
+            , values =
+                ValuePattern
+                  { pattern = Wildcard { pre = "vendor/" , suff = "" } } :|
+                  []
             }
         ]
     }

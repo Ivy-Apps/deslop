@@ -1,32 +1,50 @@
 module Effects.FileSystem (
+    encodeOsPath,
+    encodeOsPathString,
+    decodeOsPath,
+    absPathUnsafe,
+    withAbsBaseUnsafe,
+    withAbsBaseSafe,
+    RoFileSystem (..),
+    WrFileSystem (..),
+    AbsPath (osPath),
     fsFileExists,
+    fsFileExistsAbs,
     fsReadFile,
+    fsReadAbsFile,
     fsWriteFile,
     fsDirectoryExists,
     fsListDirectory,
     fsListAbsDirectory,
     fsIsDirectory,
     fsGetHomeDirectory,
-    RoFileSystem (..),
-    WrFileSystem (..),
+    fsMkAbsolute,
+    fsIsAbsDirectory,
     runFileSystemIO,
     runRoFileSystemIO,
-    AbsPath (osPath),
-    fsMkAbsolute,
-    withAbsBaseUnsafe,
-    withAbsBaseSafe,
-    fsIsAbsDirectory,
-    fsReadAbsFile,
-    encodeOsPath,
-    absPathUnsafe,
 ) where
 
+import Control.Monad.Catch.Pure (runCatch)
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
-import System.OsPath (OsPath, unsafeEncodeUtf, (</>))
+import System.OsPath (OsPath, decodeUtf, encodeUtf, (</>))
+
+encodeOsPath :: Text -> OsPath
+encodeOsPath = encodeOsPathString . T.unpack
+
+encodeOsPathString :: FilePath -> OsPath
+encodeOsPathString p =
+    case runCatch (encodeUtf p) of
+        Right path -> path
+        Left err -> error $ "encodeOsPath failed: " <> show err
+
+decodeOsPath :: OsPath -> Text
+decodeOsPath = either handleErr T.pack . runCatch . decodeUtf
+  where
+    handleErr err = error $ "decodeOsPath failed: " <> show err
 
 newtype AbsPath = AbsPath
     { osPath :: OsPath
@@ -42,13 +60,11 @@ withAbsBaseUnsafe (AbsPath b) p = AbsPath (b </> p)
 withAbsBaseSafe :: AbsPath -> OsPath -> OsPath
 withAbsBaseSafe (AbsPath b) p = b </> p
 
-encodeOsPath :: Text -> OsPath
-encodeOsPath = unsafeEncodeUtf . T.unpack
-
 data RoFileSystem :: Effect where
     ReadFile :: OsPath -> RoFileSystem m ByteString
     ReadAbsFile :: AbsPath -> RoFileSystem m ByteString
     FileExists :: OsPath -> RoFileSystem m Bool
+    FileExistsAbs :: AbsPath -> RoFileSystem m Bool
     DirectoryExists :: OsPath -> RoFileSystem m Bool
     ListDirectory :: OsPath -> RoFileSystem m [OsPath]
     ListAbsDirectory :: AbsPath -> RoFileSystem m [AbsPath]
@@ -71,6 +87,9 @@ fsReadAbsFile = send . ReadAbsFile
 
 fsFileExists :: (RoFileSystem :> es) => OsPath -> Eff es Bool
 fsFileExists = send . FileExists
+
+fsFileExistsAbs :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
+fsFileExistsAbs = send . FileExistsAbs
 
 fsDirectoryExists :: (RoFileSystem :> es) => OsPath -> Eff es Bool
 fsDirectoryExists = send . DirectoryExists
@@ -104,6 +123,7 @@ runRoFileSystemIO = interpret $ \_env -> \case
     ReadFile path -> liftIO $ SFO.readFile' path
     ReadAbsFile (AbsPath path) -> liftIO $ SFO.readFile' path
     FileExists path -> liftIO $ SDO.doesFileExist path
+    FileExistsAbs (AbsPath path) -> liftIO $ SDO.doesFileExist path
     DirectoryExists path -> liftIO $ SDO.doesDirectoryExist path
     ListDirectory path -> liftIO $ SDO.listDirectory path
     ListAbsDirectory absP@(AbsPath p) ->

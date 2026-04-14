@@ -7,7 +7,6 @@ module Deslop (
     runDeslop,
 ) where
 
-import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.AST (AstModule, parseAst)
@@ -22,6 +21,8 @@ import Effects.CLILog
 import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
+    decodeOsPath,
+    encodeOsPath,
     fsFileExists,
     fsIsDirectory,
     fsListDirectory,
@@ -32,7 +33,6 @@ import Effects.FileSystem (
 import Effects.Git
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import Fmt (fmt, (+|), (|+))
-import FsEncoding (decodePathString, encodePathString)
 import Params
 import Secrets (Secrets (..), defaultSecrets, readSecrets)
 import System.OsPath (OsPath, osp, takeExtension, (</>))
@@ -93,7 +93,7 @@ doWork ::
     Secrets ->
     Eff es ()
 doWork params _ = do
-    liftIO . printTitle $ "🚀 Deslopping project: " <> T.pack (decodePathString params.projectPath)
+    liftIO . printTitle $ "🚀 Deslopping project: " <> decodeOsPath params.projectPath
     unless params.checkMode (liftIO . putStrLn $ "Changelog:")
     deslopProject params
     bool fixResult checkModeResult params.checkMode
@@ -146,8 +146,8 @@ getTsFiles dir = fsListDirectory dir >>= fmap concat . traverse (processEntry di
 
     resolve path = fsIsDirectory path >>= bool (tsOrEmpty path) (getTsFiles path)
 
-    tsOrEmpty f = pure [f | takeExtension f `elem` [encodePathString ".ts", encodePathString ".tsx"]]
-    ignored = map encodePathString ["node_modules", ".git", "dist", ".next"]
+    tsOrEmpty f = pure [f | takeExtension f `elem` [[osp|.ts|], [osp|.tsx|]]]
+    ignored = map encodeOsPath ["node_modules", ".git", "dist", ".next"]
 
 deslopFile ::
     ( RoFileSystem :> es

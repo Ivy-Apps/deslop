@@ -3,7 +3,6 @@ module Deslop.ASTSpec (spec) where
 import Deslop.AST (
     AstModule (..),
     AstNode (..),
-    ModuleId (..),
     parseAst,
  )
 import Effectful
@@ -13,6 +12,7 @@ import Test.Hspec
 import TestUtils (defaultTsConfig)
 import TypeScript.CST (TsNode (..), TsProgram (..))
 import TypeScript.Config
+import TypeScript.ModuleResolver (ModuleId (..))
 
 spec :: Spec
 spec = describe "parseAst" $ do

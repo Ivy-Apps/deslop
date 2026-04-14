@@ -7,7 +7,7 @@ module Effects.Git (
 
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
-import FsEncoding (readOsPathArg)
+import Effects.FileSystem (encodeOsPath)
 import System.OsPath (OsPath)
 import System.Process (readProcess)
 
@@ -34,4 +34,4 @@ gitModifiedFiles = do
             ]
             ""
     let cleanLines = filter (/= "") . lines . toText $ out
-    either fail pure $ traverse (readOsPathArg . toString) cleanLines
+    pure . fmap encodeOsPath $ cleanLines

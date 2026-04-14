@@ -7,7 +7,7 @@ import System.OsPath (osp, (</>))
 import Test.Hspec
 import TestUtils (mkAbsolute, pathSafeGolden)
 import Text.Show.Pretty (ppShow)
-import TypeScript.Config (PathMapping (..), Pattern (..), parsePathMapping, parsePattern, readTsConfig)
+import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), ValuePattern (..), parsePathMapping, parsePattern, readTsConfig)
 
 spec :: Spec
 spec = describe "TsConfig" $ do
@@ -22,37 +22,76 @@ spec = describe "TsConfig" $ do
         it "fails if all target paths are invalid patterns" $ do
             parsePathMapping ("@core/*", ["./src/*/*", "./lib/*/*"]) `shouldBe` Nothing
 
-        it "filters out invalid targets but succeeds if at least one is valid" $ do
-            -- It should reduce the target set V to only valid elements
+        it "filters out invalid targets, succeeds if at least one is valid, and strips './' prefixes" $ do
+            -- It should reduce the target set V to only valid elements and clean the prefixes
             parsePathMapping ("@app/*", ["./src/*", "./invalid/*/*", "./lib/*"])
                 `shouldBe` Just
                     PathMapping
-                        { key = Wildcard "@app/" ""
-                        , values = Wildcard "./src/" "" :| [Wildcard "./lib/" ""]
+                        { key = KeyPattern $ Wildcard "@app/" ""
+                        , values = fmap ValuePattern $ Wildcard "src/" "" :| [Wildcard "lib/" ""]
                         }
 
-        it "parses exact string mappings (no wildcards)" $ do
+        it "parses exact string mappings and cleans meaningless './' prefixes" $ do
             parsePathMapping ("jquery", ["./vendor/jquery.js"])
                 `shouldBe` Just
                     PathMapping
-                        { key = Exact "jquery"
-                        , values = Exact "./vendor/jquery.js" :| []
+                        { key = KeyPattern $ Exact "jquery"
+                        , values = fmap ValuePattern $ Exact "vendor/jquery.js" :| []
                         }
 
-        it "parses wildcard mappings with multiple fallback targets" $ do
+        it "parses wildcard mappings with multiple fallback targets and cleans prefixes" $ do
             parsePathMapping ("~/*-types", ["./src/types/*", "./shared/types/*-types.d.ts"])
                 `shouldBe` Just
                     PathMapping
-                        { key = Wildcard "~/" "-types"
-                        , values = Wildcard "./src/types/" "" :| [Wildcard "./shared/types/" "-types.d.ts"]
+                        { key = KeyPattern $ Wildcard "~/" "-types"
+                        , values =
+                            fmap ValuePattern $
+                                Wildcard "src/types/" "" :| [Wildcard "shared/types/" "-types.d.ts"]
                         }
 
-        it "parses wildcard keys mapped to exact targets (valid in TS)" $ do
+        it "parses wildcard keys mapped to exact targets and cleans prefixes" $ do
             parsePathMapping ("*.css", ["./src/mocks/style-mock.ts"])
                 `shouldBe` Just
                     PathMapping
-                        { key = Wildcard "" ".css"
-                        , values = Exact "./src/mocks/style-mock.ts" :| []
+                        { key = KeyPattern $ Wildcard "" ".css"
+                        , values = fmap ValuePattern $ Exact "src/mocks/style-mock.ts" :| []
+                        }
+
+        it "fails if key is Exact but the values are Wildcard" $ do
+            parsePathMapping ("react", ["*.css"]) `shouldBe` Nothing
+
+        it "cleans a Next.js root alias mapping ('./*') into a clean catch-all wildcard ('*')" $ do
+            parsePathMapping ("@/*", ["./*"])
+                `shouldBe` Just
+                    PathMapping
+                        { key = KeyPattern $ Wildcard "@/" ""
+                        , -- The "./" is stripped, leaving an empty prefix before the wildcard
+                          values = fmap ValuePattern $ Wildcard "" "" :| []
+                        }
+
+        it "recursively cleans redundant nested current-directory prefixes ('./././')" $ do
+            parsePathMapping ("@app/*", ["./././src/*", "././lib/*"])
+                `shouldBe` Just
+                    PathMapping
+                        { key = KeyPattern $ Wildcard "@app/" ""
+                        , values = fmap ValuePattern $ Wildcard "src/" "" :| [Wildcard "lib/" ""]
+                        }
+
+        it "flattens a pure '.' exact mapping into an empty string to prevent floating segments" $ do
+            parsePathMapping ("@root", ["."])
+                `shouldBe` Just
+                    PathMapping
+                        { key = KeyPattern $ Exact "@root"
+                        , values = fmap ValuePattern $ Exact "" :| []
+                        }
+
+        it "safely preserves valid parent directory traversals ('../') in alias targets" $ do
+            parsePathMapping ("@shared/*", ["../shared/*", "./../external/*"])
+                `shouldBe` Just
+                    PathMapping
+                        { key = KeyPattern $ Wildcard "@shared/" ""
+                        , -- The leading "./" on the second target is cleaned, but both retain "../"
+                          values = fmap ValuePattern $ Wildcard "../shared/" "" :| [Wildcard "../external/" ""]
                         }
 
         describe "parsePattern" $ do
@@ -99,6 +138,6 @@ spec = describe "TsConfig" $ do
                 ]
         forM_ cases $ \file ->
             it file $ do
-                cfgPath <- mkAbsolute ([osp|test/fixtures/typescript/config|] </> (encodeOsPath $ T.pack file))
+                cfgPath <- mkAbsolute ([osp|test/fixtures/typescript/config|] </> encodeOsPath (T.pack file))
                 res <- runEff . runFileSystemIO $ readTsConfig cfgPath
                 pathSafeGolden ("readTsConfig-" <> file) (ppShow res)

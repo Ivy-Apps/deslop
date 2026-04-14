@@ -4,8 +4,8 @@ import Data.Text qualified as T
 import Deslop.RelativeImports (importAliases)
 import Effectful (runEff)
 import Effectful.Reader.Static
+import Effects.FileSystem (encodeOsPath)
 import Effects.ReportProblem (runReportProblem)
-import FsEncoding (encodePathString)
 import System.OsPath (OsPath, osp)
 import Test.Hspec
 import TypeScript.CST
@@ -33,7 +33,7 @@ spec = describe "importAliases" $ do
                 , ([osp|src/features/auth.spec.ts|], "../../tests/auth-fixture", "@test/auth-fixture")
                 , ([osp|src/app.ts|], "react", "react")
                 , ([osp|src/feature/f1/f1.spec.ts|], "@/../tests/fixtures", "@test/fixtures")
-                , (encodePathString "", "vitests/config", "vitests/config")
+                , (encodeOsPath "", "vitests/config", "vitests/config")
                 ]
 
         forM_ cases $ \(src, target, expected) ->

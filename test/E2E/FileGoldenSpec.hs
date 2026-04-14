@@ -4,8 +4,8 @@ import Data.Text qualified as T
 import Deslop (deslopFile)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
+import Effects.FileSystem (decodeOsPath)
 import Effects.ReportProblem (runReportProblem)
-import FsEncoding (decodePathString)
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
@@ -31,8 +31,8 @@ spec = do
   where
     tsGoldenTest :: OsPath -> Spec
     tsGoldenTest filename = do
-        let testName = decodePathString (takeBaseName filename)
-        let fnameStr = decodePathString filename
+        let testName = T.unpack . decodeOsPath . takeBaseName $ filename
+        let fnameStr = T.unpack . decodeOsPath $ filename
 
         it ("Lexer " <> testName) $ do
             -- Given

@@ -6,14 +6,13 @@ import Deslop (deslopProject, doWork)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effects.FileSystem (runFileSystemIO)
+import Effects.FileSystem (encodeOsPathString, runFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
-import FsEncoding (decodePathString, encodePathString)
 import Params
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesPath, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
+import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesPath, pathSafeGolden, runAIAlwaysFail, runCLILogTest, runFileSystemTest, runGitTest, snapshot, testSecrets)
 import Types (DeslopError (CheckModeFoundProblems))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -64,7 +63,7 @@ spec = describe "Deslop project" $ do
   where
     itChecks project = it ("checks " <> project) $ do
         -- Given
-        let projectPath = fixturesPath </> encodePathString project
+        let projectPath = fixturesPath </> encodeOsPathString project
         filesRef <- newIORef Nothing
         logsRef <- newIORef Nothing
         let params = (defaultParams projectPath) {checkMode = True}
@@ -89,16 +88,13 @@ spec = describe "Deslop project" $ do
         when (isNothing maybeLogs) $
             expectationFailure "Expected problems to be logged when check mode finds problems"
         let logs = fromJust maybeLogs
-        -- Removes the dir path from the log so the golden test is stable
-        let problemsLogNormalized =
-                T.unpack . T.replace (T.pack (decodePathString projectPath)) "" $ logs.problems
-        return $ defaultGolden ("check-" <> project) problemsLogNormalized
+        pathSafeGolden ("check-" <> project) (T.unpack logs.problems)
 
     itFixes project filesToCheck = it ("fixes " <> project) $ do
         withSystemTempDirectory "deslop-test" $ \tmpFp -> do
-            let tmpDir = encodePathString tmpFp
+            let tmpDir = encodeOsPathString tmpFp
             -- Given
-            let projectPath = fixturesPath </> encodePathString project
+            let projectPath = fixturesPath </> encodeOsPathString project
             copyDir projectPath tmpDir
             logsRef <- newIORef Nothing
 

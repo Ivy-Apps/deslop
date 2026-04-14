@@ -8,6 +8,8 @@ module TypeScript.Config (
     TsConfig (..),
     PathMapping (..),
     Pattern (..),
+    KeyPattern (..),
+    ValuePattern (..),
 ) where
 
 import Data.Aeson (FromJSON, decode, decode')
@@ -19,6 +21,32 @@ import System.OsPath (takeDirectory)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)
 import Utils (safeHead)
+
+data TsConfig = TsConfig
+    { baseUrl :: !AbsPath
+    , paths :: ![PathMapping]
+    }
+    deriving (Show, Eq)
+
+data PathMapping = PathMapping
+    { key :: !KeyPattern
+    , values :: !(NonEmpty ValuePattern)
+    }
+    deriving (Show, Eq)
+
+newtype KeyPattern = KeyPattern
+    { pattern :: Pattern
+    }
+    deriving (Show, Eq)
+newtype ValuePattern = ValuePattern
+    { pattern :: Pattern
+    }
+    deriving (Show, Eq)
+
+data Pattern
+    = Exact !Text
+    | Wildcard {pre :: !Text, suff :: !Text}
+    deriving (Show, Eq)
 
 newtype TsConfigDto = TsConfigDto
     { compilerOptions :: CompilerOptionsDto
@@ -33,23 +61,6 @@ data CompilerOptionsDto = CompilerOptionsDto
 
 instance FromJSON TsConfigDto
 instance FromJSON CompilerOptionsDto
-
-data TsConfig = TsConfig
-    { baseUrl :: !AbsPath
-    , paths :: ![PathMapping]
-    }
-    deriving (Show, Eq)
-
-data PathMapping = PathMapping
-    { key :: !Pattern
-    , values :: !(NonEmpty Pattern)
-    }
-    deriving (Show, Eq)
-
-data Pattern
-    = Exact !Text
-    | Wildcard {pre :: !Text, suff :: !Text}
-    deriving (Show, Eq)
 
 readTsConfig :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text TsConfig)
 readTsConfig cfgPath = fsReadAbsFile cfgPath >>= parseTsConfigFromJson cfgPath
@@ -85,8 +96,10 @@ parseTsConfig cfgPath dto = do
             }
 
 sortPathMappings :: [PathMapping] -> [PathMapping]
-sortPathMappings = sortOn (Down . patternSortKey . (.key))
+sortPathMappings = sortOn (Down . patternSortKey . extractPattern . (.key))
   where
+    extractPattern :: KeyPattern -> Pattern
+    extractPattern (KeyPattern p) = p
     -- 'Down' reverses the default ascending sort, meaning higher numbers come first.
     patternSortKey :: Pattern -> (Int, Int, Int)
     patternSortKey (Exact k) =
@@ -101,12 +114,31 @@ parsePathMapping :: (Text, [Text]) -> Maybe PathMapping
 parsePathMapping (_, []) = Nothing
 parsePathMapping (k, vs) = do
     key <- parsePattern k
-    values <- nonEmpty . mapMaybe parsePattern $ vs
+    values <-
+        nonEmpty
+            . fmap cleanValuePattern
+            . filter (validKeyValuePair key)
+            . mapMaybe parsePattern
+            $ vs
     Just
         PathMapping
-            { key = key
-            , values = values
+            { key = KeyPattern key
+            , values = ValuePattern <$> values
             }
+  where
+    cleanValuePattern :: Pattern -> Pattern
+    cleanValuePattern (Exact t) = Exact (cleanPrefix t)
+    cleanValuePattern (Wildcard pre suff) = Wildcard (cleanPrefix pre) suff
+
+    cleanPrefix :: Text -> Text
+    cleanPrefix t
+        | t == "." = ""
+        | Just rest <- T.stripPrefix "./" t = cleanPrefix rest
+        | otherwise = t
+
+    validKeyValuePair :: Pattern -> Pattern -> Bool
+    validKeyValuePair (Exact _) (Wildcard _ _) = False
+    validKeyValuePair _ _ = True
 
 parsePattern :: Text -> Maybe Pattern
 parsePattern "" = Nothing

@@ -4,11 +4,11 @@ module Deslop.RuleBookSpec (spec) where
 
 import Control.Lens ((.~), (?~))
 import Data.List ((!!))
+import Data.Text qualified as T
 import Deslop.RuleBook
 import Deslop.RuleBookFixtures qualified as Fix
 import Effectful (runEff)
-import Effects.FileSystem (runFileSystemIO)
-import FsEncoding (decodePathString)
+import Effects.FileSystem (decodeOsPath, runFileSystemIO)
 import System.File.OsPath qualified as SFO
 import System.FilePath.Glob qualified as Glob
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
@@ -144,7 +144,7 @@ spec = do
   where
     parseRuleBookTest :: OsPath -> Spec
     parseRuleBookTest fpath = do
-        let testName = "rulebook-dto-from-yaml--" <> decodePathString (takeBaseName fpath)
+        let testName = T.unpack $ "rulebook-dto-from-yaml--" <> decodeOsPath (takeBaseName fpath)
         it ("case: " <> testName) $ do
             ruleBookYaml <- SFO.readFile' (rbFixturesPath </> fpath)
             let ruleBookRes = parseRuleBookYaml ruleBookYaml
@@ -152,7 +152,7 @@ spec = do
 
     ruleBookFromFileTest :: OsPath -> Spec
     ruleBookFromFileTest fpath = do
-        let testName = "rulebook-from-file--" <> decodePathString (takeBaseName fpath)
+        let testName = T.unpack $ "rulebook-from-file--" <> decodeOsPath (takeBaseName fpath)
         it ("case: " <> testName) $ do
             res <- runEff . runFileSystemIO $ ruleBookFromFile (rbFixturesPath </> fpath)
             return $ defaultGolden testName (ppShow res)

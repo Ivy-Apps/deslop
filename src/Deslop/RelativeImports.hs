@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Deslop.RelativeImports (
     importAliases,
     fixTarget,
@@ -6,10 +8,10 @@ module Deslop.RelativeImports (
 import Data.Text qualified as T
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader, asks)
+import Effects.FileSystem (decodeOsPath, encodeOsPathString)
 import Effects.ReportProblem (Location (..), Problem (..), ReportProblem, RuleId (..), Severity (..), report)
-import FsEncoding (decodePathString, encodePathString)
 import System.FilePath (splitDirectories)
-import System.OsPath (OsPath, joinPath, takeDirectory, (</>))
+import System.OsPath (OsPath, joinPath, osp, takeDirectory, (</>))
 import System.OsPath qualified as Os
 import TypeScript.CST (
     TsNode (Import, target),
@@ -20,7 +22,7 @@ import TypeScript.Config (
     TsConfigLegacy (paths),
  )
 import Types (Renderable (render))
-import Utils (safePop)
+import Utils (dropCommonPre, safePop)
 
 noRelativeImports :: (TsNode, TsNode) -> OsPath -> Problem
 noRelativeImports (old, new) path =
@@ -54,11 +56,6 @@ fixTarget progPath t = do
         Just absT' -> pure . fst $ dropCommonPre (absT', absT)
         Nothing -> pure t
   where
-    dropCommonPre :: (Text, Text) -> (Text, Text)
-    dropCommonPre (x, y) = case T.commonPrefixes x y of
-        Just (_, x', y') -> (x', y')
-        Nothing -> (x, y)
-
     useAlias as fp = applyAlias <$> findAliasForPath
       where
         applyAlias (ImportAlias a p) = T.replace p a fp
@@ -67,7 +64,7 @@ fixTarget progPath t = do
              in find (\a -> isPathInfixOfTarget fpDirs (splitDirs a.path)) as
         splitDirs = splitDirectories . T.unpack
 
-    absPath as = decodePathString . resolveTsImport progPath . T.unpack . reverseAlias as
+    absPath as = T.unpack . decodeOsPath . resolveTsImport progPath . T.unpack . reverseAlias as
 
     reverseAlias as fp =
         maybe fp (removeAlias fp)
@@ -77,11 +74,11 @@ fixTarget progPath t = do
 
 resolveTsImport :: OsPath -> FilePath -> OsPath
 resolveTsImport sourcePath importPath
-    | isBareSpecifier importPath = encodePathString importPath
+    | isBareSpecifier importPath = encodeOsPathString importPath
     | otherwise =
         let
             sourceDir = takeDirectory sourcePath
-            rawCombined = sourceDir </> encodePathString importPath
+            rawCombined = sourceDir </> encodeOsPathString importPath
          in
             normalizeSegments rawCombined
 
@@ -92,8 +89,8 @@ isBareSpecifier path = not (isRelative path || isAbsolute path)
     isAbsolute p = "/" `isPrefixOf` p
 
 dotSeg, dotdotSeg :: OsPath
-dotSeg = encodePathString "."
-dotdotSeg = encodePathString ".."
+dotSeg = [osp|.|]
+dotdotSeg = [osp|..|]
 
 normalizeSegments :: OsPath -> OsPath
 normalizeSegments = joinPath . reverse . foldl' step [] . Os.splitDirectories
