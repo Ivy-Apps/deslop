@@ -11,7 +11,7 @@ import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (defaultParams, listFixtures, mkMapping, runCLILogTest)
+import TestUtils (defaultParams, listFixtures, mkMapping, requireJust, requireRight, runCLILogTest)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
@@ -43,11 +43,9 @@ spec = do
             let res = runParser lexer fnameStr source
 
             -- Then
-            case res of
-                Left e -> fail $ errorBundlePretty e
-                Right tokens -> do
-                    reconstruct tokens `shouldBe` source
-                    return $ defaultGolden (testName <> "-lexer") (ppShow tokens)
+            tokens <- requireRight errorBundlePretty res
+            reconstruct tokens `shouldBe` source
+            return $ defaultGolden (testName <> "-lexer") (ppShow tokens)
 
         it ("Parse " <> testName) $ do
             -- Given
@@ -58,11 +56,9 @@ spec = do
             let res = parseTs TsFile {path, content = source}
 
             -- Then
-            case res of
-                Left e -> fail e
-                Right p -> do
-                    render p.cst `shouldBe` source
-                    return $ defaultGolden (testName <> "-parser") (ppShow p)
+            p <- requireRight id res
+            render p.cst `shouldBe` source
+            return $ defaultGolden (testName <> "-parser") (ppShow p)
 
         it ("Deslop " <> testName) $ do
             -- Given
@@ -93,11 +89,10 @@ spec = do
             actualRes <- readIORef fileWriteRef
             logs <- readIORef logsRef
             logs `shouldBe` Nothing
-            case actualRes of
-                Nothing -> fail "The program did not write any output!"
-                Just actual -> do
-                    let actualContent = T.unpack $ decodeUtf8 actual
-                    return $ defaultGolden (testName <> "-deslop") actualContent
+
+            actual <- requireJust "The program did not write any output!" actualRes
+            let actualContent = T.unpack $ decodeUtf8 actual
+            return $ defaultGolden (testName <> "-deslop") actualContent
 
 reconstruct :: [TsToken] -> T.Text
 reconstruct = foldMap (.raw)

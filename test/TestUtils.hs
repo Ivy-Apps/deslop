@@ -17,8 +17,12 @@ module TestUtils (
     mkMapping,
     mkAbsolute,
     pathSafeGolden,
+    requireJust,
+    requireRight,
 ) where
 
+import Control.Exception (throwIO)
+import Control.Exception.Base (AssertionFailed (..))
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Effectful
@@ -32,6 +36,7 @@ import Secrets (GeminiApiKey (..), Secrets (..))
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeExtension, (</>))
+import Test.Hspec (expectationFailure)
 import Test.Hspec.Golden (Golden, defaultGolden)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import Types (Renderable (render))
@@ -137,3 +142,15 @@ emptyTsConfig = TsConfig {baseUrl = absPathUnsafe [osp|/home/repo|], paths = []}
 
 mkMapping :: Pattern -> [Pattern] -> PathMapping
 mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)
+
+-- | Extracts the value from a Maybe or fails the test beautifully.
+requireJust :: (HasCallStack) => String -> Maybe a -> IO a
+requireJust msg = \case
+    Nothing -> expectationFailure msg >> throwIO (AssertionFailed "unreachable")
+    Just x -> pure x
+
+-- | Extracts the value from an Either or fails the test beautifully.
+requireRight :: (HasCallStack) => (e -> String) -> Either e a -> IO a
+requireRight formatErr = \case
+    Left e -> expectationFailure (formatErr e) >> throwIO (AssertionFailed "unreachable")
+    Right x -> pure x
