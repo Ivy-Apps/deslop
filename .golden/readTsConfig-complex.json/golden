@@ -12,7 +12,7 @@ Right
                   { pattern = Wildcard { pre = "@components/" , suff = "" } }
             , values =
                 ValuePattern
-                  { pattern = Wildcard { pre = "./src/components/" , suff = "" } } :|
+                  { pattern = Wildcard { pre = "src/components/" , suff = "" } } :|
                   []
             }
         , PathMapping
@@ -20,7 +20,7 @@ Right
                 KeyPattern { pattern = Wildcard { pre = "@assets/" , suff = "" } }
             , values =
                 ValuePattern
-                  { pattern = Wildcard { pre = "./src/assets/" , suff = "" } } :|
+                  { pattern = Wildcard { pre = "src/assets/" , suff = "" } } :|
                   []
             }
         , PathMapping
@@ -28,7 +28,7 @@ Right
                 KeyPattern { pattern = Wildcard { pre = "@hooks/" , suff = "" } }
             , values =
                 ValuePattern
-                  { pattern = Wildcard { pre = "./src/hooks/" , suff = "" } } :|
+                  { pattern = Wildcard { pre = "src/hooks/" , suff = "" } } :|
                   []
             }
         , PathMapping
@@ -36,15 +36,14 @@ Right
                 KeyPattern { pattern = Wildcard { pre = "@utils/" , suff = "" } }
             , values =
                 ValuePattern
-                  { pattern = Wildcard { pre = "./src/utils/" , suff = "" } } :|
+                  { pattern = Wildcard { pre = "src/utils/" , suff = "" } } :|
                   []
             }
         , PathMapping
             { key =
                 KeyPattern { pattern = Wildcard { pre = "@/" , suff = "" } }
             , values =
-                ValuePattern
-                  { pattern = Wildcard { pre = "./src/" , suff = "" } } :|
+                ValuePattern { pattern = Wildcard { pre = "src/" , suff = "" } } :|
                   []
             }
         ]

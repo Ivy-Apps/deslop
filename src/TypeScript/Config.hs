@@ -114,13 +114,28 @@ parsePathMapping :: (Text, [Text]) -> Maybe PathMapping
 parsePathMapping (_, []) = Nothing
 parsePathMapping (k, vs) = do
     key <- parsePattern k
-    values <- nonEmpty . filter (validKeyValuePair key) . mapMaybe parsePattern $ vs
+    values <-
+        nonEmpty
+            . fmap cleanValuePattern
+            . filter (validKeyValuePair key)
+            . mapMaybe parsePattern
+            $ vs
     Just
         PathMapping
             { key = KeyPattern key
             , values = ValuePattern <$> values
             }
   where
+    cleanValuePattern :: Pattern -> Pattern
+    cleanValuePattern (Exact t) = Exact (cleanPrefix t)
+    cleanValuePattern (Wildcard pre suff) = Wildcard (cleanPrefix pre) suff
+
+    cleanPrefix :: Text -> Text
+    cleanPrefix t
+        | t == "." = ""
+        | Just rest <- T.stripPrefix "./" t = cleanPrefix rest
+        | otherwise = t
+
     validKeyValuePair :: Pattern -> Pattern -> Bool
     validKeyValuePair (Exact _) (Wildcard _ _) = False
     validKeyValuePair _ _ = True

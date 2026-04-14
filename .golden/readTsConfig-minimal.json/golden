@@ -10,8 +10,7 @@ Right
             { key =
                 KeyPattern { pattern = Wildcard { pre = "@/" , suff = "" } }
             , values =
-                ValuePattern { pattern = Wildcard { pre = "./" , suff = "" } } :|
-                  []
+                ValuePattern { pattern = Wildcard { pre = "" , suff = "" } } :| []
             }
         ]
     }
