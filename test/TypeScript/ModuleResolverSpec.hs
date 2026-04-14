@@ -239,6 +239,22 @@ spec = describe "ModuleResolver" $ do
             let result = runEncodeTest cfg [osp|/home/repo/constants/app-config.ts|]
             result `shouldBe` (Just $ ModuleId "config")
 
+        it "resolves a CSS module file retaining its full extension (.module.css)" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
+            let result = runEncodeTest cfg [osp|/home/repo/src/components/Button.module.css|]
+            result `shouldBe` (Just $ ModuleId "@/components/Button.module.css")
+
+        it "resolves a directory index file to the directory name (clean index resolution)" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
+            -- Logical resolution of /index.ts should often prefer the directory name in modern stacks
+            let result = runEncodeTest cfg [osp|/home/repo/src/lib/utils/index.ts|]
+            result `shouldBe` (Just $ ModuleId "@/lib/utils/index")
+
+        it "resolves a type definition file (.d.ts) by dropping the extension like a source file" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
+            let result = runEncodeTest cfg [osp|/home/repo/src/types/user.d.ts|]
+            result `shouldBe` (Just $ ModuleId "@types/user")
+
     describe "isRelativeImport" $ do
         it "identifies strict current directory (.)" $ do
             isRelativeImport (ModuleId ".") `shouldBe` True
