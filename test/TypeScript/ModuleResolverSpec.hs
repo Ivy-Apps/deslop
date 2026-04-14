@@ -74,7 +74,7 @@ spec = describe "ModuleResolver" $ do
             -- Fails on empty string
             match pattern "" `shouldBe` Nothing
 
-    describe "encode (Reverse Path Resolution)" $ do
+    describe "reverseResolve (Reverse Path Resolution)" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
         let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
 
