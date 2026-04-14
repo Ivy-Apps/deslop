@@ -54,12 +54,22 @@ reverseResolve absFilePath = do
   where
     dropTypeScriptExtension :: OsPath -> OsPath
     dropTypeScriptExtension osp
-        | let
-            path = decodeOsPath osp
-           in
-            any (`T.isSuffixOf` path) [".ts", ".tsx", ".js", ".jsx"] =
+        | any (`T.isSuffixOf` path) [".d.ts", ".d.mts", ".d.cts"] = dropExtension (dropExtension osp)
+        | any
+            (`T.isSuffixOf` path)
+            [ ".ts"
+            , ".tsx"
+            , ".mts"
+            , ".cts"
+            , ".js"
+            , ".jsx"
+            , ".mjs"
+            , ".cjs"
+            ] =
             dropExtension osp
         | otherwise = osp
+      where
+        path = decodeOsPath osp
 
     dropCommonSegments :: (Eq a) => [a] -> [a] -> ([a], [a])
     dropCommonSegments (x : xs) (y : ys) | x == y = dropCommonSegments xs ys

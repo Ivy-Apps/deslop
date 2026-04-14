@@ -255,6 +255,28 @@ spec = describe "ModuleResolver" $ do
             let result = runEncodeTest cfg [osp|/home/repo/src/types/user.d.ts|]
             result `shouldBe` (Just $ ModuleId "@types/user")
 
+        it "resolves a file with multiple dots (e.g. .controller.ts) by dropping only the final extension" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@api/" "") [Wildcard "src/api/" ""]]}
+            let result = runEncodeTest cfg [osp|/home/repo/src/api/user.controller.ts|]
+            result `shouldBe` (Just $ ModuleId "@api/user.controller")
+
+        it "resolves a directory index.d.ts file to the clean directory alias" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
+            let result = runEncodeTest cfg [osp|/home/repo/src/types/global/index.d.ts|]
+            result `shouldBe` (Just $ ModuleId "@types/global/index")
+
+        it "resolves modern TS extensions (.mts, .cts) by dropping the extension" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@lib/" "") [Wildcard "src/lib/" ""]]}
+            -- NOTE: This will fail until you add .mts, .cts, .mjs, .cjs to `dropTypeScriptExtension`!
+            let result = runEncodeTest cfg [osp|/home/repo/src/lib/math.mts|]
+            result `shouldBe` (Just $ ModuleId "@lib/math")
+
+        it "resolves modern TS double-extensions (.d.mts, .d.cts) by dropping both" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
+            -- NOTE: This will fail until you add .d.mts and .d.cts to `dropTypeScriptExtension`!
+            let result = runEncodeTest cfg [osp|/home/repo/src/types/node.d.mts|]
+            result `shouldBe` (Just $ ModuleId "@types/node")
+
     describe "isRelativeImport" $ do
         it "identifies strict current directory (.)" $ do
             isRelativeImport (ModuleId ".") `shouldBe` True
@@ -795,3 +817,31 @@ spec = describe "ModuleResolver" $ do
             -- Vite uses virtual modules like 'virtual:pwa-register'
             let result = runRRTest importer cfg existingFiles "virtual:pwa-register"
             result `shouldBe` ModuleId "virtual:pwa-register"
+
+        it "preserves Vite resource queries (e.g., ?raw, ?worker) as they are virtual module references" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/components/Icon.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@assets/" "") [Wildcard "src/assets/" ""]]}
+            -- The file exists on disk, but the ?raw query parameter makes the exact disk path probe fail.
+            -- This correctly triggers the graceful fallback to preserve the original import string.
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/assets/logo.svg|]]
+
+            let result = runRRTest importer cfg existingFiles "../../assets/logo.svg?raw"
+            result `shouldBe` ModuleId "../../assets/logo.svg?raw"
+
+        it "preserves Node.js package.json subpath imports (e.g., #internal/utils)" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/index.ts|]
+            let cfg = baseCfg {paths = []}
+            let existingFiles = []
+
+            -- Subpath imports start with '#' and are resolved by Node's export maps, not TS paths.
+            let result = runRRTest importer cfg existingFiles "#internal/utils"
+            result `shouldBe` ModuleId "#internal/utils"
+
+        it "preserves bare specifiers that look like relative paths due to scoped packages (@org/pkg/.)" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/index.ts|]
+            let cfg = baseCfg {paths = []}
+            let existingFiles = []
+
+            -- An edge case where a scoped package might have a subpath that tricks naive parsers
+            let result = runRRTest importer cfg existingFiles "@company/internal-lib/./utils"
+            result `shouldBe` ModuleId "@company/internal-lib/./utils"
