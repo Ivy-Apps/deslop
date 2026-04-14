@@ -5,11 +5,11 @@ module TypeScript.ModuleResolverSpec (spec) where
 import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, runMockRoFileSystem)
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
-import Effects.FileSystem (absPathUnsafe)
+import Effects.FileSystem (absPathUnsafe, encodeOsPath)
 import System.OsPath (osp)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
-import TypeScript.ModuleResolver (Match (..), ModuleId (..), match, resolve, reverseResolve)
+import TypeScript.ModuleResolver (Match (..), ModuleId (..), isRelativeImport, match, resolve, reverseResolve)
 
 spec :: Spec
 spec = describe "ModuleResolver" $ do
@@ -177,6 +177,45 @@ spec = describe "ModuleResolver" $ do
             -- Applying ExactMatch to Wildcard "@core/" "" -> "@core/" <> "" <> "" -> "@core/"
             result `shouldBe` ModuleId "@core/"
 
+    describe "isRelativeImport" $ do
+        it "identifies strict current directory (.)" $ do
+            isRelativeImport (ModuleId ".") `shouldBe` True
+
+        it "identifies strict parent directory (..)" $ do
+            isRelativeImport (ModuleId "..") `shouldBe` True
+
+        it "identifies current directory prefix (./)" $ do
+            isRelativeImport (ModuleId "./") `shouldBe` True
+            isRelativeImport (ModuleId "./components/Button") `shouldBe` True
+
+        it "identifies parent directory prefix (../)" $ do
+            isRelativeImport (ModuleId "../") `shouldBe` True
+            isRelativeImport (ModuleId "../utils/math") `shouldBe` True
+            isRelativeImport (ModuleId "../../shared/types") `shouldBe` True
+
+        it "identifies root/absolute paths (/)" $ do
+            -- Note: TypeScript treats absolute paths as "relative" module resolutions
+            -- because they bypass TSConfig mappings and node_modules lookup.
+            isRelativeImport (ModuleId "/") `shouldBe` True
+            isRelativeImport (ModuleId "/home/repo/src/main") `shouldBe` True
+
+        it "rejects non-relative bare specifiers" $ do
+            isRelativeImport (ModuleId "react") `shouldBe` False
+            isRelativeImport (ModuleId "lodash/fp") `shouldBe` False
+            isRelativeImport (ModuleId "src/utils/math") `shouldBe` False
+
+        it "rejects non-relative aliased specifiers" $ do
+            isRelativeImport (ModuleId "@utils/math") `shouldBe` False
+            isRelativeImport (ModuleId "@/components/Button") `shouldBe` False
+
+        it "rejects specifiers that start with dots but lack slashes (TS edge cases)" $ do
+            isRelativeImport (ModuleId ".hidden-module") `shouldBe` False
+            isRelativeImport (ModuleId "..double-dot-module") `shouldBe` False
+            isRelativeImport (ModuleId "...") `shouldBe` False
+
+        it "rejects inner-relative paths (must start with relative prefix)" $ do
+            isRelativeImport (ModuleId "utils/../math") `shouldBe` False
+
     describe "resolve (Forward Path Resolution)" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
         let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
@@ -192,7 +231,7 @@ spec = describe "ModuleResolver" $ do
                  in runPureEff
                         . runMockRoFileSystem mockFs
                         . runReader cfg
-                        $ resolve (ModuleId mId)
+                        $ resolve (absPathUnsafe . encodeOsPath $ "/wip") (ModuleId mId)
 
         it "resolves relative to baseUrl with a .ts extension" $ do
             let existingFiles = [absPathUnsafe [osp|/home/repo/src/lib/util.ts|]]

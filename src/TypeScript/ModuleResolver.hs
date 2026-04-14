@@ -7,6 +7,7 @@ module TypeScript.ModuleResolver (
     resolve,
     match,
     Match (..),
+    isRelativeImport,
 ) where
 
 import Data.Text qualified as T
@@ -19,6 +20,7 @@ import Utils (dropCommonPre)
 
 {- | Logical TS module id - e.g. @/lib/util or /src/lib/util (relative to the nearest TS config)
 or ./LoginView (relative to the current file) or ../../lib/util (relative to the current file)
+or /home/repo/src/lib/util
 -}
 newtype ModuleId = ModuleId Text deriving stock (Show, Eq)
 
@@ -78,8 +80,16 @@ reverseResolveImport ::
     AbsPath -> ModuleId -> Eff es ModuleId
 reverseResolveImport _modulePath _importTarget = pure (ModuleId "")
 
-resolve :: (RoFileSystem :> es, Reader TsConfig :> es) => ModuleId -> Eff es AbsPath
-resolve (ModuleId mId) = do
+isRelativeImport :: ModuleId -> Bool
+isRelativeImport (ModuleId ".") = True
+isRelativeImport (ModuleId "..") = True
+isRelativeImport (ModuleId t) =
+    "./" `T.isPrefixOf` t
+        || "../" `T.isPrefixOf` t
+        || "/" `T.isPrefixOf` t
+
+resolve :: (RoFileSystem :> es, Reader TsConfig :> es) => AbsPath -> ModuleId -> Eff es AbsPath
+resolve _modulePath (ModuleId mId) = do
     cfg <- ask @TsConfig
     maybePathMapping <- reversePathMapping cfg cfg.paths
     case maybePathMapping of
