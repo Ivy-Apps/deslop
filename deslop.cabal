@@ -128,7 +128,6 @@ test-suite deslop-test
     TypeScript.ModuleResolverSpec
     TypeScript.ParserSpec
     TypeScript.RenderableSpec
-    UtilsSpec
 
   build-depends:
     , aeson

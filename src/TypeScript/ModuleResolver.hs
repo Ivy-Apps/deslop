@@ -14,9 +14,8 @@ import Data.Text qualified as T
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, decodeOsPath, encodeOsPath, fsFileExistsAbs, fsMkAbsolute, withAbsBaseSafe)
-import System.OsPath (OsPath, dropExtension, takeDirectory)
+import System.OsPath (OsPath, dropExtension, splitDirectories, takeDirectory)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
-import Utils (dropCommonPre)
 
 {- | Logical TS module id - e.g. @/lib/util or /src/lib/util (relative to the nearest TS config)
 or ./LoginView (relative to the current file) or ../../lib/util (relative to the current file)
@@ -50,11 +49,22 @@ reverseResolve :: (Reader TsConfig :> es) => AbsPath -> Eff es ModuleId
 reverseResolve absFilePath = do
     cfg <- ask @TsConfig
     let noExtAbsFp = dropExtension absFilePath.osPath
-    -- src/lib/util
-    let (rawRelToCfg, _) = dropCommonPre (decodeOsPath noExtAbsFp, decodeOsPath cfg.baseUrl.osPath)
-    let moduleRelToCfg = fromMaybe rawRelToCfg $ T.stripPrefix "/" rawRelToCfg
-    pure . ModuleId . fromMaybe moduleRelToCfg $ applyPathMapping cfg.paths moduleRelToCfg
+    let targetSegs = splitDirectories noExtAbsFp
+    let baseUrlSegs = splitDirectories cfg.baseUrl.osPath
+    let (tRemainderOsp, bRemainderOsp) = dropCommonSegments targetSegs baseUrlSegs
+    let tRemainder = decodeOsPath <$> tRemainderOsp
+    let moduleRelToCfg = T.intercalate "/" tRemainder
+    case applyPathMapping cfg.paths moduleRelToCfg of
+        Just alias -> pure $ ModuleId alias
+        Nothing ->
+            if null bRemainderOsp
+                then pure $ ModuleId moduleRelToCfg
+                else pure . ModuleId . decodeOsPath $ noExtAbsFp
   where
+    dropCommonSegments :: (Eq a) => [a] -> [a] -> ([a], [a])
+    dropCommonSegments (x : xs) (y : ys) | x == y = dropCommonSegments xs ys
+    dropCommonSegments xs ys = (xs, ys)
+
     applyPathMapping :: [PathMapping] -> Text -> Maybe Text
     applyPathMapping [] _ = Nothing
     applyPathMapping (x : xs) moduleRelToCfg
