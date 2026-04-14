@@ -4,12 +4,14 @@ module Doubles.FileSystem (
     runMockRoFileSystem,
 ) where
 
+import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret)
 import Effects.FileSystem (
     AbsPath (..),
     RoFileSystem (..),
     absPathUnsafe,
+    decodeOsPath,
     encodeOsPath,
  )
 import System.OsPath (OsPath, (</>))
@@ -46,8 +48,28 @@ defaultMockRoFileSystem =
         , mockIsDirectory = const $ pure False
         , mockIsAbsDirectory = const $ pure False
         , mockGetHomeDirectory = pure $ encodeOsPath "~/"
-        , mockMkAbsolute = \p -> pure . absPathUnsafe $ encodeOsPath "~/" </> p
+        , mockMkAbsolute = \p ->
+            -- The (</>) operator safely ignores the left argument if `p` is already an absolute path
+            let rawAbsPath = encodeOsPath "~/" </> p
+             in pure . absPathUnsafe $ normalizeMockPath rawAbsPath
         }
+
+-- | Purely mimics OS canonicalization for '.' and '..' paths.
+normalizeMockPath :: OsPath -> OsPath
+normalizeMockPath p =
+    let txt = T.replace "\\" "/" . decodeOsPath $ p
+        parts = T.splitOn "/" txt
+
+        resolveDots acc "." = acc
+        resolveDots [""] ".." = [""] -- Prevent backing out of root '/'
+        resolveDots [] ".." = [".."] -- Preserve relative parent traversal
+        resolveDots (_ : acc) ".." = acc
+        resolveDots acc x = x : acc
+
+        resolvedParts = reverse $ foldl' resolveDots [] parts
+        -- Ensure root slash is preserved correctly if it was reduced to [""]
+        finalParts = if resolvedParts == [""] then ["", ""] else resolvedParts
+     in encodeOsPath $ T.intercalate "/" finalParts
 
 -- | Interprets the RoFileSystem effect using the provided mock configurations.
 runMockRoFileSystem :: MockRoFileSystem es -> Eff (RoFileSystem : es) a -> Eff es a
