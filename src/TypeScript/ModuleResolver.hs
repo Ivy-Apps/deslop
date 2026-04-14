@@ -41,7 +41,10 @@ reverseResolve absFilePath = do
     let baseUrlSegs = splitDirectories cfg.baseUrl.osPath
     let (tRemainderOsp, bRemainderOsp) = dropCommonSegments targetSegs baseUrlSegs
     let tRemainder = decodeOsPath <$> tRemainderOsp
-    let moduleRelToCfg = T.intercalate "/" tRemainder
+
+    let upTraversal = replicate (length bRemainderOsp) ".."
+    let moduleRelToCfg = T.intercalate "/" (upTraversal <> tRemainder)
+
     case applyPathMapping cfg.paths moduleRelToCfg of
         Just alias -> pure . Just . ModuleId $ alias
         Nothing ->
