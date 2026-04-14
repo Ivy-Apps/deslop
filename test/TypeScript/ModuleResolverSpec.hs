@@ -458,12 +458,13 @@ spec = describe "ModuleResolver" $ do
             let result = runRRTest importer cfg existingFiles "./LoginView"
             result `shouldBe` ModuleId "@pages/LoginView"
 
-        it "leaves a relative import as-is when no applicable path mapping exists" $ do
+        it "converts a relative import to a baseUrl-relative absolute import if no path mapping exists (inside baseUrl)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
             let existingFiles = [absPathUnsafe [osp|/home/repo/src/utils/math.ts|]]
 
+            -- By TS rules, if there's no alias but it's in the baseUrl, it's valid to make it a bare specifier.
             let result = runRRTest importer baseCfg existingFiles "../utils/math"
-            result `shouldBe` ModuleId "../utils/math"
+            result `shouldBe` ModuleId "src/utils/math"
 
         it "improves an existing aliased import if a more specific/shorter alias matches" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -513,8 +514,34 @@ spec = describe "ModuleResolver" $ do
         it "leaves relative imports pointing entirely outside the baseUrl as-is" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
-            -- E.g., importing a file from a monorepo sibling package
-            let existingFiles = [absPathUnsafe [osp|/home/repo/../shared/types.ts|]]
 
-            let result = runRRTest importer cfg existingFiles "../../shared/types"
-            result `shouldBe` ModuleId "../../shared/types"
+            -- Importer is in /home/repo/src/pages/
+            -- ../../../ -> /home/
+            -- Target is /home/shared/types.ts
+            let existingFiles = [absPathUnsafe [osp|/home/shared/types.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "../../../shared/types"
+            result `shouldBe` ModuleId "../../../shared/types"
+
+        it "converts an outside-baseUrl relative import to an aliased import if an explicit mapping exists for it" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg =
+                    baseCfg
+                        { paths = [mkMapping (Wildcard "@shared/" "") [Wildcard "../shared/" ""]]
+                        }
+            -- Aliases can map out of the baseUrl via "../"
+            let existingFiles = [absPathUnsafe [osp|/home/shared/utils.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "../../../shared/utils"
+            result `shouldBe` ModuleId "@shared/utils"
+
+        it "leaves outside-baseUrl relative imports as-is even if they share folder names with inside-baseUrl paths" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg = baseCfg {paths = []}
+
+            -- Target is /home/src/utils.ts (Outside baseUrl, but shares 'src' name)
+            let existingFiles = [absPathUnsafe [osp|/home/src/utils.ts|]]
+
+            -- Should NOT resolve to "src/utils" because it's not the /home/repo/src/utils
+            let result = runRRTest importer cfg existingFiles "../../../src/utils"
+            result `shouldBe` ModuleId "../../../src/utils"
