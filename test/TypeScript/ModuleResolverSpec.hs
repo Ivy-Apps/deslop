@@ -588,7 +588,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = []
 
             let result = runRRTest importer cfg existingFiles "../utils/typo"
-            result `shouldBe` ModuleId "../utils/typo"
+            result `shouldBe` ModuleId "@utils/typo"
 
         it "prioritizes exact path mappings over wildcard mappings in a Next.js environment" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/components/Header.tsx|]
