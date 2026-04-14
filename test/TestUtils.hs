@@ -142,8 +142,8 @@ defaultTsConfig =
     TsConfig
         { baseUrl = absPathUnsafe [osp|home/repo|]
         , paths =
-            [ PathMapping (KeyPattern $ Wildcard "@/" "") ((ValuePattern $ Wildcard "src/" "") :| [])
-            , PathMapping (KeyPattern $ Wildcard "@test/" "") ((ValuePattern $ Wildcard "test/" "") :| [])
+            [ PathMapping (KeyPattern $ Wildcard "@test/" "") ((ValuePattern $ Wildcard "test/" "") :| [])
+            , PathMapping (KeyPattern $ Wildcard "@/" "") ((ValuePattern $ Wildcard "src/" "") :| [])
             ]
         }
 
