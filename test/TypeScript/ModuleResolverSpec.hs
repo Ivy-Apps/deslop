@@ -305,3 +305,33 @@ spec = describe "ModuleResolver" $ do
                     ]
             let result = runResolveTest cfg existingFiles "@utils/math"
             result `shouldBe` absPathUnsafe [osp|/home/repo/src/special/math.ts|]
+
+        it "handles an empty capture (root directory import) resolving to an index file" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]]}
+            -- Importing "@utils/" results in an empty string capture.
+            -- It should append the capture and test "src/utils/.ts" (fails) then "src/utils//index.ts" (succeeds).
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/utils/index.ts|]]
+
+            let result = runResolveTest cfg existingFiles "@utils/"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/utils/index.ts|]
+
+        it "maps a wildcard key to an exact value (ignoring the captured string)" $ do
+            let cfg =
+                    baseCfg
+                        { paths = [mkMapping (Wildcard "@core/" "") [Exact "src/core-singleton"]]
+                        }
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/core-singleton.ts|]]
+
+            -- Even though the capture is "feature/deep/path", the exact value discards it.
+            let result = runResolveTest cfg existingFiles "@core/feature/deep/path"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/core-singleton.ts|]
+
+        it "returns the raw baseUrl path if absolutely no probed extensions exist on disk" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
+            -- The mock file system is completely empty
+            let existingFiles = []
+
+            -- It should fail the path mapping, hit the `Nothing` branch,
+            -- fail all `baseUrl` extensions, and finally return the raw absolute path.
+            let result = runResolveTest cfg existingFiles "@/missing/module"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/@/missing/module|]
