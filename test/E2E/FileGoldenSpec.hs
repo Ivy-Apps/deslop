@@ -4,7 +4,7 @@ import Data.Text qualified as T
 import Deslop (deslopFile)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
-import Effects.FileSystem (decodeOsPath)
+import Effects.FileSystem (absPathUnsafe, decodeOsPath)
 import Effects.ReportProblem (runReportProblem)
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
@@ -15,7 +15,7 @@ import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
 import TypeScript.CST
-import TypeScript.Config (ImportAlias (ImportAlias), TsConfigLegacy (..))
+import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser
 import TypeScript.Tokens
@@ -69,10 +69,11 @@ spec = do
             fileWriteRef <- newIORef Nothing
             logsRef <- newIORef Nothing
             let tsCfg =
-                    TsConfigLegacy
-                        { paths =
-                            [ ImportAlias "@/" "test/"
-                            , ImportAlias "@test/" "tests/"
+                    TsConfig
+                        { baseUrl = absPathUnsafe [osp|/home/repo|]
+                        , paths =
+                            [ PathMapping (KeyPattern $ Wildcard "@/" "") ((ValuePattern $ Wildcard "test/" "") :| [])
+                            , PathMapping (KeyPattern $ Wildcard "@test/" "") ((ValuePattern $ Wildcard "tests/" "") :| [])
                             ]
                         }
 

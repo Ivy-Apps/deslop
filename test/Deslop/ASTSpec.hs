@@ -7,9 +7,10 @@ import Deslop.AST (
  )
 import Effectful
 import Effectful.Reader.Static (runReader)
+import Effects.FileSystem (runFileSystemIO)
 import System.OsPath (osp)
 import Test.Hspec
-import TestUtils (defaultTsConfig)
+import TestUtils (defaultTsConfig, emptyTsConfig)
 import TypeScript.CST (TsNode (..), TsProgram (..))
 import TypeScript.Config
 import TypeScript.ModuleResolver (ModuleId (..))
@@ -28,7 +29,11 @@ spec = describe "parseAst" $ do
                             }
                         ]
                     }
-        ast <- runEff . runReader @TsConfigLegacy defaultTsConfig $ parseAst prog
+        ast <-
+            runEff
+                . runFileSystemIO
+                . runReader @TsConfig defaultTsConfig
+                $ parseAst prog
         ast
             `shouldBe` AstModule
                 { id = ModuleId "@/lib/demo"
@@ -54,7 +59,11 @@ spec = describe "parseAst" $ do
                             }
                         ]
                     }
-        ast <- runEff . runReader @TsConfigLegacy (TsConfigLegacy []) $ parseAst prog
+        ast <-
+            runEff
+                . runReader @TsConfig emptyTsConfig
+                . runFileSystemIO
+                $ parseAst prog
         ast
             `shouldBe` AstModule
                 { id = ModuleId "src/main"

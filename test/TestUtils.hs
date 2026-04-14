@@ -14,6 +14,7 @@ module TestUtils (
     TestLogs (..),
     testSecrets,
     defaultTsConfig,
+    emptyTsConfig,
     mkAbsolute,
     pathSafeGolden,
 ) where
@@ -24,7 +25,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
 import Effects.CLILog
-import Effects.FileSystem (AbsPath (osPath), RoFileSystem (..), WrFileSystem (..), encodeOsPathString, fsMkAbsolute, runFileSystemIO, runRoFileSystemIO)
+import Effects.FileSystem (AbsPath (osPath), RoFileSystem (..), WrFileSystem (..), absPathUnsafe, encodeOsPathString, fsMkAbsolute, runFileSystemIO, runRoFileSystemIO)
 import Effects.Git
 import Params
 import Secrets (GeminiApiKey (..), Secrets (..))
@@ -32,7 +33,7 @@ import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeExtension, (</>))
 import Test.Hspec.Golden (Golden, defaultGolden)
-import TypeScript.Config (ImportAlias (..), TsConfigLegacy (..))
+import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import Types (Renderable (render))
 import UI (problemsLogText)
 
@@ -136,11 +137,15 @@ testSecrets =
         { geminiApiKey = Just $ GeminiApiKey "testKey"
         }
 
-defaultTsConfig :: TsConfigLegacy
+defaultTsConfig :: TsConfig
 defaultTsConfig =
-    TsConfigLegacy
-        { paths =
-            [ ImportAlias {label = "@/", path = "src/"}
-            , ImportAlias {label = "@test/", path = "test/"}
+    TsConfig
+        { baseUrl = absPathUnsafe [osp|home/repo|]
+        , paths =
+            [ PathMapping (KeyPattern $ Wildcard "@/" "") ((ValuePattern $ Wildcard "src/" "") :| [])
+            , PathMapping (KeyPattern $ Wildcard "@test/" "") ((ValuePattern $ Wildcard "test/" "") :| [])
             ]
         }
+
+emptyTsConfig :: TsConfig
+emptyTsConfig = TsConfig {baseUrl = absPathUnsafe [osp|home/repo|], paths = []}

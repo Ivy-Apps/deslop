@@ -8,10 +8,10 @@ import Data.Text qualified as T
 import Deslop.RelativeImports (fixTarget)
 import Effectful
 import Effectful.Reader.Static (Reader)
-import Effects.FileSystem (decodeOsPath)
+import Effects.FileSystem (RoFileSystem, decodeOsPath)
 import System.FilePath (dropExtension)
 import TypeScript.CST (TsNode (..), TsProgram (cst, path))
-import TypeScript.Config (TsConfigLegacy)
+import TypeScript.Config (TsConfig)
 import TypeScript.ModuleResolver (ModuleId (..))
 
 newtype AstNode = ImportNode
@@ -24,7 +24,7 @@ data AstModule = AstModule
     }
     deriving stock (Show, Eq)
 
-parseAst :: (Reader TsConfigLegacy :> es) => TsProgram -> Eff es AstModule
+parseAst :: (Reader TsConfig :> es, RoFileSystem :> es) => TsProgram -> Eff es AstModule
 parseAst prog = do
     moduleId <- programModuleId
     pure

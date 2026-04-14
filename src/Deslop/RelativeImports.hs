@@ -5,24 +5,20 @@ module Deslop.RelativeImports (
     fixTarget,
 ) where
 
-import Data.Text qualified as T
 import Effectful (Eff, type (:>))
-import Effectful.Reader.Static (Reader, asks)
-import Effects.FileSystem (decodeOsPath, encodeOsPathString)
+import Effectful.Reader.Static (Reader)
+import Effects.FileSystem (RoFileSystem, fsMkAbsolute)
 import Effects.ReportProblem (Location (..), Problem (..), ReportProblem, RuleId (..), Severity (..), report)
-import System.FilePath (splitDirectories)
-import System.OsPath (OsPath, joinPath, osp, takeDirectory, (</>))
-import System.OsPath qualified as Os
+import System.OsPath (OsPath)
 import TypeScript.CST (
     TsNode (Import, target),
     TsProgram (cst, path),
  )
 import TypeScript.Config (
-    ImportAlias (ImportAlias, label, path),
-    TsConfigLegacy (paths),
+    TsConfig,
  )
+import TypeScript.ModuleResolver (ModuleId (..), reverseResolveImport)
 import Types (Renderable (render))
-import Utils (dropCommonPre, safePop)
 
 noRelativeImports :: (TsNode, TsNode) -> OsPath -> Problem
 noRelativeImports (old, new) path =
@@ -34,7 +30,12 @@ noRelativeImports (old, new) path =
         , fix = "Use ```" <> render new <> "``` instead."
         }
 
-importAliases :: (Reader TsConfigLegacy :> es, ReportProblem :> es) => TsProgram -> Eff es TsProgram
+importAliases ::
+    ( Reader TsConfig :> es
+    , ReportProblem :> es
+    , RoFileSystem :> es
+    ) =>
+    TsProgram -> Eff es TsProgram
 importAliases prog = do
     cst' <- traverse fixImport prog.cst
     pure prog {cst = cst'}
@@ -48,67 +49,12 @@ importAliases prog = do
         pure new
     fixImport x = pure x
 
-fixTarget :: (Reader TsConfigLegacy :> es) => OsPath -> Text -> Eff es Text
+fixTarget ::
+    ( Reader TsConfig :> es
+    , RoFileSystem :> es
+    ) =>
+    OsPath -> Text -> Eff es Text
 fixTarget progPath t = do
-    as <- asks @TsConfigLegacy (.paths)
-    let absT = T.pack . absPath as $ t
-    case useAlias as absT of
-        Just absT' -> pure . fst $ dropCommonPre (absT', absT)
-        Nothing -> pure t
-  where
-    useAlias as fp = applyAlias <$> findAliasForPath
-      where
-        applyAlias (ImportAlias a p) = T.replace p a fp
-        findAliasForPath =
-            let fpDirs = splitDirs fp
-             in find (\a -> isPathInfixOfTarget fpDirs (splitDirs a.path)) as
-        splitDirs = splitDirectories . T.unpack
-
-    absPath as = T.unpack . decodeOsPath . resolveTsImport progPath . T.unpack . reverseAlias as
-
-    reverseAlias as fp =
-        maybe fp (removeAlias fp)
-            . find (\a -> a.label `T.isInfixOf` fp)
-            $ as
-    removeAlias fp (ImportAlias l p) = T.replace l p fp
-
-resolveTsImport :: OsPath -> FilePath -> OsPath
-resolveTsImport sourcePath importPath
-    | isBareSpecifier importPath = encodeOsPathString importPath
-    | otherwise =
-        let
-            sourceDir = takeDirectory sourcePath
-            rawCombined = sourceDir </> encodeOsPathString importPath
-         in
-            normalizeSegments rawCombined
-
-isBareSpecifier :: String -> Bool
-isBareSpecifier path = not (isRelative path || isAbsolute path)
-  where
-    isRelative p = "." `isPrefixOf` p -- Covers "./", "../", and just "."
-    isAbsolute p = "/" `isPrefixOf` p
-
-dotSeg, dotdotSeg :: OsPath
-dotSeg = [osp|.|]
-dotdotSeg = [osp|..|]
-
-normalizeSegments :: OsPath -> OsPath
-normalizeSegments = joinPath . reverse . foldl' step [] . Os.splitDirectories
-  where
-    step stack segment
-        | segment == dotSeg = stack
-        | segment == dotdotSeg = safePop stack
-        | otherwise = segment : stack
-
--- Checks @path is infix of @target segment wise
-isPathInfixOfTarget :: [FilePath] -> [FilePath] -> Bool
-isPathInfixOfTarget target path = go target path False
-  where
-    go _ [] found = found
-    go [] _ _ = False
-    go (t : ts) op@(p : ps) False
-        | t == p = go ts ps True
-        | otherwise = go ts op False
-    go (t : ts) (p : ps) True
-        | t == p = go ts ps True
-        | otherwise = False
+    absTsModulePath <- fsMkAbsolute progPath
+    ModuleId t' <- reverseResolveImport absTsModulePath (ModuleId t)
+    pure t'

@@ -19,16 +19,19 @@ import Effectful.Reader.Static (Reader, asks, runReader)
 import Effects.AI
 import Effects.CLILog
 import Effects.FileSystem (
+    AbsPath (osPath),
     RoFileSystem,
     WrFileSystem,
     decodeOsPath,
     encodeOsPath,
-    fsFileExists,
+    fsFileExistsAbs,
     fsIsDirectory,
     fsListDirectory,
+    fsMkAbsolute,
     fsReadFile,
     fsWriteFile,
     runFileSystemIO,
+    withAbsBaseUnsafe,
  )
 import Effects.Git
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
@@ -37,7 +40,7 @@ import Params
 import Secrets (Secrets (..), defaultSecrets, readSecrets)
 import System.OsPath (OsPath, osp, takeExtension, (</>))
 import TypeScript.CST
-import TypeScript.Config (TsConfigLegacy, parseTsConfigLegacy)
+import TypeScript.Config (TsConfig, readTsConfig)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types
 import UI
@@ -127,12 +130,12 @@ deslopProject ::
     Params ->
     Eff es ()
 deslopProject params = do
-    let projPath = params.projectPath
+    projPath <- fsMkAbsolute params.projectPath
     cfg <- tsConfig projPath
-    files <- getTsFiles projPath
+    files <- getTsFiles projPath.osPath
     (errors, _asts) <-
         fmap partitionEithers
-            . runReader @TsConfigLegacy cfg
+            . runReader @TsConfig cfg
             . runReader @Params params
             $ pooledMapConcurrentlyN 32 deslopFile files
     traverse_ logError errors
@@ -152,7 +155,7 @@ getTsFiles dir = fsListDirectory dir >>= fmap concat . traverse (processEntry di
 deslopFile ::
     ( RoFileSystem :> es
     , WrFileSystem :> es
-    , Reader TsConfigLegacy :> es
+    , Reader TsConfig :> es
     , Reader Params :> es
     , CLILog :> es
     , ReportProblem :> es
@@ -172,7 +175,10 @@ deslopFile src = do
     renderProgram = TE.encodeUtf8 . render . (.cst)
 
 removeSlop ::
-    (Reader TsConfigLegacy :> es, ReportProblem :> es) =>
+    ( Reader TsConfig :> es
+    , ReportProblem :> es
+    , RoFileSystem :> es
+    ) =>
     OsPath ->
     ByteString ->
     Eff es (Either String TsProgram)
@@ -186,12 +192,12 @@ tsConfig ::
     ( RoFileSystem :> es
     , Error DeslopError :> es
     ) =>
-    OsPath ->
-    Eff es TsConfigLegacy
-tsConfig projPath = loadConfig $ projPath </> [osp|tsconfig.json|]
+    AbsPath ->
+    Eff es TsConfig
+tsConfig projPath = loadConfig $ (withAbsBaseUnsafe projPath [osp|tsconfig.json|])
   where
-    loadConfig fp = fsFileExists fp >>= bool (handleMissing fp) (handleFound fp)
-    handleFound fp = fsReadFile fp >>= maybe (handleInvalid fp) pure . parseTsConfigLegacy
+    loadConfig fp = fsFileExistsAbs fp >>= bool (handleMissing fp) (handleFound fp)
+    handleFound fp = readTsConfig fp >>= either handleInvalid pure
 
-    handleMissing = throwError . TsConfigNotFoundError
+    handleMissing = throwError . TsConfigNotFoundError . (.osPath)
     handleInvalid = throwError . TsConfigParseError
