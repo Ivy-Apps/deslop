@@ -177,6 +177,38 @@ spec = describe "ModuleResolver" $ do
             -- Applying ExactMatch to Wildcard "@core/" "" -> "@core/" <> "" <> "" -> "@core/"
             result `shouldBe` (Just $ ModuleId "@core/")
 
+        it "returns Nothing when target is outside baseUrl and no mappings exist" $ do
+            let cfg = baseCfg {paths = []}
+            -- Target is physically outside /home/repo/
+            let result = runEncodeTest cfg [osp|/home/shared/utils.ts|]
+
+            -- Because it's outside and unmapped, it cannot be a bare specifier.
+            result `shouldBe` Nothing
+
+        it "returns Nothing when target is outside baseUrl and existing mappings do not match" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
+            -- Target is physically outside /home/repo/
+            let result = runEncodeTest cfg [osp|/home/external/api.ts|]
+
+            result `shouldBe` Nothing
+
+        it "returns Nothing for global system paths (e.g., global node_modules or standard libs)" $ do
+            let cfg = baseCfg {paths = []}
+            -- Target is a completely divergent absolute path
+            let result = runEncodeTest cfg [osp|/usr/local/lib/node_modules/react/index.js|]
+
+            result `shouldBe` Nothing
+
+        it "returns Nothing for a monorepo sibling package that is not mapped in TSConfig" $ do
+            -- Imagine baseUrl is deeply nested in a workspace
+            let webBaseUrl = absPathUnsafe [osp|/home/repo/packages/web|]
+            let webCfg = TsConfig {baseUrl = webBaseUrl, paths = []}
+
+            -- Importing from a sibling package
+            let result = runEncodeTest webCfg [osp|/home/repo/packages/ui/button.tsx|]
+
+            result `shouldBe` Nothing
+
     describe "isRelativeImport" $ do
         it "identifies strict current directory (.)" $ do
             isRelativeImport (ModuleId ".") `shouldBe` True
@@ -545,3 +577,76 @@ spec = describe "ModuleResolver" $ do
             -- Should NOT resolve to "src/utils" because it's not the /home/repo/src/utils
             let result = runRRTest importer cfg existingFiles "../../../src/utils"
             result `shouldBe` ModuleId "../../../src/utils"
+
+        it "returns Nothing (preserves target) if the file doesn't exist on disk" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]]}
+
+            -- The user imports a file that hasn't been created yet, or they made a typo.
+            -- `resolve` will fall back to returning the raw fallback absolute path.
+            -- `reverseResolve` should gracefully handle this and not crash.
+            let existingFiles = []
+
+            let result = runRRTest importer cfg existingFiles "../utils/typo"
+            result `shouldBe` ModuleId "../utils/typo"
+
+        it "prioritizes exact path mappings over wildcard mappings in a Next.js environment" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/components/Header.tsx|]
+            let cfg =
+                    baseCfg
+                        { paths =
+                            [ mkMapping (Exact "react") [Exact "node_modules/react"]
+                            , -- A common Next.js pattern to map an entire folder
+                              mkMapping (Wildcard "@/*" "") [Wildcard "src/*" ""]
+                            , -- But specific files might have explicit overrides
+                              mkMapping (Exact "@data/users") [Exact "src/data/mock-users"]
+                            ]
+                        }
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/data/mock-users.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "../data/mock-users"
+            result `shouldBe` ModuleId "@data/users"
+
+        it "resolves a Next.js root alias (@/) correctly" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/app/dashboard/page.tsx|]
+            -- Next.js 13+ default alias
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "./" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/lib/utils.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "../../lib/utils"
+            result `shouldBe` ModuleId "@/src/lib/utils"
+
+        it "handles 'index.ts' correctly when exact matching a directory alias" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg =
+                    baseCfg
+                        { paths =
+                            -- Some codebases map a folder exactly to its index
+                            [ mkMapping (Exact "@models") [Exact "src/models/index"]
+                            , mkMapping (Wildcard "@models/" "") [Wildcard "src/models/" ""]
+                            ]
+                        }
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/models/index.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "../models"
+            result `shouldBe` ModuleId "@models"
+
+        it "preserves absolute imports that do not map to the current project (Node built-ins)" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/api/route.ts|]
+            let cfg = baseCfg {paths = []}
+            let existingFiles = []
+
+            -- Imports like "fs", "path", or "crypto"
+            let result = runRRTest importer cfg existingFiles "fs"
+            result `shouldBe` ModuleId "fs"
+
+        it "preserves complex relative traversals that ultimately resolve inside the baseUrl" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/components/ui/Button.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@hooks/" "") [Wildcard "src/hooks/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/hooks/useToggle.ts|]]
+
+            -- A messy relative import: go up, into another folder, back up, then to target
+            let result = runRRTest importer cfg existingFiles "../../utils/../hooks/useToggle"
+
+            -- It should figure out exactly where that points and give the clean alias!
+            result `shouldBe` ModuleId "@hooks/useToggle"
