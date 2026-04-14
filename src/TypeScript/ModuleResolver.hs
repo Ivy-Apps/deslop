@@ -30,6 +30,13 @@ data ExactPathMapping = ExactPathMapping
     }
     deriving (Show, Eq)
 
+reverseResolveImport ::
+    ( RoFileSystem :> es
+    , Reader TsConfig :> es
+    ) =>
+    AbsPath -> ModuleId -> Eff es ModuleId
+reverseResolveImport importingFile target = resolve importingFile target >>= reverseResolve
+
 {- | Resolves a TypeScript file's absolute path to a logical 'ModuleId'.
 
 This function performs a "reverse resolution" to determine how a file
@@ -73,16 +80,9 @@ reverseResolve absFilePath = do
         | Just found <- match p t = Just found
         | otherwise = matchValues ps t
 
-reverseResolveImport ::
-    ( RoFileSystem :> es
-    , Reader TsConfig :> es
-    ) =>
-    AbsPath -> ModuleId -> Eff es ModuleId
-reverseResolveImport _modulePath _importTarget = pure (ModuleId "")
-
 resolve :: (RoFileSystem :> es, Reader TsConfig :> es) => AbsPath -> ModuleId -> Eff es AbsPath
-resolve importingFile m@(ModuleId mId) =
-    if isRelativeImport m
+resolve importingFile target@(ModuleId mId) =
+    if isRelativeImport target
         then
             resolveRelativeImport
         else
