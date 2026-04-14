@@ -10,12 +10,12 @@ import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (defaultParams, listFixtures, runCLILogTest, runFileSystemTest)
+import TestUtils (defaultParams, listFixtures, mkMapping, runCLILogTest, runFileSystemTest)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
 import TypeScript.CST
-import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
+import TypeScript.Config (Pattern (..), TsConfig (..))
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser
 import TypeScript.Tokens
@@ -72,8 +72,8 @@ spec = do
                     TsConfig
                         { baseUrl = absPathUnsafe [osp|/home/repo|]
                         , paths =
-                            [ PathMapping (KeyPattern $ Wildcard "@/" "") ((ValuePattern $ Wildcard "test/" "") :| [])
-                            , PathMapping (KeyPattern $ Wildcard "@test/" "") ((ValuePattern $ Wildcard "tests/" "") :| [])
+                            [ mkMapping (Wildcard "@/" "") [Wildcard "test/" ""]
+                            , mkMapping (Wildcard "@test/" "") [Wildcard "tests/" ""]
                             ]
                         }
 

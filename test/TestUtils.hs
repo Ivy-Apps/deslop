@@ -15,6 +15,7 @@ module TestUtils (
     testSecrets,
     defaultTsConfig,
     emptyTsConfig,
+    mkMapping,
     mkAbsolute,
     pathSafeGolden,
 ) where
@@ -142,10 +143,13 @@ defaultTsConfig =
     TsConfig
         { baseUrl = absPathUnsafe [osp|home/repo|]
         , paths =
-            [ PathMapping (KeyPattern $ Wildcard "@test/" "") ((ValuePattern $ Wildcard "test/" "") :| [])
-            , PathMapping (KeyPattern $ Wildcard "@/" "") ((ValuePattern $ Wildcard "src/" "") :| [])
+            [ mkMapping (Wildcard "@test/" "") [Wildcard "test/" ""]
+            , mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]
             ]
         }
 
 emptyTsConfig :: TsConfig
 emptyTsConfig = TsConfig {baseUrl = absPathUnsafe [osp|home/repo|], paths = []}
+
+mkMapping :: Pattern -> [Pattern] -> PathMapping
+mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)

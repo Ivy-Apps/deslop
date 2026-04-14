@@ -8,7 +8,8 @@ import Effectful.Reader.Static (runReader)
 import Effects.FileSystem (absPathUnsafe)
 import System.OsPath (osp)
 import Test.Hspec (Spec, describe, it, shouldBe)
-import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
+import TestUtils (mkMapping)
+import TypeScript.Config (Pattern (..), TsConfig (..))
 import TypeScript.ModuleResolver (Match (..), ModuleId (..), isRelativeImport, match, resolve, reverseResolve, reverseResolveImport)
 
 spec :: Spec
@@ -77,8 +78,6 @@ spec = describe "ModuleResolver" $ do
     describe "reverseResolve (Reverse Path Resolution)" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
         let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
-
-        let mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)
 
         let runEncodeTest cfg pathStr =
                 let path = absPathUnsafe pathStr
@@ -320,8 +319,6 @@ spec = describe "ModuleResolver" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
         let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
 
-        let mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)
-
         -- Helper to run the resolve function from a specific importing file
         let runResolveTestFrom importerAbsPath cfg existingFiles mId =
                 let mockFs =
@@ -529,8 +526,6 @@ spec = describe "ModuleResolver" $ do
     describe "reverseResolveImport" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
         let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
-
-        let mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)
 
         let runRRTest importerAbsPath cfg existingFiles mIdStr =
                 let mockFs =
