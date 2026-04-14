@@ -3,6 +3,7 @@ module Doubles.FileSystem (
     defaultMockRoFileSystem,
     runMockRoFileSystem,
     runMockWrFileSystem,
+    mockFiles,
 ) where
 
 import Data.Text qualified as T
@@ -95,3 +96,9 @@ runMockRoFileSystem mocks = interpret $ \_env -> \case
     IsAbsDirectory p -> mocks.mockIsAbsDirectory p
     GetHomeDirectory -> mocks.mockGetHomeDirectory
     MkAbsolute p -> mocks.mockMkAbsolute p
+
+mockFiles :: [OsPath] -> MockRoFileSystem es
+mockFiles existingFiles =
+    defaultMockRoFileSystem
+        { mockFileExistsAbs = \p -> pure $ p `elem` (absPathUnsafe <$> existingFiles)
+        }

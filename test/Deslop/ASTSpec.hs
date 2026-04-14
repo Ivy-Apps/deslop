@@ -5,6 +5,7 @@ import Deslop.AST (
     AstNode (..),
     parseAst,
  )
+import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful
 import Effectful.Reader.Static (runReader)
 import Effects.FileSystem (runFileSystemIO)
@@ -18,9 +19,10 @@ import TypeScript.ModuleResolver (ModuleId (..))
 spec :: Spec
 spec = describe "parseAst" $ do
     it "simple happy path" $ do
+        let existingFiles = [[osp|/home/repo/src/lib/demo.ts|]]
         let prog =
                 TsModule
-                    { path = [osp|src/lib/demo.ts|]
+                    { path = [osp|/home/repo/src/lib/demo.ts|]
                     , cst =
                         [ Import
                             { prefix = "import * from'"
@@ -31,7 +33,7 @@ spec = describe "parseAst" $ do
                     }
         ast <-
             runEff
-                . runFileSystemIO
+                . runMockRoFileSystem (mockFiles existingFiles)
                 . runReader @TsConfig defaultTsConfig
                 $ parseAst prog
         ast
