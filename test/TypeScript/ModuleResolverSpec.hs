@@ -2,13 +2,14 @@
 
 module TypeScript.ModuleResolverSpec (spec) where
 
+import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, runMockRoFileSystem)
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
 import Effects.FileSystem (absPathUnsafe)
 import System.OsPath (osp)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
-import TypeScript.ModuleResolver (Match (..), ModuleId (..), match, reverseResolve)
+import TypeScript.ModuleResolver (Match (..), ModuleId (..), match, resolve, reverseResolve)
 
 spec :: Spec
 spec = describe "ModuleResolver" $ do
@@ -175,3 +176,132 @@ spec = describe "ModuleResolver" $ do
             -- Candidate "src/core" matches Exact "src/core" -> ExactMatch
             -- Applying ExactMatch to Wildcard "@core/" "" -> "@core/" <> "" <> "" -> "@core/"
             result `shouldBe` ModuleId "@core/"
+
+    describe "resolve (Forward Path Resolution)" $ do
+        let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
+        let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
+
+        let mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)
+
+        -- Helper to run the resolve function with a simulated file system
+        let runResolveTest cfg existingFiles mId =
+                let mockFs =
+                        defaultMockRoFileSystem
+                            { mockFileExistsAbs = \p -> pure $ p `elem` existingFiles
+                            }
+                 in runPureEff
+                        . runMockRoFileSystem mockFs
+                        . runReader cfg
+                        $ resolve (ModuleId mId)
+
+        it "resolves relative to baseUrl with a .ts extension" $ do
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/lib/util.ts|]]
+            let result = runResolveTest baseCfg existingFiles "src/lib/util"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/lib/util.ts|]
+
+        it "resolves relative to baseUrl with a .tsx extension" $ do
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/lib/util.tsx|]]
+            let result = runResolveTest baseCfg existingFiles "src/lib/util"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/lib/util.tsx|]
+
+        it "resolves relative to baseUrl using an index.ts file (Directory fallback)" $ do
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/lib/util/index.ts|]]
+            let result = runResolveTest baseCfg existingFiles "src/lib/util"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/lib/util/index.ts|]
+
+        it "resolves relative to baseUrl using an index.tsx file" $ do
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/components/Button/index.tsx|]]
+            let result = runResolveTest baseCfg existingFiles "src/components/Button"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/components/Button/index.tsx|]
+
+        it "respects TypeScript's extension probing priority (.ts > .tsx > index.ts > index.tsx)" $ do
+            let existingFiles =
+                    [ absPathUnsafe [osp|/home/repo/src/components/Button.tsx|]
+                    , absPathUnsafe [osp|/home/repo/src/components/Button.ts|]
+                    , -- Should win
+                      absPathUnsafe [osp|/home/repo/src/components/Button/index.ts|]
+                    ]
+            let result = runResolveTest baseCfg existingFiles "src/components/Button"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/components/Button.ts|]
+
+        it "resolves an Exact mapping to a .ts file" $ do
+            let cfg =
+                    baseCfg
+                        { paths = [mkMapping (Exact "jquery") [Exact "node_modules/jquery/dist/jquery"]]
+                        }
+            let existingFiles = [absPathUnsafe [osp|/home/repo/node_modules/jquery/dist/jquery.ts|]]
+            let result = runResolveTest cfg existingFiles "jquery"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/node_modules/jquery/dist/jquery.ts|]
+
+        it "resolves a Wildcard suffix mapping to a .tsx file" $ do
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/components/Button.tsx|]]
+            let result = runResolveTest cfg existingFiles "@/components/Button"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/components/Button.tsx|]
+
+        it "resolves an Infix wildcard mapping to an index.ts file" $ do
+            let cfg =
+                    baseCfg
+                        { paths = [mkMapping (Wildcard "@dto/" "-dto") [Wildcard "src/types/" "-dto"]]
+                        }
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/types/user/account-dto/index.ts|]]
+            let result = runResolveTest cfg existingFiles "@dto/user/account-dto"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/types/user/account-dto/index.ts|]
+
+        it "handles fallback values in the mapping array (first fails, second succeeds)" $ do
+            let cfg =
+                    baseCfg
+                        { paths =
+                            [ mkMapping
+                                (Wildcard "@utils/" "")
+                                [ Wildcard "src/utils/" ""
+                                , Wildcard "shared/utils/" ""
+                                ]
+                            ]
+                        }
+            -- The algorithm checks 'src/utils/math' variations, fails, and falls back to 'shared/utils'
+            let existingFiles = [absPathUnsafe [osp|/home/repo/shared/utils/math.ts|]]
+            let result = runResolveTest cfg existingFiles "@utils/math"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/shared/utils/math.ts|]
+
+        it "handles fallback values finding an index file on the second array entry" $ do
+            let cfg =
+                    baseCfg
+                        { paths =
+                            [ mkMapping
+                                (Wildcard "@utils/" "")
+                                [ Wildcard "src/utils/" ""
+                                , Wildcard "shared/utils/" ""
+                                ]
+                            ]
+                        }
+            let existingFiles = [absPathUnsafe [osp|/home/repo/shared/utils/math/index.tsx|]]
+            let result = runResolveTest cfg existingFiles "@utils/math"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/shared/utils/math/index.tsx|]
+
+        it "falls through to the next mapping if all fallback values in the first mapping fail" $ do
+            let cfg =
+                    baseCfg
+                        { paths =
+                            [ mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]
+                            , mkMapping (Wildcard "@utils/" "") [Wildcard "fallback/utils/" ""]
+                            ]
+                        }
+            let existingFiles = [absPathUnsafe [osp|/home/repo/fallback/utils/math.ts|]]
+            let result = runResolveTest cfg existingFiles "@utils/math"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/fallback/utils/math.ts|]
+
+        it "respects exact mappings over wildcard mappings if matched first" $ do
+            let cfg =
+                    baseCfg
+                        { paths =
+                            [ mkMapping (Exact "@utils/math") [Exact "src/special/math"]
+                            , mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]
+                            ]
+                        }
+            let existingFiles =
+                    [ absPathUnsafe [osp|/home/repo/src/special/math.ts|]
+                    , absPathUnsafe [osp|/home/repo/src/utils/math.ts|]
+                    ]
+            let result = runResolveTest cfg existingFiles "@utils/math"
+            result `shouldBe` absPathUnsafe [osp|/home/repo/src/special/math.ts|]
