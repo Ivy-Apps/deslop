@@ -680,3 +680,52 @@ spec = describe "ModuleResolver" $ do
 
             -- It should figure out exactly where that points and give the clean alias!
             result `shouldBe` ModuleId "@hooks/useToggle"
+
+        it "cleans a deep relative import in Next.js App Router (src/app/(auth)/login/page.tsx)" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/app/(auth)/login/page.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/components/ui/Input.tsx|]]
+
+            -- Dev used a messy relative path to jump out of the grouping folder (auth)
+            let result = runRRTest importer cfg existingFiles "../../../components/ui/Input"
+            result `shouldBe` ModuleId "@/components/ui/Input"
+
+        it "converts a relative import to a specific feature alias (@feature/*)" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/main.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@dashboard/" "") [Wildcard "src/modules/dashboard/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/modules/dashboard/components/Chart.tsx|]]
+
+            let result = runRRTest importer cfg existingFiles "./modules/dashboard/components/Chart"
+            result `shouldBe` ModuleId "@dashboard/components/Chart"
+
+        it "handles Next.js 'public' folder aliasing for static assets" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/components/Hero.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@public/" "") [Wildcard "public/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/public/vectors/banner.svg|]]
+
+            -- Importing an asset relatively
+            let result = runRRTest importer cfg existingFiles "../../public/vectors/banner.svg"
+            result `shouldBe` ModuleId "@public/vectors/banner.svg"
+
+        it "prefers a more specific alias over a general root alias (@components/ vs @/)" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/index.tsx|]
+            let cfg =
+                    baseCfg
+                        { paths =
+                            [ mkMapping (Wildcard "@components/" "") [Wildcard "src/components/" ""]
+                            , mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]
+                            ]
+                        }
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/components/Button.tsx|]]
+
+            let result = runRRTest importer cfg existingFiles "../components/Button"
+            -- Should pick @components/ because it's higher priority in the list
+            result `shouldBe` ModuleId "@components/Button"
+
+        it "correctly aliases a sibling file in a flat Vite 'src' structure" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/App.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/theme.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "./theme"
+            result `shouldBe` ModuleId "@/theme"
