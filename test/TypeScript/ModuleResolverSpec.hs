@@ -9,7 +9,7 @@ import Effects.FileSystem (absPathUnsafe)
 import System.OsPath (osp)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
-import TypeScript.ModuleResolver (Match (..), ModuleId (..), isRelativeImport, match, resolve, reverseResolve)
+import TypeScript.ModuleResolver (Match (..), ModuleId (..), isRelativeImport, match, resolve, reverseResolve, reverseResolveImport)
 
 spec :: Spec
 spec = describe "ModuleResolver" $ do
@@ -425,3 +425,96 @@ spec = describe "ModuleResolver" $ do
 
             let result = runResolveTestFrom importer cfg existingFiles "./utils/math"
             result `shouldBe` absPathUnsafe [osp|/home/repo/src/pages/utils/math.ts|]
+
+    describe "reverseResolveImport" $ do
+        let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
+        let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
+
+        let mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)
+
+        let runRRTest importerAbsPath cfg existingFiles mIdStr =
+                let mockFs =
+                        defaultMockRoFileSystem
+                            { mockFileExistsAbs = \p -> pure $ p `elem` existingFiles
+                            }
+                 in runPureEff
+                        . runMockRoFileSystem mockFs
+                        . runReader cfg
+                        $ reverseResolveImport importerAbsPath (ModuleId mIdStr)
+
+        it "converts a parent-directory relative import to an aliased import if a mapping exists" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/utils/math.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "../utils/math"
+            result `shouldBe` ModuleId "@utils/math"
+
+        it "converts a same-directory relative import to an aliased import if a mapping exists" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@pages/" "") [Wildcard "src/pages/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/pages/LoginView.tsx|]]
+
+            let result = runRRTest importer cfg existingFiles "./LoginView"
+            result `shouldBe` ModuleId "@pages/LoginView"
+
+        it "leaves a relative import as-is when no applicable path mapping exists" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/utils/math.ts|]]
+
+            let result = runRRTest importer baseCfg existingFiles "../utils/math"
+            result `shouldBe` ModuleId "../utils/math"
+
+        it "improves an existing aliased import if a more specific/shorter alias matches" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg =
+                    baseCfg
+                        { paths =
+                            -- Assume @ui/ is preferred or listed first in the resolved config
+                            [ mkMapping (Wildcard "@ui/" "") [Wildcard "src/components/ui/" ""]
+                            , mkMapping (Wildcard "@components/" "") [Wildcard "src/components/" ""]
+                            ]
+                        }
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/components/ui/button.tsx|]]
+
+            -- Original import used the broader `@components/` alias
+            let result = runRRTest importer cfg existingFiles "@components/ui/button"
+            -- It should upgrade to the more specific `@ui/` alias
+            result `shouldBe` ModuleId "@ui/button"
+
+        it "leaves an aliased import as-is if it is already the optimal choice" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/utils/math.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "@utils/math"
+            result `shouldBe` ModuleId "@utils/math"
+
+        it "leaves non-relative bare module specifiers (node_modules) as-is" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]]}
+            let existingFiles = []
+
+            -- `resolve` might fail to find external modules in local pure fs,
+            -- but the reverse resolver should gracefully leave the raw target untouched.
+            let result = runRRTest importer cfg existingFiles "react"
+            result `shouldBe` ModuleId "react"
+
+        it "correctly resolves a relative import pointing to a directory index to its aliased equivalent" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]]}
+            let existingFiles = [absPathUnsafe [osp|/home/repo/src/utils/index.ts|]]
+
+            -- The relative import resolves to /home/repo/src/utils/index.ts
+            -- The alias engine should map that back to `@utils/index` or `@utils/`
+            let result = runRRTest importer cfg existingFiles "../utils"
+            result `shouldBe` ModuleId "@utils/index"
+
+        it "leaves relative imports pointing entirely outside the baseUrl as-is" $ do
+            let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
+            -- E.g., importing a file from a monorepo sibling package
+            let existingFiles = [absPathUnsafe [osp|/home/repo/../shared/types.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "../../shared/types"
+            result `shouldBe` ModuleId "../../shared/types"
