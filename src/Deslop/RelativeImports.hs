@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module Deslop.RelativeImports (
     importAliases,
     fixTarget,

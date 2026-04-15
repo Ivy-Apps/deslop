@@ -34,6 +34,7 @@ newtype KeyPattern = KeyPattern
     { pattern :: Pattern
     }
     deriving (Show, Eq)
+
 newtype ValuePattern = ValuePattern
     { pattern :: Pattern
     }

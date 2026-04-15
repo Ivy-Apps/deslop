@@ -194,7 +194,7 @@ tsConfig ::
     ) =>
     AbsPath ->
     Eff es TsConfig
-tsConfig projPath = loadConfig $ (withAbsBaseUnsafe projPath [osp|tsconfig.json|])
+tsConfig projPath = loadConfig (withAbsBaseUnsafe projPath [osp|tsconfig.json|])
   where
     loadConfig fp = fsFileExistsAbs fp >>= bool (handleMissing fp) (handleFound fp)
     handleFound fp = readTsConfig fp >>= either handleInvalid pure
