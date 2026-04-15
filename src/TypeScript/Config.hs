@@ -1,7 +1,4 @@
 module TypeScript.Config (
-    parseTsConfigLegacy,
-    TsConfigLegacy (..),
-    ImportAlias (..),
     readTsConfig,
     parsePattern,
     parsePathMapping,
@@ -12,7 +9,7 @@ module TypeScript.Config (
     ValuePattern (..),
 ) where
 
-import Data.Aeson (FromJSON, decode, decode')
+import Data.Aeson (FromJSON, decode')
 import Data.Map qualified as M
 import Data.Text qualified as T
 import Effectful
@@ -20,7 +17,6 @@ import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, encodeOsPa
 import System.OsPath (takeDirectory)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)
-import Utils (safeHead)
 
 data TsConfig = TsConfig
     { baseUrl :: !AbsPath
@@ -206,50 +202,3 @@ jsoncStripper =
     -- Catchall for isolated slashes
     slash :: Parser Text
     slash = chunk "/"
-
---------------------
--- LEGACY CODE
---------------------
-
-newtype TsConfigLegacy = TsConfigLegacy
-    { paths :: [ImportAlias]
-    }
-    deriving (Show, Eq)
-
-data ImportAlias = ImportAlias
-    { label :: Text
-    , path :: Text
-    }
-    deriving (Show, Eq)
-
--- | Parses the TSConfig, safely stripping comments before passing to Aeson
-parseTsConfigLegacy :: ByteString -> Maybe TsConfigLegacy
-parseTsConfigLegacy = fromJson >=> extractPaths >=> pure . buildConfig
-  where
-    fromJson :: ByteString -> Maybe TsConfigDto
-    fromJson =
-        rightToMaybe
-            . decodeUtf8'
-            >=> decode @TsConfigDto
-            . encodeUtf8
-            . stripTsComments
-
-    extractPaths :: TsConfigDto -> Maybe (Map Text [Text])
-    extractPaths = (.paths) . (.compilerOptions)
-
-    buildConfig :: Map Text [Text] -> TsConfigLegacy
-    buildConfig =
-        TsConfigLegacy
-            . sortByLongest
-            . mapMaybe parseAlias
-            . M.toList
-            . M.mapMaybe safeHead
-
-    parseAlias :: (Text, Text) -> Maybe ImportAlias
-    parseAlias = Just . uncurry ImportAlias . join bimap cleanPath
-
-    cleanPath :: Text -> Text
-    cleanPath = (fromMaybe <*> T.stripPrefix "./") . T.takeWhile (/= '*')
-
-    sortByLongest :: [ImportAlias] -> [ImportAlias]
-    sortByLongest = sortOn (Down . T.length . (.label))
