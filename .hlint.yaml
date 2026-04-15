@@ -1,3 +1,8 @@
-- arguments: ["-XQuasiQuotes", "-XTemplateHaskell", "-XOverloadedRecordDot", "-XNoPatternSynonyms"]
+- arguments:
+    - -XQuasiQuotes
+    - -XTemplateHaskell
+    - -XOverloadedRecordDot
+    - -XNoPatternSynonyms
+
 - ignore: {name: "Use <&>"}
 - ignore: {name: "Redundant id"}
