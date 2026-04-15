@@ -23,10 +23,7 @@ import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
     decodeOsPath,
-    encodeOsPath,
     fsFileExistsAbs,
-    fsIsDirectory,
-    fsListDirectory,
     fsMkAbsolute,
     fsReadFile,
     fsWriteFile,
@@ -38,9 +35,10 @@ import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import Fmt (fmt, (+|), (|+))
 import Params
 import Secrets (Secrets (..), defaultSecrets, readSecrets)
-import System.OsPath (OsPath, osp, takeExtension, (</>))
+import System.OsPath (OsPath, osp)
 import TypeScript.CST
 import TypeScript.Config (TsConfig, readTsConfig)
+import TypeScript.Iterator (getTsFiles)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types
 import UI
@@ -50,12 +48,8 @@ runDeslop params = do
     secretsRes <- runEff . runFileSystemIO $ readSecrets
     case secretsRes of
         Right secrets -> do
-            when
-                (isNothing secrets.geminiApiKey)
-                (printWarning "AI features disabled because Gemini API key is not provided in ~/.deslop/secrets.json")
             run secrets
-        Left err -> do
-            printWarning $ "AI features disabled because - " <> show err
+        Left _ -> do
             run defaultSecrets
   where
     run secrets = do
@@ -139,18 +133,6 @@ deslopProject params = do
             . runReader @Params params
             $ pooledMapConcurrentlyN 32 deslopFile files
     traverse_ logError errors
-
-getTsFiles :: (RoFileSystem :> es) => OsPath -> Eff es [OsPath]
-getTsFiles dir = fsListDirectory dir >>= fmap concat . traverse (processEntry dir)
-  where
-    processEntry root entry
-        | entry `elem` ignored = pure []
-        | otherwise = resolve $ root </> entry
-
-    resolve path = fsIsDirectory path >>= bool (tsOrEmpty path) (getTsFiles path)
-
-    tsOrEmpty f = pure [f | takeExtension f `elem` [[osp|.ts|], [osp|.tsx|]]]
-    ignored = map encodeOsPath ["node_modules", ".git", "dist", ".next"]
 
 deslopFile ::
     ( RoFileSystem :> es

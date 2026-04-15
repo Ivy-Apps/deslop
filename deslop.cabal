@@ -46,6 +46,7 @@ library
   exposed-modules:
     Deslop
     Deslop.AST
+    Deslop.CodeGraph
     Deslop.RelativeImports
     Deslop.RuleBook
     Effects.AI
@@ -59,6 +60,7 @@ library
     Types
     TypeScript.Config
     TypeScript.CST
+    TypeScript.Iterator
     TypeScript.Lexer
     TypeScript.ModuleResolver
     TypeScript.Parser
