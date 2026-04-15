@@ -92,6 +92,6 @@ humanReadable :: DeslopError -> Text
 humanReadable (TsConfigNotFoundError path) =
     "tsconfig.json not found in '" <> decodeOsPath path <> "'"
 humanReadable (TsConfigParseError path) =
-    "Could not parse TS config, check: '" <> decodeOsPath path <> "'"
+    "Could not parse TS config, check: '" <> path <> "'"
 humanReadable CheckModeFoundProblems =
     "Problems found. Run without deslop without --check to fix."

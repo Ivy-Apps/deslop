@@ -136,7 +136,7 @@ import { capitalize } from "@/lib/util";
 import {
   mockUser,
   mockCredentials
-} from '@tests/fixtures'
+} from '@/tests/fixtures'
 
 export const validateUsername = (name: string) => {
   // 1. Validate input
@@ -150,15 +150,16 @@ export const validateUsername = (name: string) => {
 };
 
 
->>> FILE: tests/fixtures/fixtures.ts
+>>> FILE: tests/fixtures.ts
 // AI: Mock data for unit tests
-import { formatDate } from "@/lib/util";
+import { formatDate } from "../../src/lib/util";
 
 export const mockUser = {
   id: 1,
   name: "John Doe",
   createdAt: formatDate(new Date()),
 };
+
 
 
 >>> FILE: vitest.config.ts

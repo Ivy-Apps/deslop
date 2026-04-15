@@ -13,6 +13,6 @@ instance (Renderable a) => Renderable [a] where
 
 data DeslopError
     = TsConfigNotFoundError OsPath
-    | TsConfigParseError OsPath
+    | TsConfigParseError Text
     | CheckModeFoundProblems
     deriving (Show, Eq)

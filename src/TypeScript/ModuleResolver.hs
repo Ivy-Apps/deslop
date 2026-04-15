@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module TypeScript.ModuleResolver (
     ModuleId (..),
     reverseResolve,
@@ -137,13 +135,13 @@ resolve importingFile target@(ModuleId mId) =
     tryValues _ _ [] = pure Nothing
     tryValues cfg keyMatch ((ValuePattern v) : vs) = do
         let maybeRelToCfg = case (keyMatch, v) of
-                (ExactMatch, (Exact t)) -> Just t
+                (ExactMatch, Exact t) -> Just t
                 -- invalid: Exact Key with Wildcard Value
-                (ExactMatch, (Wildcard _ _)) -> Nothing
-                ((WildcardMatch _), (Exact t)) -> Just t
-                ((WildcardMatch capture), (Wildcard pre suf)) -> Just (pre <> capture <> suf)
+                (ExactMatch, Wildcard _ _) -> Nothing
+                (WildcardMatch _, Exact t) -> Just t
+                (WildcardMatch capture, Wildcard pre suf) -> Just (pre <> capture <> suf)
         let cleanRelToCfg = T.dropWhileEnd (== '/') <$> maybeRelToCfg
-        let maybeFilePath = (withAbsBaseSafe cfg.baseUrl . encodeOsPath) <$> cleanRelToCfg
+        let maybeFilePath = withAbsBaseSafe cfg.baseUrl . encodeOsPath <$> cleanRelToCfg
         case maybeFilePath of
             Nothing -> tryValues cfg keyMatch vs
             Just filePath ->

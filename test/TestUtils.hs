@@ -1,6 +1,5 @@
 module TestUtils (
     snapshot,
-    runFileSystemTest,
     runCLILogTest,
     runGitTest,
     runAITest,
@@ -14,44 +13,36 @@ module TestUtils (
     TestLogs (..),
     testSecrets,
     defaultTsConfig,
+    emptyTsConfig,
+    mkMapping,
     mkAbsolute,
     pathSafeGolden,
+    requireJust,
+    requireRight,
 ) where
 
+import Control.Exception (throwIO)
+import Control.Exception.Base (AssertionFailed (..))
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
 import Effects.CLILog
-import Effects.FileSystem (AbsPath (osPath), RoFileSystem (..), WrFileSystem (..), encodeOsPathString, fsMkAbsolute, runFileSystemIO, runRoFileSystemIO)
+import Effects.FileSystem (AbsPath (osPath), absPathUnsafe, encodeOsPathString, fsMkAbsolute, runFileSystemIO)
 import Effects.Git
 import Params
 import Secrets (GeminiApiKey (..), Secrets (..))
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeExtension, (</>))
+import Test.Hspec (expectationFailure)
 import Test.Hspec.Golden (Golden, defaultGolden)
-import TypeScript.Config (ImportAlias (..), TsConfigLegacy (..))
+import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import Types (Renderable (render))
 import UI (problemsLogText)
 
 type ModifiedFiles = [OsPath]
-
-runFileSystemTest ::
-    (IOE :> es) =>
-    IORef (Maybe ByteString) ->
-    Eff (WrFileSystem : RoFileSystem : es) a ->
-    Eff es a
-runFileSystemTest ref = runRoFileSystemIO . runWrFileSystemTest ref
-
-runWrFileSystemTest ::
-    (IOE :> es) =>
-    IORef (Maybe ByteString) ->
-    Eff (WrFileSystem : es) a ->
-    Eff es a
-runWrFileSystemTest ref = interpret $ \_ -> \case
-    WriteFile _path content -> liftIO $ writeIORef ref (Just content)
 
 newtype TestLogs = TestLogs
     { problems :: Text
@@ -136,11 +127,30 @@ testSecrets =
         { geminiApiKey = Just $ GeminiApiKey "testKey"
         }
 
-defaultTsConfig :: TsConfigLegacy
+defaultTsConfig :: TsConfig
 defaultTsConfig =
-    TsConfigLegacy
-        { paths =
-            [ ImportAlias {label = "@/", path = "src/"}
-            , ImportAlias {label = "@test/", path = "test/"}
+    TsConfig
+        { baseUrl = absPathUnsafe [osp|/home/repo|]
+        , paths =
+            [ mkMapping (Wildcard "@test/" "") [Wildcard "test/" ""]
+            , mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]
             ]
         }
+
+emptyTsConfig :: TsConfig
+emptyTsConfig = TsConfig {baseUrl = absPathUnsafe [osp|/home/repo|], paths = []}
+
+mkMapping :: Pattern -> [Pattern] -> PathMapping
+mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)
+
+-- | Extracts the value from a Maybe or fails the test beautifully.
+requireJust :: (HasCallStack) => String -> Maybe a -> IO a
+requireJust msg = \case
+    Nothing -> expectationFailure msg >> throwIO (AssertionFailed "unreachable")
+    Just x -> pure x
+
+-- | Extracts the value from an Either or fails the test beautifully.
+requireRight :: (HasCallStack) => (e -> String) -> Either e a -> IO a
+requireRight formatErr = \case
+    Left e -> expectationFailure (formatErr e) >> throwIO (AssertionFailed "unreachable")
+    Right x -> pure x
