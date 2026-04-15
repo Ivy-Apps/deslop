@@ -87,12 +87,12 @@ spec = describe "ModuleResolver" $ do
 
         it "resolves relative to baseUrl when there are no path mappings" $ do
             let result = runEncodeTest baseCfg [osp|/home/repo/src/lib/util.tsx|]
-            result `shouldBe` (Just $ ModuleId "src/lib/util")
+            result `shouldBe` Just (ModuleId "src/lib/util")
 
         it "resolves relative to baseUrl when mappings exist but do not match" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/test/util.ts|]
-            result `shouldBe` (Just $ ModuleId "test/util")
+            result `shouldBe` Just (ModuleId "test/util")
 
         it "applies an Exact path mapping" $ do
             let cfg =
@@ -100,12 +100,12 @@ spec = describe "ModuleResolver" $ do
                         { paths = [mkMapping (Exact "jquery") [Exact "node_modules/jquery/dist/jquery"]]
                         }
             let result = runEncodeTest cfg [osp|/home/repo/node_modules/jquery/dist/jquery.js|]
-            result `shouldBe` (Just $ ModuleId "jquery")
+            result `shouldBe` Just (ModuleId "jquery")
 
         it "applies a Suffix Wildcard path mapping" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/lib/util.tsx|]
-            result `shouldBe` (Just $ ModuleId "@/lib/util")
+            result `shouldBe` Just (ModuleId "@/lib/util")
 
         it "applies an Infix Wildcard path mapping" $ do
             let cfg =
@@ -113,9 +113,9 @@ spec = describe "ModuleResolver" $ do
                         { paths = [mkMapping (Wildcard "@dto/" "-dto") [Wildcard "src/types/" "-dto"]]
                         }
             let resMatch = runEncodeTest cfg [osp|/home/repo/src/types/user/account-dto.ts|]
-            resMatch `shouldBe` (Just $ ModuleId "@dto/user/account-dto")
+            resMatch `shouldBe` Just (ModuleId "@dto/user/account-dto")
             let resNotFound = runEncodeTest cfg [osp|/home/repo/src/types/user/account.ts|]
-            resNotFound `shouldBe` (Just $ ModuleId "src/types/user/account")
+            resNotFound `shouldBe` Just (ModuleId "src/types/user/account")
 
         it "handles prefix wildcards (*-spec)" $ do
             let cfg =
@@ -123,7 +123,7 @@ spec = describe "ModuleResolver" $ do
                         { paths = [mkMapping (Wildcard "@tests/" "-spec") [Wildcard "src/tests/" "-spec"]]
                         }
             let result = runEncodeTest cfg [osp|/home/repo/src/tests/auth-spec.ts|]
-            result `shouldBe` (Just $ ModuleId "@tests/auth-spec")
+            result `shouldBe` Just (ModuleId "@tests/auth-spec")
 
         it "handles fallback values in mapping array (matches the second value)" $ do
             let cfg =
@@ -138,7 +138,7 @@ spec = describe "ModuleResolver" $ do
                         }
             -- Matches the second value "shared/utils/*"
             let result = runEncodeTest cfg [osp|/home/repo/shared/utils/math.ts|]
-            result `shouldBe` (Just $ ModuleId "@utils/math")
+            result `shouldBe` Just (ModuleId "@utils/math")
 
         it "picks the first matched mapping (ensures correct priority execution)" $ do
             let cfg =
@@ -150,7 +150,7 @@ spec = describe "ModuleResolver" $ do
                         }
             -- Even though "src/utils/*" would match, the exact match is listed first.
             let result = runEncodeTest cfg [osp|/home/repo/src/utils/math.ts|]
-            result `shouldBe` (Just $ ModuleId "@utils/math")
+            result `shouldBe` Just (ModuleId "@utils/math")
 
         it "recovers via fall-through if an invalid Exact-Key to Wildcard-Value match is encountered" $ do
             let cfg =
@@ -164,7 +164,7 @@ spec = describe "ModuleResolver" $ do
             -- It should hit the first mapping, realize it can't apply a capture to an Exact key,
             -- safely fall through, and successfully match the second mapping.
             let result = runEncodeTest cfg [osp|/home/repo/src/libs/logger.ts|]
-            result `shouldBe` (Just $ ModuleId "@libs/logger")
+            result `shouldBe` Just (ModuleId "@libs/logger")
 
         it "handles Wildcard keys mapped to Exact values" $ do
             let cfg =
@@ -174,7 +174,7 @@ spec = describe "ModuleResolver" $ do
             let result = runEncodeTest cfg [osp|/home/repo/src/core.ts|]
             -- Candidate "src/core" matches Exact "src/core" -> ExactMatch
             -- Applying ExactMatch to Wildcard "@core/" "" -> "@core/" <> "" <> "" -> "@core/"
-            result `shouldBe` (Just $ ModuleId "@core/")
+            result `shouldBe` Just (ModuleId "@core/")
 
         it "returns Nothing when target is outside baseUrl and no mappings exist" $ do
             let cfg = baseCfg {paths = []}
@@ -211,7 +211,7 @@ spec = describe "ModuleResolver" $ do
         it "resolves a Vite-style alias with a custom symbol ($)" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "$utils/" "") [Wildcard "src/utils/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/utils/formatter.ts|]
-            result `shouldBe` (Just $ ModuleId "$utils/formatter")
+            result `shouldBe` Just (ModuleId "$utils/formatter")
 
         it "resolves to the first available mapping in a multi-value fallback array" $ do
             let cfg =
@@ -226,55 +226,55 @@ spec = describe "ModuleResolver" $ do
                         }
             -- If the file is in the first target path
             let result = runEncodeTest cfg [osp|/home/repo/src/lib/core.ts|]
-            result `shouldBe` (Just $ ModuleId "@lib/core")
+            result `shouldBe` Just (ModuleId "@lib/core")
 
         it "resolves a shared assets folder alias common in React/Vite" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@assets/" "") [Wildcard "src/assets/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/assets/images/logo.png|]
-            result `shouldBe` (Just $ ModuleId "@assets/images/logo.png")
+            result `shouldBe` Just (ModuleId "@assets/images/logo.png")
 
         it "resolves a root-level config file using an exact alias" $ do
             let cfg = baseCfg {paths = [mkMapping (Exact "config") [Exact "constants/app-config"]]}
             let result = runEncodeTest cfg [osp|/home/repo/constants/app-config.ts|]
-            result `shouldBe` (Just $ ModuleId "config")
+            result `shouldBe` Just (ModuleId "config")
 
         it "resolves a CSS module file retaining its full extension (.module.css)" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/components/Button.module.css|]
-            result `shouldBe` (Just $ ModuleId "@/components/Button.module.css")
+            result `shouldBe` Just (ModuleId "@/components/Button.module.css")
 
         it "resolves a directory index file to the directory name (clean index resolution)" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             -- Logical resolution of /index.ts should often prefer the directory name in modern stacks
             let result = runEncodeTest cfg [osp|/home/repo/src/lib/utils/index.ts|]
-            result `shouldBe` (Just $ ModuleId "@/lib/utils/index")
+            result `shouldBe` Just (ModuleId "@/lib/utils/index")
 
         it "resolves a type definition file (.d.ts) by dropping the extension like a source file" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/types/user.d.ts|]
-            result `shouldBe` (Just $ ModuleId "@types/user")
+            result `shouldBe` Just (ModuleId "@types/user")
 
         it "resolves a file with multiple dots (e.g. .controller.ts) by dropping only the final extension" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@api/" "") [Wildcard "src/api/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/api/user.controller.ts|]
-            result `shouldBe` (Just $ ModuleId "@api/user.controller")
+            result `shouldBe` Just (ModuleId "@api/user.controller")
 
         it "resolves a directory index.d.ts file to the clean directory alias" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/types/global/index.d.ts|]
-            result `shouldBe` (Just $ ModuleId "@types/global/index")
+            result `shouldBe` Just (ModuleId "@types/global/index")
 
         it "resolves modern TS extensions (.mts, .cts) by dropping the extension" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@lib/" "") [Wildcard "src/lib/" ""]]}
             -- NOTE: This will fail until you add .mts, .cts, .mjs, .cjs to `dropTypeScriptExtension`!
             let result = runEncodeTest cfg [osp|/home/repo/src/lib/math.mts|]
-            result `shouldBe` (Just $ ModuleId "@lib/math")
+            result `shouldBe` Just (ModuleId "@lib/math")
 
         it "resolves modern TS double-extensions (.d.mts, .d.cts) by dropping both" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
             -- NOTE: This will fail until you add .d.mts and .d.cts to `dropTypeScriptExtension`!
             let result = runEncodeTest cfg [osp|/home/repo/src/types/node.d.mts|]
-            result `shouldBe` (Just $ ModuleId "@types/node")
+            result `shouldBe` Just (ModuleId "@types/node")
 
     describe "isRelativeImport" $ do
         it "identifies strict current directory (.)" $ do
