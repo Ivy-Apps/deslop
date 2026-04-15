@@ -1,0 +1,186 @@
+>>> FILE: src/app/[locale]/login/page.tsx
+"use client";
+
+import React from 'react';
+// Testing even deeper relative imports
+import { validateUsername } from '@/features/login/login-form';
+import { capitalize } from '@/lib/util';
+
+export default function LoginPage() {
+  // AI-generated state handler
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isValid = validateUsername("test_user");
+    alert(isValid ? "Success" : "Failure");
+  };
+
+  return (
+    <div>
+      <h2>{capitalize("login")}</h2>
+      <button onClick={handleLogin}>Log In</button>
+    </div>
+  );
+}
+
+
+>>> FILE: src/features/home/home-screen.tsx
+import React from 'react';
+// Testing relative import resolution:
+import { getHomeData } from "@/features/home/home-component"; 
+// Testing cross-directory relative import resolution:
+import { Button } from "@/components/ds/Button";
+
+/**
+ * AI-generated: Home Screen layout.
+ * This component fetches home data and renders the DS button.
+ */
+export const HomeScreen: React.FC = () => {
+  const homeData = getHomeData();
+
+  const handleAction = () => {
+    // AI: Placeholder for analytics tracking
+    console.log("Button clicked on Home Screen");
+    alert(`Action for: ${homeData.title}`);
+  };
+
+  return (
+    <div className="home-screen-container">
+      <header>
+        <h1>{homeData.title}</h1>
+      </header>
+      
+      <section>
+        <p>Welcome back! Your last update was: {homeData.lastUpdated}</p>
+        
+        {/* AI: Example of using the DS Button with props */}
+        <Button 
+          label="Refresh Dashboard" 
+          variant="primary" 
+          onClick={handleAction} 
+        />
+      </section>
+    </div>
+  );
+};
+
+
+>>> FILE: src/features/home/home-component.ts
+import { formatDate } from "@/lib/util";
+
+export const getHomeData = async () => {
+  const module = await import ('@/features/heavy-module');
+  const extras = await import ('@/lib/extra').extras;
+
+  return {
+    title: "Welcome Home",
+    lastUpdated: formatDate(new Date()),
+  };
+};
+
+
+>>> FILE: src/features/home/home.spec.ts
+import { getHomeData } from "@/features/home/home-component";
+import { mockUser } from "@tests/fixtures/fixtures";
+import * from "@tests/test-log"
+
+describe("Home Feature", () => {
+    it("should return valid home data for the mock user", () => {
+        testLog('Home feature test suite')
+        const data = getHomeData();
+        expect(data.title).toBeDefined();
+        expect(mockUser.name).toBe("John Doe");
+    });
+});
+
+
+>>> FILE: src/app/[locale]/login/page.tsx
+"use client";
+
+import React from 'react';
+// Testing even deeper relative imports
+import { validateUsername } from '@/features/login/login-form';
+import { capitalize } from '@/lib/util';
+
+export default function LoginPage() {
+  // AI-generated state handler
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const isValid = validateUsername("test_user");
+    alert(isValid ? "Success" : "Failure");
+  };
+
+  return (
+    <div>
+      <h2>{capitalize("login")}</h2>
+      <button onClick={handleLogin}>Log In</button>
+    </div>
+  );
+}
+
+
+>>> FILE: src/features/login/login.spec.ts
+import { validateUsername } from "@/features/login/login-form";
+import { mockUser } from "@tests/fixtures/fixtures";
+
+describe("Login Feature", () => {
+  // AI: Ensure the username from fixtures is valid
+  it("should validate the fixture user correctly", () => {
+    const result = validateUsername(mockUser.name);
+    expect(result).toBe(true);
+  });
+});
+
+
+>>> FILE: src/features/login/login-form.ts
+import { capitalize } from "@/lib/util";
+import {
+  mockUser,
+  mockCredentials
+} from '@/tests/fixtures'
+
+export const validateUsername = (name: string) => {
+  // 1. Validate input
+  if (name.length < 3) return false;
+
+  // 1a. Log for debug purposes
+  console.log(`Validating user: ${capitalize(name)}`);
+
+  // 2. Valid name - return true
+  return true;
+};
+
+
+>>> FILE: tests/fixtures.ts
+// AI: Mock data for unit tests
+import { formatDate } from "../../src/lib/util";
+
+export const mockUser = {
+  id: 1,
+  name: "John Doe",
+  createdAt: formatDate(new Date()),
+};
+
+
+
+>>> FILE: vitest.config.ts
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { defineConfig } from 'vitest/config';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.spec.ts', 'src/**/*.spec.tsx'],
+    exclude: ['node_modules', 'dist'],
+    globals: false,
+    setupFiles: ['./vitest.setup.ts'],
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+      '@test': path.resolve(__dirname, 'test'),
+    },
+  },
+});

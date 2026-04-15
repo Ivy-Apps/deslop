@@ -31,7 +31,7 @@ spec = describe "Deslop project" $ do
         , "src/app/[locale]/login/page.tsx"
         , "src/features/login/login.spec.ts"
         , "src/features/login/login-form.ts"
-        , "tests/fixtures/fixtures.ts"
+        , "tests/fixtures.ts"
         , "vitest.config.ts"
         ]
 
