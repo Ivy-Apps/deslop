@@ -1,5 +1,6 @@
 module TypeScript.ModuleResolver (
-    ModuleId (..),
+    ModuleId (text),
+    moduleIdUnsafe,
     reverseResolve,
     reverseResolveImport,
     resolve,
@@ -19,7 +20,13 @@ import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsCon
 or ./LoginView (relative to the current file) or ../../lib/util (relative to the current file)
 or /home/repo/src/lib/util
 -}
-newtype ModuleId = ModuleId Text deriving stock (Show, Eq)
+newtype ModuleId = ModuleId
+    { text :: Text
+    }
+    deriving stock (Show, Eq)
+
+moduleIdUnsafe :: Text -> ModuleId
+moduleIdUnsafe = ModuleId
 
 reverseResolveImport ::
     ( RoFileSystem :> es

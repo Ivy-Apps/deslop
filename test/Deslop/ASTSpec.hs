@@ -14,7 +14,7 @@ import Test.Hspec
 import TestUtils (defaultTsConfig, emptyTsConfig)
 import TypeScript.CST (TsNode (..), TsProgram (..))
 import TypeScript.Config
-import TypeScript.ModuleResolver (ModuleId (..))
+import TypeScript.ModuleResolver (moduleIdUnsafe)
 
 spec :: Spec
 spec = describe "parseAst" $ do
@@ -38,9 +38,9 @@ spec = describe "parseAst" $ do
                 $ parseAst prog
         ast
             `shouldBe` AstModule
-                { id = ModuleId "@/lib/demo"
+                { id = moduleIdUnsafe "@/lib/demo"
                 , nodes =
-                    [ ImportNode {target = ModuleId "@/types/errors"}
+                    [ ImportNode {target = moduleIdUnsafe "@/types/errors"}
                     ]
                 }
 
@@ -68,9 +68,9 @@ spec = describe "parseAst" $ do
                 $ parseAst prog
         ast
             `shouldBe` AstModule
-                { id = ModuleId "src/main"
+                { id = moduleIdUnsafe "src/main"
                 , nodes =
-                    [ ImportNode {target = ModuleId "react"}
-                    , ImportNode {target = ModuleId "src/types/errors"}
+                    [ ImportNode {target = moduleIdUnsafe "react"}
+                    , ImportNode {target = moduleIdUnsafe "src/types/errors"}
                     ]
                 }
