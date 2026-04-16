@@ -73,8 +73,12 @@ rules:
     uses-optional:
       - "{{TARGET_DIR}}/data/{{FileName}}-repository"
       - "@/data/**/*-repository"
+      - "{{TARGET_DIR}}/domain/**/*"
+      - "@/domain/**/*"
     forbidden:
       - functional-call: fetch
+      - import: "{{TARGET_DIR}}/{{FileName}}View"
+      - import: "@/**/components/**/*"
     example: |
       import { useState } from "react";
       import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent";
@@ -106,7 +110,7 @@ rules:
     fix: >-
       Extract any UI (JSX) into the View component. Remove direct `fetch` calls and replace them
       with function calls imported from a `-repository` file. Ensure the hook returns the current 
-      `state` and an `onEvent` dispatcher.
+      `state` and an `onEvent` dispatcher. Do not import any Views or UI components from any directory.
 
   - id: viewmodel-test
     description: >-
@@ -154,6 +158,8 @@ rules:
     uses-optional:
       - "{{TARGET_DIR}}/components/*"
       - "@/components/**/*"
+    forbidden:
+      - functional-call: fetch
     example: |
       import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent";
       import { Button } from "@/components/ui/Button";
