@@ -29,7 +29,7 @@ rules:
     fix: Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container.
 
 
-  - id: container-wires-view-and-viewmodel
+  - id: page-container-wires-view-and-viewmodel
     description: >- 
       A Container is a glue code executed on the client side that connects a View with its ViewModel hook.
       The Container optionally accepts initial SSR data from the page and passes it to the ViewModel.
@@ -37,11 +37,13 @@ rules:
       - "@/features/**/{{FileName}}Container"
     execution-context: client
     uses:
+      - "@/features/**/{{FileName}}StateEvent"
       - "@/features/**/use{{FileName}}ViewModel"
       - "@/features/**/{{FileName}}View"
     example: |
       "use client"
 
+      import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent"
       import { HomeView } from "@/features/home/HomeView";
       import { useHomeViewModel } from "@/features/home/useHomeViewModel"
 
@@ -58,3 +60,14 @@ rules:
       Add a "use client" directive at the top of the file.
       Make sure that you're using the feature's View and ViewModel.
       The purpose of the Container is to wire the View and the ViewModel together.
+
+  - id: page-view
+    description: >- 
+      Each page/feature should have a pure UI (View) that renders the UiState 
+      and submits user interactions as UiEvents.
+    target:
+      - "@/features/**/{{FeatureName}}View"
+    uses:
+      - "@/features/**/{{FeatureName}}StateEvent"
+    example: |
+      TBD
