@@ -51,7 +51,8 @@ library
     Deslop.MCP
     Deslop.RelativeImports
     Deslop.Rulebook
-    Deslop.RulebookEnforcer
+    Deslop.RuleEnforcer
+    Deslop.RuleExplainer
     Effects.AI
     Effects.CLILog
     Effects.FileSystem
