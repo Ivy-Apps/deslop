@@ -66,8 +66,28 @@ rules:
       Each page/feature should have a pure UI (View) that renders the UiState 
       and submits user interactions as UiEvents.
     target:
-      - "@/features/**/{{FeatureName}}View"
+      - "@/features/**/{{FileName}}View"
+    execution-context: client
     uses:
-      - "@/features/**/{{FeatureName}}StateEvent"
+      - "@/features/**/{{FileName}}StateEvent"
     example: |
-      TBD
+      import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent";
+
+      export interface Props {
+        state: HomeUiState;
+        onEvent: (event: HomeUiEvent) => void;
+      }
+
+      export function HomeView({ state, onEvent }: Props) {
+        return (
+          <div>
+            <h1>Hello, {state.user?.name || "Guest"}</h1>
+            <button onClick={() => onEvent({ type: "LOGOUT_CLICKED" })}>
+              Logout
+            </button>
+          </div>
+        );
+      }
+    fix: >-
+      Ensure the View is a pure UI component that only receives `state` and an `onEvent` callback.
+      It should not contain data fetching, complex business logic, or its own state hooks.
