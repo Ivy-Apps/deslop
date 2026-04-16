@@ -10,7 +10,7 @@ rules:
       - "@/app/**/page"
     execution-context: server
     example: | 
-      import { HomeContainer } from "@/features/home/HomeContainer"
+      import { HomeContainer } from "@/features/home/HomeContainer";
 
       export default async function HomePage() {
         const user = await fetchUserSSR();
@@ -28,5 +28,33 @@ rules:
       - "@/features/**/*Container"
     fix: Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container.
 
-    
-    
+
+  - id: container-wires-view-and-viewmodel
+    description: >- 
+      A Container is a glue code executed on the client side that connects a View with its ViewModel hook.
+      The Container optionally accepts initial SSR data from the page and passes it to the ViewModel.
+    target:
+      - "@/features/**/{{FileName}}Container"
+    execution-context: client
+    uses:
+      - "@/features/**/use{{FileName}}ViewModel"
+      - "@/features/**/{{FileName}}View"
+    example: |
+      "use client"
+
+      import { HomeView } from "@/features/home/HomeView";
+      import { useHomeViewModel } from "@/features/home/useHomeViewModel"
+
+      // Optional pre-loaded data passed from the page
+      export interface Props {
+        user: User | null;
+      }
+
+      export function HomeContainer({ user }: Props) {
+        const { state, onEvent } = useHomeViewModel({ user });
+        return <HomeView state={state} onEvent={onEvent} />;
+      }
+    fix: >-
+      Add a "use client" directive at the top of the file.
+      Make sure that you're using the feature's View and ViewModel.
+      The purpose of the Container is to wire the View and the ViewModel together.
