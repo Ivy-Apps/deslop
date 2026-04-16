@@ -46,13 +46,17 @@ library
   exposed-modules:
     Deslop
     Deslop.AST
+    Deslop.Baseline
     Deslop.CodeGraph
+    Deslop.MCP
     Deslop.RelativeImports
-    Deslop.RuleBook
+    Deslop.Rulebook
+    Deslop.RulebookEnforcer
     Effects.AI
     Effects.CLILog
     Effects.FileSystem
     Effects.Git
+    Effects.Licensing
     Effects.ReportProblem
     Params
     Prelude

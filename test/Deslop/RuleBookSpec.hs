@@ -5,8 +5,8 @@ module Deslop.RuleBookSpec (spec) where
 import Control.Lens ((.~), (?~))
 import Data.List ((!!))
 import Data.Text qualified as T
-import Deslop.RuleBook
 import Deslop.RuleBookFixtures qualified as Fix
+import Deslop.Rulebook
 import Effectful (runEff)
 import Effects.FileSystem (decodeOsPath, runFileSystemIO)
 import System.File.OsPath qualified as SFO

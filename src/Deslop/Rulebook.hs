@@ -1,7 +1,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Deslop.RuleBook (
+module Deslop.Rulebook (
     RuleBookDto (..),
     RuleDto (..),
     RuleId (..),

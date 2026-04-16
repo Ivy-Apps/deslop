@@ -10,7 +10,7 @@ module Deslop.RuleBookFixtures (
 where
 
 import Data.Text qualified as T
-import Deslop.RuleBook (
+import Deslop.Rulebook (
     ForbiddenDto (..),
     GlobDto (..),
     RuleBookDto (..),
