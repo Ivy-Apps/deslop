@@ -1,0 +1,32 @@
+name: Page Architecture
+description: Architectural rules to build web pages
+rules:
+  - id: next-js-page-on-server
+    description: >-
+      Add a page in /src/app/[locale]/{route} to connect it with the NextJS router. 
+      It should be executed on the server. 
+      Use the page to SSR data and pass it as a parameter to the Container that will display the UI.
+    target: 
+      - "@/app/**/page"
+    execution-context: server
+    example: | 
+      import { HomeContainer } from "@/features/home/HomeContainer"
+
+      export default async function HomePage() {
+        const user = await fetchUserSSR();
+        return <HomeContainer initialData={user} />
+      }
+    fix: >- 
+      Make sure that there is no 'use client' and no client-side code is executed in the page TS module.
+      If you need a client side code (React state / hooks) move it to a @/features/**/*Container.
+
+  - id: page-container
+    description: Each page should have a Container that's executed on the client. It connects the View (pure UI) and its viewmodel hook.
+    target:
+      - "@/app/**/page"
+    uses:
+      - "@/features/**/*Container"
+    fix: Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container.
+
+    
+    
