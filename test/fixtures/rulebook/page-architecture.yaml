@@ -28,13 +28,108 @@ rules:
       - "@/features/**/*Container"
     fix: Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container.
 
-
   - id: page-container-wires-view-and-viewmodel
     description: >- 
       A Container is a glue code executed on the client side that connects a View with its ViewModel hook.
       The Container optionally accepts initial SSR data from the page and passes it to the ViewModel.
     target:
       - "@/features/**/{{FileName}}Container"
+    execution-context: client
+    uses:
+      - "@/features/**/{{FileName}}StateEvent"
+      - "@/features/**/use{{FileName}}ViewModel"
+      - "@/features/**/{{FileName}}View"
+    example: |
+      "use client"
+
+      import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent"
+      import { HomeView } from "@/features/home/HomeView";
+      import { useHomeViewModel } from "@/features/home/useHomeViewModel"
+
+      // Optional pre-loaded data passed from the page
+      export interface Props {
+        user: User | null;
+      }
+
+      export function HomeContainer({ user }: Props) {
+        const { state, onEvent } = useHomeViewModel({ user });
+        return <HomeView state={state} onEvent={onEvent} />;
+      }
+    fix: >-
+      Add a "use client" directive at the top of the file.
+      Make sure that you're using the feature's View and ViewModel.
+      The purpose of the Container is to wire the View and the ViewModel together.
+
+  - id: page-view
+    description: >- 
+      Each page/feature should have a pure UI (View) that renders the UiState 
+      and submits user interactions as UiEvents.
+    target:
+      - "@/features/**/{{FileName}}View"
+    execution-context: client
+    uses:
+      - "@/features/**/{{FileName}}StateEvent"
+    example: |
+      import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent";
+
+      export interface Props {
+        state: HomeUiState;
+        onEvent: (event: HomeUiEvent) => void;
+      }
+
+      export function HomeView({ state, onEvent }: Props) {
+        return (
+          <div>
+            <h1>Hello, {state.user?.name || "Guest"}</h1>
+            <button onClick={() => onEvent({ type: "LOGOUT_CLICKED" })}>
+              Logout
+            </button>
+          </div>
+        );
+      }
+    fix: >-
+      Ensure the View is a pure UI component that only receives `state` and an `onEvent` callback.
+      It should not contain data fetching, complex business logic, or its own state hooks.
+
+  - id: page-view-storybook
+    description: >-
+      Each pure UI View should have a corresponding Storybook file to develop, test, 
+      and document its various UI states in isolation.
+    target:
+      - "@/features/**/{{FileName}}View"
+    exists: 
+      - "{{TARGET_DIR}}/{{FileName}}View.stories.tsx"
+    example: |
+      import type { Meta, StoryObj } from "@storybook/react";
+      import { HomeView } from "./HomeView";
+
+      const meta: Meta<typeof HomeView> = {
+        component: HomeView,
+        title: "Features/Home/HomeView",
+      };
+
+      export default meta;
+      type Story = StoryObj<typeof HomeView>;
+
+      // Mock onEvent as a no-op function to simply display the UI state
+      const noop = () => {};
+
+      export const Default: Story = {
+        args: {
+          state: { user: { name: "Alice" } },
+          onEvent: noop,
+        },
+      };
+
+      export const Guest: Story = {
+        args: {
+          state: { user: null },
+          onEvent: noop,
+        },
+      };
+    fix: >-
+      Create a Storybook file named `{{FileName}}View.stories.tsx` in the same directory as the View.
+      Ensure you mock the necessary `state` to showcase various UI states and provide a no-op for the `onEvent` prop.      - "@/features/**/{{FileName}}Container"
     execution-context: client
     uses:
       - "@/features/**/{{FileName}}StateEvent"
