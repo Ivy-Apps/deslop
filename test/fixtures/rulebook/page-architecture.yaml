@@ -36,9 +36,9 @@ rules:
       - "@/features/**/{{FileName}}Container"
     execution-context: client
     uses:
-      - "@/features/**/{{FileName}}StateEvent"
-      - "@/features/**/use{{FileName}}ViewModel"
-      - "@/features/**/{{FileName}}View"
+      - "{{TARGET_DIR}}/{{FileName}}StateEvent"
+      - "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+      - "{{TARGET_DIR}}/{{FileName}}View"
     example: |
       "use client"
 
@@ -57,8 +57,90 @@ rules:
       }
     fix: >-
       Add a "use client" directive at the top of the file.
-      Make sure that you're using the feature's View and ViewModel.
+      Make sure that you're using the feature's View and ViewModel from the same directory.
       The purpose of the Container is to wire the View and the ViewModel together.
+
+  - id: viewmodel
+    description: >-
+      The ViewModel is a custom React hook that encapsulates the View's state and business logic.
+      It must be strictly free of UI elements (JSX) and must not perform direct HTTP fetch calls.
+      Instead, it should manage the state and delegate data fetching to the data layer (repositories).
+    target: 
+      - "@/features/**/use{{FileName}}ViewModel"
+    execution-context: client
+    uses:
+      - "{{TARGET_DIR}}/{{FileName}}StateEvent"
+    uses-optional:
+      - "{{TARGET_DIR}}/data/{{FileName}}-repository"
+      - "@/data/**/*-repository"
+    forbidden:
+      - functional-call: fetch
+    example: |
+      import { useState } from "react";
+      import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent";
+      import { logoutUser } from "@/features/home/data/Home-repository";
+
+      export interface Props {
+        user: User | null;
+      }
+
+      export function useHomeViewModel(props: Props) {
+        const [state, setState] = useState<HomeUiState>({ 
+          user: props.user,
+          isLoading: false 
+        });
+
+        const onEvent = async (event: HomeUiEvent) => {
+          switch (event.type) {
+            case "LOGOUT_CLICKED":
+              setState(prev => ({ ...prev, isLoading: true }));
+              // Delegate to the repository instead of using fetch()
+              await logoutUser();
+              setState({ user: null, isLoading: false });
+              break;
+          }
+        };
+
+        return { state, onEvent };
+      }
+    fix: >-
+      Extract any UI (JSX) into the View component. Remove direct `fetch` calls and replace them
+      with function calls imported from a `-repository` file. Ensure the hook returns the current 
+      `state` and an `onEvent` dispatcher.
+
+  - id: viewmodel-test
+    description: >-
+      Each ViewModel must have a corresponding unit test file to verify its state transitions, 
+      event handling, and business logic independently of the UI components.
+    target:
+      - "@/features/**/use{{FileName}}ViewModel"
+    exists:
+      - "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
+    uses:
+      - "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+    example: |
+      import { renderHook, act } from "@testing-library/react";
+      import { useHomeViewModel } from "@/features/home/useHomeViewModel";
+      import * as repository from "@/features/home/data/Home-repository";
+
+      // Mock the repository to isolate the ViewModel logic
+      vi.mock("@/features/home/data/Home-repository");
+
+      describe("useHomeViewModel", () => {
+        it("handles LOGOUT_CLICKED event properly", async () => {
+          const { result } = renderHook(() => useHomeViewModel({ user: { name: "Alice" } }));
+          
+          await act(async () => {
+            await result.current.onEvent({ type: "LOGOUT_CLICKED" });
+          });
+
+          expect(repository.logoutUser).toHaveBeenCalled();
+          expect(result.current.state.user).toBeNull();
+        });
+      });
+    fix: >-
+      Create a unit test file named `use{{FileName}}ViewModel.spec.ts` in the same directory.
+      Ensure you import the ViewModel hook from `{{TARGET_DIR}}/use{{FileName}}ViewModel` and test its state and event dispatcher.
 
   - id: page-view
     description: >- 
@@ -68,9 +150,14 @@ rules:
       - "@/features/**/{{FileName}}View"
     execution-context: client
     uses:
-      - "@/features/**/{{FileName}}StateEvent"
+      - "{{TARGET_DIR}}/{{FileName}}StateEvent"
+    uses-optional:
+      - "{{TARGET_DIR}}/components/*"
+      - "@/components/**/*"
     example: |
       import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent";
+      import { Button } from "@/components/ui/Button";
+      import { UserAvatar } from "@/features/home/components/UserAvatar";
 
       export interface Props {
         state: HomeUiState;
@@ -80,16 +167,18 @@ rules:
       export function HomeView({ state, onEvent }: Props) {
         return (
           <div>
+            <UserAvatar user={state.user} />
             <h1>Hello, {state.user?.name || "Guest"}</h1>
-            <button onClick={() => onEvent({ type: "LOGOUT_CLICKED" })}>
+            <Button onClick={() => onEvent({ type: "LOGOUT_CLICKED" })}>
               Logout
-            </button>
+            </Button>
           </div>
         );
       }
     fix: >-
       Ensure the View is a pure UI component that only receives `state` and an `onEvent` callback.
       It should not contain data fetching, complex business logic, or its own state hooks.
+      Use local or global shared components for the UI blocks.
 
   - id: page-view-storybook
     description: >-
@@ -98,10 +187,10 @@ rules:
     target:
       - "@/features/**/{{FileName}}View"
     exists: 
-      - "{{TARGET_DIR}}/{{FileName}}View.stories.tsx"
+      - "{{TARGET_DIR}}/{{FileName}}View.stories"
     example: |
       import type { Meta, StoryObj } from "@storybook/react";
-      import { HomeView } from "./HomeView";
+      import { HomeView } from "@/features/home/HomeView";
 
       const meta: Meta<typeof HomeView> = {
         component: HomeView,
@@ -129,60 +218,4 @@ rules:
       };
     fix: >-
       Create a Storybook file named `{{FileName}}View.stories.tsx` in the same directory as the View.
-      Ensure you mock the necessary `state` to showcase various UI states and provide a no-op for the `onEvent` prop.      - "@/features/**/{{FileName}}Container"
-    execution-context: client
-    uses:
-      - "@/features/**/{{FileName}}StateEvent"
-      - "@/features/**/use{{FileName}}ViewModel"
-      - "@/features/**/{{FileName}}View"
-    example: |
-      "use client"
-
-      import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent"
-      import { HomeView } from "@/features/home/HomeView";
-      import { useHomeViewModel } from "@/features/home/useHomeViewModel"
-
-      // Optional pre-loaded data passed from the page
-      export interface Props {
-        user: User | null;
-      }
-
-      export function HomeContainer({ user }: Props) {
-        const { state, onEvent } = useHomeViewModel({ user });
-        return <HomeView state={state} onEvent={onEvent} />;
-      }
-    fix: >-
-      Add a "use client" directive at the top of the file.
-      Make sure that you're using the feature's View and ViewModel.
-      The purpose of the Container is to wire the View and the ViewModel together.
-
-  - id: page-view
-    description: >- 
-      Each page/feature should have a pure UI (View) that renders the UiState 
-      and submits user interactions as UiEvents.
-    target:
-      - "@/features/**/{{FileName}}View"
-    execution-context: client
-    uses:
-      - "@/features/**/{{FileName}}StateEvent"
-    example: |
-      import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent";
-
-      export interface Props {
-        state: HomeUiState;
-        onEvent: (event: HomeUiEvent) => void;
-      }
-
-      export function HomeView({ state, onEvent }: Props) {
-        return (
-          <div>
-            <h1>Hello, {state.user?.name || "Guest"}</h1>
-            <button onClick={() => onEvent({ type: "LOGOUT_CLICKED" })}>
-              Logout
-            </button>
-          </div>
-        );
-      }
-    fix: >-
-      Ensure the View is a pure UI component that only receives `state` and an `onEvent` callback.
-      It should not contain data fetching, complex business logic, or its own state hooks.
+      Ensure you mock the necessary `state` to showcase various UI states and provide a no-op for the `onEvent` prop.
