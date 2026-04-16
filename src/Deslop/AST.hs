@@ -10,7 +10,7 @@ import Effectful.Reader.Static (Reader)
 import Effects.FileSystem (RoFileSystem, decodeOsPath)
 import TypeScript.CST (TsNode (..), TsProgram (cst, path))
 import TypeScript.Config (TsConfig)
-import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe)
+import TypeScript.ModuleResolver (ModuleId (..), dropTypeScriptExtension, moduleIdUnsafe)
 
 newtype AstNode = ImportNode
     { target :: ModuleId
@@ -31,7 +31,7 @@ parseAst prog = do
             , nodes = mapMaybe parseNode prog.cst
             }
   where
-    programModuleId = fixTarget prog.path (decodeOsPath prog.path)
+    programModuleId = fixTarget prog.path (decodeOsPath . dropTypeScriptExtension $ prog.path)
     parseNode :: TsNode -> Maybe AstNode
     parseNode (Import _ t _) =
         Just $
