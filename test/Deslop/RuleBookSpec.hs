@@ -1,4 +1,4 @@
-module Deslop.RuleBookSpec (spec) where
+module Deslop.RulebookSpec (spec) where
 
 import Data.Text qualified as T
 import Deslop.Rulebook
@@ -16,11 +16,11 @@ rbFixturesPath = [osp|test/fixtures/rulebook|]
 
 spec :: Spec
 spec = do
-    describe "parseRuleBookYaml" $
+    describe "parseRulebookYaml" $
         runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ parseRuleBookTest
-    describe "ruleBookFromFile" $
+    describe "rulebookFromFile" $
         runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ ruleBookFromFileTest
-    describe "loadRuleBook" $ do
+    describe "loadRulebook" $ do
         it "valid-rules-1" $ do
             res <- runEff . runFileSystemIO $ loadRuleBookFrom (rbFixturesPath </> [osp|valid-rules-1|])
             return $ defaultGolden "loadRuleBook--valid-rules-1" (ppShow res)
