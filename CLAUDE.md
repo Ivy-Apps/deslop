@@ -14,4 +14,3 @@ Run a single test file:
 ```bash
 nix develop -c cabal test --test-options "--match /TypeScript.Lexer/"
 ```
-
