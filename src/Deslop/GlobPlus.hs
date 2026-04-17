@@ -38,9 +38,9 @@ import Text.Show (Show (..), showString, shows)
 
 data Casing
     = -- | {{FileName}}
-      CamelCase
+      PascalCase
     | -- | {{fileName}}
-      LowerCamelCase
+      CamelCase
     | -- | {{FILE_NAME}}
       ConstantCase
     | -- | {{file-name}}
@@ -139,8 +139,8 @@ pRuleVar =
 pCasing :: Parser Casing
 pCasing =
     choice
-        [ CamelCase <$ string "FileName"
-        , LowerCamelCase <$ string "fileName"
+        [ PascalCase <$ string "FileName"
+        , CamelCase <$ string "fileName"
         , ConstantCase <$ string "FILE_NAME"
         , KebabCase <$ string "file-name"
         ]
@@ -160,8 +160,8 @@ compileTargetPattern (Pattern tokens) =
     toRegex (Literal t) = escapeRegex t
     toRegex Star = "[^/]*"
     toRegex GlobStar = ".*"
-    toRegex (Var (TVar CamelCase)) = "([A-Z][a-zA-Z0-9]*)"
-    toRegex (Var (TVar LowerCamelCase)) = "([a-z][a-zA-Z0-9]*)"
+    toRegex (Var (TVar PascalCase)) = "([A-Z][a-zA-Z0-9]*)"
+    toRegex (Var (TVar CamelCase)) = "([a-z][a-zA-Z0-9]*)"
     toRegex (Var (TVar KebabCase)) = "([a-z0-9-]+)"
     toRegex (Var (TVar ConstantCase)) = "([A-Z0-9_]+)"
 
@@ -223,8 +223,8 @@ enrichCasings baseMap =
 generateAllCasings :: Text -> [(Casing, Text)]
 generateAllCasings txt =
     let tokens = tokenizeCase txt
-     in [ (CamelCase, toCamelCase tokens)
-        , (LowerCamelCase, toLowerCamelCase tokens)
+     in [ (PascalCase, toPascalCase tokens)
+        , (CamelCase, toCamelCase tokens)
         , (KebabCase, toKebabCase tokens)
         , (ConstantCase, toConstantCase tokens)
         ]
@@ -244,10 +244,10 @@ tokenizeCase txt =
                 txt
      in filter (not . T.null) $ T.words (T.toLower spaced)
 
-toCamelCase, toLowerCamelCase, toKebabCase, toConstantCase :: [Text] -> Text
-toCamelCase = T.concat . map capitalize
-toLowerCamelCase [] = ""
-toLowerCamelCase (x : xs) = x <> T.concat (map capitalize xs)
+toPascalCase, toCamelCase, toKebabCase, toConstantCase :: [Text] -> Text
+toPascalCase = T.concat . map capitalize
+toCamelCase [] = ""
+toCamelCase (x : xs) = x <> T.concat (map capitalize xs)
 toKebabCase = T.intercalate "-"
 toConstantCase = T.intercalate "_" . map T.toUpper
 

@@ -32,8 +32,8 @@ spec = do
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/UserSettingsView"
 
             env.targetDir `shouldBe` "@/features"
-            Map.lookup CamelCase env.casings `shouldBe` Just "UserSettings"
-            Map.lookup LowerCamelCase env.casings `shouldBe` Just "userSettings"
+            Map.lookup PascalCase env.casings `shouldBe` Just "UserSettings"
+            Map.lookup CamelCase env.casings `shouldBe` Just "userSettings"
             Map.lookup KebabCase env.casings `shouldBe` Just "user-settings"
             Map.lookup ConstantCase env.casings `shouldBe` Just "USER_SETTINGS"
 
@@ -42,12 +42,12 @@ spec = do
             -- lowercase start violates {{FileName}} which requires [A-Z][a-zA-Z0-9]*
             matchTarget target "@/features/userSettingsView" `shouldBe` Nothing
 
-        it "extracts {{fileName}} (lowerCamelCase) and enriches all other casings" $ do
+        it "extracts {{fileName}} (camelCase) and enriches all other casings" $ do
             let target = unsafeCompileTarget "@/features/{{fileName}}Controller"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/userProfileController"
 
-            Map.lookup LowerCamelCase env.casings `shouldBe` Just "userProfile"
-            Map.lookup CamelCase env.casings `shouldBe` Just "UserProfile"
+            Map.lookup CamelCase env.casings `shouldBe` Just "userProfile"
+            Map.lookup PascalCase env.casings `shouldBe` Just "UserProfile"
             Map.lookup KebabCase env.casings `shouldBe` Just "user-profile"
             Map.lookup ConstantCase env.casings `shouldBe` Just "USER_PROFILE"
 
@@ -56,8 +56,8 @@ spec = do
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/user-settings-repository"
 
             Map.lookup KebabCase env.casings `shouldBe` Just "user-settings"
-            Map.lookup CamelCase env.casings `shouldBe` Just "UserSettings"
-            Map.lookup LowerCamelCase env.casings `shouldBe` Just "userSettings"
+            Map.lookup PascalCase env.casings `shouldBe` Just "UserSettings"
+            Map.lookup CamelCase env.casings `shouldBe` Just "userSettings"
             Map.lookup ConstantCase env.casings `shouldBe` Just "USER_SETTINGS"
 
         it "extracts {{FileName}} preceded by a literal prefix (use{{FileName}}ViewModel)" $ do
@@ -65,7 +65,7 @@ spec = do
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/auth/useUserAuthViewModel"
 
             env.targetDir `shouldBe` "@/features/auth"
-            Map.lookup CamelCase env.casings `shouldBe` Just "UserAuth"
+            Map.lookup PascalCase env.casings `shouldBe` Just "UserAuth"
             Map.lookup KebabCase env.casings `shouldBe` Just "user-auth"
 
         it "does not match when the literal prefix differs from the pattern" $ do
@@ -77,14 +77,14 @@ spec = do
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/auth/useUserAuthViewModel.spec"
 
             env.targetDir `shouldBe` "@/features/auth"
-            Map.lookup CamelCase env.casings `shouldBe` Just "UserAuth"
+            Map.lookup PascalCase env.casings `shouldBe` Just "UserAuth"
 
         it "derives all casings correctly for a single-word name" $ do
             let target = unsafeCompileTarget "@/features/{{FileName}}View"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/HomeView"
 
-            Map.lookup CamelCase env.casings `shouldBe` Just "Home"
-            Map.lookup LowerCamelCase env.casings `shouldBe` Just "home"
+            Map.lookup PascalCase env.casings `shouldBe` Just "Home"
+            Map.lookup CamelCase env.casings `shouldBe` Just "home"
             Map.lookup KebabCase env.casings `shouldBe` Just "home"
             Map.lookup ConstantCase env.casings `shouldBe` Just "HOME"
 
@@ -93,8 +93,8 @@ spec = do
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/admin/UserProfileSettingsContainer"
 
             env.targetDir `shouldBe` "@/features/admin"
-            Map.lookup CamelCase env.casings `shouldBe` Just "UserProfileSettings"
-            Map.lookup LowerCamelCase env.casings `shouldBe` Just "userProfileSettings"
+            Map.lookup PascalCase env.casings `shouldBe` Just "UserProfileSettings"
+            Map.lookup CamelCase env.casings `shouldBe` Just "userProfileSettings"
             Map.lookup KebabCase env.casings `shouldBe` Just "user-profile-settings"
             Map.lookup ConstantCase env.casings `shouldBe` Just "USER_PROFILE_SETTINGS"
 
@@ -103,7 +103,7 @@ spec = do
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/auth/oauth/google/GoogleAuthContainer"
 
             env.targetDir `shouldBe` "@/features/auth/oauth/google"
-            Map.lookup CamelCase env.casings `shouldBe` Just "GoogleAuth"
+            Map.lookup PascalCase env.casings `shouldBe` Just "GoogleAuth"
 
     describe "Deslop.GlobPlus.matchRule" $ do
         let sampleEnv =
@@ -111,7 +111,7 @@ spec = do
                     { targetDir = "@/features/user"
                     , casings =
                         Map.fromList
-                            [ (CamelCase, "UserSettings")
+                            [ (PascalCase, "UserSettings")
                             , (KebabCase, "user-settings")
                             ]
                     }
@@ -122,8 +122,8 @@ spec = do
                     { targetDir = "@/features/home"
                     , casings =
                         Map.fromList
-                            [ (CamelCase, "HomeProfile")
-                            , (LowerCamelCase, "homeProfile")
+                            [ (PascalCase, "HomeProfile")
+                            , (CamelCase, "homeProfile")
                             , (KebabCase, "home-profile")
                             , (ConstantCase, "HOME_PROFILE")
                             ]
@@ -154,7 +154,7 @@ spec = do
             matchRule rule richEnv "@/features/home/HomeProfileView" `shouldBe` True
             matchRule rule richEnv "@/features/home/homeProfileView" `shouldBe` False
 
-        it "interpolates {{fileName}} (lowerCamelCase) into a rule" $ do
+        it "interpolates {{fileName}} (camelCase) into a rule" $ do
             let rule = unsafeCompileRule "{{TARGET_DIR}}/{{fileName}}Service"
             matchRule rule richEnv "@/features/home/homeProfileService" `shouldBe` True
             matchRule rule richEnv "@/features/home/HomeProfileService" `shouldBe` False
