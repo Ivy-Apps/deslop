@@ -17,4 +17,5 @@ nix develop -c cabal test --test-options "--match /TypeScript.Lexer/"
 
 ## Coding Conventions
 
+- **Custom Prelude:** The project uses `relude` as a custom prelude and `Text` (Data.Text) is available without importing.
 - **Extensions:** Assume `OverloadedRecordDot` is enabled.
