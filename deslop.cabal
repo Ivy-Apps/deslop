@@ -92,7 +92,6 @@ library
     , file-io
     , filepath              >=1.4.100.0
     , fmt
-    , lens
     , megaparsec
     , optparse-applicative
     , ordered-containers
@@ -152,7 +151,6 @@ test-suite deslop-test
     , hspec
     , hspec-golden
     , hspec-hedgehog
-    , lens
     , megaparsec
     , optparse-applicative
     , os-string
