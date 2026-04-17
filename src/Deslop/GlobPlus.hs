@@ -24,14 +24,10 @@ module Deslop.GlobPlus (
 ) where
 
 import Data.Char (isUpper)
-import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (listToMaybe)
-import Data.Text (Text)
 import Data.Text qualified as T
-import Data.Void (Void)
-import Text.Megaparsec
-import Text.Megaparsec.Char
+import Text.Megaparsec (MonadParsec (notFollowedBy), ParseErrorBundle, Parsec, between, choice, eof, many, noneOf, parse, some, try)
+import Text.Megaparsec.Char (char, string)
 import Text.Regex.TDFA (Regex, makeRegex, match)
 import Text.Regex.TDFA.Text ()
 
@@ -192,9 +188,7 @@ matchTarget ctp targetPath =
             else Nothing
 
 getDirName :: Text -> Text
-getDirName path =
-    let parts = T.splitOn "/" path
-     in if length parts > 1 then T.intercalate "/" (init parts) else "."
+getDirName = maybe "." (T.intercalate "/" . init) . nonEmpty . T.splitOn "/"
 
 matchRule :: CompiledRulePattern -> MatchEnv -> Text -> Bool
 matchRule crp env targetPath =
@@ -254,7 +248,7 @@ toConstantCase = T.intercalate "_" . map T.toUpper
 capitalize :: Text -> Text
 capitalize t = case T.uncons t of
     Nothing -> ""
-    Just (c, cs) -> T.singleton (T.toUpper c) <> cs
+    Just (c, cs) -> (T.toUpper . T.singleton $ c) <> cs
 
 --------------------------------------------------------------------------------
 -- Utilities

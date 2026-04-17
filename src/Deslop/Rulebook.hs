@@ -21,7 +21,6 @@ import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
 import Data.Yaml (decodeEither')
 import Effectful
 import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile)
-import System.FilePath.Glob qualified as Glob
 import System.OsPath (OsPath, osp, (</>))
 
 data Rulebook = Rulebook

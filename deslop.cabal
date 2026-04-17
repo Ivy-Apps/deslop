@@ -98,7 +98,7 @@ library
     , ordered-containers
     , os-string
     , process
-    , regex-tfda
+    , regex-tdfa
     , req
     , stm
     , template-haskell
