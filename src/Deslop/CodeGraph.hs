@@ -4,6 +4,7 @@
 module Deslop.CodeGraph (
     GraphNode (..),
     CodebaseGraph (..),
+    buildCodebaseGraph,
 ) where
 
 import Data.Graph (Graph, Vertex, graphFromEdges)

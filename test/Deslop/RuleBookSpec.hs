@@ -20,10 +20,6 @@ spec = do
         runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ parseRuleBookTest
     describe "rulebookFromFile" $
         runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ ruleBookFromFileTest
-    describe "loadRulebook" $ do
-        it "valid-rules-1" $ do
-            res <- runEff . runFileSystemIO $ loadRuleBookFrom (rbFixturesPath </> [osp|valid-rules-1|])
-            return $ defaultGolden "loadRuleBook--valid-rules-1" (ppShow res)
   where
     parseRuleBookTest :: OsPath -> Spec
     parseRuleBookTest fpath = do

@@ -1,2 +1,164 @@
-Left
-  "AesonException \"Error in $.rules[3].forbidden[0]: key \\\"import\\\" not found\""
+Right
+  RulebookDto
+    { name = "Page Architecture"
+    , description = Just "Architectural rules to build web pages"
+    , rules =
+        [ RuleDto
+            { id = RuleId "next-js-page-on-server"
+            , description =
+                Just
+                  "Add a page in /src/app/[locale]/{route} to connect it with the NextJS router.  It should be executed on the server.  Use the page to SSR data and pass it as a parameter to the Container that will display the UI."
+            , target = GlobDto "@/app/**/page"
+            , exclude = Nothing
+            , executionContext = Just UseServerDto
+            , forbidden = Nothing
+            , uses = Nothing
+            , usesOptional = Nothing
+            , exists = Nothing
+            , example =
+                Just
+                  "import { HomeContainer } from \"@/features/home/HomeContainer\";\n\nexport default async function HomePage() {\n  const user = await fetchUserSSR();\n  return <HomeContainer initialData={user} />\n}\n"
+            , fix =
+                Just
+                  "Make sure that there is no 'use client' and no client-side code is executed in the page TS module. If you need a client side code (React state / hooks) move it to a @/features/**/*Container."
+            }
+        , RuleDto
+            { id = RuleId "page-container"
+            , description =
+                Just
+                  "Each page should have a Container that's executed on the client. It connects the View (pure UI) and its viewmodel hook."
+            , target = GlobDto "@/app/**/page"
+            , exclude = Nothing
+            , executionContext = Nothing
+            , forbidden = Nothing
+            , uses = Just [ GlobDto "@/features/**/*Container" ]
+            , usesOptional = Nothing
+            , exists = Nothing
+            , example = Nothing
+            , fix =
+                Just
+                  "Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container."
+            }
+        , RuleDto
+            { id = RuleId "page-container-wires-view-and-viewmodel"
+            , description =
+                Just
+                  "A Container is a glue code executed on the client side that connects a View with its ViewModel hook. The Container optionally accepts initial SSR data from the page and passes it to the ViewModel."
+            , target = GlobDto "@/features/**/{{FileName}}Container"
+            , exclude = Nothing
+            , executionContext = Just UseClientDto
+            , forbidden = Nothing
+            , uses =
+                Just
+                  [ GlobDto "{{TARGET_DIR}}/{{FileName}}StateEvent"
+                  , GlobDto "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+                  , GlobDto "{{TARGET_DIR}}/{{FileName}}View"
+                  ]
+            , usesOptional = Nothing
+            , exists = Nothing
+            , example =
+                Just
+                  "\"use client\"\n\nimport { HomeUiState, HomeUiEvent } from \"@/features/home/HomeStateEvent\"\nimport { HomeView } from \"@/features/home/HomeView\";\nimport { useHomeViewModel } from \"@/features/home/useHomeViewModel\"\n\n// Optional pre-loaded data passed from the page\nexport interface Props {\n  user: User | null;\n}\n\nexport function HomeContainer({ user }: Props) {\n  const { state, onEvent } = useHomeViewModel({ user });\n  return <HomeView state={state} onEvent={onEvent} />;\n}\n"
+            , fix =
+                Just
+                  "Add a \"use client\" directive at the top of the file. Make sure that you're using the feature's View and ViewModel from the same directory. The purpose of the Container is to wire the View and the ViewModel together."
+            }
+        , RuleDto
+            { id = RuleId "viewmodel"
+            , description =
+                Just
+                  "The ViewModel is a custom React hook that encapsulates the View's state and business logic. It must be strictly free of UI elements (JSX) and must not perform direct HTTP fetch calls. Instead, it should manage the state and delegate data fetching to the data layer (repositories)."
+            , target = GlobDto "@/features/**/use{{FileName}}ViewModel"
+            , exclude = Nothing
+            , executionContext = Just UseClientDto
+            , forbidden =
+                Just
+                  [ FunctionCallDto { functionName = "fetch" }
+                  , ForbiddenImportDto
+                      { target = GlobDto "{{TARGET_DIR}}/{{FileName}}View"
+                      , transitive = Nothing
+                      }
+                  , ForbiddenImportDto
+                      { target = GlobDto "@/**/components/**/*" , transitive = Nothing }
+                  ]
+            , uses = Just [ GlobDto "{{TARGET_DIR}}/{{FileName}}StateEvent" ]
+            , usesOptional =
+                Just
+                  [ GlobDto "{{TARGET_DIR}}/data/{{FileName}}-repository"
+                  , GlobDto "@/data/**/*-repository"
+                  , GlobDto "{{TARGET_DIR}}/domain/**/*"
+                  , GlobDto "@/domain/**/*"
+                  ]
+            , exists = Nothing
+            , example =
+                Just
+                  "import { useState } from \"react\";\nimport { HomeUiState, HomeUiEvent } from \"@/features/home/HomeStateEvent\";\nimport { logoutUser } from \"@/features/home/data/Home-repository\";\n\nexport interface Props {\n  user: User | null;\n}\n\nexport function useHomeViewModel(props: Props) {\n  const [state, setState] = useState<HomeUiState>({ \n    user: props.user,\n    isLoading: false \n  });\n\n  const onEvent = async (event: HomeUiEvent) => {\n    switch (event.type) {\n      case \"LOGOUT_CLICKED\":\n        setState(prev => ({ ...prev, isLoading: true }));\n        // Delegate to the repository instead of using fetch()\n        await logoutUser();\n        setState({ user: null, isLoading: false });\n        break;\n    }\n  };\n\n  return { state, onEvent };\n}\n"
+            , fix =
+                Just
+                  "Extract any UI (JSX) into the View component. Remove direct `fetch` calls and replace them with function calls imported from a `-repository` file. Ensure the hook returns the current  `state` and an `onEvent` dispatcher. Do not import any Views or UI components from any directory."
+            }
+        , RuleDto
+            { id = RuleId "viewmodel-test"
+            , description =
+                Just
+                  "Each ViewModel must have a corresponding unit test file to verify its state transitions,  event handling, and business logic independently of the UI components."
+            , target = GlobDto "@/features/**/use{{FileName}}ViewModel"
+            , exclude = Nothing
+            , executionContext = Nothing
+            , forbidden = Nothing
+            , uses = Just [ GlobDto "{{TARGET_DIR}}/use{{FileName}}ViewModel" ]
+            , usesOptional = Nothing
+            , exists =
+                Just [ GlobDto "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec" ]
+            , example =
+                Just
+                  "import { renderHook, act } from \"@testing-library/react\";\nimport { useHomeViewModel } from \"@/features/home/useHomeViewModel\";\nimport * as repository from \"@/features/home/data/Home-repository\";\n\n// Mock the repository to isolate the ViewModel logic\nvi.mock(\"@/features/home/data/Home-repository\");\n\ndescribe(\"useHomeViewModel\", () => {\n  it(\"handles LOGOUT_CLICKED event properly\", async () => {\n    const { result } = renderHook(() => useHomeViewModel({ user: { name: \"Alice\" } }));\n    \n    await act(async () => {\n      await result.current.onEvent({ type: \"LOGOUT_CLICKED\" });\n    });\n\n    expect(repository.logoutUser).toHaveBeenCalled();\n    expect(result.current.state.user).toBeNull();\n  });\n});\n"
+            , fix =
+                Just
+                  "Create a unit test file named `use{{FileName}}ViewModel.spec.ts` in the same directory. Ensure you import the ViewModel hook from `{{TARGET_DIR}}/use{{FileName}}ViewModel` and test its state and event dispatcher."
+            }
+        , RuleDto
+            { id = RuleId "page-view"
+            , description =
+                Just
+                  "Each page/feature should have a pure UI (View) that renders the UiState  and submits user interactions as UiEvents."
+            , target = GlobDto "@/features/**/{{FileName}}View"
+            , exclude = Nothing
+            , executionContext = Just UseClientDto
+            , forbidden = Just [ FunctionCallDto { functionName = "fetch" } ]
+            , uses = Just [ GlobDto "{{TARGET_DIR}}/{{FileName}}StateEvent" ]
+            , usesOptional =
+                Just
+                  [ GlobDto "{{TARGET_DIR}}/components/*"
+                  , GlobDto "@/components/**/*"
+                  ]
+            , exists = Nothing
+            , example =
+                Just
+                  "import { HomeUiState, HomeUiEvent } from \"@/features/home/HomeStateEvent\";\nimport { Button } from \"@/components/ui/Button\";\nimport { UserAvatar } from \"@/features/home/components/UserAvatar\";\n\nexport interface Props {\n  state: HomeUiState;\n  onEvent: (event: HomeUiEvent) => void;\n}\n\nexport function HomeView({ state, onEvent }: Props) {\n  return (\n    <div>\n      <UserAvatar user={state.user} />\n      <h1>Hello, {state.user?.name || \"Guest\"}</h1>\n      <Button onClick={() => onEvent({ type: \"LOGOUT_CLICKED\" })}>\n        Logout\n      </Button>\n    </div>\n  );\n}\n"
+            , fix =
+                Just
+                  "Ensure the View is a pure UI component that only receives `state` and an `onEvent` callback. It should not contain data fetching, complex business logic, or its own state hooks. Use local or global shared components for the UI blocks."
+            }
+        , RuleDto
+            { id = RuleId "page-view-storybook"
+            , description =
+                Just
+                  "Each pure UI View should have a corresponding Storybook file to develop, test,  and document its various UI states in isolation."
+            , target = GlobDto "@/features/**/{{FileName}}View"
+            , exclude = Nothing
+            , executionContext = Nothing
+            , forbidden = Nothing
+            , uses = Nothing
+            , usesOptional = Nothing
+            , exists =
+                Just [ GlobDto "{{TARGET_DIR}}/{{FileName}}View.stories" ]
+            , example =
+                Just
+                  "import type { Meta, StoryObj } from \"@storybook/react\";\nimport { HomeView } from \"@/features/home/HomeView\";\n\nconst meta: Meta<typeof HomeView> = {\n  component: HomeView,\n  title: \"Features/Home/HomeView\",\n};\n\nexport default meta;\ntype Story = StoryObj<typeof HomeView>;\n\nconst noop = () => {};\n\nexport const Default: Story = {\n  args: {\n    state: { user: { name: \"Alice\" } },\n    onEvent: noop,\n  },\n};\n\nexport const Guest: Story = {\n  args: {\n    state: { user: null },\n    onEvent: noop,\n  },\n};\n"
+            , fix =
+                Just
+                  "Create a Storybook file named `{{FileName}}View.stories.tsx` in the same directory as the View. Ensure you mock the necessary `state` to showcase various UI states and provide a no-op for the `onEvent` prop."
+            }
+        ]
+    }
