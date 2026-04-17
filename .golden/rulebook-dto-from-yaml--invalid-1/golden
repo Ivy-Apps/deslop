@@ -1,2 +1,2 @@
 Left
-  "AesonException \"Error in $.rules[0].target: parsing NonEmpty failed, expected Array, but encountered Null\""
+  "AesonException \"Error in $: parsing Deslop.Rulebook.RulebookDto(RulebookDto) failed, key \\\"description\\\" not found\""
