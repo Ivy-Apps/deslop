@@ -1,23 +1,10 @@
 module Deslop.GlobPlusSpec (spec) where
 
 import Data.Map.Strict qualified as Map
-import Data.Text qualified as T
 import Test.Hspec
 
 import Deslop.GlobPlus
 import TestUtils (requireJust)
-
--- | Helper to safely compile a target pattern in tests, failing the test suite immediately if parsing fails.
-unsafeCompileTarget :: T.Text -> CompiledTargetPattern
-unsafeCompileTarget t = case parseTargetPattern t of
-    Right ast -> compileTargetPattern ast
-    Left err -> error $ "Failed to parse target pattern: " <> show err
-
--- | Helper to safely compile a rule pattern in tests.
-unsafeCompileRule :: T.Text -> CompiledRulePattern
-unsafeCompileRule t = case parseRulePattern t of
-    Right ast -> compileRulePattern ast
-    Left err -> error $ "Failed to parse rule pattern: " <> show err
 
 spec :: Spec
 spec = do
@@ -109,3 +96,15 @@ spec = do
             matchRule cRule env validImport `shouldBe` True
             matchRule cRule env invalidImport `shouldBe` False
             matchRule cRule env outsideImport `shouldBe` False
+
+-- | Helper to safely compile a target pattern in tests, failing the test suite immediately if parsing fails.
+unsafeCompileTarget :: Text -> CompiledTargetPattern
+unsafeCompileTarget t = case parseTargetPattern t of
+    Right ast -> compileTargetPattern ast
+    Left err -> error $ "Failed to parse target pattern: " <> show err
+
+-- | Helper to safely compile a rule pattern in tests.
+unsafeCompileRule :: Text -> CompiledRulePattern
+unsafeCompileRule t = case parseRulePattern t of
+    Right ast -> compileRulePattern ast
+    Left err -> error $ "Failed to parse rule pattern: " <> show err
