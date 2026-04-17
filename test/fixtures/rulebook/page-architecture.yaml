@@ -6,8 +6,7 @@ rules:
       Add a page in /src/app/[locale]/{route} to connect it with the NextJS router. 
       It should be executed on the server. 
       Use the page to SSR data and pass it as a parameter to the Container that will display the UI.
-    target: 
-      - "@/app/**/page"
+    target: "@/app/**/page"
     execution-context: server
     example: | 
       import { HomeContainer } from "@/features/home/HomeContainer";
@@ -206,7 +205,6 @@ rules:
       export default meta;
       type Story = StoryObj<typeof HomeView>;
 
-      // Mock onEvent as a no-op function to simply display the UI state
       const noop = () => {};
 
       export const Default: Story = {
