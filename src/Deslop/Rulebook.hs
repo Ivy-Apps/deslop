@@ -19,6 +19,7 @@ module Deslop.Rulebook (
 
 import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
 import Data.Yaml (decodeEither')
+import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern)
 import Effectful
 import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile)
 import System.OsPath (OsPath, osp, (</>))
@@ -33,14 +34,14 @@ data Rulebook = Rulebook
 data Rule = ForbiddenRule
     { id :: RuleId
     , description :: Maybe Text
-    , target :: NonEmpty Glob.Pattern
-    , exclude :: Maybe (NonEmpty Glob.Pattern)
+    , target :: CompiledTargetPattern
+    , exclude :: Maybe (NonEmpty CompiledTargetPattern)
     , forbidden :: [Forbidden]
     }
     deriving stock (Show, Eq)
 
 data Forbidden = ForbiddenImport
-    { target :: Glob.Pattern
+    { target :: CompiledRulePattern
     , transitive :: Bool
     }
     deriving stock (Show, Eq)
@@ -87,10 +88,10 @@ newtype GlobDto = GlobDto String
 rulesDir :: OsPath
 rulesDir = [osp|deslop/rules|]
 
-loadRuleBook :: (RoFileSystem :> es) => Eff es (Either String (Maybe RuleBook))
+loadRuleBook :: (RoFileSystem :> es) => Eff es (Either String (Maybe Rulebook))
 loadRuleBook = loadRuleBookFrom rulesDir
 
-loadRuleBookFrom :: (RoFileSystem :> es) => OsPath -> Eff es (Either String (Maybe RuleBook))
+loadRuleBookFrom :: (RoFileSystem :> es) => OsPath -> Eff es (Either String (Maybe Rulebook))
 loadRuleBookFrom dir = fsDirectoryExists dir >>= bool (pure . Right $ Nothing) loadRules
   where
     loadRules =
@@ -104,7 +105,7 @@ loadRuleBookFrom dir = fsDirectoryExists dir >>= bool (pure . Right $ Nothing) l
     buildRuleBook xs = Just . mconcat . sortRuleBook $ xs
     sortRuleBook = sortOn (.name)
 
-ruleBookFromFile :: (RoFileSystem :> es) => OsPath -> Eff es (Either String RuleBook)
+ruleBookFromFile :: (RoFileSystem :> es) => OsPath -> Eff es (Either String Rulebook)
 ruleBookFromFile path =
     fsReadFile path
         >>= pure . fmap ruleBookFromDto . parseRuleBookYaml
@@ -112,23 +113,14 @@ ruleBookFromFile path =
 parseRuleBookYaml :: ByteString -> Either String RulebookDto
 parseRuleBookYaml = first show . decodeEither'
 
-ruleBookFromDto :: RulebookDto -> RuleBook
+ruleBookFromDto :: RulebookDto -> Rulebook
 ruleBookFromDto rbDto =
-    RuleBook
+    Rulebook
         { name = rbDto.name
         , rules = mapMaybe ruleFromDto rbDto.rules
         }
   where
     ruleFromDto :: RuleDto -> Maybe Rule
-    ruleFromDto (RuleDto rId desc target exclude (Just forbidden)) =
-        Just $
-            ForbiddenRule
-                { id = rId
-                , description = desc
-                , target = compileGlobs target
-                , exclude = compileGlobs <$> exclude
-                , forbidden = forbiddenFromDto <$> forbidden
-                }
     ruleFromDto _ = Nothing
 
     forbiddenFromDto :: ForbiddenDto -> Forbidden
@@ -137,12 +129,3 @@ ruleBookFromDto rbDto =
             { target = compileGlob target
             , transitive = fromMaybe False transitive
             }
-
-compileGlobs :: NonEmpty GlobDto -> NonEmpty Glob.Pattern
-compileGlobs = fmap compileGlob
-
-compileGlob :: GlobDto -> Glob.Pattern
-compileGlob = Glob.compile . extractGlob
-  where
-    extractGlob :: GlobDto -> String
-    extractGlob (GlobDto g) = g
