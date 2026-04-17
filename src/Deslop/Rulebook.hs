@@ -7,7 +7,7 @@ module Deslop.Rulebook (
     RuleId (..),
     GlobDto (..),
     ForbiddenDto (..),
-    RuleBook (..),
+    Rulebook (..),
     Rule (..),
     Forbidden (..),
     parseRuleBookYaml,
@@ -29,7 +29,7 @@ data Rulebook = Rulebook
     , description :: Text
     , rules :: [Rule]
     }
-    deriving stock (Show, Eq)
+    deriving stock (Show)
 
 data Rule = ForbiddenRule
     { id :: RuleId
@@ -38,7 +38,7 @@ data Rule = ForbiddenRule
     , exclude :: Maybe (NonEmpty CompiledTargetPattern)
     , forbidden :: [Forbidden]
     }
-    deriving stock (Show, Eq)
+    deriving stock (Show)
 
 data Forbidden = ForbiddenImport
     { target :: CompiledRulePattern
@@ -48,6 +48,7 @@ data Forbidden = ForbiddenImport
 
 data RulebookDto = RulebookDto
     { name :: Text
+    , description :: Text
     , rules :: [RuleDto]
     }
     deriving stock (Show, Eq, Generic)
@@ -88,22 +89,18 @@ newtype GlobDto = GlobDto String
 rulesDir :: OsPath
 rulesDir = [osp|deslop/rules|]
 
-loadRuleBook :: (RoFileSystem :> es) => Eff es (Either String (Maybe Rulebook))
+loadRuleBook :: (RoFileSystem :> es) => Eff es (Either String [Rulebook])
 loadRuleBook = loadRuleBookFrom rulesDir
 
-loadRuleBookFrom :: (RoFileSystem :> es) => OsPath -> Eff es (Either String (Maybe Rulebook))
-loadRuleBookFrom dir = fsDirectoryExists dir >>= bool (pure . Right $ Nothing) loadRules
+loadRuleBookFrom :: (RoFileSystem :> es) => OsPath -> Eff es (Either String [Rulebook])
+loadRuleBookFrom dir = fsDirectoryExists dir >>= bool (pure . Right $ []) loadRules
   where
     loadRules =
         fsListDirectory dir
             >>= traverse (ruleBookFromFile . appendDir)
-            >>= pure . fmap buildRuleBook . sequenceA
+            >>= pure . sequenceA
 
     appendDir p = dir </> p
-
-    buildRuleBook [] = Nothing
-    buildRuleBook xs = Just . mconcat . sortRuleBook $ xs
-    sortRuleBook = sortOn (.name)
 
 ruleBookFromFile :: (RoFileSystem :> es) => OsPath -> Eff es (Either String Rulebook)
 ruleBookFromFile path =
@@ -117,15 +114,9 @@ ruleBookFromDto :: RulebookDto -> Rulebook
 ruleBookFromDto rbDto =
     Rulebook
         { name = rbDto.name
+        , description = rbDto.description
         , rules = mapMaybe ruleFromDto rbDto.rules
         }
   where
     ruleFromDto :: RuleDto -> Maybe Rule
     ruleFromDto _ = Nothing
-
-    forbiddenFromDto :: ForbiddenDto -> Forbidden
-    forbiddenFromDto (ForbiddenImportDto target transitive) =
-        ForbiddenImport
-            { target = compileGlob target
-            , transitive = fromMaybe False transitive
-            }

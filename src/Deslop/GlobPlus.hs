@@ -30,6 +30,7 @@ import Text.Megaparsec (MonadParsec (notFollowedBy), ParseErrorBundle, Parsec, b
 import Text.Megaparsec.Char (char, string)
 import Text.Regex.TDFA (Regex, makeRegex, match)
 import Text.Regex.TDFA.Text ()
+import Text.Show (Show (..), showString, shows)
 
 --------------------------------------------------------------------------------
 -- 1. Core Types & Type Safety
@@ -84,6 +85,12 @@ data CompiledTargetPattern = CompiledTargetPattern
     { regex :: Regex
     , vars :: [Casing]
     }
+
+instance Show CompiledTargetPattern where
+    showsPrec _ ctp =
+        showString "CompiledTargetPattern {regex = <regex>, vars = "
+            . shows ctp.vars
+            . showString "}"
 
 data RuleChunk
     = StaticChunk Text

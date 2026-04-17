@@ -123,7 +123,6 @@ test-suite deslop-test
     Deslop.ASTSpec
     Deslop.GlobPlusSpec
     Deslop.RelativeImportSpec
-    Deslop.RuleBookFixtures
     Deslop.RuleBookSpec
     Doubles.FileSystem
     E2E.FileGoldenSpec
