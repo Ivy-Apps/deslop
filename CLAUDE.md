@@ -10,9 +10,9 @@ nix develop -c cabal test all
 nix develop -c hlint .
 ```
 
-Run a single test file:
+Run a single test file where you `--match` against the root "describe" block:
 ```bash
-nix develop -c cabal test --test-options "--match /TypeScript.Lexer/"
+nix develop -c cabal test --test-options "--match Lexer"
 ```
 
 ## Coding Conventions
