@@ -67,37 +67,6 @@
 
             shellHook = ''
               export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
-
-              echo "🔮 Deslop Dev env initialized."
-              echo "--------------------------------------------------------"
-
-              echo "✅ GHC:     $(ghc --version)"
-              CABAL_PATH=$(type -p cabal)
-              CABAL_VER=$(cabal --version | head -n 1)
-              if [[ "$CABAL_PATH" == *"/nix/store/"* ]]; then
-                  echo "✅ Cabal:   $CABAL_VER"
-                  echo "            Path: $CABAL_PATH"
-              else
-                  echo "❌ Cabal:   $CABAL_VER"
-                  echo "            ⚠️  WARNING: Not sourced from Nix!"
-                  echo "            Path: $CABAL_PATH"
-              fi
-
-              HLS_PATH=$(type -p haskell-language-server)
-              HLS_VER=$(haskell-language-server --version | head -n 1)
-              if [[ "$HLS_PATH" == *"/nix/store/"* ]]; then
-                  echo "✅ HLS:     $HLS_VER"
-                  echo "            Path: $HLS_PATH"
-              else
-                  echo "❌ HLS:     $HLS_VER"
-                  echo "            ⚠️  WARNING: Not sourced from Nix!"
-                  echo "            Path: $HLS_PATH"
-              fi
-              echo "--------------------------------------------------------"
-              echo "🚧 cabal build"
-              cabal build
-              echo "--------------------------------------------------------"
-              echo "   Run 'nvim .' to start."
             '';
           };
         };
