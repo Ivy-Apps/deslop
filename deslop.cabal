@@ -17,6 +17,7 @@ common shared-properties
     DeriveGeneric
     DerivingStrategies
     DuplicateRecordFields
+    FlexibleContexts
     LambdaCase
     NoFieldSelectors
     OverloadedLabels
@@ -48,6 +49,7 @@ library
     Deslop.AST
     Deslop.Baseline
     Deslop.CodeGraph
+    Deslop.GlobPlus
     Deslop.MCP
     Deslop.RelativeImports
     Deslop.Rulebook
@@ -90,13 +92,13 @@ library
     , file-io
     , filepath              >=1.4.100.0
     , fmt
-    , Glob
     , lens
     , megaparsec
     , optparse-applicative
     , ordered-containers
     , os-string
     , process
+    , regex-tfda
     , req
     , stm
     , template-haskell
@@ -146,7 +148,6 @@ test-suite deslop-test
     , effectful
     , file-io
     , filepath              >=1.4.100.0
-    , Glob
     , hedgehog
     , hspec
     , hspec-golden
