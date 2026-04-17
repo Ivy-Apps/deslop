@@ -158,7 +158,7 @@ compileTargetPattern (Pattern tokens) =
      in CompiledTargetPattern {regex = regexObj, vars = extractedVars}
   where
     toRegex (Literal t) = escapeRegex t
-    toRegex Star = "[^/]+"
+    toRegex Star = "[^/]*"
     toRegex GlobStar = ".*"
     toRegex (Var (TVar CamelCase)) = "([A-Z][a-zA-Z0-9]*)"
     toRegex (Var (TVar LowerCamelCase)) = "([a-z][a-zA-Z0-9]*)"
@@ -171,7 +171,7 @@ compileRulePattern (Pattern tokens) =
      in CompiledRulePattern {chunks = optimizeChunks optimizedChunks}
   where
     toChunk (Literal t) = StaticChunk (escapeRegex t)
-    toChunk Star = StaticChunk "[^/]+"
+    toChunk Star = StaticChunk "[^/]*"
     toChunk GlobStar = StaticChunk ".*"
     toChunk (Var v) = VarChunk v
 
@@ -185,9 +185,8 @@ compileRulePattern (Pattern tokens) =
 
 matchTarget :: CompiledTargetPattern -> Text -> Maybe MatchEnv
 matchTarget ctp targetPath =
-    -- Pure Text execution. No String unpacking anywhere.
-    let (_, _, _, captures) = match ctp.regex targetPath :: (Text, Text, Text, [Text])
-     in if length captures == length ctp.vars
+    let (_, matched, _, captures) = match ctp.regex targetPath :: (Text, Text, Text, [Text])
+     in if matched /= "" && length captures == length ctp.vars
             then
                 let baseBindings = Map.fromList $ zip ctp.vars captures
                     dir = getDirName targetPath
