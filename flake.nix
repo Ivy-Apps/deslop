@@ -48,26 +48,42 @@
           nvim = my-nixvim.lib.mkHaskellNvim { inherit pkgs hpkgs; };
         in
         {
-          devShells.default = hpkgs.shellFor {
-            packages = p: [ p.deslop ];
-            withHoogle = false;
+          devShells = {
+            default = hpkgs.shellFor {
+              packages = p: [ p.deslop ];
+              withHoogle = false;
 
-            nativeBuildInputs = [
-              hpkgs.haskell-language-server
-              hpkgs.implicit-hie
-              pkgs.just
-              pkgs.pkg-config
-              pkgs.cabal-install
-              pkgs.hlint
-              nvim
-              hgold
-            ];
+              nativeBuildInputs = [
+                pkgs.pkg-config
+                pkgs.cabal-install
+              ];
 
-            buildInputs = sysLibs;
+              buildInputs = sysLibs;
+            };
 
-            shellHook = ''
-              export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
-            '';
+            dev = hpkgs.shellFor {
+              packages = p: [ p.deslop ];
+              withHoogle = false;
+
+              nativeBuildInputs = [
+                hpkgs.haskell-language-server
+                hpkgs.implicit-hie
+                pkgs.just
+                pkgs.pkg-config
+                pkgs.cabal-install
+                pkgs.hlint
+                nvim
+                hgold
+              ];
+
+              buildInputs = sysLibs;
+
+              shellHook = ''
+                export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
+                echo "🔮 Dev Environment started."
+                echo "Run `nvim . ` to start."
+              '';
+            };
           };
         };
     };
