@@ -21,8 +21,7 @@ rules:
 
   - id: page-container
     description: Each page should have a Container that's executed on the client. It connects the View (pure UI) and its viewmodel hook.
-    target:
-      - "@/app/**/page"
+    target: "@/app/**/page"
     uses:
       - "@/features/**/*Container"
     fix: Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container.
@@ -31,8 +30,7 @@ rules:
     description: >- 
       A Container is a glue code executed on the client side that connects a View with its ViewModel hook.
       The Container optionally accepts initial SSR data from the page and passes it to the ViewModel.
-    target:
-      - "@/features/**/{{FileName}}Container"
+    target: "@/features/**/{{FileName}}Container"
     execution-context: client
     uses:
       - "{{TARGET_DIR}}/{{FileName}}StateEvent"
@@ -64,8 +62,7 @@ rules:
       The ViewModel is a custom React hook that encapsulates the View's state and business logic.
       It must be strictly free of UI elements (JSX) and must not perform direct HTTP fetch calls.
       Instead, it should manage the state and delegate data fetching to the data layer (repositories).
-    target: 
-      - "@/features/**/use{{FileName}}ViewModel"
+    target: "@/features/**/use{{FileName}}ViewModel"
     execution-context: client
     uses:
       - "{{TARGET_DIR}}/{{FileName}}StateEvent"
@@ -115,8 +112,7 @@ rules:
     description: >-
       Each ViewModel must have a corresponding unit test file to verify its state transitions, 
       event handling, and business logic independently of the UI components.
-    target:
-      - "@/features/**/use{{FileName}}ViewModel"
+    target: "@/features/**/use{{FileName}}ViewModel"
     exists:
       - "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
     uses:
@@ -149,8 +145,7 @@ rules:
     description: >- 
       Each page/feature should have a pure UI (View) that renders the UiState 
       and submits user interactions as UiEvents.
-    target:
-      - "@/features/**/{{FileName}}View"
+    target: "@/features/**/{{FileName}}View"
     execution-context: client
     uses:
       - "{{TARGET_DIR}}/{{FileName}}StateEvent"
@@ -189,8 +184,7 @@ rules:
     description: >-
       Each pure UI View should have a corresponding Storybook file to develop, test, 
       and document its various UI states in isolation.
-    target:
-      - "@/features/**/{{FileName}}View"
+    target: "@/features/**/{{FileName}}View"
     exists: 
       - "{{TARGET_DIR}}/{{FileName}}View.stories"
     example: |
