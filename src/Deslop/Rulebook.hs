@@ -31,19 +31,33 @@ data Rulebook = Rulebook
     }
     deriving stock (Show)
 
+data ExecutionContext = UseClient | UseServer | Neutral deriving (Show, Eq, Ord)
+
 data Rule = ForbiddenRule
     { id :: RuleId
-    , description :: Maybe Text
+    , description :: Text
     , target :: CompiledTargetPattern
     , exclude :: Maybe (NonEmpty CompiledTargetPattern)
-    , forbidden :: [Forbidden]
+    , executionContext :: ExecutionContext -- Defaults to Neutral
+    , forbidden :: Maybe (NonEmpty Forbidden)
+    , uses :: Maybe (NonEmpty CompiledRulePattern)
+    , usesOptional :: Maybe (NonEmpty CompiledRulePattern)
+    , exists :: Maybe (NonEmpty CompiledRulePattern)
+    , example :: Maybe Text
+    , fix :: Maybe Text
     }
     deriving stock (Show)
 
-data Forbidden = ForbiddenImport
-    { target :: CompiledRulePattern
-    , transitive :: Bool
-    }
+newtype FunctionName = FunctionName Text deriving (Show, Eq)
+
+data Forbidden
+    = ForbiddenImport
+        { target :: CompiledRulePattern
+        , transitive :: Bool
+        }
+    | FunctionCall
+        { functionName :: FunctionName
+        }
     deriving stock (Show, Eq)
 
 data RulebookDto = RulebookDto
