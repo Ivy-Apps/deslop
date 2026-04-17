@@ -3,7 +3,7 @@ module Deslop.RulebookSpec (spec) where
 import Data.Text qualified as T
 import Deslop.Rulebook
 import Effectful (runEff)
-import Effects.FileSystem (decodeOsPath, runFileSystemIO)
+import Effects.FileSystem (decodeOsPath, fsMkAbsolute, runFileSystemIO)
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
@@ -33,5 +33,6 @@ spec = do
     ruleBookFromFileTest fpath = do
         let testName = T.unpack $ "rulebook-from-file--" <> decodeOsPath (takeBaseName fpath)
         it ("case: " <> testName) $ do
-            res <- runEff . runFileSystemIO $ ruleBookFromFile (rbFixturesPath </> fpath)
+            res <- runEff . runFileSystemIO $ do
+                fsMkAbsolute (rbFixturesPath </> fpath) >>= ruleBookFromFile
             return $ defaultGolden testName (ppShow res)

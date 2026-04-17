@@ -14,6 +14,7 @@ module Effects.FileSystem (
     fsReadAbsFile,
     fsWriteFile,
     fsDirectoryExists,
+    fsDirectoryExistsAbs,
     fsListDirectory,
     fsListAbsDirectory,
     fsIsDirectory,
@@ -66,6 +67,7 @@ data RoFileSystem :: Effect where
     FileExists :: OsPath -> RoFileSystem m Bool
     FileExistsAbs :: AbsPath -> RoFileSystem m Bool
     DirectoryExists :: OsPath -> RoFileSystem m Bool
+    DirectoryExistsAbs :: AbsPath -> RoFileSystem m Bool
     ListDirectory :: OsPath -> RoFileSystem m [OsPath]
     ListAbsDirectory :: AbsPath -> RoFileSystem m [AbsPath]
     IsDirectory :: OsPath -> RoFileSystem m Bool
@@ -93,6 +95,9 @@ fsFileExistsAbs = send . FileExistsAbs
 
 fsDirectoryExists :: (RoFileSystem :> es) => OsPath -> Eff es Bool
 fsDirectoryExists = send . DirectoryExists
+
+fsDirectoryExistsAbs :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
+fsDirectoryExistsAbs = send . DirectoryExistsAbs
 
 fsListDirectory :: (RoFileSystem :> es) => OsPath -> Eff es [OsPath]
 fsListDirectory = send . ListDirectory
@@ -125,6 +130,7 @@ runRoFileSystemIO = interpret $ \_env -> \case
     FileExists path -> liftIO $ SDO.doesFileExist path
     FileExistsAbs (AbsPath path) -> liftIO $ SDO.doesFileExist path
     DirectoryExists path -> liftIO $ SDO.doesDirectoryExist path
+    DirectoryExistsAbs (AbsPath path) -> liftIO $ SDO.doesDirectoryExist path
     ListDirectory path -> liftIO $ SDO.listDirectory path
     ListAbsDirectory absP@(AbsPath p) ->
         liftIO

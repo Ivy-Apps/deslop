@@ -22,8 +22,8 @@ import Data.Text qualified as T
 import Data.Yaml (decodeEither')
 import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern, compileRulePattern, compileTargetPattern, parseRulePattern, parseTargetPattern)
 import Effectful
-import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile)
-import System.OsPath (OsPath, osp, (</>))
+import Effects.FileSystem (AbsPath, RoFileSystem, fsDirectoryExistsAbs, fsListAbsDirectory, fsMkAbsolute, fsReadAbsFile)
+import System.OsPath (OsPath, osp)
 import Text.Megaparsec (errorBundlePretty)
 
 data Rulebook = Rulebook
@@ -149,21 +149,19 @@ rulesDir :: OsPath
 rulesDir = [osp|deslop/rules|]
 
 loadRuleBook :: (RoFileSystem :> es) => Eff es (Either Text [Rulebook])
-loadRuleBook = loadRuleBookFrom rulesDir
+loadRuleBook = fsMkAbsolute rulesDir >>= loadRuleBookFrom
 
-loadRuleBookFrom :: (RoFileSystem :> es) => OsPath -> Eff es (Either Text [Rulebook])
-loadRuleBookFrom dir = fsDirectoryExists dir >>= bool (pure . Right $ []) loadRules
+loadRuleBookFrom :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
+loadRuleBookFrom dir = fsDirectoryExistsAbs dir >>= bool (pure . Right $ []) loadRules
   where
     loadRules =
-        fsListDirectory dir
-            >>= traverse (ruleBookFromFile . appendDir)
+        fsListAbsDirectory dir
+            >>= traverse ruleBookFromFile
             >>= pure . sequenceA
 
-    appendDir p = dir </> p
-
-ruleBookFromFile :: (RoFileSystem :> es) => OsPath -> Eff es (Either Text Rulebook)
+ruleBookFromFile :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text Rulebook)
 ruleBookFromFile path =
-    fsReadFile path
+    fsReadAbsFile path
         >>= pure . (>>= ruleBookFromDto) . first T.pack . parseRuleBookYaml
 
 parseRuleBookYaml :: ByteString -> Either String RulebookDto
