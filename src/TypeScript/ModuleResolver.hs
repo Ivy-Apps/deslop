@@ -24,7 +24,7 @@ or /home/repo/src/lib/util
 newtype ModuleId = ModuleId
     { text :: Text
     }
-    deriving stock (Show, Eq)
+    deriving stock (Show, Eq, Ord)
 
 moduleIdUnsafe :: Text -> ModuleId
 moduleIdUnsafe = ModuleId
