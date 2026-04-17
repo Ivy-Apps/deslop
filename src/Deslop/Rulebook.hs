@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Deslop.Rulebook (
-    RuleBookDto (..),
+    RulebookDto (..),
     RuleDto (..),
     RuleId (..),
     GlobDto (..),
@@ -10,13 +10,6 @@ module Deslop.Rulebook (
     RuleBook (..),
     Rule (..),
     Forbidden (..),
-    nameL,
-    rulesL,
-    idL,
-    descriptionL,
-    targetL,
-    excludeL,
-    forbiddenL,
     parseRuleBookYaml,
     ruleBookFromDto,
     ruleBookFromFile,
@@ -24,16 +17,36 @@ module Deslop.Rulebook (
     loadRuleBook,
 ) where
 
-import Control.Lens.TH (lensRulesFor, makeLensesWith)
 import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
-import Data.Text qualified as T
 import Data.Yaml (decodeEither')
 import Effectful
 import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile)
 import System.FilePath.Glob qualified as Glob
 import System.OsPath (OsPath, osp, (</>))
 
-data RuleBookDto = RuleBookDto
+data Rulebook = Rulebook
+    { name :: Text
+    , description :: Text
+    , rules :: [Rule]
+    }
+    deriving stock (Show, Eq)
+
+data Rule = ForbiddenRule
+    { id :: RuleId
+    , description :: Maybe Text
+    , target :: NonEmpty Glob.Pattern
+    , exclude :: Maybe (NonEmpty Glob.Pattern)
+    , forbidden :: [Forbidden]
+    }
+    deriving stock (Show, Eq)
+
+data Forbidden = ForbiddenImport
+    { target :: Glob.Pattern
+    , transitive :: Bool
+    }
+    deriving stock (Show, Eq)
+
+data RulebookDto = RulebookDto
     { name :: Text
     , rules :: [RuleDto]
     }
@@ -42,10 +55,12 @@ data RuleBookDto = RuleBookDto
 
 data RuleDto = RuleDto
     { id :: RuleId
-    , description :: Maybe Text
-    , target :: NonEmpty GlobDto
+    , description :: Text
+    , target :: GlobDto
     , exclude :: Maybe (NonEmpty GlobDto)
     , forbidden :: Maybe [ForbiddenDto]
+    , example :: Maybe Text
+    , fix :: Maybe Text
     }
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON)
@@ -69,53 +84,6 @@ instance FromJSON ForbiddenDto where
 newtype GlobDto = GlobDto String
     deriving stock (Show, Eq)
     deriving newtype (FromJSON)
-
-makeLensesWith (lensRulesFor [("name", "nameL"), ("rules", "rulesL")]) ''RuleBookDto
-makeLensesWith
-    ( lensRulesFor
-        [ ("id", "idL")
-        , ("description", "descriptionL")
-        , ("target", "targetL")
-        , ("exclude", "excludeL")
-        , ("forbidden", "forbiddenL")
-        ]
-    )
-    ''RuleDto
-
-data RuleBook = RuleBook
-    { name :: Text
-    , rules :: [Rule]
-    }
-    deriving stock (Show, Eq)
-
-instance Semigroup RuleBook where
-    rb1 <> rb2 =
-        RuleBook
-            { name = T.intercalate " <> " . filter (not . T.null) $ [rb1.name, rb2.name]
-            , rules = rb1.rules <> rb2.rules
-            }
-
-instance Monoid RuleBook where
-    mempty =
-        RuleBook
-            { name = ""
-            , rules = []
-            }
-
-data Rule = ForbiddenRule
-    { id :: RuleId
-    , description :: Maybe Text
-    , target :: NonEmpty Glob.Pattern
-    , exclude :: Maybe (NonEmpty Glob.Pattern)
-    , forbidden :: [Forbidden]
-    }
-    deriving stock (Show, Eq)
-
-data Forbidden = ForbiddenImport
-    { target :: Glob.Pattern
-    , transitive :: Bool
-    }
-    deriving stock (Show, Eq)
 
 rulesDir :: OsPath
 rulesDir = [osp|deslop/rules|]
@@ -142,10 +110,10 @@ ruleBookFromFile path =
     fsReadFile path
         >>= pure . fmap ruleBookFromDto . parseRuleBookYaml
 
-parseRuleBookYaml :: ByteString -> Either String RuleBookDto
+parseRuleBookYaml :: ByteString -> Either String RulebookDto
 parseRuleBookYaml = first show . decodeEither'
 
-ruleBookFromDto :: RuleBookDto -> RuleBook
+ruleBookFromDto :: RulebookDto -> RuleBook
 ruleBookFromDto rbDto =
     RuleBook
         { name = rbDto.name
