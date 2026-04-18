@@ -71,16 +71,7 @@ jobs:
           TAG=${{ github.ref_name }}
           echo "VERSION=${TAG#v}" >> $GITHUB_ENV
 
-      - name: Configure npm auth
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
-          echo "@ivy-apps:registry=https://registry.npmjs.org/" >> ~/.npmrc
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Publish platform packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for PLATFORM in darwin-arm64 linux-arm64 linux-x64; do
             PKG_DIR="npm/packages/$PLATFORM"
@@ -94,8 +85,6 @@ jobs:
           done
 
       - name: Publish main package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd npm
           npm version "$VERSION" --no-git-tag-version --allow-same-version
