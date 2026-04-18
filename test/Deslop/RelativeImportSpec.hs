@@ -23,7 +23,7 @@ spec = describe "Deslop.RelativeImport" $ do
                     problems <- getProblems
                     pure (result, problems)
 
-    let mkProg fp nodes = TsModule (absPathUnsafe fp) nodes
+    let mkProg fp = TsModule (absPathUnsafe fp)
     let mkImport t = Import {prefix = "import * from '", target = t, suffix = "';\n"}
 
     describe "importAliases" $ do
