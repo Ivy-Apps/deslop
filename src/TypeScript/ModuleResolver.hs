@@ -13,7 +13,7 @@ module TypeScript.ModuleResolver (
 import Data.Text qualified as T
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
-import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, decodeOsPath, encodeOsPath, fsFileExistsAbs, fsMkAbsolute, withAbsBaseSafe)
+import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, decodeOsPath, encodeOsPath, fsFileExists, fsMkAbsolute, withAbsBaseSafe)
 import System.OsPath (OsPath, dropExtension, splitDirectories, takeDirectory)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 
@@ -160,7 +160,7 @@ resolve importingFile target@(ModuleId mId) =
     tryExtensions _ [] = pure Nothing
     tryExtensions fp (ext : es) = do
         absFilePath <- fsMkAbsolute (fp <> encodeOsPath ext)
-        exists <- fsFileExistsAbs absFilePath
+        exists <- fsFileExists absFilePath
         if exists
             then pure $ Just absFilePath
             else tryExtensions fp es
