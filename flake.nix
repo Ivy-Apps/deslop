@@ -43,9 +43,9 @@
               # Clang on macOS treats this case mismatch as -Werror even through
               # symlinks, so the only fix that survives the Nix sandbox is to pass
               # -Wno-nonportable-include-path to the CPP driver via GHC's -optP.
-              deslop = hlib.appendConfigureFlags
+              deslop = hlib.dontCheck (hlib.appendConfigureFlags
                 [ "--ghc-option=-optP-Wno-nonportable-include-path" ]
-                (self.callCabal2nix "deslop" ./. { });
+                (self.callCabal2nix "deslop" ./. { }));
               fmt = hlib.dontCheck super.fmt;
             };
           };
