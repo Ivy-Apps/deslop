@@ -31,7 +31,7 @@ jobs:
 
       - name: Build Binary
         run: |
-          nix build --no-warn-dirty
+          nix build --accept-flake-config 
           mkdir -p dist
           cp result/bin/deslop dist/deslop-${{ matrix.npm-platform }}
           strip dist/deslop-${{ matrix.npm-platform }}
