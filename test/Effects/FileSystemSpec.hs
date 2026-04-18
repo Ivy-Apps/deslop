@@ -21,7 +21,7 @@ spec = describe "Effects.FileSystem" $ do
         absPath.osPath `shouldSatisfy` isAbsolute
         SDO.doesFileExist absPath.osPath `shouldReturn` True
 
-    it "fsListAbsDirectory" $ do
+    it "fsListDirectory" $ do
         -- Given
         let path = [osp|test/fixtures/static|]
         absPath <- runEff . runRoFileSystemIO $ fsMkAbsolute path
