@@ -126,7 +126,7 @@ deslopProject ::
 deslopProject params = do
     projPath <- fsMkAbsolute params.projectPath
     cfg <- tsConfig projPath
-    files <- getTsFiles projPath.osPath
+    files <- getTsFiles projPath
     (errors, _asts) <-
         fmap partitionEithers
             . runReader @TsConfig cfg
