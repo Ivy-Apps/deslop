@@ -9,18 +9,12 @@ module Effects.FileSystem (
     WrFileSystem (..),
     AbsPath (osPath),
     fsFileExists,
-    fsFileExistsAbs,
     fsReadFile,
-    fsReadAbsFile,
     fsWriteFile,
     fsDirectoryExists,
-    fsDirectoryExistsAbs,
     fsListDirectory,
-    fsListAbsDirectory,
-    fsIsDirectory,
     fsGetHomeDirectory,
     fsMkAbsolute,
-    fsIsAbsDirectory,
     runFileSystemIO,
     runRoFileSystemIO,
 ) where
@@ -62,59 +56,35 @@ withAbsBaseSafe :: AbsPath -> OsPath -> OsPath
 withAbsBaseSafe (AbsPath b) p = b </> p
 
 data RoFileSystem :: Effect where
-    ReadFile :: OsPath -> RoFileSystem m ByteString
-    ReadAbsFile :: AbsPath -> RoFileSystem m ByteString
-    FileExists :: OsPath -> RoFileSystem m Bool
-    FileExistsAbs :: AbsPath -> RoFileSystem m Bool
-    DirectoryExists :: OsPath -> RoFileSystem m Bool
-    DirectoryExistsAbs :: AbsPath -> RoFileSystem m Bool
-    ListDirectory :: OsPath -> RoFileSystem m [OsPath]
-    ListAbsDirectory :: AbsPath -> RoFileSystem m [AbsPath]
-    IsDirectory :: OsPath -> RoFileSystem m Bool
-    IsAbsDirectory :: AbsPath -> RoFileSystem m Bool
-    GetHomeDirectory :: RoFileSystem m OsPath
+    ReadFile :: AbsPath -> RoFileSystem m ByteString
+    FileExists :: AbsPath -> RoFileSystem m Bool
+    DirectoryExists :: AbsPath -> RoFileSystem m Bool
+    ListDirectory :: AbsPath -> RoFileSystem m [AbsPath]
+    GetHomeDirectory :: RoFileSystem m AbsPath
     MkAbsolute :: OsPath -> RoFileSystem m AbsPath
 
 data WrFileSystem :: Effect where
-    WriteFile :: OsPath -> ByteString -> WrFileSystem m ()
+    WriteFile :: AbsPath -> ByteString -> WrFileSystem m ()
 
 type instance DispatchOf RoFileSystem = Dynamic
 type instance DispatchOf WrFileSystem = Dynamic
 
-fsReadFile :: (RoFileSystem :> es) => OsPath -> Eff es ByteString
+fsReadFile :: (RoFileSystem :> es) => AbsPath -> Eff es ByteString
 fsReadFile = send . ReadFile
 
-fsReadAbsFile :: (RoFileSystem :> es) => AbsPath -> Eff es ByteString
-fsReadAbsFile = send . ReadAbsFile
-
-fsFileExists :: (RoFileSystem :> es) => OsPath -> Eff es Bool
+fsFileExists :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
 fsFileExists = send . FileExists
 
-fsFileExistsAbs :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
-fsFileExistsAbs = send . FileExistsAbs
-
-fsDirectoryExists :: (RoFileSystem :> es) => OsPath -> Eff es Bool
+fsDirectoryExists :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
 fsDirectoryExists = send . DirectoryExists
 
-fsDirectoryExistsAbs :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
-fsDirectoryExistsAbs = send . DirectoryExistsAbs
-
-fsListDirectory :: (RoFileSystem :> es) => OsPath -> Eff es [OsPath]
+fsListDirectory :: (RoFileSystem :> es) => AbsPath -> Eff es [AbsPath]
 fsListDirectory = send . ListDirectory
 
-fsListAbsDirectory :: (RoFileSystem :> es) => AbsPath -> Eff es [AbsPath]
-fsListAbsDirectory = send . ListAbsDirectory
-
-fsIsDirectory :: (RoFileSystem :> es) => OsPath -> Eff es Bool
-fsIsDirectory = send . IsDirectory
-
-fsIsAbsDirectory :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
-fsIsAbsDirectory = send . IsAbsDirectory
-
-fsGetHomeDirectory :: (RoFileSystem :> es) => Eff es OsPath
+fsGetHomeDirectory :: (RoFileSystem :> es) => Eff es AbsPath
 fsGetHomeDirectory = send GetHomeDirectory
 
-fsWriteFile :: (WrFileSystem :> es) => OsPath -> ByteString -> Eff es ()
+fsWriteFile :: (WrFileSystem :> es) => AbsPath -> ByteString -> Eff es ()
 fsWriteFile path content = send $ WriteFile path content
 
 fsMkAbsolute :: (RoFileSystem :> es) => OsPath -> Eff es AbsPath
@@ -125,23 +95,17 @@ runFileSystemIO = runRoFileSystemIO . runWrFileSystemIO
 
 runRoFileSystemIO :: (IOE :> es) => Eff (RoFileSystem : es) a -> Eff es a
 runRoFileSystemIO = interpret $ \_env -> \case
-    ReadFile path -> liftIO $ SFO.readFile' path
-    ReadAbsFile (AbsPath path) -> liftIO $ SFO.readFile' path
-    FileExists path -> liftIO $ SDO.doesFileExist path
-    FileExistsAbs (AbsPath path) -> liftIO $ SDO.doesFileExist path
-    DirectoryExists path -> liftIO $ SDO.doesDirectoryExist path
-    DirectoryExistsAbs (AbsPath path) -> liftIO $ SDO.doesDirectoryExist path
-    ListDirectory path -> liftIO $ SDO.listDirectory path
-    ListAbsDirectory absP@(AbsPath p) ->
+    ReadFile (AbsPath path) -> liftIO $ SFO.readFile' path
+    FileExists (AbsPath path) -> liftIO $ SDO.doesFileExist path
+    DirectoryExists (AbsPath path) -> liftIO $ SDO.doesDirectoryExist path
+    ListDirectory absP@(AbsPath p) ->
         liftIO
             . fmap (fmap (withAbsBaseUnsafe absP))
             . SDO.listDirectory
             $ p
-    IsDirectory path -> liftIO $ SDO.doesDirectoryExist path
-    IsAbsDirectory (AbsPath path) -> liftIO $ SDO.doesDirectoryExist path
-    GetHomeDirectory -> liftIO SDO.getHomeDirectory
+    GetHomeDirectory -> liftIO $ absPathUnsafe <$> SDO.getHomeDirectory
     MkAbsolute path -> liftIO . fmap AbsPath . SDO.canonicalizePath $ path
 
 runWrFileSystemIO :: (IOE :> es) => Eff (WrFileSystem : es) a -> Eff es a
 runWrFileSystemIO = interpret $ \_env -> \case
-    WriteFile path content -> liftIO $ SFO.writeFile' path content
+    WriteFile (AbsPath path) content -> liftIO $ SFO.writeFile' path content
