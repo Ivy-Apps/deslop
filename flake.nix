@@ -62,12 +62,24 @@
               fi
             '';
           };
+          aiBuildRunner = pkgs.writeShellApplication {
+            name = "ai-build";
+            runtimeInputs = [ pkgs.nix ];
+            text = ''
+              nix develop ".#ci" --no-warn-dirty --quiet -c \
+                cabal build
+            '';
+          };
         in
         {
           apps = {
             test = {
               type = "app";
               program = "${aiTestRunner}/bin/ai-test";
+            };
+            build = {
+              type = "app";
+              program = "${aiBuildRunner}/bin/ai-build";
             };
           };
 
