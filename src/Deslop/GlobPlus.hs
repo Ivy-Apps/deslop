@@ -206,9 +206,7 @@ matchRule crp env targetPath =
     resolveChunk (StaticChunk s) = s
     resolveChunk (VarChunk RTargetDir) = escapeRegex env.targetDir
     resolveChunk (VarChunk (RVar c)) =
-        case Map.lookup c env.casings of
-            Just val -> escapeRegex val
-            Nothing -> ".*"
+        maybe ".*" escapeRegex (Map.lookup c env.casings)
 
 --------------------------------------------------------------------------------
 -- 6. Case Tokenization & Enrichment

@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Deslop.CodeGraph (
     GraphNode (..),

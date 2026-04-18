@@ -1,5 +1,4 @@
 {-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Deslop.Rulebook (
     RulebookDto (..),
@@ -162,7 +161,7 @@ loadRuleBookFrom dir = fsDirectoryExistsAbs dir >>= bool (pure . Right $ []) loa
 ruleBookFromFile :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text Rulebook)
 ruleBookFromFile path =
     fsReadAbsFile path
-        >>= pure . (>>= ruleBookFromDto) . first T.pack . parseRuleBookYaml
+        >>= pure . (ruleBookFromDto <=< first T.pack . parseRuleBookYaml)
 
 parseRuleBookYaml :: ByteString -> Either String RulebookDto
 parseRuleBookYaml = first show . decodeEither'
