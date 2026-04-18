@@ -12,47 +12,43 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            target: darwin-arm64
-            ext: ''
+            npm-platform: darwin-arm64
           - os: ubuntu-latest
-            target: linux-x64
-            ext: ''
+            npm-platform: linux-x64
+          - os: ubuntu-24.04-arm
+            npm-platform: linux-arm64
     runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: "write"
+      contents: "read"      
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Haskell
-        uses: ./.github/actions/setup-haskell
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      # - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Build Binary
-        shell: bash
         run: |
-          cabal build all --enable-tests
+          nix build --accept-flake-config 
           mkdir -p dist
-
-          BIN_PATH=$(cabal list-bin deslop)
-
-          cp "$BIN_PATH" dist/deslop-${{ matrix.target }}${{ matrix.ext }}
-
-          # Strip symbols to reduce binary size (macOS and Linux only)
-          if [ "${{ runner.os }}" != "Windows" ]; then
-            strip dist/deslop-${{ matrix.target }}${{ matrix.ext }}
-          fi
+          cp result/bin/deslop dist/deslop-${{ matrix.npm-platform }}
+          chmod +w dist/deslop-${{ matrix.npm-platform }}
+          strip dist/deslop-${{ matrix.npm-platform }}
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bin-${{ matrix.target }}
-          path: dist/deslop-${{ matrix.target }}${{ matrix.ext }}
+          name: bin-${{ matrix.npm-platform }}
+          path: dist/deslop-${{ matrix.npm-platform }}
 
   publish-npm:
-    name: Publish to Public NPM
+    name: Publish to NPM
     needs: build-release
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      id-token: "write"
+      contents: "read"      
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -67,36 +63,35 @@ jobs:
       - name: Download all binaries
         uses: actions/download-artifact@v4
         with:
-          path: npm/bin
+          path: dist
           merge-multiple: true
 
-      - name: Make binaries executable
-        run: chmod +x npm/bin/*
-
-      - name: Prepare Package Version
+      - name: Prepare version
         run: |
           TAG=${{ github.ref_name }}
-          VERSION=${TAG#v}
+          echo "VERSION=${TAG#v}" >> $GITHUB_ENV
 
-          cd npm
-          npm version $VERSION --no-git-tag-version --allow-same-version
-          npm pkg fix
-
-      - name: Configure npm for publish
+      - name: Publish platform packages
         run: |
-          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" > npm/.npmrc
-          echo "@ivy-apps:registry=https://registry.npmjs.org/" >> npm/.npmrc
+          for PLATFORM in darwin-arm64 linux-arm64 linux-x64; do
+            PKG_DIR="npm/packages/$PLATFORM"
+            mkdir -p "$PKG_DIR/bin"
+            cp "dist/deslop-$PLATFORM" "$PKG_DIR/bin/deslop"
+            chmod +x "$PKG_DIR/bin/deslop"
+            cd "$PKG_DIR"
+            npm version "$VERSION" --no-git-tag-version --allow-same-version
+            npm publish --access public
+            cd "$GITHUB_WORKSPACE"
+          done
 
-      - name: Verify package contents
-        run: |
-          cd npm
-          npm pack --dry-run
-
-      - name: Publish to NPM
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # Use our .npmrc only (avoids setup-node's deprecated always-auth)
-          NPM_CONFIG_USERCONFIG: ${{ github.workspace }}/npm/.npmrc
+      - name: Publish main package
         run: |
           cd npm
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+
+          # Pin optionalDependencies to the exact release version
+          npm pkg set optionalDependencies.@ivy-apps/deslop-darwin-arm64="$VERSION"
+          npm pkg set optionalDependencies.@ivy-apps/deslop-linux-arm64="$VERSION"
+          npm pkg set optionalDependencies.@ivy-apps/deslop-linux-x64="$VERSION"
+
           npm publish --access public

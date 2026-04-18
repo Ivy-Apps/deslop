@@ -24,9 +24,13 @@
     "deslop": "./wrapper.js"
   },
   "files": [
-    "bin",
     "wrapper.js"
   ],
+  "optionalDependencies": {
+    "@ivy-apps/deslop-darwin-arm64": "0.0.0",
+    "@ivy-apps/deslop-linux-arm64": "0.0.0",
+    "@ivy-apps/deslop-linux-x64": "0.0.0"
+  },
   "scripts": {},
   "publishConfig": {
     "access": "public",

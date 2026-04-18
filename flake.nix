@@ -34,14 +34,23 @@
         let
           ghcVersion = "ghc9103";
 
+
+          hlib = pkgs.haskell.lib.compose;
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
-              deslop = self.callCabal2nix "deslop" ./. { };
-              fmt = pkgs.haskell.lib.dontCheck super.fmt;
+              # When the executable and package share the name "deslop", cabal creates
+              # dist/build/Deslop/ (capitalised) but GHC's -I flag uses lowercase.
+              # Clang on macOS treats this case mismatch as -Werror even through
+              # symlinks, so the only fix that survives the Nix sandbox is to pass
+              # -Wno-nonportable-include-path to the CPP driver via GHC's -optP.
+              deslop = hlib.dontCheck (hlib.appendConfigureFlags
+                [ "--ghc-option=-optP-Wno-nonportable-include-path" ]
+                (self.callCabal2nix "deslop" ./. { }));
+              fmt = hlib.dontCheck super.fmt;
             };
           };
 
-          hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
+          hgold = hlib.justStaticExecutables hpkgs.hspec-golden;
 
           sysLibs = [ pkgs.zlib pkgs.xz ];
 
@@ -80,6 +89,10 @@
           };
         in
         {
+          packages = {
+            default = hlib.justStaticExecutables hpkgs.deslop;
+          };
+
           apps = {
             test = {
               type = "app";
