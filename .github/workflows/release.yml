@@ -13,7 +13,7 @@ jobs:
         include:
           - os: macos-latest
             npm-platform: darwin-arm64
-          - os: macos-13
+          - os: macos-26-intel
             npm-platform: darwin-x64
           - os: ubuntu-latest
             npm-platform: linux-x64
