@@ -46,10 +46,32 @@
           sysLibs = [ pkgs.zlib pkgs.xz ];
 
           nvim = my-nixvim.lib.mkHaskellNvim { inherit pkgs hpkgs; };
+
+          aiTestRunner = pkgs.writeShellApplication {
+            name = "ai-test";
+            runtimeInputs = [
+              pkgs.cabal-install
+              pkgs.pkg-config
+              hpkgs.ghc
+            ];
+            text = ''
+              # -v0 silences Cabal's own build/linking logs.
+              # --test-show-details=direct forces test output to stdout.
+              # --test-options="--color=never" strips ANSI codes for clean grepping.
+              cabal test -v0 --test-show-details=direct --test-options="--color=never $*"
+            '';
+          };
         in
         {
+          apps = {
+            test = {
+              type = "app";
+              program = "${aiTestRunner}/bin/ai-test";
+            };
+          };
+
           devShells = {
-            default = hpkgs.shellFor {
+            ci = hpkgs.shellFor {
               packages = p: [ p.deslop ];
               withHoogle = false;
 
@@ -61,7 +83,7 @@
               buildInputs = sysLibs;
             };
 
-            dev = hpkgs.shellFor {
+            default = hpkgs.shellFor {
               packages = p: [ p.deslop ];
               withHoogle = false;
 
