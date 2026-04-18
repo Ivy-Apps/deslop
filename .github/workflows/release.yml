@@ -20,11 +20,14 @@ jobs:
           - os: ubuntu-24.04-arm
             npm-platform: linux-arm64
     runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: "write"
+      contents: "read"      
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v14
+      - uses: DeterminateSystems/nix-installer-action@main
+      # - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/flake-checker-action@main
 
       - name: Build Binary
         run: |
@@ -44,7 +47,8 @@ jobs:
     needs: build-release
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      id-token: "write"
+      contents: "read"      
     steps:
       - uses: actions/checkout@v6
 
