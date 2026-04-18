@@ -13,13 +13,13 @@ import Data.Aeson
 import Data.ByteString.Lazy qualified as BL
 import Data.Text qualified as T
 import Effectful
-import Effects.FileSystem (RoFileSystem, fsFileExists, fsGetHomeDirectory, fsReadFile)
-import System.OsPath (OsPath, osp, (</>))
+import Effects.FileSystem (AbsPath, RoFileSystem, fsFileExists, fsGetHomeDirectory, fsReadFile, withAbsBaseUnsafe)
+import System.OsPath (osp)
 
-secretsPath :: (RoFileSystem :> es) => Eff es OsPath
+secretsPath :: (RoFileSystem :> es) => Eff es AbsPath
 secretsPath = do
     home <- fsGetHomeDirectory
-    pure $ home </> [osp|.deslop/secrets.json|]
+    pure $ withAbsBaseUnsafe home [osp|.deslop/secrets.json|]
 
 newtype Secrets = Secrets
     { geminiApiKey :: Maybe GeminiApiKey
@@ -42,7 +42,7 @@ defaultSecrets =
 readSecrets :: (RoFileSystem :> es) => Eff es (Either SecretsError Secrets)
 readSecrets = secretsPath >>= getSecrets
 
-getSecrets :: (RoFileSystem :> es) => OsPath -> Eff es (Either SecretsError Secrets)
+getSecrets :: (RoFileSystem :> es) => AbsPath -> Eff es (Either SecretsError Secrets)
 getSecrets sp =
     fsFileExists sp
         >>= bool (pure . Left $ MissingSecretsFile) readSecretsFile
