@@ -1,8 +1,10 @@
 module Effects.CLILog (
     CLILog (..),
+    logTitle,
     logModification,
     logSummary,
     logProblems,
+    logNoProblemsFound,
     logError,
     runCLILog,
 ) where
@@ -14,17 +16,23 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.FileSystem (AbsPath (..), decodeOsPath)
 import Effects.ReportProblem (Problem)
-import Fmt (pretty)
+import Fmt (fmt, pretty, (+|), (|+))
+import Params (Params (..))
 import System.Console.ANSI
-import UI (ProblemsLog (..), printErr, putStderrLn)
+import UI (ProblemsLog (..), printDividerStderr, printErr, printSuccess, printTitle, putStderrLn)
 
 data CLILog :: Effect where
+    LogTitle :: Params -> CLILog m ()
     LogModification :: AbsPath -> CLILog m ()
     LogSummary :: CLILog m ()
     LogProblems :: [Problem] -> CLILog m ()
+    LogNoProblemsFound :: CLILog m ()
     LogError :: String -> CLILog m ()
 
 type instance DispatchOf CLILog = 'Dynamic
+
+logTitle :: (CLILog :> es) => Params -> Eff es ()
+logTitle = send . LogTitle
 
 logModification :: (CLILog :> es) => AbsPath -> Eff es ()
 logModification = send . LogModification
@@ -34,6 +42,9 @@ logSummary = send LogSummary
 
 logProblems :: (CLILog :> es) => [Problem] -> Eff es ()
 logProblems = send . LogProblems
+
+logNoProblemsFound :: (CLILog :> es) => Eff es ()
+logNoProblemsFound = send LogNoProblemsFound
 
 logError :: (CLILog :> es) => String -> Eff es ()
 logError = send . LogError
@@ -45,6 +56,9 @@ runCLILog action = do
     action
         & interpret
             ( \_ -> \case
+                LogTitle params -> do
+                    let projectPath = decodeOsPath params.projectPath.osPath
+                    liftIO . printTitle $ "🚀 Deslopping project: " <> projectPath
                 LogModification path -> liftIO $ do
                     atomically $ modifyTVar' counterVar (+ 1)
                     setSGR [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
@@ -61,6 +75,11 @@ runCLILog action = do
                         else
                             putStrLn "✨ The project is already clean!"
                     setSGR [Reset]
-                LogProblems ps -> liftIO . putStderrLn . pretty . ProblemsLog $ ps
+                LogProblems ps -> liftIO $ do
+                    putStderrLn (fmt $ "Found " +| length ps |+ " problems:")
+                    printDividerStderr
+                    putStderrLn . pretty . ProblemsLog $ ps
+                    printDividerStderr
+                LogNoProblemsFound -> liftIO $ printSuccess "No problems found."
                 LogError e -> liftIO . printErr . T.pack $ e
             )

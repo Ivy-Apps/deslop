@@ -8,7 +8,7 @@ import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (encodeOsPathString, runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
-import Params
+import Params (Params (..))
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
@@ -66,7 +66,8 @@ spec = describe "E2E.ProjectGolden" $ do
         let projectPath = fixturesPath </> encodeOsPathString project
         filesRef <- newIORef Nothing
         logsRef <- newIORef Nothing
-        let params = (defaultParams projectPath) {checkMode = True}
+        defParams <- defaultParams projectPath
+        let params = defParams {checkMode = True}
 
         -- When
         res <-
@@ -97,6 +98,7 @@ spec = describe "E2E.ProjectGolden" $ do
             let projectPath = fixturesPath </> encodeOsPathString project
             copyDir projectPath tmpDir
             logsRef <- newIORef Nothing
+            params <- defaultParams tmpDir
 
             -- When
             res <-
@@ -107,7 +109,7 @@ spec = describe "E2E.ProjectGolden" $ do
                     . runGitTest []
                     . runReportProblem
                     . runConcurrent
-                    $ deslopProject (defaultParams tmpDir)
+                    $ deslopProject params
 
             -- Then
             res `shouldBe` Right ()

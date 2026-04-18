@@ -51,18 +51,22 @@ newtype TestLogs = TestLogs
 
 runCLILogTest :: (IOE :> es) => IORef (Maybe TestLogs) -> Eff (CLILog : es) a -> Eff es a
 runCLILogTest ref = interpret $ \_ -> \case
+    LogTitle _ -> pure ()
     LogModification _ -> pure ()
     LogSummary -> pure ()
     LogProblems ps ->
         liftIO $ writeIORef ref (Just . TestLogs . problemsLogText $ ps)
+    LogNoProblemsFound -> pure ()
     LogError _ -> pure ()
 
-defaultParams :: OsPath -> Params
-defaultParams projPath =
-    Params
-        { projectPath = projPath
-        , checkMode = False
-        }
+defaultParams :: OsPath -> IO Params
+defaultParams projPath = do
+    absProjPath <- mkAbsolute projPath
+    pure
+        Params
+            { projectPath = absProjPath
+            , checkMode = False
+            }
 
 runGitTest :: ModifiedFiles -> Eff (Git : es) a -> Eff es a
 runGitTest ms = interpret $ \_ -> \case
