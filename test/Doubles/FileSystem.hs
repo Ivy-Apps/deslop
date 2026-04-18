@@ -32,17 +32,11 @@ Parameterized over `es` so your mocks can utilize other effects in your test sta
 (like Reader, State, or Writer) if needed.
 -}
 data MockRoFileSystem es = MockRoFileSystem
-    { mockReadFile :: OsPath -> Eff es ByteString
-    , mockReadAbsFile :: AbsPath -> Eff es ByteString
-    , mockFileExists :: OsPath -> Eff es Bool
-    , mockFileExistsAbs :: AbsPath -> Eff es Bool
-    , mockDirectoryExists :: OsPath -> Eff es Bool
-    , mockDirectoryExistsAbs :: AbsPath -> Eff es Bool
-    , mockListDirectory :: OsPath -> Eff es [OsPath]
-    , mockListAbsDirectory :: AbsPath -> Eff es [AbsPath]
-    , mockIsDirectory :: OsPath -> Eff es Bool
-    , mockIsAbsDirectory :: AbsPath -> Eff es Bool
-    , mockGetHomeDirectory :: Eff es OsPath
+    { mockReadFile :: AbsPath -> Eff es ByteString
+    , mockFileExists :: AbsPath -> Eff es Bool
+    , mockDirectoryExists :: AbsPath -> Eff es Bool
+    , mockListDirectory :: AbsPath -> Eff es [AbsPath]
+    , mockGetHomeDirectory :: Eff es AbsPath
     , mockMkAbsolute :: OsPath -> Eff es AbsPath
     }
 
@@ -51,16 +45,10 @@ defaultMockRoFileSystem :: MockRoFileSystem es
 defaultMockRoFileSystem =
     MockRoFileSystem
         { mockReadFile = const $ pure mempty
-        , mockReadAbsFile = const $ pure mempty
         , mockFileExists = const $ pure False
-        , mockFileExistsAbs = const $ pure False
         , mockDirectoryExists = const $ pure False
-        , mockDirectoryExistsAbs = const $ pure False
         , mockListDirectory = const $ pure []
-        , mockListAbsDirectory = const $ pure []
-        , mockIsDirectory = const $ pure False
-        , mockIsAbsDirectory = const $ pure False
-        , mockGetHomeDirectory = pure $ encodeOsPath "~/"
+        , mockGetHomeDirectory = pure . absPathUnsafe $ encodeOsPath "~/"
         , mockMkAbsolute = \p ->
             -- The (</>) operator safely ignores the left argument if `p` is already an absolute path
             let rawAbsPath = encodeOsPath "~/" </> p
@@ -88,20 +76,14 @@ normalizeMockPath p =
 runMockRoFileSystem :: MockRoFileSystem es -> Eff (RoFileSystem : es) a -> Eff es a
 runMockRoFileSystem mocks = interpret $ \_env -> \case
     ReadFile p -> mocks.mockReadFile p
-    ReadAbsFile p -> mocks.mockReadAbsFile p
     FileExists p -> mocks.mockFileExists p
-    FileExistsAbs p -> mocks.mockFileExistsAbs p
     DirectoryExists p -> mocks.mockDirectoryExists p
-    DirectoryExistsAbs p -> mocks.mockDirectoryExistsAbs p
     ListDirectory p -> mocks.mockListDirectory p
-    ListAbsDirectory p -> mocks.mockListAbsDirectory p
-    IsDirectory p -> mocks.mockIsDirectory p
-    IsAbsDirectory p -> mocks.mockIsAbsDirectory p
     GetHomeDirectory -> mocks.mockGetHomeDirectory
     MkAbsolute p -> mocks.mockMkAbsolute p
 
 mockFiles :: [OsPath] -> MockRoFileSystem es
 mockFiles existingFiles =
     defaultMockRoFileSystem
-        { mockFileExistsAbs = \p -> pure $ p `elem` (absPathUnsafe <$> existingFiles)
+        { mockFileExists = \p -> pure $ p `elem` (absPathUnsafe <$> existingFiles)
         }

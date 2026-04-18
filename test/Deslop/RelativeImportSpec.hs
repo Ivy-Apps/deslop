@@ -6,7 +6,8 @@ module Deslop.RelativeImportSpec (spec) where
 -- import Effectful.Reader.Static
 -- import Effects.FileSystem (encodeOsPath)
 -- import Effects.ReportProblem (runReportProblem)
-import System.OsPath (OsPath)
+
+import Effects.FileSystem (AbsPath)
 import Test.Hspec
 import TypeScript.CST
 
@@ -47,7 +48,7 @@ spec = describe "Deslop.RelativeImport" $ do
 --             -- Then
 --             firstTarget result `shouldBe` expected
 
-_mkTestProgram :: OsPath -> Text -> TsProgram
+_mkTestProgram :: AbsPath -> Text -> TsProgram
 _mkTestProgram filePath importTarget =
     TsModule
         filePath
