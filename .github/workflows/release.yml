@@ -34,6 +34,7 @@ jobs:
           nix build --accept-flake-config 
           mkdir -p dist
           cp result/bin/deslop dist/deslop-${{ matrix.npm-platform }}
+          chmod +w dist/deslop-${{ matrix.npm-platform }}
           strip dist/deslop-${{ matrix.npm-platform }}
 
       - name: Upload Binary Artifact
