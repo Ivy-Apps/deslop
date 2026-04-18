@@ -1,7 +1,7 @@
 module E2E.FileGoldenSpec (spec) where
 
 import Data.Text qualified as T
-import Effects.FileSystem (decodeOsPath)
+import Effects.FileSystem (absPathUnsafe, decodeOsPath)
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
@@ -21,7 +21,7 @@ tsFixturesPath = [osp|test/fixtures/typescript|]
 
 spec :: Spec
 spec = do
-    describe "TypeScript Tests" $
+    describe "E2E.FileGolden" $
         runIO (listFixtures tsFixturesPath ".ts") >>= mapM_ tsGoldenTest
   where
     tsGoldenTest :: OsPath -> Spec
@@ -47,7 +47,7 @@ spec = do
             source <- decodeUtf8 <$> SFO.readFile' path
 
             -- When
-            let res = parseTs TsFile {path, content = source}
+            let res = parseTs TsFile {path = absPathUnsafe path, content = source}
 
             -- Then
             p <- requireRight id res

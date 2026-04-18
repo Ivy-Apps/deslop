@@ -13,7 +13,7 @@ import TypeScript.Config (Pattern (..), TsConfig (..))
 import TypeScript.ModuleResolver (Match (..), isRelativeImport, match, moduleIdUnsafe, resolve, reverseResolve, reverseResolveImport)
 
 spec :: Spec
-spec = describe "ModuleResolver" $ do
+spec = describe "TypeScript.ModuleResolver" $ do
     describe "match TSConfig pattern" $ do
         it "exact matching" $ do
             let pattern = Exact "react"

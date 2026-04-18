@@ -4,8 +4,7 @@ module TypeScript.Parser (
 ) where
 
 import Data.Text qualified as T
-import Effects.FileSystem (decodeOsPath)
-import System.OsPath (OsPath)
+import Effects.FileSystem (AbsPath (..), decodeOsPath)
 import Text.Megaparsec
 import TypeScript.CST
 import TypeScript.Lexer
@@ -14,7 +13,7 @@ import TypeScript.Tokens
 type Parser = Parsec Void Text
 
 data TsFile = TsFile
-    { path :: OsPath
+    { path :: AbsPath
     , content :: Text
     }
     deriving (Show, Eq)
@@ -22,7 +21,8 @@ data TsFile = TsFile
 parseTs :: TsFile -> Either String TsProgram
 parseTs f =
     first errorBundlePretty $
-        TsModule f.path . buildCST <$> runParser lexer (T.unpack . decodeOsPath $ f.path) f.content
+        TsModule f.path . buildCST
+            <$> runParser lexer (T.unpack . decodeOsPath $ f.path.osPath) f.content
 
 buildCST :: [TsToken] -> [TsNode]
 buildCST = fmap node

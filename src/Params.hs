@@ -5,25 +5,43 @@ module Params (
     paramsParser,
     parserPrefs,
     Params (..),
+    ParamsDto (..),
+    paramsFromDto,
 )
 where
 
 import Data.Text qualified as T
 import Data.Version (showVersion)
-import Effects.FileSystem (encodeOsPath)
+import Effectful (Eff, (:>))
+import Effects.FileSystem (AbsPath, RoFileSystem, encodeOsPath, fsMkAbsolute)
 import Options.Applicative
 import Paths_deslop (version)
 import System.OsPath (OsPath, osp)
 
 data Params = Params
+    { projectPath :: AbsPath
+    , checkMode :: Bool
+    }
+    deriving (Show, Eq)
+
+data ParamsDto = ParamsDto
     { projectPath :: OsPath
     , checkMode :: Bool
     }
     deriving (Show, Eq)
 
-pParams :: Parser Params
+paramsFromDto :: (RoFileSystem :> es) => ParamsDto -> Eff es Params
+paramsFromDto dto = do
+    projPath <- fsMkAbsolute dto.projectPath
+    pure
+        Params
+            { projectPath = projPath
+            , checkMode = dto.checkMode
+            }
+
+pParams :: Parser ParamsDto
 pParams =
-    Params
+    ParamsDto
         <$> argument
             (eitherReader (Right . encodeOsPath . T.pack))
             ( metavar "PROJECT_PATH"
@@ -46,7 +64,7 @@ versionOption =
             <> help "Show version"
         )
 
-paramsParser :: ParserInfo Params
+paramsParser :: ParserInfo ParamsDto
 paramsParser =
     info
         (helper <*> versionOption <*> pParams)

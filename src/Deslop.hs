@@ -22,9 +22,7 @@ import Effects.FileSystem (
     AbsPath (osPath),
     RoFileSystem,
     WrFileSystem,
-    decodeOsPath,
-    fsFileExistsAbs,
-    fsMkAbsolute,
+    fsFileExists,
     fsReadFile,
     fsWriteFile,
     runFileSystemIO,
@@ -32,10 +30,9 @@ import Effects.FileSystem (
  )
 import Effects.Git
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
-import Fmt (fmt, (+|), (|+))
 import Params
 import Secrets (Secrets (..), defaultSecrets, readSecrets)
-import System.OsPath (OsPath, osp)
+import System.OsPath (osp)
 import TypeScript.CST
 import TypeScript.Config (TsConfig, readTsConfig)
 import TypeScript.Iterator (getTsFiles)
@@ -43,8 +40,8 @@ import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types
 import UI
 
-runDeslop :: Params -> IO ()
-runDeslop params = do
+runDeslop :: ParamsDto -> IO ()
+runDeslop paramsDto = do
     secretsRes <- runEff . runFileSystemIO $ readSecrets
     case secretsRes of
         Right secrets -> do
@@ -64,7 +61,9 @@ runDeslop params = do
                 . runConcurrent
                 . runReportProblem
                 . runErrorNoCallStack @DeslopError
-                $ doWork params secrets
+                $ do
+                    params <- paramsFromDto paramsDto
+                    doWork params secrets
 
         end <- liftIO getCurrentTime
         let diff = diffUTCTime end start
@@ -90,7 +89,7 @@ doWork ::
     Secrets ->
     Eff es ()
 doWork params _ = do
-    liftIO . printTitle $ "🚀 Deslopping project: " <> decodeOsPath params.projectPath
+    logTitle params
     unless params.checkMode (liftIO . putStrLn $ "Changelog:")
     deslopProject params
     bool fixResult checkModeResult params.checkMode
@@ -99,12 +98,9 @@ doWork params _ = do
         ps <- getProblems
         if null ps
             then
-                liftIO $ printSuccess "No problems found."
+                logNoProblemsFound
             else do
-                liftIO $ putStderrLn (fmt $ "Found " +| length ps |+ " problems:")
-                liftIO printDividerStderr
                 logProblems ps
-                liftIO printDividerStderr
                 throwError CheckModeFoundProblems
 
     fixResult = do
@@ -124,9 +120,8 @@ deslopProject ::
     Params ->
     Eff es ()
 deslopProject params = do
-    projPath <- fsMkAbsolute params.projectPath
-    cfg <- tsConfig projPath
-    files <- getTsFiles projPath.osPath
+    cfg <- tsConfig params.projectPath
+    files <- getTsFiles params.projectPath
     (errors, _asts) <-
         fmap partitionEithers
             . runReader @TsConfig cfg
@@ -142,7 +137,7 @@ deslopFile ::
     , CLILog :> es
     , ReportProblem :> es
     ) =>
-    OsPath ->
+    AbsPath ->
     Eff es (Either String AstModule)
 deslopFile src = do
     c <- fsReadFile src
@@ -161,7 +156,7 @@ removeSlop ::
     , ReportProblem :> es
     , RoFileSystem :> es
     ) =>
-    OsPath ->
+    AbsPath ->
     ByteString ->
     Eff es (Either String TsProgram)
 removeSlop p c =
@@ -178,7 +173,7 @@ tsConfig ::
     Eff es TsConfig
 tsConfig projPath = loadConfig (withAbsBaseUnsafe projPath [osp|tsconfig.json|])
   where
-    loadConfig fp = fsFileExistsAbs fp >>= bool (handleMissing fp) (handleFound fp)
+    loadConfig fp = fsFileExists fp >>= bool (handleMissing fp) (handleFound fp)
     handleFound fp = readTsConfig fp >>= either handleInvalid pure
 
     handleMissing = throwError . TsConfigNotFoundError . (.osPath)

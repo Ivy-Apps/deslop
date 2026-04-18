@@ -5,9 +5,8 @@ module Deslop.RelativeImports (
 
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader)
-import Effects.FileSystem (RoFileSystem, fsMkAbsolute)
+import Effects.FileSystem (AbsPath (..), RoFileSystem)
 import Effects.ReportProblem (Location (..), Problem (..), ReportProblem, RuleId (..), Severity (..), report)
-import System.OsPath (OsPath)
 import TypeScript.CST (
     TsNode (Import, target),
     TsProgram (cst, path),
@@ -18,11 +17,11 @@ import TypeScript.Config (
 import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe, reverseResolveImport)
 import Types (Renderable (render))
 
-noRelativeImports :: (TsNode, TsNode) -> OsPath -> Problem
+noRelativeImports :: (TsNode, TsNode) -> AbsPath -> Problem
 noRelativeImports (old, new) path =
     LintProblem
         { rule = RuleId "no-relative-imports"
-        , location = Location {file = path, code = render old}
+        , location = Location {file = path.osPath, code = render old}
         , severity = Error
         , description = "Relative imports are not allowed. Use absolute path aliased ones."
         , fix = "Use ```" <> render new <> "``` instead."
@@ -51,7 +50,6 @@ fixTarget ::
     ( Reader TsConfig :> es
     , RoFileSystem :> es
     ) =>
-    OsPath -> Text -> Eff es ModuleId
+    AbsPath -> Text -> Eff es ModuleId
 fixTarget progPath t = do
-    absTsModulePath <- fsMkAbsolute progPath
-    reverseResolveImport absTsModulePath (moduleIdUnsafe t)
+    reverseResolveImport progPath (moduleIdUnsafe t)

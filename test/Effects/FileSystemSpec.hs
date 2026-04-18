@@ -1,14 +1,14 @@
 module Effects.FileSystemSpec (spec) where
 
 import Effectful (runEff)
-import Effects.FileSystem (AbsPath (..), decodeOsPath, encodeOsPath, encodeOsPathString, fsListAbsDirectory, fsMkAbsolute, runRoFileSystemIO)
+import Effects.FileSystem (AbsPath (..), decodeOsPath, encodeOsPath, encodeOsPathString, fsListDirectory, fsMkAbsolute, runRoFileSystemIO)
 import System.Directory.OsPath qualified as SDO
 import System.OsPath (isAbsolute, osp)
 import System.OsString qualified as OS
 import Test.Hspec
 
 spec :: Spec
-spec = describe "FileSystem" $ do
+spec = describe "Effects.FileSystem" $ do
     it "fsMkAbsolute" $ do
         -- Given
         let path = [osp|./test/../deslop.cabal|]
@@ -21,13 +21,13 @@ spec = describe "FileSystem" $ do
         absPath.osPath `shouldSatisfy` isAbsolute
         SDO.doesFileExist absPath.osPath `shouldReturn` True
 
-    it "fsListAbsDirectory" $ do
+    it "fsListDirectory" $ do
         -- Given
         let path = [osp|test/fixtures/static|]
         absPath <- runEff . runRoFileSystemIO $ fsMkAbsolute path
 
         -- When
-        entries <- runEff . runRoFileSystemIO $ fsListAbsDirectory absPath
+        entries <- runEff . runRoFileSystemIO $ fsListDirectory absPath
 
         -- Then
         entries `shouldSatisfy` all (isAbsolute . (.osPath))

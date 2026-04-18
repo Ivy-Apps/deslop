@@ -5,10 +5,10 @@ import Effects.FileSystem
 import Secrets
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
-import TestUtils
+import TestUtils (fixturesPath, mkAbsolute)
 
 spec :: Spec
-spec = describe "getSecrets" $ do
+spec = describe "Secrets" $ do
     it "missing secrets" $ do
         res <- runGetSecrets $ fixturesPath </> [osp|secrets|] </> [osp|missing|]
         res `shouldBe` Left MissingSecretsFile
@@ -27,4 +27,4 @@ spec = describe "getSecrets" $ do
         res `shouldBe` Right expected
 
 runGetSecrets :: OsPath -> IO (Either SecretsError Secrets)
-runGetSecrets = runEff . runFileSystemIO . getSecrets
+runGetSecrets p = mkAbsolute p >>= runEff . runFileSystemIO . getSecrets

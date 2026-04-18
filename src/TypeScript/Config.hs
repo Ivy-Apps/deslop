@@ -13,7 +13,7 @@ import Data.Aeson (FromJSON, decode')
 import Data.Map qualified as M
 import Data.Text qualified as T
 import Effectful
-import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, encodeOsPath, fsMkAbsolute, fsReadAbsFile, withAbsBaseSafe)
+import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, encodeOsPath, fsMkAbsolute, fsReadFile, withAbsBaseSafe)
 import System.OsPath (takeDirectory)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)
@@ -60,7 +60,7 @@ instance FromJSON TsConfigDto
 instance FromJSON CompilerOptionsDto
 
 readTsConfig :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text TsConfig)
-readTsConfig cfgPath = fsReadAbsFile cfgPath >>= parseTsConfigFromJson cfgPath
+readTsConfig cfgPath = fsReadFile cfgPath >>= parseTsConfigFromJson cfgPath
 
 parseTsConfigFromJson :: (RoFileSystem :> es) => AbsPath -> ByteString -> Eff es (Either Text TsConfig)
 parseTsConfigFromJson cfgPath json = do

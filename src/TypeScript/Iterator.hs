@@ -3,17 +3,19 @@
 module TypeScript.Iterator (getTsFiles) where
 
 import Effectful
-import Effects.FileSystem (RoFileSystem, encodeOsPath, fsIsDirectory, fsListDirectory)
-import System.OsPath (OsPath, osp, takeExtension, (</>))
+import Effects.FileSystem (AbsPath (osPath), RoFileSystem, encodeOsPath, fsDirectoryExists, fsListDirectory)
+import System.OsPath (osp, takeExtension)
 
-getTsFiles :: (RoFileSystem :> es) => OsPath -> Eff es [OsPath]
-getTsFiles dir = fsListDirectory dir >>= fmap concat . traverse (processEntry dir)
+getTsFiles :: (RoFileSystem :> es) => AbsPath -> Eff es [AbsPath]
+getTsFiles dir = fsListDirectory dir >>= fmap concat . traverse processEntry
   where
-    processEntry root entry
-        | entry `elem` ignored = pure []
-        | otherwise = resolve $ root </> entry
-
-    resolve path = fsIsDirectory path >>= bool (tsOrEmpty path) (getTsFiles path)
-
-    tsOrEmpty f = pure [f | takeExtension f `elem` [[osp|.ts|], [osp|.tsx|]]]
+    tsExtensions = [[osp|.ts|], [osp|.tsx|]]
     ignored = map encodeOsPath ["node_modules", ".git", "dist", ".next"]
+
+    processEntry entry
+        | entry.osPath `elem` ignored = pure []
+        | otherwise = resolve entry
+
+    resolve path = fsDirectoryExists path >>= bool (tsOrEmpty path) (getTsFiles path)
+
+    tsOrEmpty f = pure [f | takeExtension f.osPath `elem` tsExtensions]

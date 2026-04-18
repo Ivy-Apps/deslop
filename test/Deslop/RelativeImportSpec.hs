@@ -1,64 +1,126 @@
 module Deslop.RelativeImportSpec (spec) where
 
--- import Data.Text qualified as T
--- import Deslop.RelativeImports (importAliases)
--- import Effectful (runEff)
--- import Effectful.Reader.Static
--- import Effects.FileSystem (encodeOsPath)
--- import Effects.ReportProblem (runReportProblem)
-import System.OsPath (OsPath)
+import Deslop.RelativeImports (importAliases)
+import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
+import Effectful (runEff)
+import Effectful.Reader.Static (runReader)
+import Effects.FileSystem (absPathUnsafe)
+import Effects.ReportProblem (Problem (..), RuleId (..), getProblems, runReportProblem)
+import System.OsPath (osp)
 import Test.Hspec
-import TypeScript.CST
-
--- import TypeScript.Config
+import TestUtils (defaultTsConfig)
+import TypeScript.CST (TsNode (..), TsProgram (..))
 
 spec :: Spec
-spec = describe "importAliases" $ do
-    it "Fix the tests later" $ do
-        True `shouldBe` True
+spec = describe "Deslop.RelativeImport" $ do
+    let runTest cfg existingFiles prog =
+            runEff
+                . runMockRoFileSystem (mockFiles existingFiles)
+                . runReportProblem
+                . runReader cfg
+                $ do
+                    result <- importAliases prog
+                    problems <- getProblems
+                    pure (result, problems)
 
--- Given
--- let cfg =
---         TsConfigLegacy
---             { paths =
---                 [ ImportAlias {label = "@test/", path = "tests/"}
---                 , ImportAlias {label = "@/", path = "src/"}
---                 ]
---             }
---
--- let runTest source target =
---         runEff . runReader cfg . runReportProblem $
---             importAliases (mkTestProgram source target)
---
--- describe "Path Resolutions" $ do
---     let cases =
---             [ ([osp|src/features/home/home.ts|], "../../lib/welcome", "@/lib/welcome")
---             , ([osp|src/features/home/home.ts|], "./useHomeViewModel", "@/features/home/useHomeViewModel")
---             , ([osp|src/features/auth.spec.ts|], "../../tests/auth-fixture", "@test/auth-fixture")
---             , ([osp|src/app.ts|], "react", "react")
---             , ([osp|src/feature/f1/f1.spec.ts|], "@/../tests/fixtures", "@test/fixtures")
---             , (encodeOsPath "", "vitests/config", "vitests/config")
---             ]
---
---     forM_ cases $ \(src, target, expected) ->
---         it (T.unpack $ "resolves '" <> target <> "' -> '" <> expected <> "'") $ do
---             -- When
---             result <- runTest src target
---             -- Then
---             firstTarget result `shouldBe` expected
+    let mkProg fp = TsModule (absPathUnsafe fp)
+    let mkImport t = Import {prefix = "import * from '", target = t, suffix = "';\n"}
 
-_mkTestProgram :: OsPath -> Text -> TsProgram
-_mkTestProgram filePath importTarget =
-    TsModule
-        filePath
-        [ Import
-            { prefix = "import * from '"
-            , target = importTarget
-            , suffix = "';\n"
-            }
-        ]
+    describe "importAliases" $ do
+        it "converts an up-dir relative import to an alias" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/features/home/home.ts|]
+                        [mkImport "../../lib/welcome"]
+            (result, problems) <-
+                runTest
+                    defaultTsConfig
+                    [[osp|/home/repo/src/lib/welcome.ts|]]
+                    prog
+            map (.target) result.cst `shouldBe` ["@/lib/welcome"]
+            length problems `shouldBe` 1
+            case problems of
+                (LintProblem {rule = r} : _) -> r `shouldBe` RuleId "no-relative-imports"
+                [] -> expectationFailure "expected at least one problem"
 
-_firstTarget :: TsProgram -> Text
-_firstTarget p = case p.cst of
-    (Import _ t _ : _) -> t
-    _ -> error "The program has no imports!"
+        it "converts a same-dir relative import to an alias" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/features/home/home.ts|]
+                        [mkImport "./useHomeViewModel"]
+            (result, problems) <-
+                runTest
+                    defaultTsConfig
+                    [[osp|/home/repo/src/features/home/useHomeViewModel.ts|]]
+                    prog
+            map (.target) result.cst `shouldBe` ["@/features/home/useHomeViewModel"]
+            length problems `shouldBe` 1
+            case problems of
+                (LintProblem {rule = r} : _) -> r `shouldBe` RuleId "no-relative-imports"
+                [] -> expectationFailure "expected at least one problem"
+
+        it "converts a relative import crossing into the test directory" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/app.ts|]
+                        [mkImport "../test/auth-fixture"]
+            (result, problems) <-
+                runTest
+                    defaultTsConfig
+                    [[osp|/home/repo/test/auth-fixture.ts|]]
+                    prog
+            map (.target) result.cst `shouldBe` ["@test/auth-fixture"]
+            length problems `shouldBe` 1
+
+        it "leaves a package import unchanged and reports no problem" $ do
+            let prog = mkProg [osp|/home/repo/src/app.ts|] [mkImport "react"]
+            (result, problems) <- runTest defaultTsConfig [] prog
+            map (.target) result.cst `shouldBe` ["react"]
+            problems `shouldBe` []
+
+        it "leaves an already-aliased import unchanged and reports no problem" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/app.ts|]
+                        [mkImport "@/components/Button"]
+            (result, problems) <-
+                runTest
+                    defaultTsConfig
+                    [[osp|/home/repo/src/components/Button.ts|]]
+                    prog
+            map (.target) result.cst `shouldBe` ["@/components/Button"]
+            problems `shouldBe` []
+
+        it "transforms multiple imports in one program" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/features/auth/auth.ts|]
+                        [ mkImport "../../../test/auth-fixture"
+                        , mkImport "react"
+                        ]
+            (result, problems) <-
+                runTest
+                    defaultTsConfig
+                    [[osp|/home/repo/test/auth-fixture.ts|]]
+                    prog
+            map (.target) result.cst `shouldBe` ["@test/auth-fixture", "react"]
+            length problems `shouldBe` 1
+
+        it "preserves non-import nodes unchanged" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/app.ts|]
+                        [ Source {raw = "const x = 1;\n"}
+                        , mkImport "./utils"
+                        , Source {raw = "export default x;\n"}
+                        ]
+            (result, _) <-
+                runTest
+                    defaultTsConfig
+                    [[osp|/home/repo/src/utils.ts|]]
+                    prog
+            case result.cst of
+                (n0 : _ : n2 : _) -> do
+                    n0 `shouldBe` Source {raw = "const x = 1;\n"}
+                    n2 `shouldBe` Source {raw = "export default x;\n"}
+                _ -> expectationFailure "expected at least 3 nodes"

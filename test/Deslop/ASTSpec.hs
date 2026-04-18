@@ -8,7 +8,7 @@ import Deslop.AST (
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful
 import Effectful.Reader.Static (runReader)
-import Effects.FileSystem (runFileSystemIO)
+import Effects.FileSystem (absPathUnsafe, runFileSystemIO)
 import System.OsPath (osp)
 import Test.Hspec
 import TestUtils (defaultTsConfig, emptyTsConfig)
@@ -17,12 +17,12 @@ import TypeScript.Config
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 
 spec :: Spec
-spec = describe "parseAst" $ do
+spec = describe "Deslop.AST" $ do
     it "simple happy path" $ do
         let existingFiles = [[osp|/home/repo/src/lib/demo.ts|]]
         let prog =
                 TsModule
-                    { path = [osp|/home/repo/src/lib/demo.ts|]
+                    { path = absPathUnsafe [osp|/home/repo/src/lib/demo.ts|]
                     , cst =
                         [ Import
                             { prefix = "import * from'"
@@ -47,7 +47,7 @@ spec = describe "parseAst" $ do
     it "import alias not available" $ do
         let prog =
                 TsModule
-                    { path = [osp|src/main.ts|]
+                    { path = absPathUnsafe [osp|src/main.ts|]
                     , cst =
                         [ Import
                             { prefix = "import { useEffect } from '"
