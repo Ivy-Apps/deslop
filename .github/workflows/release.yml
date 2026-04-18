@@ -13,8 +13,6 @@ jobs:
         include:
           - os: macos-latest
             npm-platform: darwin-arm64
-          - os: macos-26-intel
-            npm-platform: darwin-x64
           - os: ubuntu-latest
             npm-platform: linux-x64
           - os: ubuntu-24.04-arm
@@ -84,7 +82,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          for PLATFORM in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
+          for PLATFORM in darwin-arm64 linux-arm64 linux-x64; do
             PKG_DIR="npm/packages/$PLATFORM"
             mkdir -p "$PKG_DIR/bin"
             cp "dist/deslop-$PLATFORM" "$PKG_DIR/bin/deslop"
@@ -104,7 +102,6 @@ jobs:
 
           # Pin optionalDependencies to the exact release version
           npm pkg set optionalDependencies.@ivy-apps/deslop-darwin-arm64="$VERSION"
-          npm pkg set optionalDependencies.@ivy-apps/deslop-darwin-x64="$VERSION"
           npm pkg set optionalDependencies.@ivy-apps/deslop-linux-arm64="$VERSION"
           npm pkg set optionalDependencies.@ivy-apps/deslop-linux-x64="$VERSION"
 

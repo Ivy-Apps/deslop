@@ -11,7 +11,7 @@ try {
   binaryPath = require.resolve(`${pkgName}/bin/deslop`);
 } catch {
   console.error(`deslop: unsupported platform ${platform}-${arch}.`);
-  console.error(`Supported: linux/darwin on x64 and arm64.`);
+  console.error(`Supported: darwin-arm64, linux-arm64, linux-x64.`);
   process.exit(1);
 }
 
