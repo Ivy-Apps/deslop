@@ -34,14 +34,16 @@
         let
           ghcVersion = "ghc9103";
 
+
+          hlib = pkgs.haskell.lib.compose;
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
               deslop = self.callCabal2nix "deslop" ./. { };
-              fmt = pkgs.haskell.lib.dontCheck super.fmt;
+              fmt = hlib.dontCheck super.fmt;
             };
           };
 
-          hgold = pkgs.haskell.lib.justStaticExecutables hpkgs.hspec-golden;
+          hgold = hlib.justStaticExecutables hpkgs.hspec-golden;
 
           sysLibs = [ pkgs.zlib pkgs.xz ];
 
@@ -80,6 +82,10 @@
           };
         in
         {
+          packages = {
+            default = hlib.justStaticExecutables hpkgs.deslop;
+          };
+
           apps = {
             test = {
               type = "app";

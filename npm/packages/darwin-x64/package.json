@@ -1,0 +1,17 @@
+{
+  "name": "@ivy-apps/deslop-darwin-x64",
+  "version": "0.0.0",
+  "description": "deslop binary for darwin x64",
+  "license": "BSD-3-Clause",
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "files": ["bin"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ivy-Apps/deslop.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
