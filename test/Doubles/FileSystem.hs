@@ -37,6 +37,7 @@ data MockRoFileSystem es = MockRoFileSystem
     , mockFileExists :: OsPath -> Eff es Bool
     , mockFileExistsAbs :: AbsPath -> Eff es Bool
     , mockDirectoryExists :: OsPath -> Eff es Bool
+    , mockDirectoryExistsAbs :: AbsPath -> Eff es Bool
     , mockListDirectory :: OsPath -> Eff es [OsPath]
     , mockListAbsDirectory :: AbsPath -> Eff es [AbsPath]
     , mockIsDirectory :: OsPath -> Eff es Bool
@@ -54,6 +55,7 @@ defaultMockRoFileSystem =
         , mockFileExists = const $ pure False
         , mockFileExistsAbs = const $ pure False
         , mockDirectoryExists = const $ pure False
+        , mockDirectoryExistsAbs = const $ pure False
         , mockListDirectory = const $ pure []
         , mockListAbsDirectory = const $ pure []
         , mockIsDirectory = const $ pure False
@@ -90,6 +92,7 @@ runMockRoFileSystem mocks = interpret $ \_env -> \case
     FileExists p -> mocks.mockFileExists p
     FileExistsAbs p -> mocks.mockFileExistsAbs p
     DirectoryExists p -> mocks.mockDirectoryExists p
+    DirectoryExistsAbs p -> mocks.mockDirectoryExistsAbs p
     ListDirectory p -> mocks.mockListDirectory p
     ListAbsDirectory p -> mocks.mockListAbsDirectory p
     IsDirectory p -> mocks.mockIsDirectory p

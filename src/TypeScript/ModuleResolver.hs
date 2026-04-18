@@ -1,11 +1,13 @@
 module TypeScript.ModuleResolver (
-    ModuleId (..),
+    ModuleId (text),
+    moduleIdUnsafe,
     reverseResolve,
     reverseResolveImport,
     resolve,
     match,
     Match (..),
     isRelativeImport,
+    dropTypeScriptExtension,
 ) where
 
 import Data.Text qualified as T
@@ -19,7 +21,13 @@ import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsCon
 or ./LoginView (relative to the current file) or ../../lib/util (relative to the current file)
 or /home/repo/src/lib/util
 -}
-newtype ModuleId = ModuleId Text deriving stock (Show, Eq)
+newtype ModuleId = ModuleId
+    { text :: Text
+    }
+    deriving stock (Show, Eq, Ord)
+
+moduleIdUnsafe :: Text -> ModuleId
+moduleIdUnsafe = ModuleId
 
 reverseResolveImport ::
     ( RoFileSystem :> es
@@ -50,25 +58,6 @@ reverseResolve absFilePath = do
                 then pure . Just . ModuleId $ moduleRelToCfg
                 else pure Nothing
   where
-    dropTypeScriptExtension :: OsPath -> OsPath
-    dropTypeScriptExtension osp
-        | any (`T.isSuffixOf` path) [".d.ts", ".d.mts", ".d.cts"] = dropExtension (dropExtension osp)
-        | any
-            (`T.isSuffixOf` path)
-            [ ".ts"
-            , ".tsx"
-            , ".mts"
-            , ".cts"
-            , ".js"
-            , ".jsx"
-            , ".mjs"
-            , ".cjs"
-            ] =
-            dropExtension osp
-        | otherwise = osp
-      where
-        path = decodeOsPath osp
-
     dropCommonSegments :: (Eq a) => [a] -> [a] -> ([a], [a])
     dropCommonSegments (x : xs) (y : ys) | x == y = dropCommonSegments xs ys
     dropCommonSegments xs ys = (xs, ys)
@@ -91,6 +80,25 @@ reverseResolve absFilePath = do
     matchValues (ValuePattern p : ps) t
         | Just found <- match p t = Just found
         | otherwise = matchValues ps t
+
+dropTypeScriptExtension :: OsPath -> OsPath
+dropTypeScriptExtension osp
+    | any (`T.isSuffixOf` path) [".d.ts", ".d.mts", ".d.cts"] = dropExtension (dropExtension osp)
+    | any
+        (`T.isSuffixOf` path)
+        [ ".ts"
+        , ".tsx"
+        , ".mts"
+        , ".cts"
+        , ".js"
+        , ".jsx"
+        , ".mjs"
+        , ".cjs"
+        ] =
+        dropExtension osp
+    | otherwise = osp
+  where
+    path = decodeOsPath osp
 
 resolve :: (RoFileSystem :> es, Reader TsConfig :> es) => AbsPath -> ModuleId -> Eff es AbsPath
 resolve importingFile target@(ModuleId mId) =

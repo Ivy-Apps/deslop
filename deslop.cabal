@@ -17,6 +17,7 @@ common shared-properties
     DeriveGeneric
     DerivingStrategies
     DuplicateRecordFields
+    FlexibleContexts
     LambdaCase
     NoFieldSelectors
     OverloadedLabels
@@ -46,12 +47,19 @@ library
   exposed-modules:
     Deslop
     Deslop.AST
+    Deslop.Baseline
+    Deslop.CodeGraph
+    Deslop.GlobPlus
+    Deslop.MCP
     Deslop.RelativeImports
-    Deslop.RuleBook
+    Deslop.Rulebook
+    Deslop.RuleEnforcer
+    Deslop.RuleExplainer
     Effects.AI
     Effects.CLILog
     Effects.FileSystem
     Effects.Git
+    Effects.Licensing
     Effects.ReportProblem
     Params
     Prelude
@@ -59,6 +67,7 @@ library
     Types
     TypeScript.Config
     TypeScript.CST
+    TypeScript.Iterator
     TypeScript.Lexer
     TypeScript.ModuleResolver
     TypeScript.Parser
@@ -83,13 +92,12 @@ library
     , file-io
     , filepath              >=1.4.100.0
     , fmt
-    , Glob
-    , lens
     , megaparsec
     , optparse-applicative
     , ordered-containers
     , os-string
     , process
+    , regex-tdfa
     , req
     , stm
     , template-haskell
@@ -112,9 +120,9 @@ test-suite deslop-test
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Deslop.ASTSpec
+    Deslop.GlobPlusSpec
     Deslop.RelativeImportSpec
-    Deslop.RuleBookFixtures
-    Deslop.RuleBookSpec
+    Deslop.RulebookSpec
     Doubles.FileSystem
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
@@ -139,12 +147,10 @@ test-suite deslop-test
     , effectful
     , file-io
     , filepath              >=1.4.100.0
-    , Glob
     , hedgehog
     , hspec
     , hspec-golden
     , hspec-hedgehog
-    , lens
     , megaparsec
     , optparse-applicative
     , os-string

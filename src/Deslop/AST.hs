@@ -4,15 +4,13 @@ module Deslop.AST (
     parseAst,
 ) where
 
-import Data.Text qualified as T
 import Deslop.RelativeImports (fixTarget)
 import Effectful
 import Effectful.Reader.Static (Reader)
 import Effects.FileSystem (RoFileSystem, decodeOsPath)
-import System.FilePath (dropExtension)
 import TypeScript.CST (TsNode (..), TsProgram (cst, path))
 import TypeScript.Config (TsConfig)
-import TypeScript.ModuleResolver (ModuleId (..))
+import TypeScript.ModuleResolver (ModuleId (..), dropTypeScriptExtension, moduleIdUnsafe)
 
 newtype AstNode = ImportNode
     { target :: ModuleId
@@ -33,13 +31,11 @@ parseAst prog = do
             , nodes = mapMaybe parseNode prog.cst
             }
   where
-    programModuleId =
-        ModuleId . T.pack . dropExtension . T.unpack
-            <$> fixTarget prog.path (decodeOsPath prog.path)
+    programModuleId = fixTarget prog.path (decodeOsPath . dropTypeScriptExtension $ prog.path)
     parseNode :: TsNode -> Maybe AstNode
     parseNode (Import _ t _) =
         Just $
             ImportNode
-                { target = ModuleId t
+                { target = moduleIdUnsafe t
                 }
     parseNode _ = Nothing

@@ -10,7 +10,7 @@ import System.OsPath (osp)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import TestUtils (mkMapping)
 import TypeScript.Config (Pattern (..), TsConfig (..))
-import TypeScript.ModuleResolver (Match (..), ModuleId (..), isRelativeImport, match, resolve, reverseResolve, reverseResolveImport)
+import TypeScript.ModuleResolver (Match (..), isRelativeImport, match, moduleIdUnsafe, resolve, reverseResolve, reverseResolveImport)
 
 spec :: Spec
 spec = describe "ModuleResolver" $ do
@@ -87,12 +87,12 @@ spec = describe "ModuleResolver" $ do
 
         it "resolves relative to baseUrl when there are no path mappings" $ do
             let result = runEncodeTest baseCfg [osp|/home/repo/src/lib/util.tsx|]
-            result `shouldBe` Just (ModuleId "src/lib/util")
+            result `shouldBe` Just (moduleIdUnsafe "src/lib/util")
 
         it "resolves relative to baseUrl when mappings exist but do not match" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/test/util.ts|]
-            result `shouldBe` Just (ModuleId "test/util")
+            result `shouldBe` Just (moduleIdUnsafe "test/util")
 
         it "applies an Exact path mapping" $ do
             let cfg =
@@ -100,12 +100,12 @@ spec = describe "ModuleResolver" $ do
                         { paths = [mkMapping (Exact "jquery") [Exact "node_modules/jquery/dist/jquery"]]
                         }
             let result = runEncodeTest cfg [osp|/home/repo/node_modules/jquery/dist/jquery.js|]
-            result `shouldBe` Just (ModuleId "jquery")
+            result `shouldBe` Just (moduleIdUnsafe "jquery")
 
         it "applies a Suffix Wildcard path mapping" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/lib/util.tsx|]
-            result `shouldBe` Just (ModuleId "@/lib/util")
+            result `shouldBe` Just (moduleIdUnsafe "@/lib/util")
 
         it "applies an Infix Wildcard path mapping" $ do
             let cfg =
@@ -113,9 +113,9 @@ spec = describe "ModuleResolver" $ do
                         { paths = [mkMapping (Wildcard "@dto/" "-dto") [Wildcard "src/types/" "-dto"]]
                         }
             let resMatch = runEncodeTest cfg [osp|/home/repo/src/types/user/account-dto.ts|]
-            resMatch `shouldBe` Just (ModuleId "@dto/user/account-dto")
+            resMatch `shouldBe` Just (moduleIdUnsafe "@dto/user/account-dto")
             let resNotFound = runEncodeTest cfg [osp|/home/repo/src/types/user/account.ts|]
-            resNotFound `shouldBe` Just (ModuleId "src/types/user/account")
+            resNotFound `shouldBe` Just (moduleIdUnsafe "src/types/user/account")
 
         it "handles prefix wildcards (*-spec)" $ do
             let cfg =
@@ -123,7 +123,7 @@ spec = describe "ModuleResolver" $ do
                         { paths = [mkMapping (Wildcard "@tests/" "-spec") [Wildcard "src/tests/" "-spec"]]
                         }
             let result = runEncodeTest cfg [osp|/home/repo/src/tests/auth-spec.ts|]
-            result `shouldBe` Just (ModuleId "@tests/auth-spec")
+            result `shouldBe` Just (moduleIdUnsafe "@tests/auth-spec")
 
         it "handles fallback values in mapping array (matches the second value)" $ do
             let cfg =
@@ -138,7 +138,7 @@ spec = describe "ModuleResolver" $ do
                         }
             -- Matches the second value "shared/utils/*"
             let result = runEncodeTest cfg [osp|/home/repo/shared/utils/math.ts|]
-            result `shouldBe` Just (ModuleId "@utils/math")
+            result `shouldBe` Just (moduleIdUnsafe "@utils/math")
 
         it "picks the first matched mapping (ensures correct priority execution)" $ do
             let cfg =
@@ -150,7 +150,7 @@ spec = describe "ModuleResolver" $ do
                         }
             -- Even though "src/utils/*" would match, the exact match is listed first.
             let result = runEncodeTest cfg [osp|/home/repo/src/utils/math.ts|]
-            result `shouldBe` Just (ModuleId "@utils/math")
+            result `shouldBe` Just (moduleIdUnsafe "@utils/math")
 
         it "recovers via fall-through if an invalid Exact-Key to Wildcard-Value match is encountered" $ do
             let cfg =
@@ -164,7 +164,7 @@ spec = describe "ModuleResolver" $ do
             -- It should hit the first mapping, realize it can't apply a capture to an Exact key,
             -- safely fall through, and successfully match the second mapping.
             let result = runEncodeTest cfg [osp|/home/repo/src/libs/logger.ts|]
-            result `shouldBe` Just (ModuleId "@libs/logger")
+            result `shouldBe` Just (moduleIdUnsafe "@libs/logger")
 
         it "handles Wildcard keys mapped to Exact values" $ do
             let cfg =
@@ -174,7 +174,7 @@ spec = describe "ModuleResolver" $ do
             let result = runEncodeTest cfg [osp|/home/repo/src/core.ts|]
             -- Candidate "src/core" matches Exact "src/core" -> ExactMatch
             -- Applying ExactMatch to Wildcard "@core/" "" -> "@core/" <> "" <> "" -> "@core/"
-            result `shouldBe` Just (ModuleId "@core/")
+            result `shouldBe` Just (moduleIdUnsafe "@core/")
 
         it "returns Nothing when target is outside baseUrl and no mappings exist" $ do
             let cfg = baseCfg {paths = []}
@@ -211,7 +211,7 @@ spec = describe "ModuleResolver" $ do
         it "resolves a Vite-style alias with a custom symbol ($)" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "$utils/" "") [Wildcard "src/utils/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/utils/formatter.ts|]
-            result `shouldBe` Just (ModuleId "$utils/formatter")
+            result `shouldBe` Just (moduleIdUnsafe "$utils/formatter")
 
         it "resolves to the first available mapping in a multi-value fallback array" $ do
             let cfg =
@@ -226,94 +226,94 @@ spec = describe "ModuleResolver" $ do
                         }
             -- If the file is in the first target path
             let result = runEncodeTest cfg [osp|/home/repo/src/lib/core.ts|]
-            result `shouldBe` Just (ModuleId "@lib/core")
+            result `shouldBe` Just (moduleIdUnsafe "@lib/core")
 
         it "resolves a shared assets folder alias common in React/Vite" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@assets/" "") [Wildcard "src/assets/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/assets/images/logo.png|]
-            result `shouldBe` Just (ModuleId "@assets/images/logo.png")
+            result `shouldBe` Just (moduleIdUnsafe "@assets/images/logo.png")
 
         it "resolves a root-level config file using an exact alias" $ do
             let cfg = baseCfg {paths = [mkMapping (Exact "config") [Exact "constants/app-config"]]}
             let result = runEncodeTest cfg [osp|/home/repo/constants/app-config.ts|]
-            result `shouldBe` Just (ModuleId "config")
+            result `shouldBe` Just (moduleIdUnsafe "config")
 
         it "resolves a CSS module file retaining its full extension (.module.css)" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/components/Button.module.css|]
-            result `shouldBe` Just (ModuleId "@/components/Button.module.css")
+            result `shouldBe` Just (moduleIdUnsafe "@/components/Button.module.css")
 
         it "resolves a directory index file to the directory name (clean index resolution)" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             -- Logical resolution of /index.ts should often prefer the directory name in modern stacks
             let result = runEncodeTest cfg [osp|/home/repo/src/lib/utils/index.ts|]
-            result `shouldBe` Just (ModuleId "@/lib/utils/index")
+            result `shouldBe` Just (moduleIdUnsafe "@/lib/utils/index")
 
         it "resolves a type definition file (.d.ts) by dropping the extension like a source file" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/types/user.d.ts|]
-            result `shouldBe` Just (ModuleId "@types/user")
+            result `shouldBe` Just (moduleIdUnsafe "@types/user")
 
         it "resolves a file with multiple dots (e.g. .controller.ts) by dropping only the final extension" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@api/" "") [Wildcard "src/api/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/api/user.controller.ts|]
-            result `shouldBe` Just (ModuleId "@api/user.controller")
+            result `shouldBe` Just (moduleIdUnsafe "@api/user.controller")
 
         it "resolves a directory index.d.ts file to the clean directory alias" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/src/types/global/index.d.ts|]
-            result `shouldBe` Just (ModuleId "@types/global/index")
+            result `shouldBe` Just (moduleIdUnsafe "@types/global/index")
 
         it "resolves modern TS extensions (.mts, .cts) by dropping the extension" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@lib/" "") [Wildcard "src/lib/" ""]]}
             -- NOTE: This will fail until you add .mts, .cts, .mjs, .cjs to `dropTypeScriptExtension`!
             let result = runEncodeTest cfg [osp|/home/repo/src/lib/math.mts|]
-            result `shouldBe` Just (ModuleId "@lib/math")
+            result `shouldBe` Just (moduleIdUnsafe "@lib/math")
 
         it "resolves modern TS double-extensions (.d.mts, .d.cts) by dropping both" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
             -- NOTE: This will fail until you add .d.mts and .d.cts to `dropTypeScriptExtension`!
             let result = runEncodeTest cfg [osp|/home/repo/src/types/node.d.mts|]
-            result `shouldBe` Just (ModuleId "@types/node")
+            result `shouldBe` Just (moduleIdUnsafe "@types/node")
 
     describe "isRelativeImport" $ do
         it "identifies strict current directory (.)" $ do
-            isRelativeImport (ModuleId ".") `shouldBe` True
+            isRelativeImport (moduleIdUnsafe ".") `shouldBe` True
 
         it "identifies strict parent directory (..)" $ do
-            isRelativeImport (ModuleId "..") `shouldBe` True
+            isRelativeImport (moduleIdUnsafe "..") `shouldBe` True
 
         it "identifies current directory prefix (./)" $ do
-            isRelativeImport (ModuleId "./") `shouldBe` True
-            isRelativeImport (ModuleId "./components/Button") `shouldBe` True
+            isRelativeImport (moduleIdUnsafe "./") `shouldBe` True
+            isRelativeImport (moduleIdUnsafe "./components/Button") `shouldBe` True
 
         it "identifies parent directory prefix (../)" $ do
-            isRelativeImport (ModuleId "../") `shouldBe` True
-            isRelativeImport (ModuleId "../utils/math") `shouldBe` True
-            isRelativeImport (ModuleId "../../shared/types") `shouldBe` True
+            isRelativeImport (moduleIdUnsafe "../") `shouldBe` True
+            isRelativeImport (moduleIdUnsafe "../utils/math") `shouldBe` True
+            isRelativeImport (moduleIdUnsafe "../../shared/types") `shouldBe` True
 
         it "identifies root/absolute paths (/)" $ do
             -- Note: TypeScript treats absolute paths as "relative" module resolutions
             -- because they bypass TSConfig mappings and node_modules lookup.
-            isRelativeImport (ModuleId "/") `shouldBe` True
-            isRelativeImport (ModuleId "/home/repo/src/main") `shouldBe` True
+            isRelativeImport (moduleIdUnsafe "/") `shouldBe` True
+            isRelativeImport (moduleIdUnsafe "/home/repo/src/main") `shouldBe` True
 
         it "rejects non-relative bare specifiers" $ do
-            isRelativeImport (ModuleId "react") `shouldBe` False
-            isRelativeImport (ModuleId "lodash/fp") `shouldBe` False
-            isRelativeImport (ModuleId "src/utils/math") `shouldBe` False
+            isRelativeImport (moduleIdUnsafe "react") `shouldBe` False
+            isRelativeImport (moduleIdUnsafe "lodash/fp") `shouldBe` False
+            isRelativeImport (moduleIdUnsafe "src/utils/math") `shouldBe` False
 
         it "rejects non-relative aliased specifiers" $ do
-            isRelativeImport (ModuleId "@utils/math") `shouldBe` False
-            isRelativeImport (ModuleId "@/components/Button") `shouldBe` False
+            isRelativeImport (moduleIdUnsafe "@utils/math") `shouldBe` False
+            isRelativeImport (moduleIdUnsafe "@/components/Button") `shouldBe` False
 
         it "rejects specifiers that start with dots but lack slashes (TS edge cases)" $ do
-            isRelativeImport (ModuleId ".hidden-module") `shouldBe` False
-            isRelativeImport (ModuleId "..double-dot-module") `shouldBe` False
-            isRelativeImport (ModuleId "...") `shouldBe` False
+            isRelativeImport (moduleIdUnsafe ".hidden-module") `shouldBe` False
+            isRelativeImport (moduleIdUnsafe "..double-dot-module") `shouldBe` False
+            isRelativeImport (moduleIdUnsafe "...") `shouldBe` False
 
         it "rejects inner-relative paths (must start with relative prefix)" $ do
-            isRelativeImport (ModuleId "utils/../math") `shouldBe` False
+            isRelativeImport (moduleIdUnsafe "utils/../math") `shouldBe` False
 
     describe "resolve (Forward Path Resolution)" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
@@ -324,7 +324,7 @@ spec = describe "ModuleResolver" $ do
                 runPureEff
                     . runMockRoFileSystem (mockFiles existingFiles)
                     . runReader cfg
-                    $ resolve importerAbsPath (ModuleId mId)
+                    $ resolve importerAbsPath (moduleIdUnsafe mId)
 
         -- Default helper for non-relative tests to avoid rewriting existing cases
         let runResolveTest = runResolveTestFrom (absPathUnsafe [osp|/home/repo/src/main.ts|])
@@ -527,7 +527,7 @@ spec = describe "ModuleResolver" $ do
                 runPureEff
                     . runMockRoFileSystem (mockFiles existingFiles)
                     . runReader cfg
-                    $ reverseResolveImport importerAbsPath (ModuleId mIdStr)
+                    $ reverseResolveImport importerAbsPath (moduleIdUnsafe mIdStr)
 
         it "converts a parent-directory relative import to an aliased import if a mapping exists" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -535,7 +535,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/utils/math.ts|]]
 
             let result = runRRTest importer cfg existingFiles "../utils/math"
-            result `shouldBe` ModuleId "@utils/math"
+            result `shouldBe` moduleIdUnsafe "@utils/math"
 
         it "converts a same-directory relative import to an aliased import if a mapping exists" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -543,7 +543,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/pages/LoginView.tsx|]]
 
             let result = runRRTest importer cfg existingFiles "./LoginView"
-            result `shouldBe` ModuleId "@pages/LoginView"
+            result `shouldBe` moduleIdUnsafe "@pages/LoginView"
 
         it "converts a relative import to a baseUrl-relative absolute import if no path mapping exists (inside baseUrl)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -551,7 +551,7 @@ spec = describe "ModuleResolver" $ do
 
             -- By TS rules, if there's no alias but it's in the baseUrl, it's valid to make it a bare specifier.
             let result = runRRTest importer baseCfg existingFiles "../utils/math"
-            result `shouldBe` ModuleId "src/utils/math"
+            result `shouldBe` moduleIdUnsafe "src/utils/math"
 
         it "improves an existing aliased import if a more specific/shorter alias matches" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -568,7 +568,7 @@ spec = describe "ModuleResolver" $ do
             -- Original import used the broader `@components/` alias
             let result = runRRTest importer cfg existingFiles "@components/ui/button"
             -- It should upgrade to the more specific `@ui/` alias
-            result `shouldBe` ModuleId "@ui/button"
+            result `shouldBe` moduleIdUnsafe "@ui/button"
 
         it "leaves an aliased import as-is if it is already the optimal choice" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -576,7 +576,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/utils/math.ts|]]
 
             let result = runRRTest importer cfg existingFiles "@utils/math"
-            result `shouldBe` ModuleId "@utils/math"
+            result `shouldBe` moduleIdUnsafe "@utils/math"
 
         it "leaves non-relative bare module specifiers (node_modules) as-is" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -586,7 +586,7 @@ spec = describe "ModuleResolver" $ do
             -- `resolve` might fail to find external modules in local pure fs,
             -- but the reverse resolver should gracefully leave the raw target untouched.
             let result = runRRTest importer cfg existingFiles "react"
-            result `shouldBe` ModuleId "react"
+            result `shouldBe` moduleIdUnsafe "react"
 
         it "correctly resolves a relative import pointing to a directory index to its aliased equivalent" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -596,7 +596,7 @@ spec = describe "ModuleResolver" $ do
             -- The relative import resolves to /home/repo/src/utils/index.ts
             -- The alias engine should map that back to `@utils/index` or `@utils/`
             let result = runRRTest importer cfg existingFiles "../utils"
-            result `shouldBe` ModuleId "@utils/index"
+            result `shouldBe` moduleIdUnsafe "@utils/index"
 
         it "leaves relative imports pointing entirely outside the baseUrl as-is" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -608,7 +608,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/shared/types.ts|]]
 
             let result = runRRTest importer cfg existingFiles "../../../shared/types"
-            result `shouldBe` ModuleId "../../../shared/types"
+            result `shouldBe` moduleIdUnsafe "../../../shared/types"
 
         it "converts an outside-baseUrl relative import to an aliased import if an explicit mapping exists for it" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -620,7 +620,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/shared/utils.ts|]]
 
             let result = runRRTest importer cfg existingFiles "../../../shared/utils"
-            result `shouldBe` ModuleId "@shared/utils"
+            result `shouldBe` moduleIdUnsafe "@shared/utils"
 
         it "leaves outside-baseUrl relative imports as-is even if they share folder names with inside-baseUrl paths" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -631,7 +631,7 @@ spec = describe "ModuleResolver" $ do
 
             -- Should NOT resolve to "src/utils" because it's not the /home/repo/src/utils
             let result = runRRTest importer cfg existingFiles "../../../src/utils"
-            result `shouldBe` ModuleId "../../../src/utils"
+            result `shouldBe` moduleIdUnsafe "../../../src/utils"
 
         it "returns Nothing (preserves target) if the file doesn't exist on disk" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -643,7 +643,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = []
 
             let result = runRRTest importer cfg existingFiles "../utils/typo"
-            result `shouldBe` ModuleId "@utils/typo"
+            result `shouldBe` moduleIdUnsafe "@utils/typo"
 
         it "prioritizes exact path mappings over wildcard mappings in a Next.js environment" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/components/Header.tsx|]
@@ -660,7 +660,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/data/mock-users.ts|]]
 
             let result = runRRTest importer cfg existingFiles "../data/mock-users"
-            result `shouldBe` ModuleId "@data/users"
+            result `shouldBe` moduleIdUnsafe "@data/users"
 
         it "resolves a Next.js root alias (@/) correctly" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/app/dashboard/page.tsx|]
@@ -669,7 +669,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/lib/utils.ts|]]
 
             let result = runRRTest importer cfg existingFiles "../../lib/utils"
-            result `shouldBe` ModuleId "@/src/lib/utils"
+            result `shouldBe` moduleIdUnsafe "@/src/lib/utils"
 
         it "handles 'index.ts' correctly when exact matching a directory alias" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -684,7 +684,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/models/index.ts|]]
 
             let result = runRRTest importer cfg existingFiles "../models"
-            result `shouldBe` ModuleId "@models"
+            result `shouldBe` moduleIdUnsafe "@models"
 
         it "preserves absolute imports that do not map to the current project (Node built-ins)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/api/route.ts|]
@@ -693,7 +693,7 @@ spec = describe "ModuleResolver" $ do
 
             -- Imports like "fs", "path", or "crypto"
             let result = runRRTest importer cfg existingFiles "fs"
-            result `shouldBe` ModuleId "fs"
+            result `shouldBe` moduleIdUnsafe "fs"
 
         it "preserves complex relative traversals that ultimately resolve inside the baseUrl" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/components/ui/Button.tsx|]
@@ -704,7 +704,7 @@ spec = describe "ModuleResolver" $ do
             let result = runRRTest importer cfg existingFiles "../../utils/../hooks/useToggle"
 
             -- It should figure out exactly where that points and give the clean alias!
-            result `shouldBe` ModuleId "@hooks/useToggle"
+            result `shouldBe` moduleIdUnsafe "@hooks/useToggle"
 
         it "cleans a deep relative import in Next.js App Router (src/app/(auth)/login/page.tsx)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/app/(auth)/login/page.tsx|]
@@ -713,7 +713,7 @@ spec = describe "ModuleResolver" $ do
 
             -- Dev used a messy relative path to jump out of the grouping folder (auth)
             let result = runRRTest importer cfg existingFiles "../../../components/ui/Input"
-            result `shouldBe` ModuleId "@/components/ui/Input"
+            result `shouldBe` moduleIdUnsafe "@/components/ui/Input"
 
         it "converts a relative import to a specific feature alias (@feature/*)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/main.tsx|]
@@ -721,7 +721,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/modules/dashboard/components/Chart.tsx|]]
 
             let result = runRRTest importer cfg existingFiles "./modules/dashboard/components/Chart"
-            result `shouldBe` ModuleId "@dashboard/components/Chart"
+            result `shouldBe` moduleIdUnsafe "@dashboard/components/Chart"
 
         it "handles Next.js 'public' folder aliasing for static assets" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/components/Hero.tsx|]
@@ -730,7 +730,7 @@ spec = describe "ModuleResolver" $ do
 
             -- Importing an asset relatively
             let result = runRRTest importer cfg existingFiles "../../public/vectors/banner.svg"
-            result `shouldBe` ModuleId "@public/vectors/banner.svg"
+            result `shouldBe` moduleIdUnsafe "@public/vectors/banner.svg"
 
         it "prefers a more specific alias over a general root alias (@components/ vs @/)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/index.tsx|]
@@ -745,7 +745,7 @@ spec = describe "ModuleResolver" $ do
 
             let result = runRRTest importer cfg existingFiles "../components/Button"
             -- Should pick @components/ because it's higher priority in the list
-            result `shouldBe` ModuleId "@components/Button"
+            result `shouldBe` moduleIdUnsafe "@components/Button"
 
         it "correctly aliases a sibling file in a flat Vite 'src' structure" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/App.tsx|]
@@ -753,7 +753,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/theme.ts|]]
 
             let result = runRRTest importer cfg existingFiles "./theme"
-            result `shouldBe` ModuleId "@/theme"
+            result `shouldBe` moduleIdUnsafe "@/theme"
 
         it "upgrades a relative import in a monorepo to a cross-package alias (@repo/shared)" $ do
             let importer = absPathUnsafe [osp|/home/repo/apps/web/src/App.tsx|]
@@ -767,7 +767,7 @@ spec = describe "ModuleResolver" $ do
 
             -- Dev used a messy relative path to reach out of the app into a sibling package
             let result = runRRTest importer cfg existingFiles "../../../packages/shared/src/api"
-            result `shouldBe` ModuleId "@repo/shared/api"
+            result `shouldBe` moduleIdUnsafe "@repo/shared/api"
 
         it "handles Next.js App Router 'page to component' imports via root alias" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/app/blog/[slug]/page.tsx|]
@@ -776,7 +776,7 @@ spec = describe "ModuleResolver" $ do
 
             -- Deeply nested page importing a component
             let result = runRRTest importer cfg existingFiles "../../../components/PostView"
-            result `shouldBe` ModuleId "@/components/PostView"
+            result `shouldBe` moduleIdUnsafe "@/components/PostView"
 
         it "correctly aliases a sibling directory import that uses an index file" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/features/auth/login.tsx|]
@@ -785,7 +785,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/features/ui/index.tsx|]]
 
             let result = runRRTest importer cfg existingFiles "../ui"
-            result `shouldBe` ModuleId "@features/ui/index"
+            result `shouldBe` moduleIdUnsafe "@features/ui/index"
 
         it "preserves a relative import to a local JSON configuration file with extension" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/main.ts|]
@@ -794,7 +794,7 @@ spec = describe "ModuleResolver" $ do
 
             -- JSON imports must keep their extension
             let result = runRRTest importer cfg existingFiles "./config.json"
-            result `shouldBe` ModuleId "@/config.json"
+            result `shouldBe` moduleIdUnsafe "@/config.json"
 
         it "handles Vite's common 'virtual' or prefixed internal modules without breaking them" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/main.tsx|]
@@ -803,7 +803,7 @@ spec = describe "ModuleResolver" $ do
 
             -- Vite uses virtual modules like 'virtual:pwa-register'
             let result = runRRTest importer cfg existingFiles "virtual:pwa-register"
-            result `shouldBe` ModuleId "virtual:pwa-register"
+            result `shouldBe` moduleIdUnsafe "virtual:pwa-register"
 
         it "preserves Vite resource queries (e.g., ?raw, ?worker) as they are virtual module references" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/components/Icon.tsx|]
@@ -813,7 +813,7 @@ spec = describe "ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/assets/logo.svg|]]
 
             let result = runRRTest importer cfg existingFiles "../../assets/logo.svg?raw"
-            result `shouldBe` ModuleId "assets/logo.svg?raw"
+            result `shouldBe` moduleIdUnsafe "assets/logo.svg?raw"
 
         it "preserves Node.js package.json subpath imports (e.g., #internal/utils)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/index.ts|]
@@ -822,7 +822,7 @@ spec = describe "ModuleResolver" $ do
 
             -- Subpath imports start with '#' and are resolved by Node's export maps, not TS paths.
             let result = runRRTest importer cfg existingFiles "#internal/utils"
-            result `shouldBe` ModuleId "#internal/utils"
+            result `shouldBe` moduleIdUnsafe "#internal/utils"
 
         it "preserves bare specifiers that look like relative paths due to scoped packages (@org/pkg/.)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/index.ts|]
@@ -831,4 +831,4 @@ spec = describe "ModuleResolver" $ do
 
             -- An edge case where a scoped package might have a subpath that tricks naive parsers
             let result = runRRTest importer cfg existingFiles "@company/internal-lib/./utils"
-            result `shouldBe` ModuleId "@company/internal-lib/utils"
+            result `shouldBe` moduleIdUnsafe "@company/internal-lib/utils"

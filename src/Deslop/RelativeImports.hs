@@ -15,7 +15,7 @@ import TypeScript.CST (
 import TypeScript.Config (
     TsConfig,
  )
-import TypeScript.ModuleResolver (ModuleId (..), reverseResolveImport)
+import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe, reverseResolveImport)
 import Types (Renderable (render))
 
 noRelativeImports :: (TsNode, TsNode) -> OsPath -> Problem
@@ -39,7 +39,7 @@ importAliases prog = do
     pure prog {cst = cst'}
   where
     fixImport old@(Import _ t _) = do
-        t' <- fixTarget prog.path t
+        t' <- (.text) <$> fixTarget prog.path t
         let new = old {target = t'}
         when
             (t /= t')
@@ -51,8 +51,7 @@ fixTarget ::
     ( Reader TsConfig :> es
     , RoFileSystem :> es
     ) =>
-    OsPath -> Text -> Eff es Text
+    OsPath -> Text -> Eff es ModuleId
 fixTarget progPath t = do
     absTsModulePath <- fsMkAbsolute progPath
-    ModuleId t' <- reverseResolveImport absTsModulePath (ModuleId t)
-    pure t'
+    reverseResolveImport absTsModulePath (moduleIdUnsafe t)

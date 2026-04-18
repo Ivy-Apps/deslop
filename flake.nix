@@ -46,59 +46,90 @@
           sysLibs = [ pkgs.zlib pkgs.xz ];
 
           nvim = my-nixvim.lib.mkHaskellNvim { inherit pkgs hpkgs; };
+
+          aiTestRunner = pkgs.writeShellApplication {
+            name = "ai-test";
+            runtimeInputs = [ pkgs.nix ];
+            text = ''
+              if [ "$#" -eq 0 ]; then
+                nix develop ".#ci" --no-warn-dirty --quiet -c \
+                  cabal test -v0 --test-show-details=direct \
+                  --test-options="--no-color"
+              else
+                nix develop ".#ci" --no-warn-dirty --quiet -c \
+                  cabal test -v0 --test-show-details=direct \
+                  --test-options="--no-color --match $*"
+              fi
+            '';
+          };
+          aiBuildRunner = pkgs.writeShellApplication {
+            name = "ai-build";
+            runtimeInputs = [ pkgs.nix ];
+            text = ''
+              nix develop ".#ci" --no-warn-dirty --quiet -c \
+                cabal build
+            '';
+          };
+          aiLintRunner = pkgs.writeShellApplication {
+            name = "ai-lint";
+            runtimeInputs = [ pkgs.nix ];
+            text = ''
+              nix develop ".#default" --no-warn-dirty --quiet -c \
+                hlint .
+            '';
+          };
         in
         {
-          devShells.default = hpkgs.shellFor {
-            packages = p: [ p.deslop ];
-            withHoogle = false;
+          apps = {
+            test = {
+              type = "app";
+              program = "${aiTestRunner}/bin/ai-test";
+            };
+            build = {
+              type = "app";
+              program = "${aiBuildRunner}/bin/ai-build";
+            };
+            lint = {
+              type = "app";
+              program = "${aiLintRunner}/bin/ai-lint";
+            };
+          };
 
-            nativeBuildInputs = [
-              hpkgs.haskell-language-server
-              hpkgs.implicit-hie
-              pkgs.just
-              pkgs.pkg-config
-              pkgs.cabal-install
-              pkgs.hlint
-              nvim
-              hgold
-            ];
+          devShells = {
+            ci = hpkgs.shellFor {
+              packages = p: [ p.deslop ];
+              withHoogle = false;
 
-            buildInputs = sysLibs;
+              nativeBuildInputs = [
+                pkgs.pkg-config
+                pkgs.cabal-install
+              ];
 
-            shellHook = ''
-              export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
+              buildInputs = sysLibs;
+            };
 
-              echo "🔮 Deslop Dev env initialized."
-              echo "--------------------------------------------------------"
+            default = hpkgs.shellFor {
+              packages = p: [ p.deslop ];
+              withHoogle = false;
 
-              echo "✅ GHC:     $(ghc --version)"
-              CABAL_PATH=$(type -p cabal)
-              CABAL_VER=$(cabal --version | head -n 1)
-              if [[ "$CABAL_PATH" == *"/nix/store/"* ]]; then
-                  echo "✅ Cabal:   $CABAL_VER"
-                  echo "            Path: $CABAL_PATH"
-              else
-                  echo "❌ Cabal:   $CABAL_VER"
-                  echo "            ⚠️  WARNING: Not sourced from Nix!"
-                  echo "            Path: $CABAL_PATH"
-              fi
+              nativeBuildInputs = [
+                hpkgs.haskell-language-server
+                hpkgs.implicit-hie
+                pkgs.just
+                pkgs.pkg-config
+                pkgs.cabal-install
+                pkgs.hlint
+                nvim
+                hgold
+              ];
 
-              HLS_PATH=$(type -p haskell-language-server)
-              HLS_VER=$(haskell-language-server --version | head -n 1)
-              if [[ "$HLS_PATH" == *"/nix/store/"* ]]; then
-                  echo "✅ HLS:     $HLS_VER"
-                  echo "            Path: $HLS_PATH"
-              else
-                  echo "❌ HLS:     $HLS_VER"
-                  echo "            ⚠️  WARNING: Not sourced from Nix!"
-                  echo "            Path: $HLS_PATH"
-              fi
-              echo "--------------------------------------------------------"
-              echo "🚧 cabal build"
-              cabal build
-              echo "--------------------------------------------------------"
-              echo "   Run 'nvim .' to start."
-            '';
+              buildInputs = sysLibs;
+
+              shellHook = ''
+                export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
+                echo "🔮 Dev Environment started."
+              '';
+            };
           };
         };
     };
