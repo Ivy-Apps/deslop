@@ -70,6 +70,14 @@
                 cabal build
             '';
           };
+          aiLintRunner = pkgs.writeShellApplication {
+            name = "ai-lint";
+            runtimeInputs = [ pkgs.nix ];
+            text = ''
+              nix develop ".#default" --no-warn-dirty --quiet -c \
+                hlint .
+            '';
+          };
         in
         {
           apps = {
@@ -80,6 +88,10 @@
             build = {
               type = "app";
               program = "${aiBuildRunner}/bin/ai-build";
+            };
+            lint = {
+              type = "app";
+              program = "${aiLintRunner}/bin/ai-lint";
             };
           };
 

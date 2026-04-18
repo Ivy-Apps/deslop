@@ -2,11 +2,12 @@
 
 ## Commands
 
-All cabal/GHC commands must run inside the Nix dev shell:
+All cabal/GHC commands must run inside the Nix dev shell using our `nix run` commands.
+
+### Building
 
 ```bash
-nix develop -c cabal build
-nix develop -c hlint .
+nix run .#build
 ```
 
 ### Running Tests
@@ -20,6 +21,12 @@ Run tests for a specific module (matches against the root `describe` block):
 ```bash
 nix run .#test -- Lexer
 nix run .#test -- Parser
+```
+
+### Linting
+
+```bash
+nix run .#lint
 ```
 
 ## Coding Conventions
