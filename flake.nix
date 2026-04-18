@@ -49,16 +49,17 @@
 
           aiTestRunner = pkgs.writeShellApplication {
             name = "ai-test";
-            runtimeInputs = [
-              pkgs.cabal-install
-              pkgs.pkg-config
-              hpkgs.ghc
-            ];
+            runtimeInputs = [ pkgs.nix ];
             text = ''
-              # -v0 silences Cabal's own build/linking logs.
-              # --test-show-details=direct forces test output to stdout.
-              # --test-options="--color=never" strips ANSI codes for clean grepping.
-              cabal test -v0 --test-show-details=direct --test-options="--color=never $*"
+              if [ "$#" -eq 0 ]; then
+                nix develop ".#ci" --no-warn-dirty --quiet -c \
+                  cabal test -v0 --test-show-details=direct \
+                  --test-options="--no-color"
+              else
+                nix develop ".#ci" --no-warn-dirty --quiet -c \
+                  cabal test -v0 --test-show-details=direct \
+                  --test-options="--no-color $*"
+              fi
             '';
           };
         in
