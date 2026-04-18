@@ -1,6 +1,7 @@
 module TypeScript.ParserSpec (spec) where
 
 import Data.Text qualified as T
+import Effects.FileSystem (absPathUnsafe)
 import System.OsPath (osp)
 import Test.Hspec
 import TypeScript.CST
@@ -53,7 +54,7 @@ spec = do
                 ]
         forM_ cases $ \(input, expected) ->
             it input $ do
-                let file = TsFile [osp|test.ts|] (T.pack input)
+                let file = TsFile (absPathUnsafe [osp|test.ts|]) (T.pack input)
                 case parseTs file of
                     Left err -> expectationFailure err
                     Right program -> do

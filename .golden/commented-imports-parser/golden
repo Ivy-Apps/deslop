@@ -1,5 +1,7 @@
 TsModule
-  { path = "test/fixtures/typescript/commented-imports.ts"
+  { path =
+      AbsPath
+        { osPath = "test/fixtures/typescript/commented-imports.ts" }
   , cst =
       [ Import
           { prefix = "import { useSate } from '"
