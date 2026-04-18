@@ -12,7 +12,7 @@ import TypeScript.Tokens
 import Utils (headOrThrow)
 
 spec :: Spec
-spec = do
+spec = describe "TypeScript.Lexer" $ do
     describe "TypeScript Lexer" $ do
         it "reconstructs the original input exactly (Round Trip)" $
             hedgehog prop_roundTrip

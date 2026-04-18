@@ -17,7 +17,7 @@ import TypeScript.Config
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 
 spec :: Spec
-spec = describe "parseAst" $ do
+spec = describe "Deslop.AST" $ do
     it "simple happy path" $ do
         let existingFiles = [[osp|/home/repo/src/lib/demo.ts|]]
         let prog =

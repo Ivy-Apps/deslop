@@ -8,7 +8,7 @@ import Test.Hspec
 import TestUtils
 
 spec :: Spec
-spec = describe "getSecrets" $ do
+spec = describe "Secrets" $ do
     it "missing secrets" $ do
         res <- runGetSecrets $ fixturesPath </> [osp|secrets|] </> [osp|missing|]
         res `shouldBe` Left MissingSecretsFile

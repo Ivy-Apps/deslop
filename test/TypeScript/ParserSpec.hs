@@ -8,7 +8,7 @@ import TypeScript.Parser
 
 spec :: Spec
 spec = do
-    describe "Imports" $ do
+    describe "TypeScript.Parser" $ do
         let cases =
                 [
                     ( "import * from '@/lib/utils'"

@@ -10,7 +10,7 @@ import Text.Show.Pretty (ppShow)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), ValuePattern (..), parsePathMapping, parsePattern, readTsConfig)
 
 spec :: Spec
-spec = describe "TsConfig" $ do
+spec = describe "TypeScript.Config" $ do
     describe "parsePathMapping" $ do
         it "fails if the target array is entirely empty" $ do
             parsePathMapping ("@app/*", []) `shouldBe` Nothing

@@ -15,7 +15,7 @@ rbFixturesPath :: OsPath
 rbFixturesPath = [osp|test/fixtures/rulebook|]
 
 spec :: Spec
-spec = do
+spec = describe "Deslop.Rulebook" $ do
     describe "parseRulebookYaml" $
         runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ parseRuleBookTest
     describe "rulebookFromFile" $

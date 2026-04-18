@@ -8,7 +8,7 @@ import System.OsString qualified as OS
 import Test.Hspec
 
 spec :: Spec
-spec = describe "FileSystem" $ do
+spec = describe "Effects.FileSystem" $ do
     it "fsMkAbsolute" $ do
         -- Given
         let path = [osp|./test/../deslop.cabal|]

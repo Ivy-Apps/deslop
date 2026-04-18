@@ -5,7 +5,7 @@ import TestUtils (renderGolden)
 import TypeScript.CST
 
 spec :: Spec
-spec = do
+spec = describe "TypeScript.Renderable" $ do
     describe "Renderable TsNode" $ do
         it "renders Source as raw text" $
             renderGolden "ts-render-source" $

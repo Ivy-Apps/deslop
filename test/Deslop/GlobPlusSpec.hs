@@ -7,7 +7,7 @@ import Deslop.GlobPlus
 import TestUtils (requireJust)
 
 spec :: Spec
-spec = do
+spec = describe "Deslop.GlobPlus" $ do
     describe "Deslop.GlobPlus.matchTarget" $ do
         it "matches exact literal paths and derives TARGET_DIR" $ do
             let target = unsafeCompileTarget "src/app/page"

@@ -17,7 +17,7 @@ import Types (DeslopError (CheckModeFoundProblems))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
-spec = describe "Deslop project" $ do
+spec = describe "E2E.ProjectGolden" $ do
     itChecks "ts-project-1"
     itChecks "ixartz-next-js-boilerplate"
     itChecks "melzar-nextjs-clean-architecture"

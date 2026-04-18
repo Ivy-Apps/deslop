@@ -13,7 +13,7 @@ import TypeScript.CST
 -- import TypeScript.Config
 
 spec :: Spec
-spec = describe "importAliases" $ do
+spec = describe "Deslop.RelativeImport" $ do
     it "Fix the tests later" $ do
         True `shouldBe` True
 

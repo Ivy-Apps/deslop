@@ -6,7 +6,7 @@ import System.OsPath (osp)
 import Test.Hspec
 
 spec :: Spec
-spec = describe "ReportProblem" $ do
+spec = describe "Effects.ReportProblem" $ do
     describe "runReportProblem" $ do
         it "returns the result of the action" $ do
             result <- runEff . runReportProblem $ pure (42 :: Int)

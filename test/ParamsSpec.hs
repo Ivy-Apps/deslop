@@ -6,7 +6,7 @@ import System.OsPath (osp)
 import Test.Hspec
 
 spec :: Spec
-spec = describe "parseParams" $ do
+spec = describe "Params" $ do
     it "defaults project path to . and both flags to False when given no args" $ do
         parseParams []
             `shouldBe` Just
