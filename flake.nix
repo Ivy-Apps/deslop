@@ -81,7 +81,6 @@
               shellHook = ''
                 export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
                 echo "🔮 Dev Environment started."
-                echo "Run `nvim . ` to start."
               '';
             };
           };
