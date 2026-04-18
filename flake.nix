@@ -58,7 +58,7 @@
               else
                 nix develop ".#ci" --no-warn-dirty --quiet -c \
                   cabal test -v0 --test-show-details=direct \
-                  --test-options="--no-color $*"
+                  --test-options="--no-color --match $*"
               fi
             '';
           };
