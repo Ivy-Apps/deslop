@@ -3,11 +3,11 @@ module TypeScript.CST (
     TsNode (..),
 ) where
 
-import System.OsPath (OsPath)
+import Effects.FileSystem (AbsPath)
 import Types (Renderable (..))
 
 data TsProgram = TsModule
-    { path :: OsPath
+    { path :: AbsPath
     , cst :: [TsNode]
     }
     deriving (Show, Eq)

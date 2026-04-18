@@ -7,7 +7,7 @@ module Deslop.AST (
 import Deslop.RelativeImports (fixTarget)
 import Effectful
 import Effectful.Reader.Static (Reader)
-import Effects.FileSystem (RoFileSystem, decodeOsPath)
+import Effects.FileSystem (AbsPath (..), RoFileSystem, decodeOsPath)
 import TypeScript.CST (TsNode (..), TsProgram (cst, path))
 import TypeScript.Config (TsConfig)
 import TypeScript.ModuleResolver (ModuleId (..), dropTypeScriptExtension, moduleIdUnsafe)
@@ -31,7 +31,7 @@ parseAst prog = do
             , nodes = mapMaybe parseNode prog.cst
             }
   where
-    programModuleId = fixTarget prog.path (decodeOsPath . dropTypeScriptExtension $ prog.path)
+    programModuleId = fixTarget prog.path (decodeOsPath . dropTypeScriptExtension $ prog.path.osPath)
     parseNode :: TsNode -> Maybe AstNode
     parseNode (Import _ t _) =
         Just $

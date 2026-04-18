@@ -12,22 +12,21 @@ import Control.Concurrent.STM.TVar (readTVarIO)
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic
-import Effects.FileSystem (decodeOsPath)
+import Effects.FileSystem (AbsPath (..), decodeOsPath)
 import Effects.ReportProblem (Problem)
 import Fmt (pretty)
 import System.Console.ANSI
-import System.OsPath (OsPath)
 import UI (ProblemsLog (..), printErr, putStderrLn)
 
 data CLILog :: Effect where
-    LogModification :: OsPath -> CLILog m ()
+    LogModification :: AbsPath -> CLILog m ()
     LogSummary :: CLILog m ()
     LogProblems :: [Problem] -> CLILog m ()
     LogError :: String -> CLILog m ()
 
 type instance DispatchOf CLILog = 'Dynamic
 
-logModification :: (CLILog :> es) => OsPath -> Eff es ()
+logModification :: (CLILog :> es) => AbsPath -> Eff es ()
 logModification = send . LogModification
 
 logSummary :: (CLILog :> es) => Eff es ()
@@ -51,7 +50,7 @@ runCLILog action = do
                     setSGR [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
                     putStr "  modified  "
                     setSGR [Reset]
-                    putStrLn (T.unpack . decodeOsPath $ path)
+                    putStrLn (T.unpack . decodeOsPath $ path.osPath)
                     hFlush stdout
                 LogSummary -> liftIO $ do
                     count <- readTVarIO counterVar

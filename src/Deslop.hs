@@ -23,7 +23,7 @@ import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
     decodeOsPath,
-    fsFileExistsAbs,
+    fsFileExists,
     fsMkAbsolute,
     fsReadFile,
     fsWriteFile,
@@ -35,7 +35,7 @@ import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import Fmt (fmt, (+|), (|+))
 import Params
 import Secrets (Secrets (..), defaultSecrets, readSecrets)
-import System.OsPath (OsPath, osp)
+import System.OsPath (osp)
 import TypeScript.CST
 import TypeScript.Config (TsConfig, readTsConfig)
 import TypeScript.Iterator (getTsFiles)
@@ -142,7 +142,7 @@ deslopFile ::
     , CLILog :> es
     , ReportProblem :> es
     ) =>
-    OsPath ->
+    AbsPath ->
     Eff es (Either String AstModule)
 deslopFile src = do
     c <- fsReadFile src
@@ -161,7 +161,7 @@ removeSlop ::
     , ReportProblem :> es
     , RoFileSystem :> es
     ) =>
-    OsPath ->
+    AbsPath ->
     ByteString ->
     Eff es (Either String TsProgram)
 removeSlop p c =
@@ -178,7 +178,7 @@ tsConfig ::
     Eff es TsConfig
 tsConfig projPath = loadConfig (withAbsBaseUnsafe projPath [osp|tsconfig.json|])
   where
-    loadConfig fp = fsFileExistsAbs fp >>= bool (handleMissing fp) (handleFound fp)
+    loadConfig fp = fsFileExists fp >>= bool (handleMissing fp) (handleFound fp)
     handleFound fp = readTsConfig fp >>= either handleInvalid pure
 
     handleMissing = throwError . TsConfigNotFoundError . (.osPath)
