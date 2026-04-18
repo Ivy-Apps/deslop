@@ -1,7 +1,7 @@
 module Effects.FileSystemSpec (spec) where
 
 import Effectful (runEff)
-import Effects.FileSystem (AbsPath (..), decodeOsPath, encodeOsPath, encodeOsPathString, fsListAbsDirectory, fsMkAbsolute, runRoFileSystemIO)
+import Effects.FileSystem (AbsPath (..), decodeOsPath, encodeOsPath, encodeOsPathString, fsListDirectory, fsMkAbsolute, runRoFileSystemIO)
 import System.Directory.OsPath qualified as SDO
 import System.OsPath (isAbsolute, osp)
 import System.OsString qualified as OS
@@ -27,7 +27,7 @@ spec = describe "Effects.FileSystem" $ do
         absPath <- runEff . runRoFileSystemIO $ fsMkAbsolute path
 
         -- When
-        entries <- runEff . runRoFileSystemIO $ fsListAbsDirectory absPath
+        entries <- runEff . runRoFileSystemIO $ fsListDirectory absPath
 
         -- Then
         entries `shouldSatisfy` all (isAbsolute . (.osPath))
