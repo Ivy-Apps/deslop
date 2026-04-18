@@ -6,13 +6,20 @@ All cabal/GHC commands must run inside the Nix dev shell:
 
 ```bash
 nix develop -c cabal build
-nix develop -c cabal test all
 nix develop -c hlint .
 ```
 
-Run a single test file where you `--match` against the root "describe" block:
+### Running Tests
+
+Run all tests:
 ```bash
-nix develop -c cabal test --test-options "--match Lexer"
+nix run .#test
+```
+
+Run tests for a specific module (matches against the root `describe` block):
+```bash
+nix run .#test -- Lexer
+nix run .#test -- Parser
 ```
 
 ## Coding Conventions
