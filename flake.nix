@@ -35,83 +35,102 @@
           ghcVersion = "ghc9103";
           hlib = pkgs.haskell.lib.compose;
 
-          # ── Release build ────────────────────────────────────────────────
-          staticLibs = pkgs.lib.optionals pkgs.stdenv.isLinux (
-            with pkgs.pkgsStatic; [ zlib gmp libffi ]
-          );
+          baseOverrides = self: super: {
+            fmt = hlib.dontCheck super.fmt;
+            deslop = hlib.dontCheck (hlib.appendConfigureFlags
+              [ "--ghc-option=-optP-Wno-nonportable-include-path" ]
+              (self.callCabal2nix "deslop" ./. { }));
+          };
 
-          buildHpkgs = pkgs.haskell.packages.${ghcVersion}.override {
+          hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
+            overrides = baseOverrides;
+          };
+
+          # ── Release package set ───────────────────────────────────────────
+          # Layers static link flags on top of baseOverrides.
+          # On Linux:  produces a fully static binary via -optl-static.
+          # On Darwin: identical to hpkgs (no static libc on macOS);
+          #            dylibbundler handles portability in portableDeslop.
+          staticLibs = pkgs.lib.optionals pkgs.stdenv.isLinux
+            (with pkgs.pkgsStatic; [ zlib gmp libffi ]);
+
+          releaseFlags =
+            [
+              "--ghc-option=-O2"
+              "--ghc-option=-threaded"
+              "--ghc-option=-rtsopts"
+              "--ghc-option=-with-rtsopts=-N"
+              "--ghc-option=-optP-Wno-nonportable-include-path"
+            ]
+            ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+              "--ghc-option=-optl-static"
+              "--ghc-option=-optl-pthread"
+              "--disable-shared"
+              "--enable-executable-static"
+            ]
+            ++ map (l: "--extra-lib-dirs=${l}/lib") staticLibs;
+
+          releaseHpkgs = hpkgs.override {
             overrides = self: super: {
-              deslop = hlib.dontCheck (hlib.appendConfigureFlags
-                (
-                  [
-                    "--ghc-option=-O2"
-                    "--ghc-option=-threaded"
-                    "--ghc-option=-rtsopts"
-                    "--ghc-option=-with-rtsopts=-N"
-                    "--ghc-option=-optP-Wno-nonportable-include-path"
-                  ]
-                  ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-                    "--ghc-option=-optl-static"
-                    "--ghc-option=-optl-pthread"
-                    "--disable-shared"
-                    "--enable-executable-static"
-                  ]
-                  ++ map (lib: "--extra-lib-dirs=${lib}/lib") staticLibs
-                )
-                (self.callCabal2nix "deslop" ./. { })
-              );
-              fmt = hlib.dontCheck super.fmt;
+              # Re-derive deslop with release flags on top of baseOverrides.
+              # fmt and everything else inherit from hpkgs unchanged.
+              deslop = hlib.dontCheck
+                (hlib.appendConfigureFlags releaseFlags
+                  (self.callCabal2nix "deslop" ./. { }));
             };
           };
 
-          baseDeslop = hlib.justStaticExecutables buildHpkgs.deslop;
+          # ── Binaries ──────────────────────────────────────────────────────
+          baseDeslop = hlib.justStaticExecutables releaseHpkgs.deslop;
 
-          codesignWrapper = pkgs.writeShellScriptBin "codesign" ''
-            exec ${pkgs.darwin.sigtool}/bin/codesign --force --sign - "''${@: -1}"
-          '';
+          # On Darwin, pkgs.darwin exists; on Linux it does not — guard the
+          # definition so Linux eval never touches pkgs.darwin.sigtool.
+          codesignWrapper =
+            if pkgs.stdenv.isDarwin
+            then
+              pkgs.writeShellScriptBin "codesign" ''
+                exec ${pkgs.darwin.sigtool}/bin/codesign --force --sign - "''${@: -1}"
+              ''
+            else null;
 
-          # Strips the binary and, on Darwin, bundles all non-system dylibs
-          # next to the executable so the binary runs without the Nix store.
+          # Portable release binary:
+          #   Linux  → static ELF, stripped (no runtime deps)
+          #   Darwin → Mach-O with non-system dylibs bundled via dylibbundler
           portableDeslop = pkgs.stdenv.mkDerivation {
             name = "deslop-portable";
             dontUnpack = true;
+
             nativeBuildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
               pkgs.macdylibbundler
               codesignWrapper
             ];
-            installPhase = ''
-              mkdir -p $out/bin
-              cp ${baseDeslop}/bin/deslop $out/bin/deslop
-              chmod +w $out/bin/deslop
-            '' + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-              strip $out/bin/deslop
-            '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
-              strip -x $out/bin/deslop
-              mkdir -p $out/bin/libs
-              dylibbundler -od -b \
-                -x $out/bin/deslop \
-                -d $out/bin/libs \
-                -p '@executable_path/libs/'
-            '';
+
+            installPhase =
+              ''
+                mkdir -p $out/bin
+                cp ${baseDeslop}/bin/deslop $out/bin/deslop
+                chmod +w $out/bin/deslop
+              ''
+              + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+                strip $out/bin/deslop
+              ''
+              + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+                strip -x $out/bin/deslop
+                mkdir -p $out/bin/libs
+                dylibbundler -od -b \
+                  -x $out/bin/deslop \
+                  -d $out/bin/libs \
+                  -p '@executable_path/libs/'
+              '';
           };
 
-          # ── Dev environment ──────────────────────────────────────────────
-          hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
-            overrides = self: super: {
-              deslop = hlib.dontCheck (hlib.appendConfigureFlags
-                [ "--ghc-option=-optP-Wno-nonportable-include-path" ]
-                (self.callCabal2nix "deslop" ./. { }));
-              fmt = hlib.dontCheck super.fmt;
-            };
-          };
-
+          # ── Dev tooling ───────────────────────────────────────────────────
           hgold = hlib.justStaticExecutables hpkgs.hspec-golden;
+          nvim = my-nixvim.lib.mkHaskellNvim { inherit pkgs hpkgs; };
 
           sysLibs = [ pkgs.zlib pkgs.xz ];
 
-          nvim = my-nixvim.lib.mkHaskellNvim { inherit pkgs hpkgs; };
-
+          # Convenience runners that delegate to the appropriate dev shell.
           aiTestRunner = pkgs.writeShellApplication {
             name = "ai-test";
             runtimeInputs = [ pkgs.nix ];
@@ -123,45 +142,35 @@
               else
                 nix develop ".#ci" --no-warn-dirty --quiet -c \
                   cabal test -v0 --test-show-details=direct \
-                  --test-options="--no-color --match $*"
+                  "--test-options=--no-color --match $*"
               fi
             '';
           };
+
           aiBuildRunner = pkgs.writeShellApplication {
             name = "ai-build";
             runtimeInputs = [ pkgs.nix ];
             text = ''
-              nix develop ".#ci" --no-warn-dirty --quiet -c \
-                cabal build
+              nix develop ".#ci" --no-warn-dirty --quiet -c cabal build
             '';
           };
+
           aiLintRunner = pkgs.writeShellApplication {
             name = "ai-lint";
             runtimeInputs = [ pkgs.nix ];
             text = ''
-              nix develop ".#default" --no-warn-dirty --quiet -c \
-                hlint .
+              nix develop ".#default" --no-warn-dirty --quiet -c hlint .
             '';
           };
+
         in
         {
-          packages = {
-            default = portableDeslop;
-          };
+          packages.default = portableDeslop;
 
           apps = {
-            test = {
-              type = "app";
-              program = "${aiTestRunner}/bin/ai-test";
-            };
-            build = {
-              type = "app";
-              program = "${aiBuildRunner}/bin/ai-build";
-            };
-            lint = {
-              type = "app";
-              program = "${aiLintRunner}/bin/ai-lint";
-            };
+            test = { type = "app"; program = "${aiTestRunner}/bin/ai-test"; };
+            build = { type = "app"; program = "${aiBuildRunner}/bin/ai-build"; };
+            lint = { type = "app"; program = "${aiLintRunner}/bin/ai-lint"; };
           };
 
           devShells = {
@@ -177,6 +186,7 @@
               buildInputs = sysLibs;
             };
 
+            # Full local dev shell with HLS, Neovim, linters, etc.
             default = hpkgs.shellFor {
               packages = p: [ p.deslop ];
               withHoogle = false;
@@ -184,9 +194,9 @@
               nativeBuildInputs = [
                 hpkgs.haskell-language-server
                 hpkgs.implicit-hie
-                pkgs.just
-                pkgs.pkg-config
                 pkgs.cabal-install
+                pkgs.pkg-config
+                pkgs.just
                 pkgs.hlint
                 nvim
                 hgold
