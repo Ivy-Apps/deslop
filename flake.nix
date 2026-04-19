@@ -33,6 +33,7 @@
       perSystem = { config, pkgs, system, ... }:
         let
           ghcVersion = "ghc9103";
+          hlib = pkgs.haskell.lib.compose;
 
           # ── Release build ────────────────────────────────────────────────
           staticLibs = pkgs.lib.optionals pkgs.stdenv.isLinux (
@@ -66,17 +67,9 @@
 
           baseDeslop = hlib.justStaticExecutables buildHpkgs.deslop;
 
-          # dylibbundler calls codesign with --deep and --preserve-metadata which
-          # pkgs.darwin.sigtool does not implement. This wrapper strips those
-          # flags; plain ad-hoc signing (--force --sign -) is sufficient after
-          # install_name_tool patches a dylib.
-          codesignWrapper =
-            if pkgs.stdenv.isDarwin
-            then
-              pkgs.writeShellScriptBin "codesign" ''
-                exec ${pkgs.darwin.sigtool}/bin/codesign --force --sign - "''${@: -1}"
-              ''
-            else null;
+          codesignWrapper = pkgs.writeShellScriptBin "codesign" ''
+            exec ${pkgs.darwin.sigtool}/bin/codesign --force --sign - "''${@: -1}"
+          '';
 
           # Strips the binary and, on Darwin, bundles all non-system dylibs
           # next to the executable so the binary runs without the Nix store.
@@ -91,8 +84,10 @@
               mkdir -p $out/bin
               cp ${baseDeslop}/bin/deslop $out/bin/deslop
               chmod +w $out/bin/deslop
+            '' + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
               strip $out/bin/deslop
             '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+              strip -x $out/bin/deslop
               mkdir -p $out/bin/libs
               dylibbundler -od -b \
                 -x $out/bin/deslop \
@@ -102,7 +97,6 @@
           };
 
           # ── Dev environment ──────────────────────────────────────────────
-          hlib = pkgs.haskell.lib.compose;
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
               deslop = hlib.dontCheck (hlib.appendConfigureFlags
