@@ -51,6 +51,14 @@
 
           baseDeslop = buildHlib.justStaticExecutables buildHpkgs.deslop;
 
+          # dylibbundler calls codesign with --deep and --preserve-metadata which
+          # pkgs.darwin.sigtool does not implement. This wrapper strips those
+          # flags; plain ad-hoc signing (--force --sign -) is sufficient after
+          # install_name_tool patches a dylib.
+          codesignWrapper = pkgs.writeShellScriptBin "codesign" ''
+            exec ${pkgs.darwin.sigtool}/bin/codesign --force --sign - "''${@: -1}"
+          '';
+
           # Strips the binary and, on Darwin, bundles all non-system dylibs
           # next to the executable so the binary runs without the Nix store.
           portableDeslop = buildPkgs.stdenv.mkDerivation {
@@ -58,6 +66,7 @@
             dontUnpack = true;
             nativeBuildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
               pkgs.macdylibbundler
+              codesignWrapper
             ];
             installPhase = ''
               mkdir -p $out/bin
@@ -66,7 +75,7 @@
               strip $out/bin/deslop
             '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
               mkdir -p $out/bin/libs
-              macdylibbundler -od -b \
+              dylibbundler -od -b \
                 -x $out/bin/deslop \
                 -d $out/bin/libs \
                 -p '@executable_path/libs/'
