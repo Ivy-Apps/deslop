@@ -55,9 +55,11 @@
           # pkgs.darwin.sigtool does not implement. This wrapper strips those
           # flags; plain ad-hoc signing (--force --sign -) is sufficient after
           # install_name_tool patches a dylib.
-          codesignWrapper = pkgs.writeShellScriptBin "codesign" ''
-            exec ${pkgs.darwin.sigtool}/bin/codesign --force --sign - "''${@: -1}"
-          '';
+          codesignWrapper = if pkgs.stdenv.isDarwin
+            then pkgs.writeShellScriptBin "codesign" ''
+              exec ${pkgs.darwin.sigtool}/bin/codesign --force --sign - "''${@: -1}"
+            ''
+            else null;
 
           # Strips the binary and, on Darwin, bundles all non-system dylibs
           # next to the executable so the binary runs without the Nix store.
