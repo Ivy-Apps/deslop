@@ -35,40 +35,52 @@
           ghcVersion = "ghc9103";
 
           # ── Release build ────────────────────────────────────────────────
-          # Linux: pkgsStatic compiles against musl → fully static binary.
-          # Darwin: regular pkgs (macOS has no static libc); non-system dylibs
-          #         are bundled with macdylibbundler in portableDeslop below.
-          buildPkgs = if pkgs.stdenv.isLinux then pkgs.pkgsStatic else pkgs;
-          buildHlib = buildPkgs.haskell.lib.compose;
-          buildHpkgs = buildPkgs.haskell.packages.${ghcVersion}.override {
+          staticLibs = pkgs.lib.optionals pkgs.stdenv.isLinux (
+            with pkgs.pkgsStatic; [ zlib gmp libffi ]
+          );
+
+          buildHpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
-              deslop = buildHlib.dontCheck (buildHlib.appendConfigureFlags
-                [ "--ghc-option=-optP-Wno-nonportable-include-path"
-                  "--ghc-option=-O2"
-                  "--ghc-option=-threaded"
-                  "--ghc-option=-rtsopts"
-                  "--ghc-option=-with-rtsopts=-N"
-                ]
-                (self.callCabal2nix "deslop" ./. { }));
-              fmt = buildHlib.dontCheck super.fmt;
+              deslop = hlib.dontCheck (hlib.appendConfigureFlags
+                (
+                  [
+                    "--ghc-option=-O2"
+                    "--ghc-option=-threaded"
+                    "--ghc-option=-rtsopts"
+                    "--ghc-option=-with-rtsopts=-N"
+                    "--ghc-option=-optP-Wno-nonportable-include-path"
+                  ]
+                  ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+                    "--ghc-option=-optl-static"
+                    "--ghc-option=-optl-pthread"
+                    "--disable-shared"
+                    "--enable-executable-static"
+                  ]
+                  ++ map (lib: "--extra-lib-dirs=${lib}/lib") staticLibs
+                )
+                (self.callCabal2nix "deslop" ./. { })
+              );
+              fmt = hlib.dontCheck super.fmt;
             };
           };
 
-          baseDeslop = buildHlib.justStaticExecutables buildHpkgs.deslop;
+          baseDeslop = hlib.justStaticExecutables buildHpkgs.deslop;
 
           # dylibbundler calls codesign with --deep and --preserve-metadata which
           # pkgs.darwin.sigtool does not implement. This wrapper strips those
           # flags; plain ad-hoc signing (--force --sign -) is sufficient after
           # install_name_tool patches a dylib.
-          codesignWrapper = if pkgs.stdenv.isDarwin
-            then pkgs.writeShellScriptBin "codesign" ''
-              exec ${pkgs.darwin.sigtool}/bin/codesign --force --sign - "''${@: -1}"
-            ''
+          codesignWrapper =
+            if pkgs.stdenv.isDarwin
+            then
+              pkgs.writeShellScriptBin "codesign" ''
+                exec ${pkgs.darwin.sigtool}/bin/codesign --force --sign - "''${@: -1}"
+              ''
             else null;
 
           # Strips the binary and, on Darwin, bundles all non-system dylibs
           # next to the executable so the binary runs without the Nix store.
-          portableDeslop = buildPkgs.stdenv.mkDerivation {
+          portableDeslop = pkgs.stdenv.mkDerivation {
             name = "deslop-portable";
             dontUnpack = true;
             nativeBuildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
