@@ -35,6 +35,10 @@
           ghcVersion = "ghc9103";
           hlib = pkgs.haskell.lib.compose;
 
+          # ── Shared overrides (dev + release) ─────────────────────────────
+          # Defined once; both hpkgs and releaseHpkgs layer on top of this
+          # so shared deps (fmt, etc.) produce identical derivations →
+          # single cache entry for each.
           baseOverrides = self: super: {
             fmt = hlib.dontCheck super.fmt;
             deslop = hlib.dontCheck (hlib.appendConfigureFlags
@@ -42,48 +46,65 @@
               (self.callCabal2nix "deslop" ./. { }));
           };
 
+          # ── Dev package set ───────────────────────────────────────────────
+          # Plain glibc GHC — no static flags, fast local iteration and HLS.
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = baseOverrides;
           };
 
-          # ── Release package set ───────────────────────────────────────────
-          # Layers static link flags on top of baseOverrides.
-          # On Linux:  produces a fully static binary via -optl-static.
-          # On Darwin: identical to hpkgs (no static libc on macOS);
-          #            dylibbundler handles portability in portableDeslop.
-          staticLibs = pkgs.lib.optionals pkgs.stdenv.isLinux
-            [ pkgs.zlib.static ];
-
+          # ── Release flags ─────────────────────────────────────────────────
+          # Darwin: threaded RTS + rtsopts safe — dynamic linking, no
+          #         libgcc_eh issue.
+          # Linux:  fully static via -optl-static. -threaded and
+          #         -with-rtsopts=-N are intentionally omitted — the threaded
+          #         RTS pulls in libgcc_eh → _dl_find_object which has no
+          #         static equivalent in glibc or musl.
           releaseFlags =
             [
               "--ghc-option=-O2"
-              "--ghc-option=-rtsopts"
-              "--ghc-option=-with-rtsopts=-N"
               "--ghc-option=-optP-Wno-nonportable-include-path"
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-              "--ghc-option=-threaded" # safe on macOS — dynamic linking
+              "--ghc-option=-threaded"
+              "--ghc-option=-rtsopts"
+              "--ghc-option=-with-rtsopts=-N"
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-              # NOTE: -threaded intentionally omitted for static Linux build —
-              # the threaded RTS pulls in libgcc_eh → libdw → _dl_find_object
-              # which has no static glibc equivalent.
               "--ghc-option=-optl-static"
-              "--ghc-option=-optl-pthread"
               "--disable-shared"
               "--enable-executable-static"
-            ]
-            ++ map (l: "--extra-lib-dirs=${l}/lib") staticLibs;
+            ];
 
-          releaseHpkgs = hpkgs.override {
-            overrides = self: super: {
-              # Re-derive deslop with release flags on top of baseOverrides.
-              # fmt and everything else inherit from hpkgs unchanged.
-              deslop = hlib.dontCheck
-                (hlib.appendConfigureFlags releaseFlags
-                  (self.callCabal2nix "deslop" ./. { }));
-            };
-          };
+          # ── Release package set ───────────────────────────────────────────
+          # Linux:  pkgsMusl provides a musl-native GHC whose libgcc_eh has
+          #         no glibc-only symbol dependencies (_dl_find_object etc).
+          #         This is the only working approach for fully static binaries
+          #         under GCC 14 / nixos-25.11. baseOverrides is duplicated
+          #         here (rather than layered from hpkgs) because pkgsMusl is
+          #         a completely separate package set — hpkgs.override would
+          #         still use glibc GHC as the base.
+          # Darwin: layers releaseFlags onto hpkgs; fmt and other shared deps
+          #         reuse hpkgs derivations unchanged — no duplicate builds.
+          releaseHpkgs =
+            if pkgs.stdenv.isLinux
+            then
+              pkgs.pkgsMusl.haskell.packages.${ghcVersion}.override
+                {
+                  overrides = self: super:
+                    (baseOverrides self super) // {
+                      deslop = hlib.dontCheck
+                        (hlib.appendConfigureFlags releaseFlags
+                          (self.callCabal2nix "deslop" ./. { }));
+                    };
+                }
+            else
+              hpkgs.override {
+                overrides = self: super: {
+                  deslop = hlib.dontCheck
+                    (hlib.appendConfigureFlags releaseFlags
+                      (self.callCabal2nix "deslop" ./. { }));
+                };
+              };
 
           # ── Binaries ──────────────────────────────────────────────────────
           baseDeslop = hlib.justStaticExecutables releaseHpkgs.deslop;
