@@ -186,7 +186,6 @@
               buildInputs = sysLibs;
             };
 
-            # Full local dev shell with HLS, Neovim, linters, etc.
             default = hpkgs.shellFor {
               packages = p: [ p.deslop ];
               withHoogle = false;
