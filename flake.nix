@@ -52,7 +52,7 @@
           # On Darwin: identical to hpkgs (no static libc on macOS);
           #            dylibbundler handles portability in portableDeslop.
           staticLibs = pkgs.lib.optionals pkgs.stdenv.isLinux
-            (with pkgs.pkgsStatic; [ zlib gmp libffi ]);
+            [ pkgs.zlib.static ];
 
           releaseFlags =
             [
