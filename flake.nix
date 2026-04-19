@@ -43,7 +43,12 @@
           buildHpkgs = buildPkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
               deslop = buildHlib.dontCheck (buildHlib.appendConfigureFlags
-                [ "--ghc-option=-optP-Wno-nonportable-include-path" ]
+                [ "--ghc-option=-optP-Wno-nonportable-include-path"
+                  "--ghc-option=-O2"
+                  "--ghc-option=-threaded"
+                  "--ghc-option=-rtsopts"
+                  "--ghc-option=-with-rtsopts=-N"
+                ]
                 (self.callCabal2nix "deslop" ./. { }));
               fmt = buildHlib.dontCheck super.fmt;
             };
