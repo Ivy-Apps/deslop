@@ -34,15 +34,49 @@
         let
           ghcVersion = "ghc9103";
 
+          # ── Release build ────────────────────────────────────────────────
+          # Linux: pkgsStatic compiles against musl → fully static binary.
+          # Darwin: regular pkgs (macOS has no static libc); non-system dylibs
+          #         are bundled with macdylibbundler in portableDeslop below.
+          buildPkgs = if pkgs.stdenv.isLinux then pkgs.pkgsStatic else pkgs;
+          buildHlib = buildPkgs.haskell.lib.compose;
+          buildHpkgs = buildPkgs.haskell.packages.${ghcVersion}.override {
+            overrides = self: super: {
+              deslop = buildHlib.dontCheck (buildHlib.appendConfigureFlags
+                [ "--ghc-option=-optP-Wno-nonportable-include-path" ]
+                (self.callCabal2nix "deslop" ./. { }));
+              fmt = buildHlib.dontCheck super.fmt;
+            };
+          };
 
+          baseDeslop = buildHlib.justStaticExecutables buildHpkgs.deslop;
+
+          # Strips the binary and, on Darwin, bundles all non-system dylibs
+          # next to the executable so the binary runs without the Nix store.
+          portableDeslop = buildPkgs.stdenv.mkDerivation {
+            name = "deslop-portable";
+            dontUnpack = true;
+            nativeBuildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
+              pkgs.macdylibbundler
+            ];
+            installPhase = ''
+              mkdir -p $out/bin
+              cp ${baseDeslop}/bin/deslop $out/bin/deslop
+              chmod +w $out/bin/deslop
+              strip $out/bin/deslop
+            '' + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+              mkdir -p $out/bin/libs
+              macdylibbundler -od -b \
+                -x $out/bin/deslop \
+                -d $out/bin/libs \
+                -p '@executable_path/libs/'
+            '';
+          };
+
+          # ── Dev environment ──────────────────────────────────────────────
           hlib = pkgs.haskell.lib.compose;
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
             overrides = self: super: {
-              # When the executable and package share the name "deslop", cabal creates
-              # dist/build/Deslop/ (capitalised) but GHC's -I flag uses lowercase.
-              # Clang on macOS treats this case mismatch as -Werror even through
-              # symlinks, so the only fix that survives the Nix sandbox is to pass
-              # -Wno-nonportable-include-path to the CPP driver via GHC's -optP.
               deslop = hlib.dontCheck (hlib.appendConfigureFlags
                 [ "--ghc-option=-optP-Wno-nonportable-include-path" ]
                 (self.callCabal2nix "deslop" ./. { }));
@@ -90,7 +124,7 @@
         in
         {
           packages = {
-            default = hlib.justStaticExecutables hpkgs.deslop;
+            default = portableDeslop;
           };
 
           apps = {

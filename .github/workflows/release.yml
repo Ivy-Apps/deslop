@@ -20,7 +20,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       id-token: "write"
-      contents: "read"      
+      contents: "read"
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/nix-installer-action@main
@@ -28,17 +28,15 @@ jobs:
 
       - name: Build Binary
         run: |
-          nix build --accept-flake-config 
-          mkdir -p dist
-          cp result/bin/deslop dist/deslop-${{ matrix.npm-platform }}
-          chmod +w dist/deslop-${{ matrix.npm-platform }}
-          strip dist/deslop-${{ matrix.npm-platform }}
+          nix build --accept-flake-config
+          mkdir -p dist/${{ matrix.npm-platform }}
+          cp -r result/bin/. dist/${{ matrix.npm-platform }}/
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
           name: bin-${{ matrix.npm-platform }}
-          path: dist/deslop-${{ matrix.npm-platform }}
+          path: dist/${{ matrix.npm-platform }}
 
   publish-npm:
     name: Publish to NPM
@@ -46,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: "write"
-      contents: "read"      
+      contents: "read"
     steps:
       - uses: actions/checkout@v6
 
@@ -64,7 +62,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
-          merge-multiple: true
 
       - name: Prepare version
         run: |
@@ -76,7 +73,7 @@ jobs:
           for PLATFORM in darwin-arm64 linux-arm64 linux-x64; do
             PKG_DIR="npm/packages/$PLATFORM"
             mkdir -p "$PKG_DIR/bin"
-            cp "dist/deslop-$PLATFORM" "$PKG_DIR/bin/deslop"
+            cp -r "dist/bin-$PLATFORM/." "$PKG_DIR/bin/"
             chmod +x "$PKG_DIR/bin/deslop"
             cd "$PKG_DIR"
             npm version "$VERSION" --no-git-tag-version --allow-same-version
