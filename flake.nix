@@ -57,12 +57,17 @@
           releaseFlags =
             [
               "--ghc-option=-O2"
-              "--ghc-option=-threaded"
               "--ghc-option=-rtsopts"
               "--ghc-option=-with-rtsopts=-N"
               "--ghc-option=-optP-Wno-nonportable-include-path"
             ]
+            ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+              "--ghc-option=-threaded" # safe on macOS — dynamic linking
+            ]
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+              # NOTE: -threaded intentionally omitted for static Linux build —
+              # the threaded RTS pulls in libgcc_eh → libdw → _dl_find_object
+              # which has no static glibc equivalent.
               "--ghc-option=-optl-static"
               "--ghc-option=-optl-pthread"
               "--disable-shared"
