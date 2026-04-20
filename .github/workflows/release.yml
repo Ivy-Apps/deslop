@@ -40,7 +40,7 @@ jobs:
             alpine:3.20 \
             sh -c "
               apk add --no-cache \
-                curl gcc g++ gmp-dev gmp-static ncurses-dev ncurses-static \
+                curl gcc g++ gmp-dev ncurses-dev ncurses-static \
                 libffi-dev make xz tar perl bash \
                 zlib-dev zlib-static openssl-dev openssl-libs-static \
                 linux-headers binutils-gold &&
