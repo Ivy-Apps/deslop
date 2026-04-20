@@ -545,13 +545,14 @@ spec = describe "TypeScript.ModuleResolver" $ do
             let result = runRRTest importer cfg existingFiles "./LoginView"
             result `shouldBe` moduleIdUnsafe "@pages/LoginView"
 
-        it "converts a relative import to a baseUrl-relative absolute import if no path mapping exists (inside baseUrl)" $ do
+        it "preserves a relative import as-is if no path mapping exists (inside baseUrl)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
             let existingFiles = [[osp|/home/repo/src/utils/math.ts|]]
 
-            -- By TS rules, if there's no alias but it's in the baseUrl, it's valid to make it a bare specifier.
+            -- Without a path mapping, converting to a bare specifier is unsafe: bare specifiers
+            -- go through node_modules lookup and could shadow the local file.
             let result = runRRTest importer baseCfg existingFiles "../utils/math"
-            result `shouldBe` moduleIdUnsafe "src/utils/math"
+            result `shouldBe` moduleIdUnsafe "../utils/math"
 
         it "improves an existing aliased import if a more specific/shorter alias matches" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -808,12 +809,12 @@ spec = describe "TypeScript.ModuleResolver" $ do
         it "preserves Vite resource queries (e.g., ?raw, ?worker) as they are virtual module references" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/components/Icon.tsx|]
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@assets/" "") [Wildcard "src/assets/" ""]]}
-            -- The file exists on disk, but the ?raw query parameter makes the exact disk path probe fail.
-            -- This correctly triggers the graceful fallback to preserve the original import string.
+            -- The ?raw query parameter makes the disk path probe fail, so no mapping applies.
+            -- The original relative import must be preserved unchanged.
             let existingFiles = [[osp|/home/repo/src/assets/logo.svg|]]
 
             let result = runRRTest importer cfg existingFiles "../../assets/logo.svg?raw"
-            result `shouldBe` moduleIdUnsafe "assets/logo.svg?raw"
+            result `shouldBe` moduleIdUnsafe "../../assets/logo.svg?raw"
 
         it "preserves Node.js package.json subpath imports (e.g., #internal/utils)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/index.ts|]
@@ -823,6 +824,17 @@ spec = describe "TypeScript.ModuleResolver" $ do
             -- Subpath imports start with '#' and are resolved by Node's export maps, not TS paths.
             let result = runRRTest importer cfg existingFiles "#internal/utils"
             result `shouldBe` moduleIdUnsafe "#internal/utils"
+
+        it "preserves a same-directory relative import at the baseUrl root level (e.g. ./next-config)" $ do
+            -- Regression: ./next-config was converted to the bare specifier 'next-config'
+            -- because the file sits directly under baseUrl. This is wrong: bare specifiers
+            -- go through node_modules lookup, so the semantics could change silently.
+            let importer = absPathUnsafe [osp|/home/repo/next.config.ts|]
+            let cfg = baseCfg {paths = []}
+            let existingFiles = [[osp|/home/repo/next-config.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "./next-config"
+            result `shouldBe` moduleIdUnsafe "./next-config"
 
         it "preserves bare specifiers that look like relative paths due to scoped packages (@org/pkg/.)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/index.ts|]
