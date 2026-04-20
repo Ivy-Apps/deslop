@@ -42,6 +42,9 @@ executable deslop
 
   hs-source-dirs:  app
 
+  if os(linux)
+    ghc-options: -optl-static -optl-pthread
+
 library
   import:          shared-properties
   exposed-modules:

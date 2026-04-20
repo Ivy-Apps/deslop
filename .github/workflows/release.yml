@@ -41,9 +41,8 @@ jobs:
             sh -c "
               apk add --no-cache \
                 curl gcc g++ gmp-dev ncurses-dev ncurses-static \
-                libffi-dev make xz tar perl bash \
-                zlib-dev zlib-static openssl-dev openssl-libs-static \
-                linux-headers binutils-gold &&
+                libffi-dev libffi-static make xz tar perl bash \
+                zlib-dev zlib-static linux-headers binutils-gold &&
               
               export PATH=\"/root/.ghcup/bin:\$PATH\" &&
               
@@ -61,12 +60,8 @@ jobs:
               cabal update &&
               cabal build exe:deslop \
                 --enable-executable-static \
-                --ghc-option=-optl-static \
-                --ghc-option=-fPIC \
-                --ghc-option=-O2 \
-                --ghc-option=-threaded \
-                --ghc-option=-rtsopts \
-                --ghc-option=-with-rtsopts=-N &&
+                --disable-executable-dynamic \
+                --ghc-options=\"-fexternal-interpreter -fPIC -O2 -threaded -rtsopts -with-rtsopts=-N\" &&
               
               mkdir -p /workspace/dist &&
               cp \$(cabal list-bin exe:deslop) /workspace/dist/deslop &&
