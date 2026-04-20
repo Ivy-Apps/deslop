@@ -832,3 +832,13 @@ spec = describe "TypeScript.ModuleResolver" $ do
             -- An edge case where a scoped package might have a subpath that tricks naive parsers
             let result = runRRTest importer cfg existingFiles "@company/internal-lib/./utils"
             result `shouldBe` moduleIdUnsafe "@company/internal-lib/utils"
+
+        it "preserves bare npm package names that end with .js (e.g. big.js)" $ do
+            -- Regression: reverseResolve was calling dropTypeScriptExtension on the fallback
+            -- absolute path, stripping .js and turning "big.js" into "big".
+            let importer = absPathUnsafe [osp|/home/repo/src/main.ts|]
+            let cfg = baseCfg {paths = []}
+            let existingFiles = []
+
+            let result = runRRTest importer cfg existingFiles "big.js"
+            result `shouldBe` moduleIdUnsafe "big.js"
