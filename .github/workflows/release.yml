@@ -6,65 +6,142 @@ on:
       - 'v*'
 
 jobs:
-  build-release:
-    name: Build Binaries
+  build-linux:
+    name: Build (${{ matrix.npm-platform }})
     strategy:
       matrix:
         include:
-          - os: macos-latest
-            npm-platform: darwin-arm64
           - os: ubuntu-latest
             npm-platform: linux-x64
           - os: ubuntu-24.04-arm
             npm-platform: linux-arm64
     runs-on: ${{ matrix.os }}
-    permissions:
-      id-token: "write"
-      contents: "read"      
     steps:
       - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@main
-      # - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Build Binary
+      - name: Cache GHC and Cabal
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ghcup
+            ~/.cabal/store
+            ~/.cabal/packages
+          key: cabal-${{ matrix.npm-platform }}-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: cabal-${{ matrix.npm-platform }}-
+
+      - name: Build static binary
         run: |
-          nix build --accept-flake-config 
-          mkdir -p dist
-          cp result/bin/deslop dist/deslop-${{ matrix.npm-platform }}
-          chmod +w dist/deslop-${{ matrix.npm-platform }}
-          strip dist/deslop-${{ matrix.npm-platform }}
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -v "$HOME/.ghcup:/root/.ghcup" \
+            -v "$HOME/.cabal/store:/root/.cabal/store" \
+            -v "$HOME/.cabal/packages:/root/.cabal/packages" \
+            -w /workspace \
+            alpine:3.20 \
+            sh -c "
+              apk add --no-cache \
+                curl gcc g++ gmp-dev ncurses-dev ncurses-static \
+                libffi-dev make xz tar perl bash \
+                zlib-dev zlib-static linux-headers binutils-gold &&
+              
+              export PATH=\"/root/.ghcup/bin:\$PATH\" &&
+              
+              # Install ghcup if it is missing
+              if ! command -v ghcup >/dev/null; then
+                curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_MINIMAL=1 sh;
+              fi &&
+              
+              # Always ensure the correct tools are installed (idempotent)
+              ghcup install ghc 9.10.3 &&
+              ghcup set ghc 9.10.3 &&
+              ghcup install cabal 3.16.0.0 &&
+              ghcup set cabal 3.16.0.0 &&
+              
+              cabal update &&
+              cabal build exe:deslop \
+                --enable-executable-static \
+                --disable-executable-dynamic \
+                --ghc-options=\"-fexternal-interpreter -fPIC -O2 -threaded -rtsopts -with-rtsopts=-N\" &&
+              
+              mkdir -p /workspace/dist &&
+              cp \$(cabal list-bin exe:deslop) /workspace/dist/deslop &&
+              strip --strip-unneeded /workspace/dist/deslop &&
+              
+              # Fix permissions so the GitHub Actions runner user can cache these directories
+              chown -R \$(stat -c %u:%g /workspace) /root/.ghcup /root/.cabal /workspace/dist
+            "
 
-      - name: Upload Binary Artifact
-        uses: actions/upload-artifact@v4
+      - name: Collect binary
+        run: |
+          mkdir -p dist/${{ matrix.npm-platform }}
+          mv dist/deslop dist/${{ matrix.npm-platform }}/deslop
+
+      - uses: actions/upload-artifact@v4
         with:
           name: bin-${{ matrix.npm-platform }}
-          path: dist/deslop-${{ matrix.npm-platform }}
+          path: dist/${{ matrix.npm-platform }}
+
+  build-macos:
+    name: Build (darwin-arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10.3'
+          cabal-version: '3.16.0.0'
+
+      - name: Cache cabal store
+        uses: actions/cache@v4
+        with:
+          path: ~/.cabal/store
+          key: cabal-darwin-arm64-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: cabal-darwin-arm64-
+
+      - run: cabal update
+
+      - name: Build binary
+        run: |
+          cabal build exe:deslop \
+            --ghc-option=-O2 \
+            --ghc-option=-optP-Wno-nonportable-include-path \
+            --ghc-option=-threaded \
+            --ghc-option=-rtsopts \
+            --ghc-option=-with-rtsopts=-N
+
+      - name: Collect binary
+        run: |
+          mkdir -p dist/darwin-arm64
+          cp $(cabal list-bin exe:deslop) dist/darwin-arm64/deslop
+          strip -x dist/darwin-arm64/deslop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-darwin-arm64
+          path: dist/darwin-arm64
 
   publish-npm:
     name: Publish to NPM
-    needs: build-release
+    needs: [build-linux, build-macos]
     runs-on: ubuntu-latest
     permissions:
-      id-token: "write"
-      contents: "read"      
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
           scope: '@ivy-apps'
 
-      - name: Install latest npm
-        run: npm install -g npm@latest
+      - run: npm install -g npm@latest
 
-      - name: Download all binaries
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: dist
-          merge-multiple: true
 
       - name: Prepare version
         run: |
@@ -76,7 +153,7 @@ jobs:
           for PLATFORM in darwin-arm64 linux-arm64 linux-x64; do
             PKG_DIR="npm/packages/$PLATFORM"
             mkdir -p "$PKG_DIR/bin"
-            cp "dist/deslop-$PLATFORM" "$PKG_DIR/bin/deslop"
+            cp -r "dist/bin-$PLATFORM/." "$PKG_DIR/bin/"
             chmod +x "$PKG_DIR/bin/deslop"
             cd "$PKG_DIR"
             npm version "$VERSION" --no-git-tag-version --allow-same-version

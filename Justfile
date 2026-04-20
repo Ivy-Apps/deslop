@@ -19,9 +19,9 @@ check:
 
 # Update Dependencies versions by updating the Nix flake input
 @update-deps:
-    echo "Updating Nix flake inputs (pulling fresh Hackage snapshot)..."
     nix flake update
-    echo "Done! Dependencies updated and securely locked in 'flake.lock' ❄️"
+    cabal freeze
+    echo "Done! Dependencies updated and securely locked in 'cabal.freeze' ❄️"
 
 # Updates hie.yaml (must be in nix develop)
 @update-hie:

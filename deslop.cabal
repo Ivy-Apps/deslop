@@ -1,6 +1,6 @@
 cabal-version:   3.0
 name:            deslop
-version:         0.5.6
+version:         0.5.22
 license:         BSD-3-Clause
 license-file:    LICENSE
 author:          Ivy Apps LTD
@@ -41,6 +41,9 @@ executable deslop
     , optparse-applicative
 
   hs-source-dirs:  app
+
+  if os(linux)
+    ghc-options: -optl-static -optl-pthread
 
 library
   import:          shared-properties
