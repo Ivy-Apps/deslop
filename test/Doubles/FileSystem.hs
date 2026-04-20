@@ -4,6 +4,7 @@ module Doubles.FileSystem (
     runMockRoFileSystem,
     runMockWrFileSystem,
     mockFiles,
+    mockDirs,
 ) where
 
 import Data.Text qualified as T
@@ -86,4 +87,12 @@ mockFiles :: [OsPath] -> MockRoFileSystem es
 mockFiles existingFiles =
     defaultMockRoFileSystem
         { mockFileExists = \p -> pure $ p `elem` (absPathUnsafe <$> existingFiles)
+        }
+
+-- | Build a mock that knows which paths are directories and what they contain.
+mockDirs :: [(AbsPath, [AbsPath])] -> MockRoFileSystem es
+mockDirs dirs =
+    defaultMockRoFileSystem
+        { mockDirectoryExists = \p -> pure . any ((== p) . fst) $ dirs
+        , mockListDirectory = \p -> pure $ maybe [] snd (find ((== p) . fst) dirs)
         }
