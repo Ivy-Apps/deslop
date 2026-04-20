@@ -32,9 +32,10 @@ jobs:
             -v "${{ github.workspace }}:/workspace" \
             -v "$HOME/.cabal/store:/root/.cabal/store" \
             -w /workspace \
-            benz0li/ghc-musl:9.10.3 \
+            alpine:edge \
             sh -c "
               apk add --no-cache \
+                ghc cabal build-base linux-headers \
                 zlib-dev zlib-static \
                 xz-dev \
                 ncurses-dev ncurses-static \
@@ -47,9 +48,13 @@ jobs:
               cabal build exe:deslop \
                 --enable-executable-static \
                 --ghc-option=-optl-static \
-                --ghc-option=-O2 &&
+                --ghc-option=-O2 \
+                --ghc-option=-threaded \
+                --ghc-option=-rtsopts \
+                --ghc-option=-with-rtsopts=-N &&
               mkdir -p /workspace/dist &&
-              cp \$(cabal list-bin exe:deslop) /workspace/dist/deslop
+              cp \$(cabal list-bin exe:deslop) /workspace/dist/deslop &&
+              strip --strip-unneeded /workspace/dist/deslop
             "
 
       - name: Collect binary
