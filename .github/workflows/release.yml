@@ -19,10 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Cache cabal store
-        uses: actions/cache@v5
+      - name: Cache GHC and Cabal
+        uses: actions/cache@v4
         with:
-          path: ~/.cabal/store
+          path: |
+            ~/.ghcup
+            ~/.cabal/store
+            ~/.cabal/packages
           key: cabal-${{ matrix.npm-platform }}-${{ hashFiles('cabal.project.freeze') }}
           restore-keys: cabal-${{ matrix.npm-platform }}-
 
@@ -30,37 +33,50 @@ jobs:
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
+            -v "$HOME/.ghcup:/root/.ghcup" \
             -v "$HOME/.cabal/store:/root/.cabal/store" \
+            -v "$HOME/.cabal/packages:/root/.cabal/packages" \
             -w /workspace \
-            haskell:9.10-alpine \
+            alpine:3.20 \
             sh -c "
               apk add --no-cache \
-                zlib-dev zlib-static \
-                xz-dev \
-                ncurses-dev ncurses-static \
-                openssl-dev openssl-libs-static \
-                ca-certificates \
-                curl &&
+                curl gcc g++ gmp-dev gmp-static ncurses-dev ncurses-static \
+                libffi-dev make xz tar perl bash \
+                zlib-dev zlib-static openssl-dev openssl-libs-static \
+                linux-headers binutils-gold &&
+              
+              export PATH=\"/root/.ghcup/bin:\$PATH\" &&
+              
+              if ! command -v ghc >/dev/null; then
+                curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_MINIMAL=1 sh &&
+                ghcup install ghc 9.10.3 &&
+                ghcup set ghc 9.10.3 &&
+                ghcup install cabal 3.16.0.0 &&
+                ghcup set cabal 3.16.0.0;
+              fi &&
+              
               cabal update &&
               cabal build exe:deslop \
                 --enable-executable-static \
-                --enable-static \
                 --ghc-option=-optl-static \
                 --ghc-option=-fPIC \
                 --ghc-option=-O2 \
                 --ghc-option=-threaded \
                 --ghc-option=-rtsopts \
                 --ghc-option=-with-rtsopts=-N &&
+              
               mkdir -p /workspace/dist &&
               cp \$(cabal list-bin exe:deslop) /workspace/dist/deslop &&
-              strip --strip-unneeded /workspace/dist/deslop
+              strip --strip-unneeded /workspace/dist/deslop &&
+              
+              # Fix permissions so the GitHub Actions runner user can cache these directories
+              chown -R \$(stat -c %u:%g /workspace) /root/.ghcup /root/.cabal /workspace/dist
             "
 
       - name: Collect binary
         run: |
           mkdir -p dist/${{ matrix.npm-platform }}
           mv dist/deslop dist/${{ matrix.npm-platform }}/deslop
-          strip --strip-unneeded dist/${{ matrix.npm-platform }}/deslop
 
       - uses: actions/upload-artifact@v4
         with:
