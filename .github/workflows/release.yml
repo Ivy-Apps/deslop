@@ -41,7 +41,7 @@ jobs:
             sh -c "
               apk add --no-cache \
                 curl gcc g++ gmp-dev ncurses-dev ncurses-static \
-                libffi-dev libffi-static make xz tar perl bash \
+                libffi-dev make xz tar perl bash \
                 zlib-dev zlib-static linux-headers binutils-gold &&
               
               export PATH=\"/root/.ghcup/bin:\$PATH\" &&
