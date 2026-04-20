@@ -11,13 +11,17 @@ import TypeScript.Iterator (getTsFiles)
 ap :: Text -> AbsPath
 ap = absPathUnsafe . encodeOsPath
 
+root :: AbsPath
+root = ap "/project"
+
+-- | Run getTsFiles against a mock filesystem rooted at '/project'.
+run :: [(AbsPath, [AbsPath])] -> IO [AbsPath]
+run dirs = runEff . runMockRoFileSystem (mockDirs dirs) $ getTsFiles root
+
 spec :: Spec
 spec = describe "TypeScript.Iterator" $ do
-    let root = ap "/project"
-
-    it "returns empty list for empty directory" $ do
-        result <- runEff . runMockRoFileSystem (mockDirs [(root, [])]) $ getTsFiles root
-        result `shouldBe` []
+    it "returns empty list for empty directory" $
+        run [(root, [])] >>= (`shouldBe` [])
 
     it "collects multiple .ts and .tsx files from a flat directory" $ do
         let files =
@@ -26,8 +30,7 @@ spec = describe "TypeScript.Iterator" $ do
                 , ap "/project/utils.ts"
                 , ap "/project/Button.tsx"
                 ]
-        result <- runEff . runMockRoFileSystem (mockDirs [(root, files)]) $ getTsFiles root
-        result `shouldBe` files
+        run [(root, files)] >>= (`shouldBe` files)
 
     it "excludes non-TypeScript files alongside .ts/.tsx files" $ do
         let tsFile = ap "/project/index.ts"
@@ -39,8 +42,7 @@ spec = describe "TypeScript.Iterator" $ do
                 , ap "/project/README.md"
                 , ap "/project/build.js"
                 ]
-        result <- runEff . runMockRoFileSystem (mockDirs [(root, allEntries)]) $ getTsFiles root
-        result `shouldBe` [tsFile, tsxFile]
+        run [(root, allEntries)] >>= (`shouldBe` [tsFile, tsxFile])
 
     it "recurses into a subdirectory and collects .ts and .tsx files" $ do
         let srcDir = ap "/project/src"
@@ -49,10 +51,7 @@ spec = describe "TypeScript.Iterator" $ do
                 , ap "/project/src/App.tsx"
                 , ap "/project/src/index.ts"
                 ]
-        result <-
-            runEff . runMockRoFileSystem (mockDirs [(root, [srcDir]), (srcDir, files)]) $
-                getTsFiles root
-        result `shouldBe` files
+        run [(root, [srcDir]), (srcDir, files)] >>= (`shouldBe` files)
 
     it "recurses deeply (3 levels) and collects all .ts/.tsx files" $ do
         let componentsDir = ap "/project/src/components"
@@ -61,88 +60,96 @@ spec = describe "TypeScript.Iterator" $ do
         let srcTs = ap "/project/src/service.ts"
         let compTs = ap "/project/src/components/Button.tsx"
         let compTs2 = ap "/project/src/components/Modal.ts"
-        result <-
-            runEff
-                . runMockRoFileSystem
-                    ( mockDirs
-                        [ (root, [rootTs, srcDir])
-                        , (srcDir, [srcTs, componentsDir])
-                        , (componentsDir, [compTs, compTs2])
-                        ]
-                    )
-                $ getTsFiles root
-        result `shouldBe` [rootTs, srcTs, compTs, compTs2]
+        run
+            [ (root, [rootTs, srcDir])
+            , (srcDir, [srcTs, componentsDir])
+            , (componentsDir, [compTs, compTs2])
+            ]
+            >>= (`shouldBe` [rootTs, srcTs, compTs, compTs2])
 
-    it "skips node_modules" $ do
-        let nodeModules = ap "/project/node_modules"
-        let srcFile = ap "/project/index.ts"
-        result <-
-            runEff
-                . runMockRoFileSystem
-                    ( mockDirs
-                        [ (root, [nodeModules, srcFile])
-                        , (nodeModules, [ap "/project/node_modules/dep.ts"])
-                        ]
-                    )
-                $ getTsFiles root
-        result `shouldBe` [srcFile]
+    it "skips an empty non-ignored subdirectory" $ do
+        let emptyDir = ap "/project/empty"
+        run [(root, [emptyDir]), (emptyDir, [])] >>= (`shouldBe` [])
 
-    it "skips .git" $ do
-        let gitDir = ap "/project/.git"
-        result <-
-            runEff
-                . runMockRoFileSystem
-                    ( mockDirs
-                        [ (root, [gitDir])
-                        , (gitDir, [ap "/project/.git/hook.ts"])
-                        ]
-                    )
-                $ getTsFiles root
-        result `shouldBe` []
+    describe "ignored directories" $ do
+        it "skips node_modules at root" $ do
+            let nodeModules = ap "/project/node_modules"
+            let srcFile = ap "/project/index.ts"
+            run
+                [ (root, [nodeModules, srcFile])
+                , (nodeModules, [ap "/project/node_modules/dep.ts"])
+                ]
+                >>= (`shouldBe` [srcFile])
 
-    it "skips dist" $ do
-        let distDir = ap "/project/dist"
-        result <-
-            runEff
-                . runMockRoFileSystem
-                    ( mockDirs
-                        [ (root, [distDir])
-                        , (distDir, [ap "/project/dist/bundle.ts", ap "/project/dist/chunk.tsx"])
-                        ]
-                    )
-                $ getTsFiles root
-        result `shouldBe` []
+        it "skips node_modules nested inside a subdirectory" $ do
+            let pkgDir = ap "/project/packages/app"
+            let nestedNm = ap "/project/packages/app/node_modules"
+            let appTs = ap "/project/packages/app/index.ts"
+            let packagesDir = ap "/project/packages"
+            run
+                [ (root, [packagesDir])
+                , (packagesDir, [pkgDir])
+                , (pkgDir, [nestedNm, appTs])
+                , (nestedNm, [ap "/project/packages/app/node_modules/lib.ts"])
+                ]
+                >>= (`shouldBe` [appTs])
 
-    it "skips .next" $ do
-        let nextDir = ap "/project/.next"
-        result <-
-            runEff
-                . runMockRoFileSystem
-                    ( mockDirs
-                        [ (root, [nextDir])
-                        , (nextDir, [ap "/project/.next/server.ts"])
-                        ]
-                    )
-                $ getTsFiles root
-        result `shouldBe` []
+        it "skips node_modules at multiple nesting levels simultaneously" $ do
+            let rootNm = ap "/project/node_modules"
+            let srcDir = ap "/project/src"
+            let nestedNm = ap "/project/src/node_modules"
+            let srcTs = ap "/project/src/api.ts"
+            run
+                [ (root, [rootNm, srcDir])
+                , (rootNm, [ap "/project/node_modules/pkg.ts"])
+                , (srcDir, [nestedNm, srcTs])
+                , (nestedNm, [ap "/project/src/node_modules/dep.ts"])
+                ]
+                >>= (`shouldBe` [srcTs])
 
-    it "collects files from sibling directories while skipping all ignored ones" $ do
-        let nodeModules = ap "/project/node_modules"
-        let distDir = ap "/project/dist"
-        let srcDir = ap "/project/src"
-        let pagesDir = ap "/project/pages"
-        let srcFiles = [ap "/project/src/api.ts", ap "/project/src/types.ts"]
-        let pageFiles = [ap "/project/pages/index.tsx", ap "/project/pages/about.tsx"]
-        result <-
-            runEff
-                . runMockRoFileSystem
-                    ( mockDirs
-                        [ (root, [nodeModules, distDir, srcDir, pagesDir])
-                        , (nodeModules, [ap "/project/node_modules/lib.ts"])
-                        , (distDir, [ap "/project/dist/main.js"])
-                        , (srcDir, srcFiles)
-                        , (pagesDir, pageFiles)
-                        ]
-                    )
-                $ getTsFiles root
-        result `shouldBe` (srcFiles <> pageFiles)
+        it "does NOT skip a directory named node_modules_backup (exact name match)" $ do
+            let nmBackup = ap "/project/node_modules_backup"
+            let backupTs = ap "/project/node_modules_backup/legacy.ts"
+            run
+                [(root, [nmBackup]), (nmBackup, [backupTs])]
+                >>= (`shouldBe` [backupTs])
+
+        it "skips .git" $ do
+            let gitDir = ap "/project/.git"
+            run
+                [(root, [gitDir]), (gitDir, [ap "/project/.git/hook.ts"])]
+                >>= (`shouldBe` [])
+
+        it "skips dist" $ do
+            let distDir = ap "/project/dist"
+            run
+                [ (root, [distDir])
+                , (distDir, [ap "/project/dist/bundle.ts", ap "/project/dist/chunk.tsx"])
+                ]
+                >>= (`shouldBe` [])
+
+        it "skips .next" $ do
+            let nextDir = ap "/project/.next"
+            run
+                [(root, [nextDir]), (nextDir, [ap "/project/.next/server.ts"])]
+                >>= (`shouldBe` [])
+
+        it "skips all ignored dirs simultaneously while collecting from valid ones" $ do
+            let nodeModules = ap "/project/node_modules"
+            let distDir = ap "/project/dist"
+            let gitDir = ap "/project/.git"
+            let nextDir = ap "/project/.next"
+            let srcDir = ap "/project/src"
+            let pagesDir = ap "/project/pages"
+            let srcFiles = [ap "/project/src/api.ts", ap "/project/src/types.ts"]
+            let pageFiles = [ap "/project/pages/index.tsx", ap "/project/pages/about.tsx"]
+            run
+                [ (root, [nodeModules, distDir, gitDir, nextDir, srcDir, pagesDir])
+                , (nodeModules, [ap "/project/node_modules/lib.ts"])
+                , (distDir, [ap "/project/dist/main.js"])
+                , (gitDir, [ap "/project/.git/config.ts"])
+                , (nextDir, [ap "/project/.next/server.ts"])
+                , (srcDir, srcFiles)
+                , (pagesDir, pageFiles)
+                ]
+                >>= (`shouldBe` (srcFiles <> pageFiles))
