@@ -16,21 +16,8 @@ jobs:
           - os: ubuntu-24.04-arm
             npm-platform: linux-arm64
     runs-on: ${{ matrix.os }}
-    container: benz0li/ghc-musl:9.10.3
     steps:
       - uses: actions/checkout@v6
-
-      - name: Install system dependencies
-        run: |
-          apk add --no-cache \
-            zlib-dev zlib-static \
-            xz-dev \
-            ncurses-dev ncurses-static \
-            gmp-dev \
-            libffi-dev \
-            openssl-dev openssl-libs-static \
-            ca-certificates \
-            curl
 
       - name: Cache cabal store
         uses: actions/cache@v5
@@ -39,19 +26,36 @@ jobs:
           key: cabal-${{ matrix.npm-platform }}-${{ hashFiles('cabal.project.freeze') }}
           restore-keys: cabal-${{ matrix.npm-platform }}-
 
-      - run: cabal update
-
       - name: Build static binary
         run: |
-          cabal build exe:deslop \
-            --enable-executable-static \
-            --ghc-option=-optl-static \
-            --ghc-option=-O2
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -v "$HOME/.cabal/store:/root/.cabal/store" \
+            -w /workspace \
+            benz0li/ghc-musl:9.10.3 \
+            sh -c "
+              apk add --no-cache \
+                zlib-dev zlib-static \
+                xz-dev \
+                ncurses-dev ncurses-static \
+                gmp-dev \
+                libffi-dev \
+                openssl-dev openssl-libs-static \
+                ca-certificates \
+                curl &&
+              cabal update &&
+              cabal build exe:deslop \
+                --enable-executable-static \
+                --ghc-option=-optl-static \
+                --ghc-option=-O2 &&
+              mkdir -p /workspace/dist &&
+              cp \$(cabal list-bin exe:deslop) /workspace/dist/deslop
+            "
 
       - name: Collect binary
         run: |
           mkdir -p dist/${{ matrix.npm-platform }}
-          cp $(cabal list-bin exe:deslop) dist/${{ matrix.npm-platform }}/deslop
+          mv dist/deslop dist/${{ matrix.npm-platform }}/deslop
           strip --strip-unneeded dist/${{ matrix.npm-platform }}/deslop
 
       - uses: actions/upload-artifact@v4
