@@ -35,122 +35,15 @@
           ghcVersion = "ghc9103";
           hlib = pkgs.haskell.lib.compose;
 
-          # ── Shared overrides (dev + release) ─────────────────────────────
-          # Defined once; both hpkgs and releaseHpkgs layer on top of this
-          # so shared deps (fmt, etc.) produce identical derivations →
-          # single cache entry for each.
-          baseOverrides = self: super: {
-            fmt = hlib.dontCheck super.fmt;
-            deslop = hlib.dontCheck (hlib.appendConfigureFlags
-              [ "--ghc-option=-optP-Wno-nonportable-include-path" ]
-              (self.callCabal2nix "deslop" ./. { }));
-          };
-
-          # ── Dev package set ───────────────────────────────────────────────
-          # Plain glibc GHC — no static flags, fast local iteration and HLS.
           hpkgs = pkgs.haskell.packages.${ghcVersion}.override {
-            overrides = baseOverrides;
+            overrides = self: super: {
+              fmt = hlib.dontCheck super.fmt;
+              deslop = hlib.dontCheck (hlib.appendConfigureFlags
+                [ "--ghc-option=-optP-Wno-nonportable-include-path" ]
+                (self.callCabal2nix "deslop" ./. { }));
+            };
           };
 
-          # ── Release flags ─────────────────────────────────────────────────
-          # Darwin: threaded RTS + rtsopts safe — dynamic linking, no
-          #         libgcc_eh issue.
-          # Linux:  fully static via -optl-static. -threaded and
-          #         -with-rtsopts=-N are intentionally omitted — the threaded
-          #         RTS pulls in libgcc_eh → _dl_find_object which has no
-          #         static equivalent in glibc or musl.
-          releaseFlags =
-            [
-              "--ghc-option=-O2"
-              "--ghc-option=-optP-Wno-nonportable-include-path"
-            ]
-            ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-              "--ghc-option=-threaded"
-              "--ghc-option=-rtsopts"
-              "--ghc-option=-with-rtsopts=-N"
-            ]
-            ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
-              "--ghc-option=-optl-static"
-              "--disable-shared"
-              "--enable-executable-static"
-            ];
-
-          # ── Release package set ───────────────────────────────────────────
-          # Linux:  pkgsMusl provides a musl-native GHC whose libgcc_eh has
-          #         no glibc-only symbol dependencies (_dl_find_object etc).
-          #         This is the only working approach for fully static binaries
-          #         under GCC 14 / nixos-25.11. baseOverrides is duplicated
-          #         here (rather than layered from hpkgs) because pkgsMusl is
-          #         a completely separate package set — hpkgs.override would
-          #         still use glibc GHC as the base.
-          # Darwin: layers releaseFlags onto hpkgs; fmt and other shared deps
-          #         reuse hpkgs derivations unchanged — no duplicate builds.
-          releaseHpkgs =
-            if pkgs.stdenv.isLinux
-            then
-              pkgs.pkgsMusl.haskell.packages.${ghcVersion}.override
-                {
-                  overrides = self: super:
-                    (baseOverrides self super) // {
-                      deslop = hlib.dontCheck
-                        (hlib.appendConfigureFlags releaseFlags
-                          (self.callCabal2nix "deslop" ./. { }));
-                    };
-                }
-            else
-              hpkgs.override {
-                overrides = self: super: {
-                  deslop = hlib.dontCheck
-                    (hlib.appendConfigureFlags releaseFlags
-                      (self.callCabal2nix "deslop" ./. { }));
-                };
-              };
-
-          # ── Binaries ──────────────────────────────────────────────────────
-          baseDeslop = hlib.justStaticExecutables releaseHpkgs.deslop;
-
-          # On Darwin, pkgs.darwin exists; on Linux it does not — guard the
-          # definition so Linux eval never touches pkgs.darwin.sigtool.
-          codesignWrapper =
-            if pkgs.stdenv.isDarwin
-            then
-              pkgs.writeShellScriptBin "codesign" ''
-                exec ${pkgs.darwin.sigtool}/bin/codesign --force --sign - "''${@: -1}"
-              ''
-            else null;
-
-          # Portable release binary:
-          #   Linux  → static ELF, stripped (no runtime deps)
-          #   Darwin → Mach-O with non-system dylibs bundled via dylibbundler
-          portableDeslop = pkgs.stdenv.mkDerivation {
-            name = "deslop-portable";
-            dontUnpack = true;
-
-            nativeBuildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
-              pkgs.macdylibbundler
-              codesignWrapper
-            ];
-
-            installPhase =
-              ''
-                mkdir -p $out/bin
-                cp ${baseDeslop}/bin/deslop $out/bin/deslop
-                chmod +w $out/bin/deslop
-              ''
-              + pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-                strip $out/bin/deslop
-              ''
-              + pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
-                strip -x $out/bin/deslop
-                mkdir -p $out/bin/libs
-                dylibbundler -od -b \
-                  -x $out/bin/deslop \
-                  -d $out/bin/libs \
-                  -p '@executable_path/libs/'
-              '';
-          };
-
-          # ── Dev tooling ───────────────────────────────────────────────────
           hgold = hlib.justStaticExecutables hpkgs.hspec-golden;
           nvim = my-nixvim.lib.mkHaskellNvim { inherit pkgs hpkgs; };
 
@@ -191,8 +84,6 @@
 
         in
         {
-          packages.default = portableDeslop;
-
           apps = {
             test = { type = "app"; program = "${aiTestRunner}/bin/ai-test"; };
             build = { type = "app"; program = "${aiBuildRunner}/bin/ai-build"; };

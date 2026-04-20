@@ -6,60 +6,118 @@ on:
       - 'v*'
 
 jobs:
-  build-release:
-    name: Build Binaries
+  build-linux:
+    name: Build (${{ matrix.npm-platform }})
     strategy:
       matrix:
         include:
-          - os: macos-latest
-            npm-platform: darwin-arm64
           - os: ubuntu-latest
             npm-platform: linux-x64
           - os: ubuntu-24.04-arm
             npm-platform: linux-arm64
     runs-on: ${{ matrix.os }}
-    permissions:
-      id-token: "write"
-      contents: "read"
+    container: haskell:9.10.3-alpine
     steps:
-      - uses: actions/checkout@v6
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: actions/checkout@v4
 
-      - name: Build Binary
+      - name: Install system dependencies
         run: |
-          nix build --accept-flake-config
-          mkdir -p dist/${{ matrix.npm-platform }}
-          cp -r result/bin/. dist/${{ matrix.npm-platform }}/
+          apk add --no-cache \
+            zlib-dev zlib-static \
+            xz-dev \
+            ncurses-dev ncurses-static \
+            gmp-dev \
+            libffi-dev \
+            openssl-dev openssl-libs-static \
+            ca-certificates \
+            curl
 
-      - name: Upload Binary Artifact
-        uses: actions/upload-artifact@v4
+      - name: Cache cabal store
+        uses: actions/cache@v5
+        with:
+          path: ~/.cabal/store
+          key: cabal-${{ matrix.npm-platform }}-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: cabal-${{ matrix.npm-platform }}-
+
+      - run: cabal update
+
+      - name: Build static binary
+        run: |
+          cabal build exe:deslop \
+            --enable-executable-static \
+            --ghc-option=-optl-static \
+            --ghc-option=-O2
+
+      - name: Collect binary
+        run: |
+          mkdir -p dist/${{ matrix.npm-platform }}
+          cp $(cabal list-bin exe:deslop) dist/${{ matrix.npm-platform }}/deslop
+          strip dist/${{ matrix.npm-platform }}/deslop
+
+      - uses: actions/upload-artifact@v4
         with:
           name: bin-${{ matrix.npm-platform }}
           path: dist/${{ matrix.npm-platform }}
 
-  publish-npm:
-    name: Publish to NPM
-    needs: build-release
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: "write"
-      contents: "read"
+  build-macos:
+    name: Build (darwin-arm64)
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10.3'
+          cabal-version: 'latest'
+
+      - name: Cache cabal store
+        uses: actions/cache@v4
+        with:
+          path: ~/.cabal/store
+          key: cabal-darwin-arm64-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: cabal-darwin-arm64-
+
+      - run: cabal update
+
+      - name: Build binary
+        run: |
+          cabal build exe:deslop \
+            --ghc-option=-O2 \
+            --ghc-option=-optP-Wno-nonportable-include-path \
+            --ghc-option=-threaded \
+            --ghc-option=-rtsopts \
+            --ghc-option=-with-rtsopts=-N
+
+      - name: Collect binary
+        run: |
+          mkdir -p dist/darwin-arm64
+          cp $(cabal list-bin exe:deslop) dist/darwin-arm64/deslop
+          strip -x dist/darwin-arm64/deslop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-darwin-arm64
+          path: dist/darwin-arm64
+
+  publish-npm:
+    name: Publish to NPM
+    needs: [build-linux, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
           scope: '@ivy-apps'
 
-      - name: Install latest npm
-        run: npm install -g npm@latest
+      - run: npm install -g npm@latest
 
-      - name: Download all binaries
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: dist
 
