@@ -32,22 +32,21 @@ jobs:
             -v "${{ github.workspace }}:/workspace" \
             -v "$HOME/.cabal/store:/root/.cabal/store" \
             -w /workspace \
-            alpine:edge \
+            haskell:9.10-alpine \
             sh -c "
               apk add --no-cache \
-                ghc cabal build-base linux-headers \
                 zlib-dev zlib-static \
                 xz-dev \
                 ncurses-dev ncurses-static \
-                gmp-dev \
-                libffi-dev \
                 openssl-dev openssl-libs-static \
                 ca-certificates \
                 curl &&
               cabal update &&
               cabal build exe:deslop \
                 --enable-executable-static \
+                --enable-static \
                 --ghc-option=-optl-static \
+                --ghc-option=-fPIC \
                 --ghc-option=-O2 \
                 --ghc-option=-threaded \
                 --ghc-option=-rtsopts \
