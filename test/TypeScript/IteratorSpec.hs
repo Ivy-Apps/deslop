@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module TypeScript.IteratorSpec (spec) where
 
 import Doubles.FileSystem (mockDirs, runMockRoFileSystem)
