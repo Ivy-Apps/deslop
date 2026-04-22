@@ -1,15 +1,11 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module TypeScript.IteratorSpec (spec) where
 
 import Doubles.FileSystem (mockDirs, runMockRoFileSystem)
 import Effectful (runEff)
-import Effects.FileSystem (AbsPath, absPathUnsafe, encodeOsPath)
+import Effects.FileSystem (AbsPath)
 import Test.Hspec
+import TestUtils (ap)
 import TypeScript.Iterator (getTsFiles)
-
-ap :: Text -> AbsPath
-ap = absPathUnsafe . encodeOsPath
 
 root :: AbsPath
 root = ap "/project"

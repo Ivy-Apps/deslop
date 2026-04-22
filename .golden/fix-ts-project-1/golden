@@ -184,3 +184,32 @@ export default defineConfig({
     },
   },
 });
+
+
+
+>>> FILE: next.config.ts
+import type { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
+import { buildCsp } from '@/lib/security';
+
+export const redirects = [
+  {
+    source: '/legacy-page',
+    destination: '/',
+    permanent: true,
+  },
+]
+
+
+
+>>> FILE: next.config.spec.ts
+import { describe, expect, it } from 'vitest';
+import { redirects } from './next.config';
+
+describe('redirects', () => {
+  it('should be sorted alphabetically by source', () => {
+    const sources = redirects.map((r) => r.source);
+    const sortedSources = [...sources].sort();
+    expect(sources).toEqual(sortedSources);
+  });
+});

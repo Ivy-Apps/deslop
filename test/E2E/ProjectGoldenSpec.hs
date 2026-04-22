@@ -33,6 +33,8 @@ spec = describe "E2E.ProjectGolden" $ do
         , "src/features/login/login-form.ts"
         , "tests/fixtures.ts"
         , "vitest.config.ts"
+        , "next.config.ts"
+        , "next.config.spec.ts"
         ]
 
     itFixes

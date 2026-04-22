@@ -34,10 +34,13 @@ reverseResolveImport ::
     , Reader TsConfig :> es
     ) =>
     AbsPath -> ModuleId -> Eff es ModuleId
-reverseResolveImport importingFile target =
-    resolve importingFile target
-        >>= reverseResolve
-        >>= pure . fromMaybe target
+reverseResolveImport importingFile target = do
+    maybeAbsPath <- resolve importingFile target
+    case maybeAbsPath of
+        Just absPath ->
+            reverseResolve absPath
+                >>= pure . fromMaybe target
+        Nothing -> pure target -- keep the original target
 
 reverseResolve :: (Reader TsConfig :> es) => AbsPath -> Eff es (Maybe ModuleId)
 reverseResolve absFilePath = do
@@ -50,13 +53,13 @@ reverseResolve absFilePath = do
 
     let upTraversal = replicate (length bRemainderOsp) ".."
     let moduleRelToCfg = T.intercalate "/" (upTraversal <> tRemainder)
-
     case applyPathMapping cfg.paths moduleRelToCfg of
-        Just alias -> pure . Just . ModuleId $ alias
-        Nothing ->
-            if null bRemainderOsp
-                then pure . Just . ModuleId $ moduleRelToCfg
-                else pure Nothing
+        Just alias ->
+            let moduleId = ModuleId alias
+             in if isRelativeImport moduleId
+                    then pure Nothing
+                    else pure $ Just moduleId
+        Nothing -> pure Nothing
   where
     dropCommonSegments :: (Eq a) => [a] -> [a] -> ([a], [a])
     dropCommonSegments (x : xs) (y : ys) | x == y = dropCommonSegments xs ys
@@ -100,11 +103,15 @@ dropTypeScriptExtension osp
   where
     path = decodeOsPath osp
 
-resolve :: (RoFileSystem :> es, Reader TsConfig :> es) => AbsPath -> ModuleId -> Eff es AbsPath
-resolve importingFile target@(ModuleId mId) =
+resolve ::
+    ( RoFileSystem :> es
+    , Reader TsConfig :> es
+    ) =>
+    AbsPath -> ModuleId -> Eff es (Maybe AbsPath)
+resolve importingFile target@(ModuleId targetId) =
     if isRelativeImport target
         then
-            resolveRelativeImport
+            Just <$> resolveRelativeImport
         else
             resolveNonRelativeImport
   where
@@ -113,26 +120,20 @@ resolve importingFile target@(ModuleId mId) =
     resolveRelativeImport :: (RoFileSystem :> es) => Eff es AbsPath
     resolveRelativeImport = do
         let importerDir = absPathUnsafe . takeDirectory $ importingFile.osPath
-        let targetPath = withAbsBaseSafe importerDir (encodeOsPath mId)
+        let targetPath = withAbsBaseSafe importerDir (encodeOsPath targetId)
 
         tryExtensions targetPath tsExtensions
             >>= maybe (fsMkAbsolute targetPath) pure
 
-    resolveNonRelativeImport :: (RoFileSystem :> es, Reader TsConfig :> es) => Eff es AbsPath
+    resolveNonRelativeImport :: (RoFileSystem :> es, Reader TsConfig :> es) => Eff es (Maybe AbsPath)
     resolveNonRelativeImport = do
         cfg <- ask @TsConfig
-        maybePathMapping <- reversePathMapping cfg cfg.paths
-        case maybePathMapping of
-            Just absPath -> pure absPath
-            Nothing -> do
-                let fallbackPath = withAbsBaseSafe cfg.baseUrl (encodeOsPath mId)
-                tryExtensions fallbackPath tsExtensions
-                    >>= maybe (fsMkAbsolute fallbackPath) pure
+        reversePathMapping cfg cfg.paths
 
     reversePathMapping :: (RoFileSystem :> es) => TsConfig -> [PathMapping] -> Eff es (Maybe AbsPath)
     reversePathMapping _ [] = pure Nothing
     reversePathMapping cfg (p : ps)
-        | Just keyMatch <- match p.key.pattern mId = do
+        | Just keyMatch <- match p.key.pattern targetId = do
             maybeAbsPath <- tryValues cfg keyMatch (toList p.values)
             case maybeAbsPath of
                 Just absPath -> pure $ Just absPath
