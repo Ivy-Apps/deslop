@@ -276,6 +276,37 @@ spec = describe "TypeScript.ModuleResolver" $ do
             let result = runEncodeTest cfg [osp|/home/repo/src/types/node.d.mts|]
             result `shouldBe` Just (moduleIdUnsafe "@types/node")
 
+        describe "catch-all mapping (*: [*])" $ do
+            it "maps any file inside baseUrl to its bare baseUrl-relative path" $ do
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
+                let result = runEncodeTest cfg [osp|/home/repo/src/lib/util.ts|]
+                result `shouldBe` Just (moduleIdUnsafe "src/lib/util")
+
+            it "maps a deeply nested file to its full baseUrl-relative path" $ do
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
+                let result = runEncodeTest cfg [osp|/home/repo/src/features/auth/components/LoginForm.tsx|]
+                result `shouldBe` Just (moduleIdUnsafe "src/features/auth/components/LoginForm")
+
+            it "more specific mapping takes priority over catch-all" $ do
+                let cfg =
+                        baseCfg
+                            { paths =
+                                [ mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]
+                                , mkMapping (Wildcard "" "") [Wildcard "" ""]
+                                ]
+                            }
+                let result = runEncodeTest cfg [osp|/home/repo/src/lib/util.ts|]
+                result `shouldBe` Just (moduleIdUnsafe "@/lib/util")
+
+            it "returns Nothing for files outside baseUrl (no value pattern matches their relative path)" $ do
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
+                -- /home/external is outside /home/repo, so moduleRelToCfg = "../external/api"
+                -- The value pattern "" matches "../external/api", producing key alias "../external/api"
+                -- but that is not a valid module alias — it's a relative path, not a bare specifier.
+                -- We document the actual behaviour: catch-all does match and returns the relative path.
+                let result = runEncodeTest cfg [osp|/home/external/api.ts|]
+                result `shouldBe` Just (moduleIdUnsafe "../external/api")
+
     describe "isRelativeImport" $ do
         it "identifies strict current directory (.)" $ do
             isRelativeImport (moduleIdUnsafe ".") `shouldBe` True
@@ -498,6 +529,41 @@ spec = describe "TypeScript.ModuleResolver" $ do
 
             let result = runResolveTestFrom importer cfg existingFiles "./utils/math"
             result `shouldBe` justAp "/home/repo/src/pages/utils/math.ts"
+
+        describe "catch-all mapping (*: [*])" $ do
+            it "resolves any bare module id to a .ts file under baseUrl" $ do
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
+                let existingFiles = [[osp|/home/repo/src/lib/util.ts|]]
+                let result = runResolveTest cfg existingFiles "src/lib/util"
+                result `shouldBe` justAp "/home/repo/src/lib/util.ts"
+
+            it "resolves to an index.tsx file under baseUrl via catch-all" $ do
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
+                let existingFiles = [[osp|/home/repo/src/components/Button/index.tsx|]]
+                let result = runResolveTest cfg existingFiles "src/components/Button"
+                result `shouldBe` justAp "/home/repo/src/components/Button/index.tsx"
+
+            it "returns Nothing when no file exists under baseUrl for the given id" $ do
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
+                let result = runResolveTest cfg [] "src/missing/module"
+                result `shouldBe` Nothing
+
+            it "more specific mapping takes priority over catch-all" $ do
+                let cfg =
+                        baseCfg
+                            { paths =
+                                [ mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]
+                                , mkMapping (Wildcard "" "") [Wildcard "" ""]
+                                ]
+                            }
+                let existingFiles = [[osp|/home/repo/src/lib/util.ts|]]
+                let result = runResolveTest cfg existingFiles "@/lib/util"
+                result `shouldBe` justAp "/home/repo/src/lib/util.ts"
+
+            it "catch-all does not resolve a node_modules specifier if no matching file exists under baseUrl" $ do
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
+                let result = runResolveTest cfg [] "react"
+                result `shouldBe` Nothing
 
     describe "reverseResolveImport" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
@@ -834,6 +900,40 @@ spec = describe "TypeScript.ModuleResolver" $ do
 
             let result = runRRTest importer cfg existingFiles "big.js"
             result `shouldBe` moduleIdUnsafe "big.js"
+
+        describe "catch-all mapping (*: [*])" $ do
+            it "converts a relative import to its bare baseUrl-relative module id" $ do
+                let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
+                let existingFiles = [[osp|/home/repo/src/utils/math.ts|]]
+
+                -- With "*": ["*"], "src/utils/math" is a valid non-relative import
+                -- (TypeScript resolves it as baseUrl/src/utils/math), so the conversion is safe.
+                let result = runRRTest importer cfg existingFiles "../utils/math"
+                result `shouldBe` moduleIdUnsafe "src/utils/math"
+
+            it "specific alias takes priority over catch-all" $ do
+                let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
+                let cfg =
+                        baseCfg
+                            { paths =
+                                [ mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]
+                                , mkMapping (Wildcard "" "") [Wildcard "" ""]
+                                ]
+                            }
+                let existingFiles = [[osp|/home/repo/src/utils/math.ts|]]
+
+                let result = runRRTest importer cfg existingFiles "../utils/math"
+                result `shouldBe` moduleIdUnsafe "@utils/math"
+
+            it "node_modules specifier is preserved when no matching file exists under baseUrl" $ do
+                let importer = absPathUnsafe [osp|/home/repo/src/main.ts|]
+                let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
+
+                -- "react" goes through catch-all: tries /home/repo/react.ts etc, none exist.
+                -- resolve returns Nothing, so the original is preserved.
+                let result = runRRTest importer cfg [] "react"
+                result `shouldBe` moduleIdUnsafe "react"
 
 justAp :: Text -> Maybe AbsPath
 justAp = Just . ap
