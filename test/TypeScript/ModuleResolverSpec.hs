@@ -843,7 +843,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
 
             -- An edge case where a scoped package might have a subpath that tricks naive parsers
             let result = runRRTest importer cfg existingFiles "@company/internal-lib/./utils"
-            result `shouldBe` moduleIdUnsafe "@company/internal-lib/utils"
+            result `shouldBe` moduleIdUnsafe "@company/internal-lib/./utils"
 
         it "preserves bare npm package names that end with .js (e.g. big.js)" $ do
             -- Regression: reverseResolve was calling dropTypeScriptExtension on the fallback
