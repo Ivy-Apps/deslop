@@ -53,7 +53,13 @@ reverseResolve absFilePath = do
 
     let upTraversal = replicate (length bRemainderOsp) ".."
     let moduleRelToCfg = T.intercalate "/" (upTraversal <> tRemainder)
-    pure . fmap ModuleId . applyPathMapping cfg.paths $ moduleRelToCfg
+    case applyPathMapping cfg.paths moduleRelToCfg of
+        Just alias ->
+            let moduleId = ModuleId alias
+             in if isRelativeImport moduleId
+                    then pure Nothing
+                    else pure $ Just moduleId
+        Nothing -> pure Nothing
   where
     dropCommonSegments :: (Eq a) => [a] -> [a] -> ([a], [a])
     dropCommonSegments (x : xs) (y : ys) | x == y = dropCommonSegments xs ys

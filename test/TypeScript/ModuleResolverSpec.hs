@@ -298,14 +298,10 @@ spec = describe "TypeScript.ModuleResolver" $ do
                 let result = runReverseResolveTest cfg [osp|/home/repo/src/lib/util.ts|]
                 result `shouldBe` Just (moduleIdUnsafe "@/lib/util")
 
-            it "returns Nothing for files outside baseUrl (no value pattern matches their relative path)" $ do
+            it "returns Nothing for files outside baseUrl (catch-all cannot produce a valid bare specifier)" $ do
                 let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
-                -- /home/external is outside /home/repo, so moduleRelToCfg = "../external/api"
-                -- The value pattern "" matches "../external/api", producing key alias "../external/api"
-                -- but that is not a valid module alias — it's a relative path, not a bare specifier.
-                -- We document the actual behaviour: catch-all does match and returns the relative path.
                 let result = runReverseResolveTest cfg [osp|/home/external/api.ts|]
-                result `shouldBe` Just (moduleIdUnsafe "../external/api")
+                result `shouldBe` Nothing
 
     describe "isRelativeImport" $ do
         it "identifies strict current directory (.)" $ do
