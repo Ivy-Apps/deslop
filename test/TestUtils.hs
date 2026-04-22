@@ -19,6 +19,7 @@ module TestUtils (
     pathSafeGolden,
     requireJust,
     requireRight,
+    ap,
 ) where
 
 import Control.Exception (throwIO)
@@ -29,7 +30,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
 import Effects.CLILog
-import Effects.FileSystem (AbsPath (osPath), absPathUnsafe, encodeOsPathString, fsMkAbsolute, runFileSystemIO)
+import Effects.FileSystem (AbsPath (osPath), absPathUnsafe, encodeOsPath, encodeOsPathString, fsMkAbsolute, runFileSystemIO)
 import Effects.Git
 import Params
 import Secrets (GeminiApiKey (..), Secrets (..))
@@ -158,3 +159,6 @@ requireRight :: (HasCallStack) => (e -> String) -> Either e a -> IO a
 requireRight formatErr = \case
     Left e -> expectationFailure (formatErr e) >> throwIO (AssertionFailed "unreachable")
     Right x -> pure x
+
+ap :: Text -> AbsPath
+ap = absPathUnsafe . encodeOsPath

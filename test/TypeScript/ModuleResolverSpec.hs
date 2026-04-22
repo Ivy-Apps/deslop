@@ -5,10 +5,10 @@ module TypeScript.ModuleResolverSpec (spec) where
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
-import Effects.FileSystem (absPathUnsafe)
+import Effects.FileSystem (AbsPath, absPathUnsafe)
 import System.OsPath (osp)
 import Test.Hspec (Spec, describe, it, shouldBe)
-import TestUtils (mkMapping)
+import TestUtils (ap, mkMapping)
 import TypeScript.Config (Pattern (..), TsConfig (..))
 import TypeScript.ModuleResolver (Match (..), isRelativeImport, match, moduleIdUnsafe, resolve, reverseResolve, reverseResolveImport)
 
@@ -332,22 +332,22 @@ spec = describe "TypeScript.ModuleResolver" $ do
         it "resolves relative to baseUrl with a .ts extension" $ do
             let existingFiles = [[osp|/home/repo/src/lib/util.ts|]]
             let result = runResolveTest baseCfg existingFiles "src/lib/util"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/lib/util.ts|]
+            result `shouldBe` justAp "/home/repo/src/lib/util.ts"
 
         it "resolves relative to baseUrl with a .tsx extension" $ do
             let existingFiles = [[osp|/home/repo/src/lib/util.tsx|]]
             let result = runResolveTest baseCfg existingFiles "src/lib/util"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/lib/util.tsx|]
+            result `shouldBe` justAp "home/repo/src/lib/util.tsx"
 
         it "resolves relative to baseUrl using an index.ts file (Directory fallback)" $ do
             let existingFiles = [[osp|/home/repo/src/lib/util/index.ts|]]
             let result = runResolveTest baseCfg existingFiles "src/lib/util"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/lib/util/index.ts|]
+            result `shouldBe` justAp "/home/repo/src/lib/util/index.ts"
 
         it "resolves relative to baseUrl using an index.tsx file" $ do
             let existingFiles = [[osp|/home/repo/src/components/Button/index.tsx|]]
             let result = runResolveTest baseCfg existingFiles "src/components/Button"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/components/Button/index.tsx|]
+            result `shouldBe` justAp "/home/repo/src/components/Button/index.tsx"
 
         it "respects TypeScript's extension probing priority (.ts > .tsx > index.ts > index.tsx)" $ do
             let existingFiles =
@@ -357,7 +357,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                       [osp|/home/repo/src/components/Button/index.ts|]
                     ]
             let result = runResolveTest baseCfg existingFiles "src/components/Button"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/components/Button.ts|]
+            result `shouldBe` justAp "/home/repo/src/components/Button.ts"
 
         it "resolves an Exact mapping to a .ts file" $ do
             let cfg =
@@ -366,13 +366,13 @@ spec = describe "TypeScript.ModuleResolver" $ do
                         }
             let existingFiles = [[osp|/home/repo/node_modules/jquery/dist/jquery.ts|]]
             let result = runResolveTest cfg existingFiles "jquery"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/node_modules/jquery/dist/jquery.ts|]
+            result `shouldBe` justAp "/home/repo/node_modules/jquery/dist/jquery.ts"
 
         it "resolves a Wildcard suffix mapping to a .tsx file" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             let existingFiles = [[osp|/home/repo/src/components/Button.tsx|]]
             let result = runResolveTest cfg existingFiles "@/components/Button"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/components/Button.tsx|]
+            result `shouldBe` justAp "/home/repo/src/components/Button.tsx"
 
         it "resolves an Infix wildcard mapping to an index.ts file" $ do
             let cfg =
@@ -381,7 +381,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                         }
             let existingFiles = [[osp|/home/repo/src/types/user/account-dto/index.ts|]]
             let result = runResolveTest cfg existingFiles "@dto/user/account-dto"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/types/user/account-dto/index.ts|]
+            result `shouldBe` justAp "/home/repo/src/types/user/account-dto/index.ts"
 
         it "handles fallback values in the mapping array (first fails, second succeeds)" $ do
             let cfg =
@@ -397,7 +397,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
             -- The algorithm checks 'src/utils/math' variations, fails, and falls back to 'shared/utils'
             let existingFiles = [[osp|/home/repo/shared/utils/math.ts|]]
             let result = runResolveTest cfg existingFiles "@utils/math"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/shared/utils/math.ts|]
+            result `shouldBe` justAp "/home/repo/shared/utils/math.ts"
 
         it "handles fallback values finding an index file on the second array entry" $ do
             let cfg =
@@ -412,7 +412,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                         }
             let existingFiles = [[osp|/home/repo/shared/utils/math/index.tsx|]]
             let result = runResolveTest cfg existingFiles "@utils/math"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/shared/utils/math/index.tsx|]
+            result `shouldBe` justAp "/home/repo/shared/utils/math/index.tsx"
 
         it "falls through to the next mapping if all fallback values in the first mapping fail" $ do
             let cfg =
@@ -424,7 +424,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                         }
             let existingFiles = [[osp|/home/repo/fallback/utils/math.ts|]]
             let result = runResolveTest cfg existingFiles "@utils/math"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/fallback/utils/math.ts|]
+            result `shouldBe` justAp "/home/repo/fallback/utils/math.ts"
 
         it "respects exact mappings over wildcard mappings if matched first" $ do
             let cfg =
@@ -439,7 +439,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                     , [osp|/home/repo/src/utils/math.ts|]
                     ]
             let result = runResolveTest cfg existingFiles "@utils/math"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/special/math.ts|]
+            result `shouldBe` justAp "/home/repo/src/special/math.ts"
 
         it "handles an empty capture (root directory import) resolving to an index file" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]]}
@@ -448,7 +448,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/utils/index.ts|]]
 
             let result = runResolveTest cfg existingFiles "@utils/"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/utils/index.ts|]
+            result `shouldBe` justAp "/home/repo/src/utils/index.ts"
 
         it "maps a wildcard key to an exact value (ignoring the captured string)" $ do
             let cfg =
@@ -459,7 +459,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
 
             -- Even though the capture is "feature/deep/path", the exact value discards it.
             let result = runResolveTest cfg existingFiles "@core/feature/deep/path"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/core-singleton.ts|]
+            result `shouldBe` justAp "/home/repo/src/core-singleton.ts"
 
         it "returns the raw baseUrl path if absolutely no probed extensions exist on disk" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
@@ -469,42 +469,42 @@ spec = describe "TypeScript.ModuleResolver" $ do
             -- It should fail the path mapping, hit the `Nothing` branch,
             -- fail all `baseUrl` extensions, and finally return the raw absolute path.
             let result = runResolveTest cfg existingFiles "@/missing/module"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/@/missing/module|]
+            result `shouldBe` justAp "/home/repo/@/missing/module"
 
         it "resolves a same-directory relative import (./) with extension probing" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
             let existingFiles = [[osp|/home/repo/src/pages/LoginView.tsx|]]
 
             let result = runResolveTestFrom importer baseCfg existingFiles "./LoginView"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/pages/LoginView.tsx|]
+            result `shouldBe` justAp "/home/repo/src/pages/LoginView.tsx"
 
         it "resolves a parent-directory relative import (../)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
             let existingFiles = [[osp|/home/repo/src/utils/math.ts|]]
 
             let result = runResolveTestFrom importer baseCfg existingFiles "../utils/math"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/utils/math.ts|]
+            result `shouldBe` justAp "/home/repo/src/utils/math.ts"
 
         it "resolves current directory root (.) to an index file" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
             let existingFiles = [[osp|/home/repo/src/pages/index.ts|]]
 
             let result = runResolveTestFrom importer baseCfg existingFiles "."
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/pages/index.ts|]
+            result `shouldBe` justAp "/home/repo/src/pages/index.ts"
 
         it "resolves parent directory root (..) to an index file" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
             let existingFiles = [[osp|/home/repo/src/index.ts|]]
 
             let result = runResolveTestFrom importer baseCfg existingFiles ".."
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/index.ts|]
+            result `shouldBe` justAp "osp|/home/repo/src/index.ts"
 
         it "resolves multi-level parent directory relative imports (../../)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/dashboard/User.tsx|]
             let existingFiles = [[osp|/home/repo/src/lib/api.ts|]]
 
             let result = runResolveTestFrom importer baseCfg existingFiles "../../lib/api"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/lib/api.ts|]
+            result `shouldBe` justAp "/home/repo/src/lib/api.ts"
 
         it "strictly bypasses TSConfig path mappings for relative imports" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -517,7 +517,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/pages/utils/math.ts|]]
 
             let result = runResolveTestFrom importer cfg existingFiles "./utils/math"
-            result `shouldBe` absPathUnsafe [osp|/home/repo/src/pages/utils/math.ts|]
+            result `shouldBe` justAp "/home/repo/src/pages/utils/math.ts"
 
     describe "reverseResolveImport" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
@@ -854,3 +854,6 @@ spec = describe "TypeScript.ModuleResolver" $ do
 
             let result = runRRTest importer cfg existingFiles "big.js"
             result `shouldBe` moduleIdUnsafe "big.js"
+
+justAp :: Text -> Maybe AbsPath
+justAp = Just . ap
