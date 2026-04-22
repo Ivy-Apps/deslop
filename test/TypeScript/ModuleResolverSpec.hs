@@ -85,14 +85,14 @@ spec = describe "TypeScript.ModuleResolver" $ do
                         . runReader cfg
                         $ reverseResolve path
 
-        it "resolves relative to baseUrl when there are no path mappings" $ do
+        it "returns Nothing when resolving relative to baseUrl when there are no path mappings" $ do
             let result = runEncodeTest baseCfg [osp|/home/repo/src/lib/util.tsx|]
-            result `shouldBe` Just (moduleIdUnsafe "src/lib/util")
+            result `shouldBe` Nothing
 
-        it "resolves relative to baseUrl when mappings exist but do not match" $ do
+        it "returns Nothing when resolving relative to baseUrl when mappings exist but do not match" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             let result = runEncodeTest cfg [osp|/home/repo/test/util.ts|]
-            result `shouldBe` Just (moduleIdUnsafe "test/util")
+            result `shouldBe` Nothing
 
         it "applies an Exact path mapping" $ do
             let cfg =
@@ -115,7 +115,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
             let resMatch = runEncodeTest cfg [osp|/home/repo/src/types/user/account-dto.ts|]
             resMatch `shouldBe` Just (moduleIdUnsafe "@dto/user/account-dto")
             let resNotFound = runEncodeTest cfg [osp|/home/repo/src/types/user/account.ts|]
-            resNotFound `shouldBe` Just (moduleIdUnsafe "src/types/user/account")
+            resNotFound `shouldBe` Nothing
 
         it "handles prefix wildcards (*-spec)" $ do
             let cfg =
@@ -329,27 +329,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
         -- Default helper for non-relative tests to avoid rewriting existing cases
         let runResolveTest = runResolveTestFrom (absPathUnsafe [osp|/home/repo/src/main.ts|])
 
-        it "resolves relative to baseUrl with a .ts extension" $ do
-            let existingFiles = [[osp|/home/repo/src/lib/util.ts|]]
-            let result = runResolveTest baseCfg existingFiles "src/lib/util"
-            result `shouldBe` justAp "/home/repo/src/lib/util.ts"
-
-        it "resolves relative to baseUrl with a .tsx extension" $ do
-            let existingFiles = [[osp|/home/repo/src/lib/util.tsx|]]
-            let result = runResolveTest baseCfg existingFiles "src/lib/util"
-            result `shouldBe` justAp "home/repo/src/lib/util.tsx"
-
-        it "resolves relative to baseUrl using an index.ts file (Directory fallback)" $ do
-            let existingFiles = [[osp|/home/repo/src/lib/util/index.ts|]]
-            let result = runResolveTest baseCfg existingFiles "src/lib/util"
-            result `shouldBe` justAp "/home/repo/src/lib/util/index.ts"
-
-        it "resolves relative to baseUrl using an index.tsx file" $ do
-            let existingFiles = [[osp|/home/repo/src/components/Button/index.tsx|]]
-            let result = runResolveTest baseCfg existingFiles "src/components/Button"
-            result `shouldBe` justAp "/home/repo/src/components/Button/index.tsx"
-
-        it "respects TypeScript's extension probing priority (.ts > .tsx > index.ts > index.tsx)" $ do
+        it "return Nothing when resolving bare specifiers without a path alias" $ do
             let existingFiles =
                     [ [osp|/home/repo/src/components/Button.tsx|]
                     , [osp|/home/repo/src/components/Button.ts|]
@@ -357,7 +337,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                       [osp|/home/repo/src/components/Button/index.ts|]
                     ]
             let result = runResolveTest baseCfg existingFiles "src/components/Button"
-            result `shouldBe` justAp "/home/repo/src/components/Button.ts"
+            result `shouldBe` Nothing
 
         it "resolves an Exact mapping to a .ts file" $ do
             let cfg =
@@ -461,7 +441,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
             let result = runResolveTest cfg existingFiles "@core/feature/deep/path"
             result `shouldBe` justAp "/home/repo/src/core-singleton.ts"
 
-        it "returns the raw baseUrl path if absolutely no probed extensions exist on disk" $ do
+        it "returns Nothing if absolutely no probed extensions exist on disk" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             -- The mock file system is completely empty
             let existingFiles = []
@@ -469,7 +449,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
             -- It should fail the path mapping, hit the `Nothing` branch,
             -- fail all `baseUrl` extensions, and finally return the raw absolute path.
             let result = runResolveTest cfg existingFiles "@/missing/module"
-            result `shouldBe` justAp "/home/repo/@/missing/module"
+            result `shouldBe` Nothing
 
         it "resolves a same-directory relative import (./) with extension probing" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]
@@ -497,7 +477,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
             let existingFiles = [[osp|/home/repo/src/index.ts|]]
 
             let result = runResolveTestFrom importer baseCfg existingFiles ".."
-            result `shouldBe` justAp "osp|/home/repo/src/index.ts"
+            result `shouldBe` justAp "/home/repo/src/index.ts"
 
         it "resolves multi-level parent directory relative imports (../../)" $ do
             let importer = absPathUnsafe [osp|/home/repo/src/pages/dashboard/User.tsx|]
@@ -829,7 +809,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
             -- Regression: ./next-config was converted to the bare specifier 'next-config'
             -- because the file sits directly under baseUrl. This is wrong: bare specifiers
             -- go through node_modules lookup, so the semantics could change silently.
-            let importer = absPathUnsafe [osp|/home/repo/next.config.ts|]
+            let importer = ap "/home/repo/next.config.ts"
             let cfg = baseCfg {paths = []}
             let existingFiles = [[osp|/home/repo/next-config.ts|]]
 

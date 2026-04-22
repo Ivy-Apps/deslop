@@ -6,14 +6,6 @@ import '../src/styles/global.css';
 FIX: Use ```import '@/styles/global.css';``` instead.
 ---------
 
-# ~/test/fixtures/ixartz-next-js-boilerplate/.storybook/vitest.setup.ts: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
-```ts
-import * as projectAnnotations from './preview';
-```
-FIX: Use ```import * as projectAnnotations from '.storybook/preview';``` instead.
----------
-
 # ~/test/fixtures/ixartz-next-js-boilerplate/next.config.ts: no-relative-imports
 Relative imports are not allowed. Use absolute path aliased ones.
 ```ts
