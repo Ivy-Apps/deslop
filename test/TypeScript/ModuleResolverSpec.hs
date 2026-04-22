@@ -79,19 +79,19 @@ spec = describe "TypeScript.ModuleResolver" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
         let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
 
-        let runEncodeTest cfg pathStr =
+        let runReverseResolveTest cfg pathStr =
                 let path = absPathUnsafe pathStr
                  in runPureEff
                         . runReader cfg
                         $ reverseResolve path
 
         it "returns Nothing when resolving relative to baseUrl when there are no path mappings" $ do
-            let result = runEncodeTest baseCfg [osp|/home/repo/src/lib/util.tsx|]
+            let result = runReverseResolveTest baseCfg [osp|/home/repo/src/lib/util.tsx|]
             result `shouldBe` Nothing
 
         it "returns Nothing when resolving relative to baseUrl when mappings exist but do not match" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
-            let result = runEncodeTest cfg [osp|/home/repo/test/util.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/test/util.ts|]
             result `shouldBe` Nothing
 
         it "applies an Exact path mapping" $ do
@@ -99,12 +99,12 @@ spec = describe "TypeScript.ModuleResolver" $ do
                     baseCfg
                         { paths = [mkMapping (Exact "jquery") [Exact "node_modules/jquery/dist/jquery"]]
                         }
-            let result = runEncodeTest cfg [osp|/home/repo/node_modules/jquery/dist/jquery.js|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/node_modules/jquery/dist/jquery.js|]
             result `shouldBe` Just (moduleIdUnsafe "jquery")
 
         it "applies a Suffix Wildcard path mapping" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
-            let result = runEncodeTest cfg [osp|/home/repo/src/lib/util.tsx|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/lib/util.tsx|]
             result `shouldBe` Just (moduleIdUnsafe "@/lib/util")
 
         it "applies an Infix Wildcard path mapping" $ do
@@ -112,9 +112,9 @@ spec = describe "TypeScript.ModuleResolver" $ do
                     baseCfg
                         { paths = [mkMapping (Wildcard "@dto/" "-dto") [Wildcard "src/types/" "-dto"]]
                         }
-            let resMatch = runEncodeTest cfg [osp|/home/repo/src/types/user/account-dto.ts|]
+            let resMatch = runReverseResolveTest cfg [osp|/home/repo/src/types/user/account-dto.ts|]
             resMatch `shouldBe` Just (moduleIdUnsafe "@dto/user/account-dto")
-            let resNotFound = runEncodeTest cfg [osp|/home/repo/src/types/user/account.ts|]
+            let resNotFound = runReverseResolveTest cfg [osp|/home/repo/src/types/user/account.ts|]
             resNotFound `shouldBe` Nothing
 
         it "handles prefix wildcards (*-spec)" $ do
@@ -122,7 +122,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                     baseCfg
                         { paths = [mkMapping (Wildcard "@tests/" "-spec") [Wildcard "src/tests/" "-spec"]]
                         }
-            let result = runEncodeTest cfg [osp|/home/repo/src/tests/auth-spec.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/tests/auth-spec.ts|]
             result `shouldBe` Just (moduleIdUnsafe "@tests/auth-spec")
 
         it "handles fallback values in mapping array (matches the second value)" $ do
@@ -137,7 +137,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                             ]
                         }
             -- Matches the second value "shared/utils/*"
-            let result = runEncodeTest cfg [osp|/home/repo/shared/utils/math.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/shared/utils/math.ts|]
             result `shouldBe` Just (moduleIdUnsafe "@utils/math")
 
         it "picks the first matched mapping (ensures correct priority execution)" $ do
@@ -149,7 +149,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                             ]
                         }
             -- Even though "src/utils/*" would match, the exact match is listed first.
-            let result = runEncodeTest cfg [osp|/home/repo/src/utils/math.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/utils/math.ts|]
             result `shouldBe` Just (moduleIdUnsafe "@utils/math")
 
         it "recovers via fall-through if an invalid Exact-Key to Wildcard-Value match is encountered" $ do
@@ -163,7 +163,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                         }
             -- It should hit the first mapping, realize it can't apply a capture to an Exact key,
             -- safely fall through, and successfully match the second mapping.
-            let result = runEncodeTest cfg [osp|/home/repo/src/libs/logger.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/libs/logger.ts|]
             result `shouldBe` Just (moduleIdUnsafe "@libs/logger")
 
         it "handles Wildcard keys mapped to Exact values" $ do
@@ -171,7 +171,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                     baseCfg
                         { paths = [mkMapping (Wildcard "@core/" "") [Exact "src/core"]]
                         }
-            let result = runEncodeTest cfg [osp|/home/repo/src/core.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/core.ts|]
             -- Candidate "src/core" matches Exact "src/core" -> ExactMatch
             -- Applying ExactMatch to Wildcard "@core/" "" -> "@core/" <> "" <> "" -> "@core/"
             result `shouldBe` Just (moduleIdUnsafe "@core/")
@@ -179,7 +179,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
         it "returns Nothing when target is outside baseUrl and no mappings exist" $ do
             let cfg = baseCfg {paths = []}
             -- Target is physically outside /home/repo/
-            let result = runEncodeTest cfg [osp|/home/shared/utils.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/shared/utils.ts|]
 
             -- Because it's outside and unmapped, it cannot be a bare specifier.
             result `shouldBe` Nothing
@@ -187,14 +187,14 @@ spec = describe "TypeScript.ModuleResolver" $ do
         it "returns Nothing when target is outside baseUrl and existing mappings do not match" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             -- Target is physically outside /home/repo/
-            let result = runEncodeTest cfg [osp|/home/external/api.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/external/api.ts|]
 
             result `shouldBe` Nothing
 
         it "returns Nothing for global system paths (e.g., global node_modules or standard libs)" $ do
             let cfg = baseCfg {paths = []}
             -- Target is a completely divergent absolute path
-            let result = runEncodeTest cfg [osp|/usr/local/lib/node_modules/react/index.js|]
+            let result = runReverseResolveTest cfg [osp|/usr/local/lib/node_modules/react/index.js|]
 
             result `shouldBe` Nothing
 
@@ -204,13 +204,13 @@ spec = describe "TypeScript.ModuleResolver" $ do
             let webCfg = TsConfig {baseUrl = webBaseUrl, paths = []}
 
             -- Importing from a sibling package
-            let result = runEncodeTest webCfg [osp|/home/repo/packages/ui/button.tsx|]
+            let result = runReverseResolveTest webCfg [osp|/home/repo/packages/ui/button.tsx|]
 
             result `shouldBe` Nothing
 
         it "resolves a Vite-style alias with a custom symbol ($)" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "$utils/" "") [Wildcard "src/utils/" ""]]}
-            let result = runEncodeTest cfg [osp|/home/repo/src/utils/formatter.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/utils/formatter.ts|]
             result `shouldBe` Just (moduleIdUnsafe "$utils/formatter")
 
         it "resolves to the first available mapping in a multi-value fallback array" $ do
@@ -225,66 +225,66 @@ spec = describe "TypeScript.ModuleResolver" $ do
                             ]
                         }
             -- If the file is in the first target path
-            let result = runEncodeTest cfg [osp|/home/repo/src/lib/core.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/lib/core.ts|]
             result `shouldBe` Just (moduleIdUnsafe "@lib/core")
 
         it "resolves a shared assets folder alias common in React/Vite" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@assets/" "") [Wildcard "src/assets/" ""]]}
-            let result = runEncodeTest cfg [osp|/home/repo/src/assets/images/logo.png|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/assets/images/logo.png|]
             result `shouldBe` Just (moduleIdUnsafe "@assets/images/logo.png")
 
         it "resolves a root-level config file using an exact alias" $ do
             let cfg = baseCfg {paths = [mkMapping (Exact "config") [Exact "constants/app-config"]]}
-            let result = runEncodeTest cfg [osp|/home/repo/constants/app-config.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/constants/app-config.ts|]
             result `shouldBe` Just (moduleIdUnsafe "config")
 
         it "resolves a CSS module file retaining its full extension (.module.css)" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
-            let result = runEncodeTest cfg [osp|/home/repo/src/components/Button.module.css|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/components/Button.module.css|]
             result `shouldBe` Just (moduleIdUnsafe "@/components/Button.module.css")
 
         it "resolves a directory index file to the directory name (clean index resolution)" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]}
             -- Logical resolution of /index.ts should often prefer the directory name in modern stacks
-            let result = runEncodeTest cfg [osp|/home/repo/src/lib/utils/index.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/lib/utils/index.ts|]
             result `shouldBe` Just (moduleIdUnsafe "@/lib/utils/index")
 
         it "resolves a type definition file (.d.ts) by dropping the extension like a source file" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
-            let result = runEncodeTest cfg [osp|/home/repo/src/types/user.d.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/types/user.d.ts|]
             result `shouldBe` Just (moduleIdUnsafe "@types/user")
 
         it "resolves a file with multiple dots (e.g. .controller.ts) by dropping only the final extension" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@api/" "") [Wildcard "src/api/" ""]]}
-            let result = runEncodeTest cfg [osp|/home/repo/src/api/user.controller.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/api/user.controller.ts|]
             result `shouldBe` Just (moduleIdUnsafe "@api/user.controller")
 
         it "resolves a directory index.d.ts file to the clean directory alias" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
-            let result = runEncodeTest cfg [osp|/home/repo/src/types/global/index.d.ts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/types/global/index.d.ts|]
             result `shouldBe` Just (moduleIdUnsafe "@types/global/index")
 
         it "resolves modern TS extensions (.mts, .cts) by dropping the extension" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@lib/" "") [Wildcard "src/lib/" ""]]}
             -- NOTE: This will fail until you add .mts, .cts, .mjs, .cjs to `dropTypeScriptExtension`!
-            let result = runEncodeTest cfg [osp|/home/repo/src/lib/math.mts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/lib/math.mts|]
             result `shouldBe` Just (moduleIdUnsafe "@lib/math")
 
         it "resolves modern TS double-extensions (.d.mts, .d.cts) by dropping both" $ do
             let cfg = baseCfg {paths = [mkMapping (Wildcard "@types/" "") [Wildcard "src/types/" ""]]}
             -- NOTE: This will fail until you add .d.mts and .d.cts to `dropTypeScriptExtension`!
-            let result = runEncodeTest cfg [osp|/home/repo/src/types/node.d.mts|]
+            let result = runReverseResolveTest cfg [osp|/home/repo/src/types/node.d.mts|]
             result `shouldBe` Just (moduleIdUnsafe "@types/node")
 
         describe "catch-all mapping (*: [*])" $ do
             it "maps any file inside baseUrl to its bare baseUrl-relative path" $ do
                 let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
-                let result = runEncodeTest cfg [osp|/home/repo/src/lib/util.ts|]
+                let result = runReverseResolveTest cfg [osp|/home/repo/src/lib/util.ts|]
                 result `shouldBe` Just (moduleIdUnsafe "src/lib/util")
 
             it "maps a deeply nested file to its full baseUrl-relative path" $ do
                 let cfg = baseCfg {paths = [mkMapping (Wildcard "" "") [Wildcard "" ""]]}
-                let result = runEncodeTest cfg [osp|/home/repo/src/features/auth/components/LoginForm.tsx|]
+                let result = runReverseResolveTest cfg [osp|/home/repo/src/features/auth/components/LoginForm.tsx|]
                 result `shouldBe` Just (moduleIdUnsafe "src/features/auth/components/LoginForm")
 
             it "more specific mapping takes priority over catch-all" $ do
@@ -295,7 +295,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                                 , mkMapping (Wildcard "" "") [Wildcard "" ""]
                                 ]
                             }
-                let result = runEncodeTest cfg [osp|/home/repo/src/lib/util.ts|]
+                let result = runReverseResolveTest cfg [osp|/home/repo/src/lib/util.ts|]
                 result `shouldBe` Just (moduleIdUnsafe "@/lib/util")
 
             it "returns Nothing for files outside baseUrl (no value pattern matches their relative path)" $ do
@@ -304,7 +304,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
                 -- The value pattern "" matches "../external/api", producing key alias "../external/api"
                 -- but that is not a valid module alias — it's a relative path, not a bare specifier.
                 -- We document the actual behaviour: catch-all does match and returns the relative path.
-                let result = runEncodeTest cfg [osp|/home/external/api.ts|]
+                let result = runReverseResolveTest cfg [osp|/home/external/api.ts|]
                 result `shouldBe` Just (moduleIdUnsafe "../external/api")
 
     describe "isRelativeImport" $ do
@@ -698,10 +698,8 @@ spec = describe "TypeScript.ModuleResolver" $ do
                     baseCfg
                         { paths =
                             [ mkMapping (Exact "react") [Exact "node_modules/react"]
-                            , -- A common Next.js pattern to map an entire folder
-                              mkMapping (Wildcard "@/*" "") [Wildcard "src/*" ""]
-                            , -- But specific files might have explicit overrides
-                              mkMapping (Exact "@data/users") [Exact "src/data/mock-users"]
+                            , mkMapping (Exact "@data/users") [Exact "src/data/mock-users"]
+                            , mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]
                             ]
                         }
             let existingFiles = [[osp|/home/repo/src/data/mock-users.ts|]]
