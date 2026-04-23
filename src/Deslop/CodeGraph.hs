@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Deslop.CodeGraph (
-    GraphNode (..),
-    CodebaseGraph (..),
-    buildCodebaseGraph,
+    ModuleNode (..),
+    ModuleGraph (..),
+    buildModuleGraph,
 ) where
 
 import Data.Graph (Graph, Vertex, graphFromEdges)
@@ -15,7 +15,7 @@ import TypeScript.ModuleResolver (ModuleId (..))
 It unifies parsed TypeScript files and unparsed 3rd-party dependencies
 so both can exist as addressable vertices in the underlying integer array.
 -}
-data GraphNode
+data ModuleNode
     = InternalModule AstModule
     | ExternalModule ModuleId
     deriving stock (Show, Eq)
@@ -23,15 +23,15 @@ data GraphNode
 {- | The core graph environment.
 Bundles the unboxed integer array with its O(log N) mapping functions.
 -}
-data CodebaseGraph = CodebaseGraph
+data ModuleGraph = ModuleGraph
     { graph :: Graph
-    , nodeFromV :: Vertex -> (GraphNode, ModuleId, [ModuleId])
+    , nodeFromV :: Vertex -> (ModuleNode, ModuleId, [ModuleId])
     , vertexFromId :: ModuleId -> Maybe Vertex
     }
 
--- | Constructs the CodebaseGraph from a list of parsed AST modules.
-buildCodebaseGraph :: [AstModule] -> CodebaseGraph
-buildCodebaseGraph modules =
+-- | Constructs the ModuleGraph from a list of parsed AST modules.
+buildModuleGraph :: [AstModule] -> ModuleGraph
+buildModuleGraph modules =
     let
         internalIds = Set.fromList [m.id | m <- modules]
         allTargets = Set.fromList [n.target | m <- modules, n <- m.nodes]
@@ -47,7 +47,7 @@ buildCodebaseGraph modules =
             ]
         (g, nodeV, keyV) = graphFromEdges (internalEdges ++ externalEdges)
      in
-        CodebaseGraph
+        ModuleGraph
             { graph = g
             , nodeFromV = nodeV
             , vertexFromId = keyV
