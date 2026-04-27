@@ -14,14 +14,9 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     flake-parts.url = "github:hercules-ci/flake-parts";
-
-    my-nixvim = {
-      url = "github:ILIYANGERMANOV/my-nixvim";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = inputs@{ self, nixpkgs, flake-parts, my-nixvim, ... }:
+  outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "x86_64-linux"
@@ -45,7 +40,6 @@
           };
 
           hgold = hlib.justStaticExecutables hpkgs.hspec-golden;
-          nvim = my-nixvim.lib.mkHaskellNvim { inherit pkgs hpkgs; };
 
           sysLibs = [ pkgs.zlib pkgs.xz ];
 
@@ -114,7 +108,6 @@
                 pkgs.pkg-config
                 pkgs.just
                 pkgs.hlint
-                nvim
                 hgold
               ];
 

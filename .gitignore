@@ -60,3 +60,4 @@ report.html
 .clauderar
 # Nix result
 result 
+.direnv
