@@ -4,11 +4,14 @@ module Deslop.CodeGraph (
     ModuleNode (..),
     ModuleGraph (..),
     buildModuleGraph,
+    hasPath,
 ) where
 
-import Data.Graph (Graph, Vertex, graphFromEdges)
+import Data.Graph (Graph, Vertex, graphFromEdges, path)
 import Data.Set qualified as Set
 import Deslop.AST (AstModule (..), AstNode (..))
+import Effectful (Eff, (:>))
+import Effectful.Reader.Static (Reader, ask)
 import TypeScript.ModuleResolver (ModuleId (..))
 
 {- | Represents a node in the architectural graph.
@@ -52,3 +55,10 @@ buildModuleGraph modules =
             , nodeFromV = nodeV
             , vertexFromId = keyV
             }
+
+hasPath :: (Reader ModuleGraph :> es) => ModuleId -> ModuleId -> Eff es Bool
+hasPath from to = do
+    mg <- ask @ModuleGraph
+    pure $ case (mg.vertexFromId from, mg.vertexFromId to) of
+        (Just vFrom, Just vTo) -> path mg.graph vFrom vTo
+        _ -> False
