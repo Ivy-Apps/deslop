@@ -9,6 +9,7 @@ module Deslop.Rulebook (
     Rulebook (..),
     Rule (..),
     Forbidden (..),
+    RulebookId (..),
     parseRuleBookYaml,
     ruleBookFromDto,
     ruleBookFromFile,
