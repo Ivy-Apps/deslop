@@ -1,6 +1,7 @@
 Right
   Rulebook
-    { name = "Page Architecture"
+    { id = RulebookId "page-arch"
+    , name = "Page Architecture"
     , description = "Architectural rules to build web pages"
     , rules =
         [ ForbiddenRule

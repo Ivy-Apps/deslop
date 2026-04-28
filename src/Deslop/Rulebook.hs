@@ -25,8 +25,11 @@ import Effects.FileSystem (AbsPath, RoFileSystem, fsDirectoryExists, fsListDirec
 import System.OsPath (OsPath, osp)
 import Text.Megaparsec (errorBundlePretty)
 
+newtype RulebookId = RulebookId Text deriving (Show, Eq)
+
 data Rulebook = Rulebook
-    { name :: Text
+    { id :: RulebookId
+    , name :: Text
     , description :: Text
     , rules :: [Rule]
     }
@@ -66,18 +69,13 @@ data Forbidden
 --------------------------------------------------------------------------------
 
 data RulebookDto = RulebookDto
-    { name :: Text
+    { id :: Text
+    , name :: Text
     , description :: Maybe Text
     , rules :: [RuleDto]
     }
     deriving stock (Show, Eq, Generic)
-
-instance FromJSON RulebookDto where
-    parseJSON = withObject "RulebookDto" $ \v ->
-        RulebookDto
-            <$> v .: "name"
-            <*> v .:? "description"
-            <*> v .: "rules"
+    deriving anyclass (FromJSON)
 
 data ExecutionContextDto = UseClientDto | UseServerDto deriving (Show, Eq)
 
@@ -175,7 +173,8 @@ ruleBookFromDto rbDto = do
     parsedRules <- traverse ruleFromDto rbDto.rules
     pure
         Rulebook
-            { name = rbDto.name
+            { id = RulebookId rbDto.id
+            , name = rbDto.name
             , description = fromMaybe "" rbDto.description
             , rules = parsedRules
             }
