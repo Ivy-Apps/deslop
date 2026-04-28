@@ -20,7 +20,7 @@ import Types (Renderable (render))
 noRelativeImports :: (TsNode, TsNode) -> AbsPath -> Problem
 noRelativeImports (old, new) path =
     LintProblem
-        { rule = LintRuleId "no-relative-imports"
+        { lintRule = LintRuleId "no-relative-imports"
         , location = Location {file = path.osPath, code = render old}
         , severity = Error
         , description = "Relative imports are not allowed. Use absolute path aliased ones."

@@ -78,6 +78,6 @@ executeForbidden m env (ForbiddenImport target transitive)
   where
     directForbiddenImport :: (ReportProblem :> es) => AstNode -> Eff es ()
     directForbiddenImport (ImportNode t)
-        | matchRule target env t.text = pure ()
+        | matchRule target env t.text = pure () -- TODO: report the problem
         | otherwise = pure () -- TODO: implement
 executeForbidden _ _ (ForbiddenFunctionCall _) = pure () -- TODO: implement

@@ -26,7 +26,7 @@ import Effects.FileSystem (AbsPath, RoFileSystem, fsDirectoryExists, fsListDirec
 import System.OsPath (OsPath, osp)
 import Text.Megaparsec (errorBundlePretty)
 
-newtype RulebookId = RulebookId Text deriving (Show, Eq)
+newtype RulebookId = RulebookId Text deriving (Show, Eq, Ord)
 
 data Rulebook = Rulebook
     { id :: RulebookId
@@ -117,7 +117,7 @@ instance FromJSON RuleDto where
             <*> v .:? "fix"
 
 newtype RuleId = RuleId Text
-    deriving stock (Show, Eq)
+    deriving stock (Show, Eq, Ord)
     deriving newtype (FromJSON)
 
 data ForbiddenDto

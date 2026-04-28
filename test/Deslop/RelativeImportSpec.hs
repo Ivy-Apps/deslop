@@ -40,8 +40,8 @@ spec = describe "Deslop.RelativeImport" $ do
             map (.target) result.cst `shouldBe` ["@/lib/welcome"]
             length problems `shouldBe` 1
             case problems of
-                (LintProblem {rule = r} : _) -> r `shouldBe` LintRuleId "no-relative-imports"
-                [] -> expectationFailure "expected at least one problem"
+                (LintProblem {lintRule = r} : _) -> r `shouldBe` LintRuleId "no-relative-imports"
+                _ -> expectationFailure "expected at least one problem"
 
         it "converts a same-dir relative import to an alias" $ do
             let prog =
@@ -56,8 +56,8 @@ spec = describe "Deslop.RelativeImport" $ do
             map (.target) result.cst `shouldBe` ["@/features/home/useHomeViewModel"]
             length problems `shouldBe` 1
             case problems of
-                (LintProblem {rule = r} : _) -> r `shouldBe` LintRuleId "no-relative-imports"
-                [] -> expectationFailure "expected at least one problem"
+                (LintProblem {lintRule = r} : _) -> r `shouldBe` LintRuleId "no-relative-imports"
+                _ -> expectationFailure "expected at least one problem"
 
         it "converts a relative import crossing into the test directory" $ do
             let prog =
