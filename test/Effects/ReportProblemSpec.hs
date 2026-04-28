@@ -22,7 +22,7 @@ spec = describe "Effects.ReportProblem" $ do
         it "getProblems returns a single problem after report" $ do
             let problem =
                     LintProblem
-                        { rule = RuleId "P001"
+                        { rule = LintRuleId "P001"
                         , location = Location {file = [osp|src/Foo.ts|], code = "x"}
                         , severity = Error
                         , description = "Something wrong"
@@ -39,7 +39,7 @@ spec = describe "Effects.ReportProblem" $ do
         it "getProblems returns the reported problems" $ do
             let p1 =
                     LintProblem
-                        { rule = RuleId "P1"
+                        { rule = LintRuleId "P1"
                         , location = Location {file = [osp|a.ts|], code = "1"}
                         , severity = Error
                         , description = "First"
@@ -47,7 +47,7 @@ spec = describe "Effects.ReportProblem" $ do
                         }
             let p2 =
                     LintProblem
-                        { rule = RuleId "P2"
+                        { rule = LintRuleId "P2"
                         , location = Location {file = [osp|b.ts|], code = "2"}
                         , severity = Error
                         , description = "Second"
@@ -65,7 +65,7 @@ spec = describe "Effects.ReportProblem" $ do
         it "report does not affect the return value of the action" $ do
             let problem =
                     LintProblem
-                        { rule = RuleId "P"
+                        { rule = LintRuleId "P"
                         , location = Location {file = [osp|f|], code = "c"}
                         , severity = Error
                         , description = "desc"

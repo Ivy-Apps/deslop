@@ -60,7 +60,7 @@ data Forbidden
         { target :: CompiledRulePattern
         , transitive :: Bool
         }
-    | FunctionCall
+    | ForbiddenFunctionCall
         { functionName :: FunctionName
         }
     deriving stock (Show, Eq)
@@ -235,4 +235,4 @@ compileForbidden (ForbiddenImportDto (GlobDto s) transitive) = do
     pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
     pure ForbiddenImport {target = compileRulePattern pattern, transitive = fromMaybe False transitive}
 compileForbidden (FunctionCallDto name) =
-    pure FunctionCall {functionName = FunctionName name}
+    pure ForbiddenFunctionCall {functionName = FunctionName name}

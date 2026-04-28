@@ -6,7 +6,7 @@ module Deslop.RelativeImports (
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader)
 import Effects.FileSystem (AbsPath (..), RoFileSystem)
-import Effects.ReportProblem (Location (..), Problem (..), ReportProblem, RuleId (..), Severity (..), report)
+import Effects.ReportProblem (LintRuleId (..), Location (..), Problem (..), ReportProblem, Severity (..), report)
 import TypeScript.CST (
     TsNode (Import, target),
     TsProgram (cst, path),
@@ -20,7 +20,7 @@ import Types (Renderable (render))
 noRelativeImports :: (TsNode, TsNode) -> AbsPath -> Problem
 noRelativeImports (old, new) path =
     LintProblem
-        { rule = RuleId "no-relative-imports"
+        { rule = LintRuleId "no-relative-imports"
         , location = Location {file = path.osPath, code = render old}
         , severity = Error
         , description = "Relative imports are not allowed. Use absolute path aliased ones."

@@ -1,6 +1,6 @@
 module Effects.ReportProblem (
     Location (..),
-    RuleId (..),
+    LintRuleId (..),
     Severity (..),
     Problem (..),
     ReportProblem,
@@ -23,14 +23,14 @@ data Location = Location
     }
     deriving stock (Eq, Show, Ord)
 
-newtype RuleId = RuleId Text
+newtype LintRuleId = LintRuleId Text
     deriving stock (Eq, Show, Ord)
 
 data Severity = Error
     deriving stock (Eq, Show, Ord)
 
 data Problem = LintProblem
-    { rule :: RuleId
+    { rule :: LintRuleId
     , location :: Location
     , severity :: Severity
     , description :: Text
@@ -40,7 +40,7 @@ data Problem = LintProblem
 
 instance Buildable Problem where
     build p =
-        let (RuleId ruleId) = p.rule
+        let (LintRuleId ruleId) = p.rule
          in problemHeader ruleId <> description <> code <> fixText
       where
         problemHeader ruleId =

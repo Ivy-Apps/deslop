@@ -1,11 +1,11 @@
 module Deslop.RuleEnforcer (enforceRulebooks) where
 
-import Deslop.AST (AstModule (..))
+import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph)
-import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchTarget)
-import Deslop.Rulebook (Rule (..), Rulebook, RulebookId)
+import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget)
+import Deslop.Rulebook (Forbidden (..), Rule (..), Rulebook (..), RulebookId)
 import Effectful (Eff, (:>))
-import Effectful.Reader.Static (Reader, ask)
+import Effectful.Reader.Static (Reader, ask, runReader)
 import Effects.ReportProblem (ReportProblem)
 import TypeScript.ModuleResolver (ModuleId (..))
 import Utils (todo)
@@ -24,18 +24,31 @@ enforceRulebook ::
     , ReportProblem :> es
     ) =>
     AstModule -> Rulebook -> Eff es ()
-enforceRulebook = todo
+enforceRulebook m rulebook =
+    runReader rulebook.id $
+        traverse_ (enforceRule m) rulebook.rules
 
 enforceRule ::
     ( Reader ModuleGraph :> es
+    , Reader RulebookId :> es
     , ReportProblem :> es
     ) =>
-    AstModule -> RulebookId -> Rule -> Eff es ()
-enforceRule m rbId rule = case isTarget m.id rule of
-    Just env -> execute env
+    AstModule -> Rule -> Eff es ()
+enforceRule m rule = case isTarget m.id rule of
+    Just env -> runReader rule $ execute env
     Nothing -> pure ()
   where
-    execute _ = pure ()
+    execute ::
+        ( Reader RulebookId :> es
+        , Reader Rule :> es
+        , Reader ModuleGraph :> es
+        , ReportProblem :> es
+        ) =>
+        MatchEnv -> Eff es ()
+    execute env = do
+        case rule.forbidden of
+            Just fs -> traverse_ (executeForbidden m env) fs
+            Nothing -> pure ()
 
 isTarget :: ModuleId -> Rule -> (Maybe MatchEnv)
 isTarget moduleId rule = case matchTarget rule.target moduleId.text of
@@ -51,3 +64,20 @@ isTarget moduleId rule = case matchTarget rule.target moduleId.text of
     isExcluded (Just (x : xs)) = case matchTarget x moduleId.text of
         Just _ -> True
         Nothing -> isExcluded (Just xs)
+
+executeForbidden ::
+    ( Reader ModuleGraph :> es
+    , Reader RulebookId :> es
+    , Reader Rule :> es
+    , ReportProblem :> es
+    ) =>
+    AstModule -> MatchEnv -> Forbidden -> Eff es ()
+executeForbidden m env (ForbiddenImport target transitive)
+    | transitive = todo
+    | otherwise = traverse_ directForbiddenImport m.nodes
+  where
+    directForbiddenImport :: (ReportProblem :> es) => AstNode -> Eff es ()
+    directForbiddenImport (ImportNode t)
+        | matchRule target env t.text = pure ()
+        | otherwise = pure () -- TODO: implement
+executeForbidden _ _ (ForbiddenFunctionCall _) = pure () -- TODO: implement

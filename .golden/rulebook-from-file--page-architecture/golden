@@ -100,7 +100,7 @@ Right
             , executionContext = UseClient
             , forbidden =
                 Just
-                  (FunctionCall { functionName = FunctionName "fetch" } :|
+                  (ForbiddenFunctionCall { functionName = FunctionName "fetch" } :|
                      [ ForbiddenImport
                          { target =
                              CompiledRulePattern
@@ -214,7 +214,9 @@ Right
             , exclude = Nothing
             , executionContext = UseClient
             , forbidden =
-                Just (FunctionCall { functionName = FunctionName "fetch" } :| [])
+                Just
+                  (ForbiddenFunctionCall { functionName = FunctionName "fetch" } :|
+                     [])
             , uses =
                 Just
                   (CompiledRulePattern
