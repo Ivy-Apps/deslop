@@ -123,6 +123,7 @@ test-suite deslop-test
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Deslop.ASTSpec
+    Deslop.CodeGraphSpec
     Deslop.GlobPlusSpec
     Deslop.RelativeImportSpec
     Deslop.RulebookSpec
