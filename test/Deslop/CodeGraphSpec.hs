@@ -45,3 +45,9 @@ spec = describe "Deslop.CodeGraph" $ do
             let a = mkModule "a" ["b"]
                 b = mkModule "b" []
             runHasPath b a [a, b] `shouldBe` False
+
+        it "cycle" $ do
+            let a = mkModule "a" ["b", "c"]
+                b = mkModule "b" ["c"]
+                c = mkModule "c" ["a"]
+            runHasPath a c [a, b, c] `shouldBe` True
