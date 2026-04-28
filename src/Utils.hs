@@ -1,5 +1,6 @@
 module Utils (
     Parser,
+    todo,
     hush,
     safeHead,
     safePop,
@@ -12,6 +13,9 @@ import Data.Text qualified as T
 import Text.Megaparsec (Parsec)
 
 type Parser = Parsec Void Text
+
+todo :: a
+todo = error "TODO"
 
 hush :: Either e a -> Maybe a
 hush = either (const Nothing) Just
