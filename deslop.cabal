@@ -54,6 +54,7 @@ library
     Deslop.CodeGraph
     Deslop.GlobPlus
     Deslop.MCP
+    Deslop.Problem
     Deslop.RelativeImports
     Deslop.Rulebook
     Deslop.RuleEnforcer
