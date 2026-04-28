@@ -46,7 +46,7 @@ data Severity = Error
     deriving stock (Eq, Show, Ord)
 
 instance Buildable Problem where
-    build p@(LintProblem (LintRuleId ruleId) _ _ _ _) =
+    build p@LintProblem {lintRule = LintRuleId ruleId} =
         problemHeader <> description <> code <> fixText
       where
         problemHeader =
@@ -54,7 +54,7 @@ instance Buildable Problem where
         code = "```ts\n" +| T.strip p.location.code |+ "\n```\n"
         description = "" +| p.description |+ "\n"
         fixText = "FIX: " +| T.strip p.fix |+ ""
-    build p@(RuleViolation _ _ _) = show p -- TODO: implement
+    build p@RuleViolation {} = show p -- TODO: implement
 
 data ReportProblem :: Effect where
     Report :: Problem -> ReportProblem m ()
