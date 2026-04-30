@@ -4,11 +4,10 @@ module Deslop.Problem (
     problemId,
     Location (..),
     LintRuleId (..),
-    Severity (..),
 ) where
 
 import Deslop.Rulebook (RuleId (RuleId), RulebookId (RulebookId))
-import Effects.FileSystem (RelativePath)
+import Effects.FileSystem (RelativePath (osPath), decodeOsPath)
 import TypeScript.ModuleResolver (ModuleId (..))
 
 newtype ProblemId = ProblemId Text deriving (Show, Eq, Ord)
@@ -17,7 +16,6 @@ data Problem
     = LintProblem
         { lintRule :: LintRuleId
         , location :: Location
-        , severity :: Severity
         , description :: Text
         , fix :: Text
         }
@@ -39,14 +37,15 @@ data Location = Location
 newtype LintRuleId = LintRuleId Text
     deriving stock (Eq, Show, Ord)
 
-data Severity = Error
-    deriving stock (Eq, Show, Ord)
-
 problemId :: Problem -> ProblemId
 problemId
     LintProblem
         { lintRule = LintRuleId rId
-        } = ProblemId $ rId
+        , location =
+            Location
+                { file = relPath
+                }
+        } = ProblemId $ rId <> "#" <> (decodeOsPath relPath.osPath)
 problemId
     p@RuleViolation
         { rulebook = RulebookId rbId

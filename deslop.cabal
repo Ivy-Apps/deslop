@@ -127,6 +127,7 @@ test-suite deslop-test
     Deslop.ASTSpec
     Deslop.CodeGraphSpec
     Deslop.GlobPlusSpec
+    Deslop.ProblemSpec
     Deslop.RelativeImportSpec
     Deslop.RulebookSpec
     Doubles.FileSystem
