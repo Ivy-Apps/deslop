@@ -49,7 +49,7 @@ data Rule = ForbiddenRule
     , usesOptional :: Maybe (NonEmpty CompiledRulePattern)
     , exists :: Maybe (NonEmpty CompiledRulePattern)
     , example :: Maybe Text
-    , fix :: Maybe Text
+    , fix :: Text
     }
     deriving stock (Show)
 
@@ -97,24 +97,10 @@ data RuleDto = RuleDto
     , usesOptional :: Maybe [GlobDto]
     , exists :: Maybe [GlobDto]
     , example :: Maybe Text
-    , fix :: Maybe Text
+    , fix :: Text
     }
-    deriving stock (Show, Eq)
-
-instance FromJSON RuleDto where
-    parseJSON = withObject "RuleDto" $ \v ->
-        RuleDto
-            <$> v .: "id"
-            <*> v .:? "description"
-            <*> v .: "target"
-            <*> v .:? "exclude"
-            <*> v .:? "execution-context"
-            <*> v .:? "forbidden"
-            <*> v .:? "uses"
-            <*> v .:? "uses-optional"
-            <*> v .:? "exists"
-            <*> v .:? "example"
-            <*> v .:? "fix"
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON)
 
 newtype RuleId = RuleId Text
     deriving stock (Show, Eq, Ord)

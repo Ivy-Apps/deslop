@@ -1,5 +1,5 @@
 # ~/test/fixtures/ixartz-next-js-boilerplate/.storybook/preview.ts: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import '../src/styles/global.css';
 ```
@@ -7,7 +7,7 @@ FIX: Use ```import '@/styles/global.css';``` instead.
 ---------
 
 # ~/test/fixtures/ixartz-next-js-boilerplate/next.config.ts: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import './src/libs/Env';
 ```
@@ -15,7 +15,7 @@ FIX: Use ```import '@/libs/Env';``` instead.
 ---------
 
 # ~/test/fixtures/ixartz-next-js-boilerplate/src/components/Hello.tsx: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Sponsors } from './Sponsors';
 ```
@@ -23,7 +23,7 @@ FIX: Use ```import { Sponsors } from '@/components/Sponsors';``` instead.
 ---------
 
 # ~/test/fixtures/ixartz-next-js-boilerplate/src/libs/DB.ts: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Env } from './Env';
 ```
@@ -31,7 +31,7 @@ FIX: Use ```import { Env } from '@/libs/Env';``` instead.
 ---------
 
 # ~/test/fixtures/ixartz-next-js-boilerplate/src/libs/I18n.ts: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import { routing } from './I18nRouting';
 ```
@@ -39,7 +39,7 @@ FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
 ---------
 
 # ~/test/fixtures/ixartz-next-js-boilerplate/src/libs/I18nNavigation.ts: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import { routing } from './I18nRouting';
 ```
@@ -47,7 +47,7 @@ FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
 ---------
 
 # ~/test/fixtures/ixartz-next-js-boilerplate/src/libs/Logger.ts: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Env } from './Env';
 ```
@@ -55,7 +55,7 @@ FIX: Use ```import { Env } from '@/libs/Env';``` instead.
 ---------
 
 # ~/test/fixtures/ixartz-next-js-boilerplate/src/proxy.ts: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import { routing } from './libs/I18nRouting';
 ```
@@ -63,7 +63,7 @@ FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
 ---------
 
 # ~/test/fixtures/ixartz-next-js-boilerplate/src/templates/BaseTemplate.stories.tsx: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import { BaseTemplate } from './BaseTemplate';
 ```
@@ -71,7 +71,7 @@ FIX: Use ```import { BaseTemplate } from '@/templates/BaseTemplate';``` instead.
 ---------
 
 # ~/test/fixtures/ixartz-next-js-boilerplate/src/templates/BaseTemplate.test.tsx: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import { BaseTemplate } from './BaseTemplate';
 ```
@@ -79,7 +79,7 @@ FIX: Use ```import { BaseTemplate } from '@/templates/BaseTemplate';``` instead.
 ---------
 
 # ~/test/fixtures/ixartz-next-js-boilerplate/src/utils/Helpers.test.ts: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import { getI18nPath } from './Helpers';
 ```

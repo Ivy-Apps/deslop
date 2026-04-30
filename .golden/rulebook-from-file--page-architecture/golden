@@ -10,7 +10,7 @@ Right
                 "Add a page in /src/app/[locale]/{route} to connect it with the NextJS router.  It should be executed on the server.  Use the page to SSR data and pass it as a parameter to the Container that will display the UI."
             , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
-            , executionContext = UseServer
+            , executionContext = Neutral
             , forbidden = Nothing
             , uses = Nothing
             , usesOptional = Nothing
@@ -19,8 +19,7 @@ Right
                 Just
                   "import { HomeContainer } from \"@/features/home/HomeContainer\";\n\nexport default async function HomePage() {\n  const user = await fetchUserSSR();\n  return <HomeContainer initialData={user} />\n}\n"
             , fix =
-                Just
-                  "Make sure that there is no 'use client' and no client-side code is executed in the page TS module. If you need a client side code (React state / hooks) move it to a @/features/**/*Container."
+                "Make sure that there is no 'use client' and no client-side code is executed in the page TS module. If you need a client side code (React state / hooks) move it to a @/features/**/*Container."
             }
         , ForbiddenRule
             { id = RuleId "page-container"
@@ -39,8 +38,7 @@ Right
             , exists = Nothing
             , example = Nothing
             , fix =
-                Just
-                  "Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container."
+                "Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container."
             }
         , ForbiddenRule
             { id = RuleId "page-container-wires-view-and-viewmodel"
@@ -49,7 +47,7 @@ Right
             , target =
                 CompiledTargetPattern { regex = <regex> , vars = [ PascalCase ] }
             , exclude = Nothing
-            , executionContext = UseClient
+            , executionContext = Neutral
             , forbidden = Nothing
             , uses =
                 Just
@@ -87,8 +85,7 @@ Right
                 Just
                   "\"use client\"\n\nimport { HomeUiState, HomeUiEvent } from \"@/features/home/HomeStateEvent\"\nimport { HomeView } from \"@/features/home/HomeView\";\nimport { useHomeViewModel } from \"@/features/home/useHomeViewModel\"\n\n// Optional pre-loaded data passed from the page\nexport interface Props {\n  user: User | null;\n}\n\nexport function HomeContainer({ user }: Props) {\n  const { state, onEvent } = useHomeViewModel({ user });\n  return <HomeView state={state} onEvent={onEvent} />;\n}\n"
             , fix =
-                Just
-                  "Add a \"use client\" directive at the top of the file. Make sure that you're using the feature's View and ViewModel from the same directory. The purpose of the Container is to wire the View and the ViewModel together."
+                "Add a \"use client\" directive at the top of the file. Make sure that you're using the feature's View and ViewModel from the same directory. The purpose of the Container is to wire the View and the ViewModel together."
             }
         , ForbiddenRule
             { id = RuleId "viewmodel"
@@ -97,7 +94,7 @@ Right
             , target =
                 CompiledTargetPattern { regex = <regex> , vars = [ PascalCase ] }
             , exclude = Nothing
-            , executionContext = UseClient
+            , executionContext = Neutral
             , forbidden =
                 Just
                   (ForbiddenFunctionCall { functionName = FunctionName "fetch" } :|
@@ -133,36 +130,13 @@ Right
                          ]
                      } :|
                      [])
-            , usesOptional =
-                Just
-                  (CompiledRulePattern
-                     { chunks =
-                         [ StaticChunk "^"
-                         , VarChunk RTargetDir
-                         , StaticChunk "/data/"
-                         , VarChunk (RVar PascalCase)
-                         , StaticChunk "-repository$"
-                         ]
-                     } :|
-                     [ CompiledRulePattern
-                         { chunks = [ StaticChunk "^@/data/.*/[^/]*-repository$" ] }
-                     , CompiledRulePattern
-                         { chunks =
-                             [ StaticChunk "^"
-                             , VarChunk RTargetDir
-                             , StaticChunk "/domain/.*/[^/]*$"
-                             ]
-                         }
-                     , CompiledRulePattern
-                         { chunks = [ StaticChunk "^@/domain/.*/[^/]*$" ] }
-                     ])
+            , usesOptional = Nothing
             , exists = Nothing
             , example =
                 Just
                   "import { useState } from \"react\";\nimport { HomeUiState, HomeUiEvent } from \"@/features/home/HomeStateEvent\";\nimport { logoutUser } from \"@/features/home/data/Home-repository\";\n\nexport interface Props {\n  user: User | null;\n}\n\nexport function useHomeViewModel(props: Props) {\n  const [state, setState] = useState<HomeUiState>({ \n    user: props.user,\n    isLoading: false \n  });\n\n  const onEvent = async (event: HomeUiEvent) => {\n    switch (event.type) {\n      case \"LOGOUT_CLICKED\":\n        setState(prev => ({ ...prev, isLoading: true }));\n        // Delegate to the repository instead of using fetch()\n        await logoutUser();\n        setState({ user: null, isLoading: false });\n        break;\n    }\n  };\n\n  return { state, onEvent };\n}\n"
             , fix =
-                Just
-                  "Extract any UI (JSX) into the View component. Remove direct `fetch` calls and replace them with function calls imported from a `-repository` file. Ensure the hook returns the current  `state` and an `onEvent` dispatcher. Do not import any Views or UI components from any directory."
+                "Extract any UI (JSX) into the View component. Remove direct `fetch` calls and replace them with function calls imported from a `-repository` file. Ensure the hook returns the current  `state` and an `onEvent` dispatcher. Do not import any Views or UI components from any directory."
             }
         , ForbiddenRule
             { id = RuleId "viewmodel-test"
@@ -202,8 +176,7 @@ Right
                 Just
                   "import { renderHook, act } from \"@testing-library/react\";\nimport { useHomeViewModel } from \"@/features/home/useHomeViewModel\";\nimport * as repository from \"@/features/home/data/Home-repository\";\n\n// Mock the repository to isolate the ViewModel logic\nvi.mock(\"@/features/home/data/Home-repository\");\n\ndescribe(\"useHomeViewModel\", () => {\n  it(\"handles LOGOUT_CLICKED event properly\", async () => {\n    const { result } = renderHook(() => useHomeViewModel({ user: { name: \"Alice\" } }));\n    \n    await act(async () => {\n      await result.current.onEvent({ type: \"LOGOUT_CLICKED\" });\n    });\n\n    expect(repository.logoutUser).toHaveBeenCalled();\n    expect(result.current.state.user).toBeNull();\n  });\n});\n"
             , fix =
-                Just
-                  "Create a unit test file named `use{{FileName}}ViewModel.spec.ts` in the same directory. Ensure you import the ViewModel hook from `{{TARGET_DIR}}/use{{FileName}}ViewModel` and test its state and event dispatcher."
+                "Create a unit test file named `use{{FileName}}ViewModel.spec.ts` in the same directory. Ensure you import the ViewModel hook from `{{TARGET_DIR}}/use{{FileName}}ViewModel` and test its state and event dispatcher."
             }
         , ForbiddenRule
             { id = RuleId "page-view"
@@ -212,7 +185,7 @@ Right
             , target =
                 CompiledTargetPattern { regex = <regex> , vars = [ PascalCase ] }
             , exclude = Nothing
-            , executionContext = UseClient
+            , executionContext = Neutral
             , forbidden =
                 Just
                   (ForbiddenFunctionCall { functionName = FunctionName "fetch" } :|
@@ -229,25 +202,13 @@ Right
                          ]
                      } :|
                      [])
-            , usesOptional =
-                Just
-                  (CompiledRulePattern
-                     { chunks =
-                         [ StaticChunk "^"
-                         , VarChunk RTargetDir
-                         , StaticChunk "/components/[^/]*$"
-                         ]
-                     } :|
-                     [ CompiledRulePattern
-                         { chunks = [ StaticChunk "^@/components/.*/[^/]*$" ] }
-                     ])
+            , usesOptional = Nothing
             , exists = Nothing
             , example =
                 Just
                   "import { HomeUiState, HomeUiEvent } from \"@/features/home/HomeStateEvent\";\nimport { Button } from \"@/components/ui/Button\";\nimport { UserAvatar } from \"@/features/home/components/UserAvatar\";\n\nexport interface Props {\n  state: HomeUiState;\n  onEvent: (event: HomeUiEvent) => void;\n}\n\nexport function HomeView({ state, onEvent }: Props) {\n  return (\n    <div>\n      <UserAvatar user={state.user} />\n      <h1>Hello, {state.user?.name || \"Guest\"}</h1>\n      <Button onClick={() => onEvent({ type: \"LOGOUT_CLICKED\" })}>\n        Logout\n      </Button>\n    </div>\n  );\n}\n"
             , fix =
-                Just
-                  "Ensure the View is a pure UI component that only receives `state` and an `onEvent` callback. It should not contain data fetching, complex business logic, or its own state hooks. Use local or global shared components for the UI blocks."
+                "Ensure the View is a pure UI component that only receives `state` and an `onEvent` callback. It should not contain data fetching, complex business logic, or its own state hooks. Use local or global shared components for the UI blocks."
             }
         , ForbiddenRule
             { id = RuleId "page-view-storybook"
@@ -276,8 +237,7 @@ Right
                 Just
                   "import type { Meta, StoryObj } from \"@storybook/react\";\nimport { HomeView } from \"@/features/home/HomeView\";\n\nconst meta: Meta<typeof HomeView> = {\n  component: HomeView,\n  title: \"Features/Home/HomeView\",\n};\n\nexport default meta;\ntype Story = StoryObj<typeof HomeView>;\n\nconst noop = () => {};\n\nexport const Default: Story = {\n  args: {\n    state: { user: { name: \"Alice\" } },\n    onEvent: noop,\n  },\n};\n\nexport const Guest: Story = {\n  args: {\n    state: { user: null },\n    onEvent: noop,\n  },\n};\n"
             , fix =
-                Just
-                  "Create a Storybook file named `{{FileName}}View.stories.tsx` in the same directory as the View. Ensure you mock the necessary `state` to showcase various UI states and provide a no-op for the `onEvent` prop."
+                "Create a Storybook file named `{{FileName}}View.stories.tsx` in the same directory as the View. Ensure you mock the necessary `state` to showcase various UI states and provide a no-op for the `onEvent` prop."
             }
         ]
     }

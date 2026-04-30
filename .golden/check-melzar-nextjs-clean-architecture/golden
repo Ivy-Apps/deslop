@@ -1,5 +1,5 @@
 # ~/test/fixtures/melzar-nextjs-clean-architecture/.storybook/preview.tsx: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import '../src/app/globals.scss';
 ```
@@ -7,7 +7,7 @@ FIX: Use ```import 'app/globals.scss';``` instead.
 ---------
 
 # ~/test/fixtures/melzar-nextjs-clean-architecture/src/app/layout.tsx: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import './globals.scss';
 ```
@@ -15,7 +15,7 @@ FIX: Use ```import 'app/globals.scss';``` instead.
 ---------
 
 # ~/test/fixtures/melzar-nextjs-clean-architecture/src/ui/common/components/layout/ContainerBox/ContainerBox.tsx: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import styles from './containerBox.module.scss';
 ```
@@ -23,7 +23,7 @@ FIX: Use ```import styles from 'ui/common/components/layout/ContainerBox/contain
 ---------
 
 # ~/test/fixtures/melzar-nextjs-clean-architecture/src/ui/common/components/layout/TopHeader/TopHeader.stories.tsx: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import { TopHeader } from './TopHeader';
 ```
@@ -31,7 +31,7 @@ FIX: Use ```import { TopHeader } from 'ui/common/components/layout/TopHeader/Top
 ---------
 
 # ~/test/fixtures/melzar-nextjs-clean-architecture/src/ui/common/components/layout/TopNavigation/TopNavigation.tsx: no-relative-imports
-Relative imports are not allowed. Use absolute path aliased ones.
+Relative imports are not allowed. Use aliased ones.
 ```ts
 import styles from './topNavigation.module.scss';
 ```

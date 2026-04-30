@@ -48,7 +48,6 @@ executable deslop
 library
   import:          shared-properties
   exposed-modules:
-    Delsop.ProblemFormatter
     Deslop
     Deslop.AST
     Deslop.Baseline
@@ -56,6 +55,7 @@ library
     Deslop.GlobPlus
     Deslop.MCP
     Deslop.Problem
+    Deslop.ProblemFormatter
     Deslop.RelativeImports
     Deslop.Rulebook
     Deslop.RuleEnforcer

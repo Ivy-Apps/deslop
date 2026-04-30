@@ -23,7 +23,7 @@ noRelativeImports (old, new) path =
         { lintRule = LintRuleId "no-relative-imports"
         , location = Location {file = path.osPath, code = render old}
         , severity = Error
-        , description = "Relative imports are not allowed. Use absolute path aliased ones."
+        , description = "Relative imports are not allowed. Use aliased ones."
         , fix = "Use ```" <> render new <> "``` instead."
         }
 
