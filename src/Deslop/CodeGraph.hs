@@ -5,9 +5,10 @@ module Deslop.CodeGraph (
     ModuleGraph (..),
     buildModuleGraph,
     hasPath,
+    reachableFrom,
 ) where
 
-import Data.Graph (Graph, Vertex, graphFromEdges, path)
+import Data.Graph (Graph, Vertex, graphFromEdges, path, reachable)
 import Data.Set qualified as Set
 import Deslop.AST (AstModule (..), AstNode (..))
 import Effectful (Eff, (:>))
@@ -62,3 +63,14 @@ hasPath from to = do
     pure $ case (mg.vertexFromId from, mg.vertexFromId to) of
         (Just vFrom, Just vTo) -> path mg.graph vFrom vTo
         _ -> False
+
+reachableFrom :: (Reader ModuleGraph :> es) => ModuleId -> Eff es [ModuleId]
+reachableFrom from = do
+    mg <- ask @ModuleGraph
+    pure $ case mg.vertexFromId from of
+        Nothing -> []
+        Just vFrom ->
+            [ mid
+            | v <- reachable mg.graph vFrom
+            , let (_, mid, _) = mg.nodeFromV v
+            ]

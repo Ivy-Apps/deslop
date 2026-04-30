@@ -11,6 +11,13 @@ import Effects.ReportProblem (getProblems, runReportProblem)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 
+mkModule :: Text -> [Text] -> AstModule
+mkModule mid deps =
+    AstModule
+        { id = moduleIdUnsafe mid
+        , nodes = [ImportNode {target = moduleIdUnsafe d} | d <- deps]
+        }
+
 testRulebook :: Rulebook
 testRulebook =
     fromRight (error "testRulebook: invalid fixture") $
@@ -36,12 +43,47 @@ testRulebook =
                     ]
                 }
 
+testTransitiveRulebook :: Rulebook
+testTransitiveRulebook =
+    fromRight (error "testTransitiveRulebook: invalid fixture") $
+        ruleBookFromDto
+            RulebookDto
+                { id = "test-rulebook"
+                , name = "Test Rulebook"
+                , description = Nothing
+                , rules =
+                    [ RuleDto
+                        { id = RuleId "no-forbidden-import"
+                        , description = Nothing
+                        , target = GlobDto "@/components/**"
+                        , exclude = Nothing
+                        , executionContext = Nothing
+                        , forbidden = Just [ForbiddenImportDto (GlobDto "@/forbidden/**") (Just True)]
+                        , uses = Nothing
+                        , usesOptional = Nothing
+                        , exists = Nothing
+                        , example = Nothing
+                        , fix = "Remove the import"
+                        }
+                    ]
+                }
+
 runTest :: AstModule -> IO [Problem]
 runTest m =
     runEff
         . runReportProblem
         . runReader (buildModuleGraph [])
         . runReader [testRulebook]
+        $ do
+            enforceRulebooks m
+            getProblems
+
+runTransitiveTest :: [AstModule] -> AstModule -> IO [Problem]
+runTransitiveTest allModules m =
+    runEff
+        . runReportProblem
+        . runReader (buildModuleGraph allModules)
+        . runReader [testTransitiveRulebook]
         $ do
             enforceRulebooks m
             getProblems
@@ -71,6 +113,66 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 , rule = RuleId "no-forbidden-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
                                 , description = "Module '@/components/Button' directly imports '@/forbidden/module'."
+                                , fix = "Remove the import"
+                                }
+                           ]
+
+    describe "transitive import violations" $ do
+        it "no violations when no forbidden module is reachable" $ do
+            let button = mkModule "@/components/Button" ["@/lib/util"]
+                util = mkModule "@/lib/util" []
+            problems <- runTransitiveTest [button, util] button
+            problems `shouldBe` []
+
+        it "single-hop transitive violation" $ do
+            let button = mkModule "@/components/Button" ["@/forbidden/store"]
+                forbidden = mkModule "@/forbidden/store" []
+            problems <- runTransitiveTest [button, forbidden] button
+            problems
+                `shouldBe` [ RuleViolation
+                                { rulebook = RulebookId "test-rulebook"
+                                , rule = RuleId "no-forbidden-import"
+                                , badModule = moduleIdUnsafe "@/components/Button"
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store'."
+                                , fix = "Remove the import"
+                                }
+                           ]
+
+        it "multi-hop transitive violation" $ do
+            let button = mkModule "@/components/Button" ["@/lib/util"]
+                util = mkModule "@/lib/util" ["@/forbidden/store"]
+                forbidden = mkModule "@/forbidden/store" []
+            problems <- runTransitiveTest [button, util, forbidden] button
+            problems
+                `shouldBe` [ RuleViolation
+                                { rulebook = RulebookId "test-rulebook"
+                                , rule = RuleId "no-forbidden-import"
+                                , badModule = moduleIdUnsafe "@/components/Button"
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store'."
+                                , fix = "Remove the import"
+                                }
+                           ]
+
+        it "reports multiple reachable forbidden modules" $ do
+            let button = mkModule "@/components/Button" ["@/lib/util", "@/lib/helpers"]
+                util = mkModule "@/lib/util" ["@/forbidden/storeA"]
+                helpers = mkModule "@/lib/helpers" ["@/forbidden/storeB"]
+                forbiddenA = mkModule "@/forbidden/storeA" []
+                forbiddenB = mkModule "@/forbidden/storeB" []
+            problems <- runTransitiveTest [button, util, helpers, forbiddenA, forbiddenB] button
+            problems
+                `shouldBe` [ RuleViolation
+                                { rulebook = RulebookId "test-rulebook"
+                                , rule = RuleId "no-forbidden-import"
+                                , badModule = moduleIdUnsafe "@/components/Button"
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeA'."
+                                , fix = "Remove the import"
+                                }
+                           , RuleViolation
+                                { rulebook = RulebookId "test-rulebook"
+                                , rule = RuleId "no-forbidden-import"
+                                , badModule = moduleIdUnsafe "@/components/Button"
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeB'."
                                 , fix = "Remove the import"
                                 }
                            ]
