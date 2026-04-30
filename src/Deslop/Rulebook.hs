@@ -38,7 +38,7 @@ data Rulebook = Rulebook
 
 data ExecutionContext = UseClient | UseServer | Neutral deriving (Show, Eq, Ord)
 
-data Rule = ForbiddenRule
+data Rule = Rule
     { id :: RuleId
     , description :: Text
     , target :: CompiledTargetPattern
@@ -175,7 +175,7 @@ ruleFromDto dto = do
     compiledExists <- compileRuleGlobs dto.exists
     compiledForbidden <- compileForbiddens dto.forbidden
     pure
-        ForbiddenRule
+        Rule
             { id = dto.id
             , description = fromMaybe "" dto.description
             , target = compiledTarget

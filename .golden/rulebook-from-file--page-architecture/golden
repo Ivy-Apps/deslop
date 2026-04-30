@@ -4,7 +4,7 @@ Right
     , name = "Page Architecture"
     , description = "Architectural rules to build web pages"
     , rules =
-        [ ForbiddenRule
+        [ Rule
             { id = RuleId "next-js-page-on-server"
             , description =
                 "Add a page in /src/app/[locale]/{route} to connect it with the NextJS router.  It should be executed on the server.  Use the page to SSR data and pass it as a parameter to the Container that will display the UI."
@@ -21,7 +21,7 @@ Right
             , fix =
                 "Make sure that there is no 'use client' and no client-side code is executed in the page TS module. If you need a client side code (React state / hooks) move it to a @/features/**/*Container."
             }
-        , ForbiddenRule
+        , Rule
             { id = RuleId "page-container"
             , description =
                 "Each page should have a Container that's executed on the client. It connects the View (pure UI) and its viewmodel hook."
@@ -40,7 +40,7 @@ Right
             , fix =
                 "Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container."
             }
-        , ForbiddenRule
+        , Rule
             { id = RuleId "page-container-wires-view-and-viewmodel"
             , description =
                 "A Container is a glue code executed on the client side that connects a View with its ViewModel hook. The Container optionally accepts initial SSR data from the page and passes it to the ViewModel."
@@ -87,7 +87,7 @@ Right
             , fix =
                 "Add a \"use client\" directive at the top of the file. Make sure that you're using the feature's View and ViewModel from the same directory. The purpose of the Container is to wire the View and the ViewModel together."
             }
-        , ForbiddenRule
+        , Rule
             { id = RuleId "viewmodel"
             , description =
                 "The ViewModel is a custom React hook that encapsulates the View's state and business logic. It must be strictly free of UI elements (JSX) and must not perform direct HTTP fetch calls. Instead, it should manage the state and delegate data fetching to the data layer (repositories)."
@@ -138,7 +138,7 @@ Right
             , fix =
                 "Extract any UI (JSX) into the View component. Remove direct `fetch` calls and replace them with function calls imported from a `-repository` file. Ensure the hook returns the current  `state` and an `onEvent` dispatcher. Do not import any Views or UI components from any directory."
             }
-        , ForbiddenRule
+        , Rule
             { id = RuleId "viewmodel-test"
             , description =
                 "Each ViewModel must have a corresponding unit test file to verify its state transitions,  event handling, and business logic independently of the UI components."
@@ -178,7 +178,7 @@ Right
             , fix =
                 "Create a unit test file named `use{{FileName}}ViewModel.spec.ts` in the same directory. Ensure you import the ViewModel hook from `{{TARGET_DIR}}/use{{FileName}}ViewModel` and test its state and event dispatcher."
             }
-        , ForbiddenRule
+        , Rule
             { id = RuleId "page-view"
             , description =
                 "Each page/feature should have a pure UI (View) that renders the UiState  and submits user interactions as UiEvents."
@@ -210,7 +210,7 @@ Right
             , fix =
                 "Ensure the View is a pure UI component that only receives `state` and an `onEvent` callback. It should not contain data fetching, complex business logic, or its own state hooks. Use local or global shared components for the UI blocks."
             }
-        , ForbiddenRule
+        , Rule
             { id = RuleId "page-view-storybook"
             , description =
                 "Each pure UI View should have a corresponding Storybook file to develop, test,  and document its various UI states in isolation."
