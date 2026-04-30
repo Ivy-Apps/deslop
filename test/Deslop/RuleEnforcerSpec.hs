@@ -78,15 +78,43 @@ runTest m =
             enforceRulebooks m
             getProblems
 
-runTransitiveTest :: [AstModule] -> AstModule -> IO [Problem]
-runTransitiveTest allModules m =
+runTransitiveTestWith :: [Rulebook] -> [AstModule] -> AstModule -> IO [Problem]
+runTransitiveTestWith rulebooks allModules m =
     runEff
         . runReportProblem
         . runReader (buildModuleGraph allModules)
-        . runReader [testTransitiveRulebook]
+        . runReader rulebooks
         $ do
             enforceRulebooks m
             getProblems
+
+runTransitiveTest :: [AstModule] -> AstModule -> IO [Problem]
+runTransitiveTest = runTransitiveTestWith [testTransitiveRulebook]
+
+domainRulebook :: Rulebook
+domainRulebook =
+    fromRight (error "domainRulebook: invalid fixture") $
+        ruleBookFromDto
+            RulebookDto
+                { id = "domain-rules"
+                , name = "Domain Rules"
+                , description = Nothing
+                , rules =
+                    [ RuleDto
+                        { id = RuleId "no-react-in-domain"
+                        , description = Nothing
+                        , target = GlobDto "@/domain/**"
+                        , exclude = Nothing
+                        , executionContext = Nothing
+                        , forbidden = Just [ForbiddenImportDto (GlobDto "react") (Just True)]
+                        , uses = Nothing
+                        , usesOptional = Nothing
+                        , exists = Nothing
+                        , example = Nothing
+                        , fix = "Move React dependencies out of the domain layer."
+                        }
+                    ]
+                }
 
 spec :: Spec
 spec = describe "Deslop.RuleEnforcer" $ do
@@ -174,5 +202,21 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 , badModule = moduleIdUnsafe "@/components/Button"
                                 , description = "Module '@/components/Button' transitively imports '@/forbidden/storeB' via: @/components/Button → @/lib/helpers → @/forbidden/storeB."
                                 , fix = "Remove the import"
+                                }
+                           ]
+
+        it "domain module must not transitively import react" $ do
+            let useCase = mkModule "@/domain/LoginUseCase" ["@/domain/UserRepository"]
+                repo = mkModule "@/domain/UserRepository" ["@/infrastructure/HttpClient"]
+                http = mkModule "@/infrastructure/HttpClient" ["react"]
+                react = mkModule "react" []
+            problems <- runTransitiveTestWith [domainRulebook] [useCase, repo, http, react] useCase
+            problems
+                `shouldBe` [ RuleViolation
+                                { rulebook = RulebookId "domain-rules"
+                                , rule = RuleId "no-react-in-domain"
+                                , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
+                                , description = "Module '@/domain/LoginUseCase' transitively imports 'react' via: @/domain/LoginUseCase → @/domain/UserRepository → @/infrastructure/HttpClient → react."
+                                , fix = "Move React dependencies out of the domain layer."
                                 }
                            ]
