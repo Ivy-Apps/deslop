@@ -104,6 +104,7 @@ executeForbidden m env (ForbiddenImport target transitive)
                 ruleViolation m message
                     >>= report
         | otherwise = pure ()
+
     transitiveCheck rid
         | matchRule target env rid.text =
             let
