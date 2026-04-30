@@ -4,22 +4,29 @@ import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph)
 import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget)
 import Deslop.Problem (Problem (..))
-import Deslop.Rulebook (Forbidden (..), Rule (..), Rulebook (..), RulebookId (RulebookId))
+import Deslop.Rulebook (Forbidden (..), Rule (..), Rulebook (..), RulebookId)
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask, runReader)
 import Effects.ReportProblem (ReportProblem, report)
 import TypeScript.ModuleResolver (ModuleId (..))
 import Utils (todo)
 
-ruleViolation :: RulebookId -> Rule -> AstModule -> Problem
-ruleViolation rbId rule m =
-    RuleViolation
-        { rulebook = rbId
-        , rule = rule.id
-        , targetModule = m.id
-        , description = ""
-        , fix = rule.fix
-        }
+ruleViolation ::
+    ( Reader RulebookId :> es
+    , Reader Rule :> es
+    ) =>
+    AstModule -> Text -> Eff es Problem
+ruleViolation m desc = do
+    rbId <- ask @RulebookId
+    rule <- ask @Rule
+    pure $
+        RuleViolation
+            { rulebook = rbId
+            , rule = rule.id
+            , badModule = m.id
+            , description = desc
+            , fix = rule.fix
+            }
 
 enforceRulebooks ::
     ( Reader [Rulebook] :> es
@@ -88,16 +95,11 @@ executeForbidden m env (ForbiddenImport target transitive)
     | otherwise = traverse_ directForbiddenImport m.nodes
   where
     directForbiddenImport (ImportNode t)
-        | matchRule target env t.text = do
-            rbId <- ask @RulebookId
-            rule <- ask @Rule
-            report $
-                RuleViolation
-                    { rulebook = rbId
-                    , rule = rule.id
-                    , targetModule = m.id
-                    , description = ""
-                    , fix = ""
-                    }
+        | matchRule target env t.text =
+            let
+                message = "Module '" <> m.id.text <> "' directly imports '" <> t.text <> "'."
+             in
+                ruleViolation m message
+                    >>= report
         | otherwise = pure () -- Nothing to report
-executeForbidden _ _ (ForbiddenFunctionCall _) = pure () -- TODO: implement
+executeForbidden _ _ (ForbiddenFunctionCall _) = todo

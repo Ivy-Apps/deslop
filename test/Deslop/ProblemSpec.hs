@@ -28,7 +28,7 @@ spec = describe "Deslop.Problem" $ do
                     RuleViolation
                         { rulebook = RulebookId "architecture"
                         , rule = RuleId "no-barrel-imports"
-                        , targetModule = moduleIdUnsafe "@/lib/util"
+                        , badModule = moduleIdUnsafe "@/lib/util"
                         , description = "Barrel imports are forbidden"
                         , fix = "Import directly from the module"
                         }

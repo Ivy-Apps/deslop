@@ -25,7 +25,7 @@ data Problem
     | RuleViolation
         { rulebook :: RulebookId
         , rule :: RuleId
-        , targetModule :: ModuleId
+        , badModule :: ModuleId
         , description :: Text
         , fix :: Text
         }
@@ -55,6 +55,6 @@ problemId
         , rule = RuleId rId
         } =
         let
-            mId = p.targetModule.text
+            mId = p.badModule.text
          in
             ProblemId $ rbId <> "#" <> rId <> "#" <> mId
