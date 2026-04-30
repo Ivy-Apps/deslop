@@ -29,17 +29,23 @@ ruleViolation m desc = do
             , fix = rule.fix
             }
 
+newtype ReachableModules = ReachableModules [ModuleId]
+
 enforceRulebooks ::
     ( Reader [Rulebook] :> es
     , Reader ModuleGraph :> es
     , ReportProblem :> es
     ) =>
     AstModule -> Eff es ()
-enforceRulebooks m =
-    ask @[Rulebook] >>= traverse_ (enforceRulebook m)
+enforceRulebooks m = do
+    rulebooks <- ask @[Rulebook]
+    reachable <- reachableFrom m.id
+    runReader (ReachableModules reachable) $
+        traverse_ (enforceRulebook m) rulebooks
 
 enforceRulebook ::
     ( Reader ModuleGraph :> es
+    , Reader ReachableModules :> es
     , ReportProblem :> es
     ) =>
     AstModule -> Rulebook -> Eff es ()
@@ -49,6 +55,7 @@ enforceRulebook m rulebook =
 
 enforceRule ::
     ( Reader ModuleGraph :> es
+    , Reader ReachableModules :> es
     , Reader RulebookId :> es
     , ReportProblem :> es
     ) =>
@@ -61,10 +68,11 @@ enforceRule m rule = case isTarget m.id rule of
         ( Reader RulebookId :> es
         , Reader Rule :> es
         , Reader ModuleGraph :> es
+        , Reader ReachableModules :> es
         , ReportProblem :> es
         ) =>
         MatchEnv -> Eff es ()
-    execute env = do
+    execute env =
         case rule.forbidden of
             Just fs -> traverse_ (executeForbidden m env) fs
             Nothing -> pure ()
@@ -86,6 +94,7 @@ isTarget moduleId rule = case matchTarget rule.target moduleId.text of
 
 executeForbidden ::
     ( Reader ModuleGraph :> es
+    , Reader ReachableModules :> es
     , Reader RulebookId :> es
     , Reader Rule :> es
     , ReportProblem :> es
@@ -93,7 +102,7 @@ executeForbidden ::
     AstModule -> MatchEnv -> Forbidden -> Eff es ()
 executeForbidden m env (ForbiddenImport target transitive)
     | transitive = do
-        reachable <- reachableFrom m.id
+        ReachableModules reachable <- ask @ReachableModules
         traverse_ transitiveCheck reachable
     | otherwise = traverse_ directForbiddenImport m.nodes
   where
