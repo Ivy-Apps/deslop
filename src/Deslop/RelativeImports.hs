@@ -3,26 +3,24 @@ module Deslop.RelativeImports (
     fixTarget,
 ) where
 
+import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
 import Effectful (Eff, type (:>))
-import Effectful.Reader.Static (Reader)
-import Effects.FileSystem (AbsPath (..), RoFileSystem)
-import Effects.ReportProblem (LintRuleId (..), Location (..), Problem (..), ReportProblem, Severity (..), report)
+import Effectful.Reader.Static (Reader, asks)
+import Effects.FileSystem (AbsPath (..), RoFileSystem, relativePathTo)
+import Effects.ReportProblem (ReportProblem, report)
 import TypeScript.CST (
     TsNode (Import, target),
     TsProgram (cst, path),
  )
-import TypeScript.Config (
-    TsConfig,
- )
+import TypeScript.Config (TsConfig (..))
 import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe, reverseResolveImport)
 import Types (Renderable (render))
 
-noRelativeImports :: (TsNode, TsNode) -> AbsPath -> Problem
-noRelativeImports (old, new) path =
+noRelativeImports :: (TsNode, TsNode) -> AbsPath -> AbsPath -> Problem
+noRelativeImports (old, new) projectPath modulePath =
     LintProblem
         { lintRule = LintRuleId "no-relative-imports"
-        , location = Location {file = path.osPath, code = render old}
-        , severity = Error
+        , location = Location {file = relativePathTo projectPath modulePath, code = render old}
         , description = "Relative imports are not allowed. Use aliased ones."
         , fix = "Use ```" <> render new <> "``` instead."
         }
@@ -42,7 +40,10 @@ importAliases prog = do
         let new = old {target = t'}
         when
             (t /= t')
-            (report $ noRelativeImports (old, new) prog.path)
+            ( do
+                projPath <- asks @TsConfig (.baseUrl)
+                report $ noRelativeImports (old, new) projPath prog.path
+            )
         pure new
     fixImport x = pure x
 

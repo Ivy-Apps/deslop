@@ -1,8 +1,4 @@
 module Effects.ReportProblem (
-    Location (..),
-    LintRuleId (..),
-    Severity (..),
-    Problem (..),
     ReportProblem,
     report,
     getProblems,
@@ -10,51 +6,9 @@ module Effects.ReportProblem (
 ) where
 
 import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO, readTVarIO)
-import Data.Text qualified as T
-import Deslop.Rulebook (RuleId, RulebookId (..))
+import Deslop.Problem (Problem)
 import Effectful
 import Effectful.Dispatch.Dynamic
-import Effects.FileSystem (decodeOsPath)
-import Fmt (Buildable (..), (+|), (|+))
-import System.OsPath (OsPath)
-
-data Problem
-    = LintProblem
-        { lintRule :: LintRuleId
-        , location :: Location
-        , severity :: Severity
-        , description :: Text
-        , fix :: Text
-        }
-    | RuleViolation
-        { rulebook :: RulebookId
-        , rule :: RuleId
-        , description :: Text
-        }
-    deriving stock (Eq, Show, Ord)
-
-data Location = Location
-    { file :: OsPath
-    , code :: Text
-    }
-    deriving stock (Eq, Show, Ord)
-
-newtype LintRuleId = LintRuleId Text
-    deriving stock (Eq, Show, Ord)
-
-data Severity = Error
-    deriving stock (Eq, Show, Ord)
-
-instance Buildable Problem where
-    build p@LintProblem {lintRule = LintRuleId ruleId} =
-        problemHeader <> description <> code <> fixText
-      where
-        problemHeader =
-            "# " +| decodeOsPath p.location.file |+ ": " +| ruleId |+ "\n"
-        code = "```ts\n" +| T.strip p.location.code |+ "\n```\n"
-        description = "" +| p.description |+ "\n"
-        fixText = "FIX: " +| T.strip p.fix |+ ""
-    build p@RuleViolation {} = show p -- TODO: implement
 
 data ReportProblem :: Effect where
     Report :: Problem -> ReportProblem m ()

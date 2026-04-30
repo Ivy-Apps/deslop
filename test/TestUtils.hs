@@ -20,6 +20,7 @@ module TestUtils (
     requireJust,
     requireRight,
     ap,
+    rp,
 ) where
 
 import Control.Exception (throwIO)
@@ -30,7 +31,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
 import Effects.CLILog
-import Effects.FileSystem (AbsPath (osPath), absPathUnsafe, encodeOsPath, encodeOsPathString, fsMkAbsolute, runFileSystemIO)
+import Effects.FileSystem (AbsPath (osPath), RelativePath, absPathUnsafe, encodeOsPath, encodeOsPathString, fsMkAbsolute, relativePathUnsafe, runFileSystemIO)
 import Effects.Git
 import Params
 import Secrets (GeminiApiKey (..), Secrets (..))
@@ -162,3 +163,6 @@ requireRight formatErr = \case
 
 ap :: Text -> AbsPath
 ap = absPathUnsafe . encodeOsPath
+
+rp :: Text -> RelativePath
+rp = relativePathUnsafe . encodeOsPath

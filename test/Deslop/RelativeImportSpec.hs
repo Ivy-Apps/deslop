@@ -1,11 +1,12 @@
 module Deslop.RelativeImportSpec (spec) where
 
+import Deslop.Problem (LintRuleId (..), Problem (..))
 import Deslop.RelativeImports (importAliases)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.FileSystem (absPathUnsafe)
-import Effects.ReportProblem (LintRuleId (..), Problem (..), getProblems, runReportProblem)
+import Effects.ReportProblem (getProblems, runReportProblem)
 import System.OsPath (osp)
 import Test.Hspec
 import TestUtils (defaultTsConfig)
