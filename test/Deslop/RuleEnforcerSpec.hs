@@ -133,7 +133,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbidden-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store'."
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store' via: @/components/Button → @/forbidden/store."
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -148,7 +148,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbidden-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store'."
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store' via: @/components/Button → @/lib/util → @/forbidden/store."
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -165,14 +165,14 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbidden-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeA'."
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeA' via: @/components/Button → @/lib/util → @/forbidden/storeA."
                                 , fix = "Remove the import"
                                 }
                            , RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbidden-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeB'."
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeB' via: @/components/Button → @/lib/helpers → @/forbidden/storeB."
                                 , fix = "Remove the import"
                                 }
                            ]

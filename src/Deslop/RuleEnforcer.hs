@@ -1,7 +1,8 @@
 module Deslop.RuleEnforcer (enforceRulebooks) where
 
+import Data.Text qualified as T
 import Deslop.AST (AstModule (..), AstNode (..))
-import Deslop.CodeGraph (ModuleGraph, reachableFrom)
+import Deslop.CodeGraph (ModuleGraph, findPath, reachableFrom)
 import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget)
 import Deslop.Problem (Problem (..))
 import Deslop.Rulebook (Forbidden (..), Rule (..), Rulebook (..), RulebookId)
@@ -106,11 +107,10 @@ executeForbidden m env (ForbiddenImport target transitive)
         | otherwise = pure ()
 
     transitiveCheck rid
-        | matchRule target env rid.text =
-            let
-                message = "Module '" <> m.id.text <> "' transitively imports '" <> rid.text <> "'."
-             in
-                ruleViolation m message
-                    >>= report
+        | matchRule target env rid.text = do
+            maybePath <- findPath m.id rid
+            let via = maybe "" (\p -> " via: " <> T.intercalate " → " (map (.text) (toList p))) maybePath
+                message = "Module '" <> m.id.text <> "' transitively imports '" <> rid.text <> "'" <> via <> "."
+            ruleViolation m message >>= report
         | otherwise = pure ()
 executeForbidden _ _ (ForbiddenFunctionCall _) = todo

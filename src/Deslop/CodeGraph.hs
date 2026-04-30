@@ -6,9 +6,11 @@ module Deslop.CodeGraph (
     buildModuleGraph,
     hasPath,
     reachableFrom,
+    findPath,
 ) where
 
-import Data.Graph (Graph, Vertex, graphFromEdges, path, reachable)
+import Data.Graph (Graph, Vertex, dfs, graphFromEdges, path, reachable)
+import Data.Tree (Tree (..))
 import Data.Set qualified as Set
 import Deslop.AST (AstModule (..), AstNode (..))
 import Effectful (Eff, (:>))
@@ -74,3 +76,21 @@ reachableFrom from = do
             | v <- reachable mg.graph vFrom
             , let (_, mid, _) = mg.nodeFromV v
             ]
+
+-- | Returns the DFS path from @from@ to @to@, or @Nothing@ if unreachable.
+findPath :: (Reader ModuleGraph :> es) => ModuleId -> ModuleId -> Eff es (Maybe (NonEmpty ModuleId))
+findPath from to = do
+    mg <- ask @ModuleGraph
+    pure $ do
+        vFrom <- mg.vertexFromId from
+        vTo <- mg.vertexFromId to
+        let toId v = let (_, mid, _) = mg.nodeFromV v in mid
+        listToMaybe $ mapMaybe (searchTree toId vTo []) (dfs mg.graph [vFrom])
+  where
+    searchTree :: (Vertex -> ModuleId) -> Vertex -> [ModuleId] -> Tree Vertex -> Maybe (NonEmpty ModuleId)
+    searchTree toId target ancestors (Node v children) =
+        let mid = toId v
+            pathSoFar = ancestors ++ [mid]
+         in if v == target
+                then nonEmpty pathSoFar
+                else listToMaybe $ mapMaybe (searchTree toId target pathSoFar) children
