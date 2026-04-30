@@ -3,12 +3,23 @@ module Deslop.RuleEnforcer (enforceRulebooks) where
 import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph)
 import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget)
-import Deslop.Rulebook (Forbidden (..), Rule (..), Rulebook (..), RulebookId)
+import Deslop.Problem (Problem (..))
+import Deslop.Rulebook (Forbidden (..), Rule (..), Rulebook (..), RulebookId (RulebookId))
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask, runReader)
-import Effects.ReportProblem (ReportProblem)
+import Effects.ReportProblem (ReportProblem, report)
 import TypeScript.ModuleResolver (ModuleId (..))
 import Utils (todo)
+
+ruleViolation :: RulebookId -> Rule -> AstModule -> Problem
+ruleViolation rbId rule m =
+    RuleViolation
+        { rulebook = rbId
+        , rule = rule.id
+        , targetModule = m.id
+        , description = ""
+        , fix = rule.fix
+        }
 
 enforceRulebooks ::
     ( Reader [Rulebook] :> es
@@ -76,8 +87,17 @@ executeForbidden m env (ForbiddenImport target transitive)
     | transitive = todo
     | otherwise = traverse_ directForbiddenImport m.nodes
   where
-    directForbiddenImport :: (ReportProblem :> es) => AstNode -> Eff es ()
     directForbiddenImport (ImportNode t)
-        | matchRule target env t.text = pure () -- TODO: report the problem
-        | otherwise = pure () -- TODO: implement
+        | matchRule target env t.text = do
+            rbId <- ask @RulebookId
+            rule <- ask @Rule
+            report $
+                RuleViolation
+                    { rulebook = rbId
+                    , rule = rule.id
+                    , targetModule = m.id
+                    , description = ""
+                    , fix = ""
+                    }
+        | otherwise = pure () -- Nothing to report
 executeForbidden _ _ (ForbiddenFunctionCall _) = pure () -- TODO: implement
