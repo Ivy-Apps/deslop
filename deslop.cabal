@@ -48,6 +48,7 @@ executable deslop
 library
   import:          shared-properties
   exposed-modules:
+    Delsop.ProblemFormatter
     Deslop
     Deslop.AST
     Deslop.Baseline
