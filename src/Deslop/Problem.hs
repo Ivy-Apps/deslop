@@ -10,7 +10,10 @@ import Deslop.Rulebook (RuleId (RuleId), RulebookId (RulebookId))
 import Effects.FileSystem (RelativePath (osPath), decodeOsPath)
 import TypeScript.ModuleResolver (ModuleId (..))
 
-newtype ProblemId = ProblemId Text deriving (Show, Eq, Ord)
+newtype ProblemId = ProblemId
+    { text :: Text
+    }
+    deriving (Show, Eq, Ord)
 
 data Problem
     = LintProblem
