@@ -22,7 +22,7 @@ import Data.Text qualified as T
 import Data.Yaml (decodeEither')
 import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern, compileRulePattern, compileTargetPattern, parseRulePattern, parseTargetPattern)
 import Effectful
-import Effects.FileSystem (AbsPath, RoFileSystem, fsDirectoryExists, fsListDirectory, fsMkAbsolute, fsReadFile)
+import Effects.FileSystem (AbsPath, RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile, withAbsBaseUnsafe)
 import System.OsPath (OsPath, osp)
 import Text.Megaparsec (errorBundlePretty)
 
@@ -132,8 +132,8 @@ newtype GlobDto = GlobDto Text
 rulesDir :: OsPath
 rulesDir = [osp|deslop/rules|]
 
-loadRuleBook :: (RoFileSystem :> es) => Eff es (Either Text [Rulebook])
-loadRuleBook = fsMkAbsolute rulesDir >>= loadRuleBookFrom
+loadRuleBook :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
+loadRuleBook projectPath = loadRuleBookFrom (withAbsBaseUnsafe projectPath rulesDir)
 
 loadRuleBookFrom :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
 loadRuleBookFrom dir = fsDirectoryExists dir >>= bool (pure . Right $ []) loadRules

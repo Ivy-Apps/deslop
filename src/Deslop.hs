@@ -99,7 +99,7 @@ doWork params _ = do
     bool fixResult checkModeResult params.checkMode
   where
     checkModeResult = do
-        baseline <- loadBaseline
+        baseline <- loadBaseline params.projectPath
         ps <- applyBaseline baseline <$> getProblems
         if null ps
             then
@@ -125,7 +125,7 @@ deslopProject ::
     Params ->
     Eff es ()
 deslopProject params = do
-    rulebookRes <- loadRuleBook
+    rulebookRes <- loadRuleBook params.projectPath
     rulebook <- case rulebookRes of
         Right rb -> pure rb
         Left e -> throwError . RulebookErorr $ e

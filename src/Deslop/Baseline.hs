@@ -12,7 +12,7 @@ import Data.Yaml (decodeEither')
 import Deslop.Problem (Problem (..), ProblemId (..), problemId)
 import Effectful (Eff)
 import Effectful.Internal.Effect ((:>))
-import Effects.FileSystem (AbsPath, RoFileSystem, fsFileExists, fsMkAbsolute, fsReadFile)
+import Effects.FileSystem (AbsPath, RoFileSystem, fsFileExists, fsReadFile, withAbsBaseUnsafe)
 import System.OsPath (OsPath, osp)
 
 newtype Baseline = Baseline (HashSet ProblemId) deriving (Show, Eq)
@@ -26,8 +26,8 @@ emptyBaseline = Baseline HS.empty
 baselinePath :: OsPath
 baselinePath = [osp|deslop/baseline.yaml|]
 
-loadBaseline :: (RoFileSystem :> es) => Eff es Baseline
-loadBaseline = fsMkAbsolute baselinePath >>= loadBaselineFromFile
+loadBaseline :: (RoFileSystem :> es) => AbsPath -> Eff es Baseline
+loadBaseline projectPath = loadBaselineFromFile (withAbsBaseUnsafe projectPath baselinePath)
 
 loadBaselineFromFile :: (RoFileSystem :> es) => AbsPath -> Eff es Baseline
 loadBaselineFromFile fp = do
