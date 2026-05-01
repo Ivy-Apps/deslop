@@ -11,6 +11,7 @@ module Deslop.CodeGraph (
 
 import Data.Array ((!))
 import Data.Graph (Graph, Vertex, graphFromEdges, path, reachable)
+import Data.IntSet (Key)
 import Data.IntSet qualified as IntSet
 import Data.List.NonEmpty qualified as NE
 import Data.Sequence (Seq (..), (|>))
@@ -93,12 +94,13 @@ findKnownPath from to = do
                 toId v = let (_, mid, _) = mg.nodeFromV v in mid
 
                 -- Standard BFS loop using IntSet for O(1) cycle detection
+                bfs :: IntSet -> Seq (Key, [Key]) -> NonEmpty ModuleId
                 bfs _ Seq.Empty =
                     error "Invariant violated: Path guaranteed but not found."
                 bfs visited ((v, pathAcc) :<| queue)
                     | v == vTo =
                         -- Path found: Map to IDs and reverse the accumulator
-                        NE.fromList . map toId $ reverse (v : pathAcc)
+                        NE.fromList . map toId . reverse $ (v : pathAcc)
                     | otherwise =
                         -- graph ! v is O(1) adjacency list lookup
                         let neighbors = filter (`IntSet.notMember` visited) (mg.graph ! v)
@@ -110,3 +112,4 @@ findKnownPath from to = do
              in
                 bfs (IntSet.singleton vFrom) (Seq.singleton (vFrom, []))
         _ -> error "Invariant violated: ModuleIds do not exist in graph."
+  where
