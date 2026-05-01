@@ -126,6 +126,7 @@ test-suite deslop-test
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Deslop.ASTSpec
+    Deslop.BaselineSpec
     Deslop.CodeGraphSpec
     Deslop.GlobPlusSpec
     Deslop.ProblemFormatterSpec

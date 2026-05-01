@@ -13,7 +13,8 @@ import TypeScript.ModuleResolver (ModuleId (..))
 newtype ProblemId = ProblemId
     { text :: Text
     }
-    deriving (Show, Eq, Ord, Hashable)
+    deriving stock (Show, Eq, Ord)
+    deriving newtype (Hashable)
 
 data Problem
     = LintProblem
