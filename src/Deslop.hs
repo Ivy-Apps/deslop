@@ -10,7 +10,11 @@ module Deslop (
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.AST (AstModule, parseAst)
+import Deslop.Baseline (applyBaseline, loadBaseline)
+import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
 import Deslop.RelativeImports (importAliases)
+import Deslop.RuleEnforcer (enforceRulebooks)
+import Deslop.Rulebook (Rulebook, loadRuleBook)
 import Effectful (Eff, IOE, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
@@ -95,7 +99,8 @@ doWork params _ = do
     bool fixResult checkModeResult params.checkMode
   where
     checkModeResult = do
-        ps <- getProblems
+        baseline <- loadBaseline params.projectPath
+        ps <- applyBaseline baseline <$> getProblems
         if null ps
             then
                 logNoProblemsFound
@@ -120,14 +125,24 @@ deslopProject ::
     Params ->
     Eff es ()
 deslopProject params = do
+    rulebookRes <- loadRuleBook params.projectPath
+    rulebook <- case rulebookRes of
+        Right rb -> pure rb
+        Left e -> throwError . RulebookErorr $ e
+
     cfg <- tsConfig params.projectPath
     files <- getTsFiles params.projectPath
-    (errors, _asts) <-
+    (lintErrors, asts) <-
         fmap partitionEithers
             . runReader @TsConfig cfg
             . runReader @Params params
             $ pooledMapConcurrentlyN 32 deslopFile files
-    traverse_ logError errors
+    traverse_ logError lintErrors
+    let mg = buildModuleGraph asts
+    runReader @[Rulebook] rulebook
+        . runReader @ModuleGraph mg
+        . traverse_ enforceRulebooks
+        $ asts
 
 deslopFile ::
     ( RoFileSystem :> es
@@ -141,7 +156,7 @@ deslopFile ::
     Eff es (Either String AstModule)
 deslopFile src = do
     c <- fsReadFile src
-    cstRes <- removeSlop src c
+    cstRes <- lintFile src c
     let c' = either (const c) renderProgram cstRes
     checkMode <- asks @Params (.checkMode)
     when (c /= c' && not checkMode) $ do
@@ -151,7 +166,7 @@ deslopFile src = do
   where
     renderProgram = TE.encodeUtf8 . render . (.cst)
 
-removeSlop ::
+lintFile ::
     ( Reader TsConfig :> es
     , ReportProblem :> es
     , RoFileSystem :> es
@@ -159,7 +174,7 @@ removeSlop ::
     AbsPath ->
     ByteString ->
     Eff es (Either String TsProgram)
-removeSlop p c =
+lintFile p c =
     traverse deslop . parseTs $
         TsFile {path = p, content = TE.decodeUtf8 c}
   where

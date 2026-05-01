@@ -1,9 +1,10 @@
 module Effects.ReportProblemSpec (spec) where
 
+import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
 import Effectful
 import Effects.ReportProblem
-import System.OsPath (osp)
 import Test.Hspec
+import TestUtils (rp)
 
 spec :: Spec
 spec = describe "Effects.ReportProblem" $ do
@@ -22,9 +23,8 @@ spec = describe "Effects.ReportProblem" $ do
         it "getProblems returns a single problem after report" $ do
             let problem =
                     LintProblem
-                        { rule = RuleId "P001"
-                        , location = Location {file = [osp|src/Foo.ts|], code = "x"}
-                        , severity = Error
+                        { lintRule = LintRuleId "P001"
+                        , location = Location {file = rp "src/Foo.ts", code = "x"}
                         , description = "Something wrong"
                         , fix = "Do this"
                         }
@@ -39,17 +39,15 @@ spec = describe "Effects.ReportProblem" $ do
         it "getProblems returns the reported problems" $ do
             let p1 =
                     LintProblem
-                        { rule = RuleId "P1"
-                        , location = Location {file = [osp|a.ts|], code = "1"}
-                        , severity = Error
+                        { lintRule = LintRuleId "P1"
+                        , location = Location {file = rp "a.ts", code = "1"}
                         , description = "First"
                         , fix = "fix1"
                         }
             let p2 =
                     LintProblem
-                        { rule = RuleId "P2"
-                        , location = Location {file = [osp|b.ts|], code = "2"}
-                        , severity = Error
+                        { lintRule = LintRuleId "P2"
+                        , location = Location {file = rp "b.ts", code = "2"}
                         , description = "Second"
                         , fix = "fix2"
                         }
@@ -65,9 +63,8 @@ spec = describe "Effects.ReportProblem" $ do
         it "report does not affect the return value of the action" $ do
             let problem =
                     LintProblem
-                        { rule = RuleId "P"
-                        , location = Location {file = [osp|f|], code = "c"}
-                        , severity = Error
+                        { lintRule = LintRuleId "P"
+                        , location = Location {file = rp "f", code = "c"}
                         , description = "desc"
                         , fix = "fix"
                         }

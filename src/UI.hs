@@ -15,8 +15,9 @@ module UI (
 
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
+import Deslop.Problem (Problem)
+import Deslop.ProblemFormatter (formatProblem)
 import Effects.FileSystem (decodeOsPath)
-import Effects.ReportProblem (Problem (..))
 import Fmt
 import System.Console.ANSI
 import System.IO (hPutStr)
@@ -54,7 +55,7 @@ newtype ProblemsLog = ProblemsLog [Problem]
 instance Buildable ProblemsLog where
     build (ProblemsLog ps) =
         mconcat $
-            intersperse "\n---------\n\n" (build <$> ps)
+            intersperse "\n---------\n\n" (build . formatProblem <$> ps)
 
 problemsLogText :: [Problem] -> Text
 problemsLogText = T.pack . pretty . ProblemsLog
@@ -95,3 +96,5 @@ humanReadable (TsConfigParseError path) =
     "Could not parse TS config, check: '" <> path <> "'"
 humanReadable CheckModeFoundProblems =
     "Problems found. Run without deslop without --check to fix."
+humanReadable (RulebookErorr msg) =
+    "Could not load Rulebook: " <> msg

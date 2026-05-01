@@ -9,6 +9,7 @@ module Deslop.Rulebook (
     Rulebook (..),
     Rule (..),
     Forbidden (..),
+    RulebookId (..),
     parseRuleBookYaml,
     ruleBookFromDto,
     ruleBookFromFile,
@@ -21,12 +22,15 @@ import Data.Text qualified as T
 import Data.Yaml (decodeEither')
 import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern, compileRulePattern, compileTargetPattern, parseRulePattern, parseTargetPattern)
 import Effectful
-import Effects.FileSystem (AbsPath, RoFileSystem, fsDirectoryExists, fsListDirectory, fsMkAbsolute, fsReadFile)
+import Effects.FileSystem (AbsPath, RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile, withAbsBaseUnsafe)
 import System.OsPath (OsPath, osp)
 import Text.Megaparsec (errorBundlePretty)
 
+newtype RulebookId = RulebookId Text deriving (Show, Eq, Ord)
+
 data Rulebook = Rulebook
-    { name :: Text
+    { id :: RulebookId
+    , name :: Text
     , description :: Text
     , rules :: [Rule]
     }
@@ -34,7 +38,7 @@ data Rulebook = Rulebook
 
 data ExecutionContext = UseClient | UseServer | Neutral deriving (Show, Eq, Ord)
 
-data Rule = ForbiddenRule
+data Rule = Rule
     { id :: RuleId
     , description :: Text
     , target :: CompiledTargetPattern
@@ -45,7 +49,7 @@ data Rule = ForbiddenRule
     , usesOptional :: Maybe (NonEmpty CompiledRulePattern)
     , exists :: Maybe (NonEmpty CompiledRulePattern)
     , example :: Maybe Text
-    , fix :: Maybe Text
+    , fix :: Text
     }
     deriving stock (Show)
 
@@ -56,7 +60,7 @@ data Forbidden
         { target :: CompiledRulePattern
         , transitive :: Bool
         }
-    | FunctionCall
+    | ForbiddenFunctionCall
         { functionName :: FunctionName
         }
     deriving stock (Show, Eq)
@@ -66,18 +70,13 @@ data Forbidden
 --------------------------------------------------------------------------------
 
 data RulebookDto = RulebookDto
-    { name :: Text
+    { id :: Text
+    , name :: Text
     , description :: Maybe Text
     , rules :: [RuleDto]
     }
     deriving stock (Show, Eq, Generic)
-
-instance FromJSON RulebookDto where
-    parseJSON = withObject "RulebookDto" $ \v ->
-        RulebookDto
-            <$> v .: "name"
-            <*> v .:? "description"
-            <*> v .: "rules"
+    deriving anyclass (FromJSON)
 
 data ExecutionContextDto = UseClientDto | UseServerDto deriving (Show, Eq)
 
@@ -98,27 +97,13 @@ data RuleDto = RuleDto
     , usesOptional :: Maybe [GlobDto]
     , exists :: Maybe [GlobDto]
     , example :: Maybe Text
-    , fix :: Maybe Text
+    , fix :: Text
     }
-    deriving stock (Show, Eq)
-
-instance FromJSON RuleDto where
-    parseJSON = withObject "RuleDto" $ \v ->
-        RuleDto
-            <$> v .: "id"
-            <*> v .:? "description"
-            <*> v .: "target"
-            <*> v .:? "exclude"
-            <*> v .:? "execution-context"
-            <*> v .:? "forbidden"
-            <*> v .:? "uses"
-            <*> v .:? "uses-optional"
-            <*> v .:? "exists"
-            <*> v .:? "example"
-            <*> v .:? "fix"
+    deriving stock (Show, Eq, Generic)
+    deriving anyclass (FromJSON)
 
 newtype RuleId = RuleId Text
-    deriving stock (Show, Eq)
+    deriving stock (Show, Eq, Ord)
     deriving newtype (FromJSON)
 
 data ForbiddenDto
@@ -147,8 +132,8 @@ newtype GlobDto = GlobDto Text
 rulesDir :: OsPath
 rulesDir = [osp|deslop/rules|]
 
-loadRuleBook :: (RoFileSystem :> es) => Eff es (Either Text [Rulebook])
-loadRuleBook = fsMkAbsolute rulesDir >>= loadRuleBookFrom
+loadRuleBook :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
+loadRuleBook projectPath = loadRuleBookFrom (withAbsBaseUnsafe projectPath rulesDir)
 
 loadRuleBookFrom :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
 loadRuleBookFrom dir = fsDirectoryExists dir >>= bool (pure . Right $ []) loadRules
@@ -175,7 +160,8 @@ ruleBookFromDto rbDto = do
     parsedRules <- traverse ruleFromDto rbDto.rules
     pure
         Rulebook
-            { name = rbDto.name
+            { id = RulebookId rbDto.id
+            , name = rbDto.name
             , description = fromMaybe "" rbDto.description
             , rules = parsedRules
             }
@@ -189,7 +175,7 @@ ruleFromDto dto = do
     compiledExists <- compileRuleGlobs dto.exists
     compiledForbidden <- compileForbiddens dto.forbidden
     pure
-        ForbiddenRule
+        Rule
             { id = dto.id
             , description = fromMaybe "" dto.description
             , target = compiledTarget
@@ -235,4 +221,4 @@ compileForbidden (ForbiddenImportDto (GlobDto s) transitive) = do
     pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
     pure ForbiddenImport {target = compileRulePattern pattern, transitive = fromMaybe False transitive}
 compileForbidden (FunctionCallDto name) =
-    pure FunctionCall {functionName = FunctionName name}
+    pure ForbiddenFunctionCall {functionName = FunctionName name}

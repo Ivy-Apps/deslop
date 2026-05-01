@@ -1,8 +1,4 @@
 module Effects.ReportProblem (
-    Location (..),
-    RuleId (..),
-    Severity (..),
-    Problem (..),
     ReportProblem,
     report,
     getProblems,
@@ -10,44 +6,9 @@ module Effects.ReportProblem (
 ) where
 
 import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO, readTVarIO)
-import Data.Text qualified as T
+import Deslop.Problem (Problem)
 import Effectful
 import Effectful.Dispatch.Dynamic
-import Effects.FileSystem (decodeOsPath)
-import Fmt (Buildable (..), (+|), (|+))
-import System.OsPath (OsPath)
-
-data Location = Location
-    { file :: OsPath
-    , code :: Text
-    }
-    deriving stock (Eq, Show, Ord)
-
-newtype RuleId = RuleId Text
-    deriving stock (Eq, Show, Ord)
-
-data Severity = Error
-    deriving stock (Eq, Show, Ord)
-
-data Problem = LintProblem
-    { rule :: RuleId
-    , location :: Location
-    , severity :: Severity
-    , description :: Text
-    , fix :: Text
-    }
-    deriving stock (Eq, Show, Ord)
-
-instance Buildable Problem where
-    build p =
-        let (RuleId ruleId) = p.rule
-         in problemHeader ruleId <> description <> code <> fixText
-      where
-        problemHeader ruleId =
-            "# " +| decodeOsPath p.location.file |+ ": " +| ruleId |+ "\n"
-        code = "```ts\n" +| T.strip p.location.code |+ "\n```\n"
-        description = "" +| p.description |+ "\n"
-        fixText = "FIX: " +| T.strip p.fix |+ ""
 
 data ReportProblem :: Effect where
     Report :: Problem -> ReportProblem m ()

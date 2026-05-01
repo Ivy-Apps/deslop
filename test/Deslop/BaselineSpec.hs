@@ -1,0 +1,102 @@
+module Deslop.BaselineSpec (spec) where
+
+import Deslop.Baseline (applyBaseline, loadBaselineFromFile)
+import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
+import Deslop.Rulebook (RuleId (..), RulebookId (..))
+import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, runMockRoFileSystem)
+import Effectful (IOE, runEff)
+import Effects.FileSystem (AbsPath, absPathUnsafe, encodeOsPath, relativePathUnsafe)
+import Test.Hspec (Spec, describe, it, shouldBe)
+import TypeScript.ModuleResolver (moduleIdUnsafe)
+
+testPath :: AbsPath
+testPath = absPathUnsafe (encodeOsPath "/test/baseline.yaml")
+
+runTest :: MockRoFileSystem '[IOE] -> [Problem] -> IO [Problem]
+runTest mocks problems = runEff . runMockRoFileSystem mocks $ do
+    baseline <- loadBaselineFromFile testPath
+    pure $ applyBaseline baseline problems
+
+mockWithFile :: ByteString -> MockRoFileSystem '[IOE]
+mockWithFile content =
+    defaultMockRoFileSystem
+        { mockFileExists = \_ -> pure True
+        , mockReadFile = \_ -> pure content
+        }
+
+problemA :: Problem
+problemA =
+    RuleViolation
+        { rulebook = RulebookId "rb"
+        , rule = RuleId "rule"
+        , badModule = moduleIdUnsafe "modA"
+        , description = "problem A"
+        , fix = "fix A"
+        }
+
+problemB :: Problem
+problemB =
+    RuleViolation
+        { rulebook = RulebookId "rb"
+        , rule = RuleId "rule"
+        , badModule = moduleIdUnsafe "modB"
+        , description = "problem B"
+        , fix = "fix B"
+        }
+
+-- problemId for RuleViolation = rbId <> "#" <> rId <> "#" <> moduleId
+-- so problemA's id = "rb#rule#modA", problemB's id = "rb#rule#modB"
+-- problemId for LintProblem = rId <> "#" <> filePath
+-- so problemC's id = "lint-rule#src/file.ts"
+
+problemC :: Problem
+problemC =
+    LintProblem
+        { lintRule = LintRuleId "lint-rule"
+        , location = Location{file = relativePathUnsafe (encodeOsPath "src/file.ts"), code = "bad code"}
+        , description = "problem C"
+        , fix = "fix C"
+        }
+
+spec :: Spec
+spec = describe "Deslop.Baseline" $ do
+    describe "load and apply baseline" $ do
+        it "no baseline file -> passes all problems through" $ do
+            let mocks = defaultMockRoFileSystem {mockFileExists = \_ -> pure False}
+            result <- runTest mocks [problemA, problemB]
+            result `shouldBe` [problemA, problemB]
+
+        it "empty YAML list -> passes all problems through" $ do
+            result <- runTest (mockWithFile "[]\n") [problemA, problemB]
+            result `shouldBe` [problemA, problemB]
+
+        it "all problems in baseline -> returns empty list" $ do
+            let yaml = "- rb#rule#modA\n- rb#rule#modB\n"
+            result <- runTest (mockWithFile yaml) [problemA, problemB]
+            result `shouldBe` []
+
+        it "partial baseline -> filters only matched problems" $ do
+            let yaml = "- rb#rule#modA\n"
+            result <- runTest (mockWithFile yaml) [problemA, problemB]
+            result `shouldBe` [problemB]
+
+        it "invalid YAML -> passes all problems through" $ do
+            let yaml = "not: valid: yaml: list\n"
+            result <- runTest (mockWithFile yaml) [problemA, problemB]
+            result `shouldBe` [problemA, problemB]
+
+        it "LintProblem in baseline -> filters it out" $ do
+            let yaml = "- lint-rule#src/file.ts\n"
+            result <- runTest (mockWithFile yaml) [problemA, problemC]
+            result `shouldBe` [problemA]
+
+        it "baseline with comments -> still parses and filters correctly" $ do
+            let yaml =
+                    "# Known/accepted violations\n\
+                    \# Format: {rulebook-id}#{rule-id}#{module-id}\n\
+                    \- rb#rule#modA\n\
+                    \# This one is intentionally kept:\n\
+                    \# - rb#rule#modB\n\
+                    \- lint-rule#src/file.ts\n"
+            result <- runTest (mockWithFile yaml) [problemA, problemB, problemC]
+            result `shouldBe` [problemB]

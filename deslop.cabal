@@ -1,6 +1,6 @@
 cabal-version:   3.0
 name:            deslop
-version:         0.5.24
+version:         0.6.0
 license:         BSD-3-Clause
 license-file:    LICENSE
 author:          Ivy Apps LTD
@@ -54,6 +54,8 @@ library
     Deslop.CodeGraph
     Deslop.GlobPlus
     Deslop.MCP
+    Deslop.Problem
+    Deslop.ProblemFormatter
     Deslop.RelativeImports
     Deslop.Rulebook
     Deslop.RuleEnforcer
@@ -84,6 +86,7 @@ library
     , aeson
     , aeson-pretty
     , ansi-terminal
+    , array
     , attoparsec
     , attoparsec-aeson
     , bytestring
@@ -123,9 +126,14 @@ test-suite deslop-test
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
     Deslop.ASTSpec
+    Deslop.BaselineSpec
+    Deslop.CodeGraphSpec
     Deslop.GlobPlusSpec
+    Deslop.ProblemFormatterSpec
+    Deslop.ProblemSpec
     Deslop.RelativeImportSpec
     Deslop.RulebookSpec
+    Deslop.RuleEnforcerSpec
     Doubles.FileSystem
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec

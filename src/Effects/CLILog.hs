@@ -12,10 +12,10 @@ module Effects.CLILog (
 import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Data.Text qualified as T
+import Deslop.Problem (Problem)
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.FileSystem (AbsPath (..), decodeOsPath)
-import Effects.ReportProblem (Problem)
 import Fmt (fmt, pretty, (+|), (|+))
 import Params (Params (..))
 import System.Console.ANSI

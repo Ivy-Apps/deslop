@@ -8,6 +8,9 @@ module Effects.FileSystem (
     RoFileSystem (..),
     WrFileSystem (..),
     AbsPath (osPath),
+    RelativePath (osPath),
+    relativePathUnsafe,
+    relativePathTo,
     fsFileExists,
     fsReadFile,
     fsWriteFile,
@@ -25,7 +28,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
-import System.OsPath (OsPath, decodeUtf, encodeUtf, (</>))
+import System.OsPath (OsPath, decodeUtf, encodeUtf, makeRelative, (</>))
 
 encodeOsPath :: Text -> OsPath
 encodeOsPath = encodeOsPathString . T.unpack
@@ -44,7 +47,7 @@ decodeOsPath = either handleErr T.pack . runCatch . decodeUtf
 newtype AbsPath = AbsPath
     { osPath :: OsPath
     }
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
 
 absPathUnsafe :: OsPath -> AbsPath
 absPathUnsafe = AbsPath
@@ -54,6 +57,17 @@ withAbsBaseUnsafe (AbsPath b) p = AbsPath (b </> p)
 
 withAbsBaseSafe :: AbsPath -> OsPath -> OsPath
 withAbsBaseSafe (AbsPath b) p = b </> p
+
+newtype RelativePath = RelativePath
+    { osPath :: OsPath
+    }
+    deriving (Show, Eq, Ord)
+
+relativePathUnsafe :: OsPath -> RelativePath
+relativePathUnsafe = RelativePath
+
+relativePathTo :: AbsPath -> AbsPath -> RelativePath
+relativePathTo (AbsPath base) (AbsPath target) = RelativePath $ makeRelative base target
 
 data RoFileSystem :: Effect where
     ReadFile :: AbsPath -> RoFileSystem m ByteString

@@ -1,11 +1,12 @@
 module Deslop.RelativeImportSpec (spec) where
 
+import Deslop.Problem (LintRuleId (..), Problem (..))
 import Deslop.RelativeImports (importAliases)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.FileSystem (absPathUnsafe)
-import Effects.ReportProblem (Problem (..), RuleId (..), getProblems, runReportProblem)
+import Effects.ReportProblem (getProblems, runReportProblem)
 import System.OsPath (osp)
 import Test.Hspec
 import TestUtils (defaultTsConfig)
@@ -40,8 +41,8 @@ spec = describe "Deslop.RelativeImport" $ do
             map (.target) result.cst `shouldBe` ["@/lib/welcome"]
             length problems `shouldBe` 1
             case problems of
-                (LintProblem {rule = r} : _) -> r `shouldBe` RuleId "no-relative-imports"
-                [] -> expectationFailure "expected at least one problem"
+                (LintProblem {lintRule = r} : _) -> r `shouldBe` LintRuleId "no-relative-imports"
+                _ -> expectationFailure "expected at least one problem"
 
         it "converts a same-dir relative import to an alias" $ do
             let prog =
@@ -56,8 +57,8 @@ spec = describe "Deslop.RelativeImport" $ do
             map (.target) result.cst `shouldBe` ["@/features/home/useHomeViewModel"]
             length problems `shouldBe` 1
             case problems of
-                (LintProblem {rule = r} : _) -> r `shouldBe` RuleId "no-relative-imports"
-                [] -> expectationFailure "expected at least one problem"
+                (LintProblem {lintRule = r} : _) -> r `shouldBe` LintRuleId "no-relative-imports"
+                _ -> expectationFailure "expected at least one problem"
 
         it "converts a relative import crossing into the test directory" $ do
             let prog =

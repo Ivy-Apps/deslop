@@ -196,6 +196,11 @@ matchTarget ctp targetPath =
 getDirName :: Text -> Text
 getDirName = maybe "." (T.intercalate "/" . init) . nonEmpty . T.splitOn "/"
 
+-- TODO(perf): `matchRule` currently recompiles the hydrated regex on every call.
+-- Fix: eta-reduce to `matchRule crp env = let regexObj = makeRegex ... in match regexObj`
+-- so the Regex is compiled once when partially applied to `(crp, env)`, and bind
+-- `matchRule p e` to a `let`/`where` name at each call site to guarantee sharing
+-- across the inner loop (e.g. the transitive reachability traverse in RuleEnforcer).
 matchRule :: CompiledRulePattern -> MatchEnv -> Text -> Bool
 matchRule crp env targetPath =
     let regexStr = T.concat (map resolveChunk crp.chunks)
