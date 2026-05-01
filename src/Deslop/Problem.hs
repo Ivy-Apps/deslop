@@ -49,7 +49,7 @@ problemId
             Location
                 { file = relPath
                 }
-        } = ProblemId $ rId <> "#" <> (decodeOsPath relPath.osPath)
+        } = ProblemId $ rId <> "#" <> decodeOsPath relPath.osPath
 problemId
     p@RuleViolation
         { rulebook = RulebookId rbId

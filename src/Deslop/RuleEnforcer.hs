@@ -73,11 +73,9 @@ enforceRule m rule = case isTarget m.id rule of
         ) =>
         MatchEnv -> Eff es ()
     execute env =
-        case rule.forbidden of
-            Just fs -> traverse_ (executeForbidden m env) fs
-            Nothing -> pure ()
+        for_ rule.forbidden (traverse_ (executeForbidden m env))
 
-isTarget :: ModuleId -> Rule -> (Maybe MatchEnv)
+isTarget :: ModuleId -> Rule -> Maybe MatchEnv
 isTarget moduleId rule = case matchTarget rule.target moduleId.text of
     Just env ->
         if isExcluded (toList <$> rule.exclude)

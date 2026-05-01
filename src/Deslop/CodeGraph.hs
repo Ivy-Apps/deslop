@@ -112,4 +112,3 @@ findKnownPath from to = do
              in
                 bfs (IntSet.singleton vFrom) (Seq.singleton (vFrom, []))
         _ -> error "Invariant violated: ModuleIds do not exist in graph."
-  where

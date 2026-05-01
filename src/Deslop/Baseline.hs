@@ -18,7 +18,7 @@ import System.OsPath (OsPath, osp)
 newtype Baseline = Baseline (HashSet ProblemId) deriving (Show, Eq)
 
 applyBaseline :: Baseline -> [Problem] -> [Problem]
-applyBaseline (Baseline bs) ps = filter (not . (`HS.member` bs) . problemId) ps
+applyBaseline (Baseline bs) = filter (not . (`HS.member` bs) . problemId)
 
 emptyBaseline :: Baseline
 emptyBaseline = Baseline HS.empty
