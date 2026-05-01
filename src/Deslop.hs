@@ -10,6 +10,7 @@ module Deslop (
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.AST (AstModule, parseAst)
+import Deslop.Baseline (applyBaseline, loadBaseline)
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
 import Deslop.RelativeImports (importAliases)
 import Deslop.RuleEnforcer (enforceRulebooks)
@@ -98,7 +99,8 @@ doWork params _ = do
     bool fixResult checkModeResult params.checkMode
   where
     checkModeResult = do
-        ps <- getProblems
+        baseline <- loadBaseline
+        ps <- applyBaseline baseline <$> getProblems
         if null ps
             then
                 logNoProblemsFound
