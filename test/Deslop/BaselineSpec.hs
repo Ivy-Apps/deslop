@@ -89,3 +89,14 @@ spec = describe "Deslop.Baseline" $ do
             let yaml = "- lint-rule#src/file.ts\n"
             result <- runTest (mockWithFile yaml) [problemA, problemC]
             result `shouldBe` [problemA]
+
+        it "baseline with comments -> still parses and filters correctly" $ do
+            let yaml =
+                    "# Known/accepted violations\n\
+                    \# Format: {rulebook-id}#{rule-id}#{module-id}\n\
+                    \- rb#rule#modA\n\
+                    \# This one is intentionally kept:\n\
+                    \# - rb#rule#modB\n\
+                    \- lint-rule#src/file.ts\n"
+            result <- runTest (mockWithFile yaml) [problemA, problemB, problemC]
+            result `shouldBe` [problemB]
