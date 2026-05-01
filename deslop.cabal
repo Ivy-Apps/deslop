@@ -86,6 +86,7 @@ library
     , aeson
     , aeson-pretty
     , ansi-terminal
+    , array
     , attoparsec
     , attoparsec-aeson
     , bytestring

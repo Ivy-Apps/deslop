@@ -6,11 +6,15 @@ module Deslop.CodeGraph (
     buildModuleGraph,
     hasPath,
     reachableFrom,
-    findPath,
+    findKnownPath,
 ) where
 
-import Data.Graph (Graph, Vertex, dfs, graphFromEdges, path, reachable)
-import Data.Tree (Tree (..))
+import Data.Array ((!))
+import Data.Graph (Graph, Vertex, graphFromEdges, path, reachable)
+import Data.IntSet qualified as IntSet
+import Data.List.NonEmpty qualified as NE
+import Data.Sequence (Seq (..), (|>))
+import Data.Sequence qualified as Seq
 import Data.Set qualified as Set
 import Deslop.AST (AstModule (..), AstNode (..))
 import Effectful (Eff, (:>))
@@ -77,20 +81,32 @@ reachableFrom from = do
             , let (_, mid, _) = mg.nodeFromV v
             ]
 
--- | Returns the DFS path from @from@ to @to@, or @Nothing@ if unreachable.
-findPath :: (Reader ModuleGraph :> es) => ModuleId -> ModuleId -> Eff es (Maybe (NonEmpty ModuleId))
-findPath from to = do
+{- | Returns the shortest dependency path.
+ASSUMES: A path is guaranteed to exist between @from@ and @to@.
+-}
+findKnownPath :: (Reader ModuleGraph :> es) => ModuleId -> ModuleId -> Eff es (NonEmpty ModuleId)
+findKnownPath from to = do
     mg <- ask @ModuleGraph
-    pure $ do
-        vFrom <- mg.vertexFromId from
-        vTo <- mg.vertexFromId to
-        let toId v = let (_, mid, _) = mg.nodeFromV v in mid
-        listToMaybe $ mapMaybe (searchTree toId vTo []) (dfs mg.graph [vFrom])
-  where
-    searchTree :: (Vertex -> ModuleId) -> Vertex -> [ModuleId] -> Tree Vertex -> Maybe (NonEmpty ModuleId)
-    searchTree toId target ancestors (Node v children) =
-        let mid = toId v
-            pathSoFar = ancestors ++ [mid]
-         in if v == target
-                then nonEmpty pathSoFar
-                else listToMaybe $ mapMaybe (searchTree toId target pathSoFar) children
+    pure $ case (mg.vertexFromId from, mg.vertexFromId to) of
+        (Just vFrom, Just vTo) ->
+            let
+                toId v = let (_, mid, _) = mg.nodeFromV v in mid
+
+                -- Standard BFS loop using IntSet for O(1) cycle detection
+                bfs _ Seq.Empty =
+                    error "Invariant violated: Path guaranteed but not found."
+                bfs visited ((v, pathAcc) :<| queue)
+                    | v == vTo =
+                        -- Path found: Map to IDs and reverse the accumulator
+                        NE.fromList . map toId $ reverse (v : pathAcc)
+                    | otherwise =
+                        -- graph ! v is O(1) adjacency list lookup
+                        let neighbors = filter (`IntSet.notMember` visited) (mg.graph ! v)
+
+                            -- Mark neighbors as visited BEFORE enqueuing to prevent queue bloat
+                            visited' = foldr IntSet.insert visited neighbors
+                            queue' = foldl' (\q n -> q |> (n, v : pathAcc)) queue neighbors
+                         in bfs visited' queue'
+             in
+                bfs (IntSet.singleton vFrom) (Seq.singleton (vFrom, []))
+        _ -> error "Invariant violated: ModuleIds do not exist in graph."

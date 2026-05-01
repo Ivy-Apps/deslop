@@ -1,7 +1,7 @@
 module Deslop.CodeGraphSpec (spec) where
 
 import Deslop.AST (AstModule (..), AstNode (..))
-import Deslop.CodeGraph (buildModuleGraph, findPath, hasPath, reachableFrom)
+import Deslop.CodeGraph (buildModuleGraph, findKnownPath, hasPath, reachableFrom)
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
 import Test.Hspec
@@ -29,12 +29,12 @@ runReachableFrom from modules =
         . runReader (buildModuleGraph modules)
         $ reachableFrom from.id
 
-runFindPath :: AstModule -> AstModule -> [AstModule] -> Maybe [Text]
-runFindPath from to modules =
-    fmap (map (.text) . toList)
+runFindKnownPath :: AstModule -> AstModule -> [AstModule] -> [Text]
+runFindKnownPath from to modules =
+    map (.text) . toList
         . runPureEff
         . runReader (buildModuleGraph modules)
-        $ findPath from.id to.id
+        $ findKnownPath from.id to.id
 
 spec :: Spec
 spec = describe "Deslop.CodeGraph" $ do
@@ -101,34 +101,24 @@ spec = describe "Deslop.CodeGraph" $ do
                 c = mkModule "c" ["a"]
             runReachableFrom a [a, b, c] `shouldBe` ["a", "b", "c"]
 
-    describe "findPath" $ do
-        it "returns Nothing when target is unreachable" $ do
-            let a = mkModule "a" ["b"]
-                b = mkModule "b" []
-                c = mkModule "c" []
-            runFindPath a c [a, b, c] `shouldBe` Nothing
-
-        it "returns Nothing when source is not in the graph" $ do
-            let a = mkModule "a" []
-                unknown = mkModule "unknown" []
-            runFindPath unknown a [a] `shouldBe` Nothing
-
+    describe "findKnownPath" $ do
         it "returns single-element path for self" $ do
             let a = mkModule "a" []
-            runFindPath a a [a] `shouldBe` Just ["a"]
+            runFindKnownPath a a [a] `shouldBe` ["a"]
 
         it "returns direct path" $ do
             let a = mkModule "a" ["b"]
                 b = mkModule "b" []
-            runFindPath a b [a, b] `shouldBe` Just ["a", "b"]
+            runFindKnownPath a b [a, b] `shouldBe` ["a", "b"]
+
+        it "returns shortest path" $ do
+            let a = mkModule "a" ["b", "c"]
+                b = mkModule "b" ["c"]
+                c = mkModule "c" []
+            runFindKnownPath a c [a, b, c] `shouldBe` ["a", "c"]
 
         it "returns multi-hop path" $ do
             let a = mkModule "a" ["b"]
                 b = mkModule "b" ["c"]
                 c = mkModule "c" []
-            runFindPath a c [a, b, c] `shouldBe` Just ["a", "b", "c"]
-
-        it "returns Nothing in reverse direction" $ do
-            let a = mkModule "a" ["b"]
-                b = mkModule "b" []
-            runFindPath b a [a, b] `shouldBe` Nothing
+            runFindKnownPath a c [a, b, c] `shouldBe` ["a", "b", "c"]
