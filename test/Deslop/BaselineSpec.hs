@@ -1,11 +1,11 @@
 module Deslop.BaselineSpec (spec) where
 
 import Deslop.Baseline (applyBaseline, loadBaselineFromFile)
-import Deslop.Problem (Problem (..))
+import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
 import Deslop.Rulebook (RuleId (..), RulebookId (..))
 import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, runMockRoFileSystem)
 import Effectful (IOE, runEff)
-import Effects.FileSystem (AbsPath, absPathUnsafe, encodeOsPath)
+import Effects.FileSystem (AbsPath, absPathUnsafe, encodeOsPath, relativePathUnsafe)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 
@@ -46,30 +46,46 @@ problemB =
 
 -- problemId for RuleViolation = rbId <> "#" <> rId <> "#" <> moduleId
 -- so problemA's id = "rb#rule#modA", problemB's id = "rb#rule#modB"
+-- problemId for LintProblem = rId <> "#" <> filePath
+-- so problemC's id = "lint-rule#src/file.ts"
+
+problemC :: Problem
+problemC =
+    LintProblem
+        { lintRule = LintRuleId "lint-rule"
+        , location = Location{file = relativePathUnsafe (encodeOsPath "src/file.ts"), code = "bad code"}
+        , description = "problem C"
+        , fix = "fix C"
+        }
 
 spec :: Spec
 spec = describe "Deslop.Baseline" $ do
     describe "load and apply baseline" $ do
-        it "returns empty baseline when file does not exist" $ do
+        it "no baseline file -> passes all problems through" $ do
             let mocks = defaultMockRoFileSystem {mockFileExists = \_ -> pure False}
             result <- runTest mocks [problemA, problemB]
             result `shouldBe` [problemA, problemB]
 
-        it "returns empty baseline for an empty YAML list" $ do
+        it "empty YAML list -> passes all problems through" $ do
             result <- runTest (mockWithFile "[]\n") [problemA, problemB]
             result `shouldBe` [problemA, problemB]
 
-        it "filters problems whose IDs are in the baseline" $ do
+        it "all problems in baseline -> returns empty list" $ do
             let yaml = "- rb#rule#modA\n- rb#rule#modB\n"
             result <- runTest (mockWithFile yaml) [problemA, problemB]
             result `shouldBe` []
 
-        it "filters only the matching problem and keeps the rest" $ do
+        it "partial baseline -> filters only matched problems" $ do
             let yaml = "- rb#rule#modA\n"
             result <- runTest (mockWithFile yaml) [problemA, problemB]
             result `shouldBe` [problemB]
 
-        it "returns empty baseline for invalid YAML" $ do
+        it "invalid YAML -> passes all problems through" $ do
             let yaml = "not: valid: yaml: list\n"
             result <- runTest (mockWithFile yaml) [problemA, problemB]
             result `shouldBe` [problemA, problemB]
+
+        it "LintProblem in baseline -> filters it out" $ do
+            let yaml = "- lint-rule#src/file.ts\n"
+            result <- runTest (mockWithFile yaml) [problemA, problemC]
+            result `shouldBe` [problemA]
