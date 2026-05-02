@@ -144,14 +144,23 @@ FIX: Use ```import { HomeScreen } from "@/features/home/home-screen";``` instead
 
 # architecture#no-react-transitively-in-data#@/features/home/data/bad-repository
 Module '@/features/home/data/bad-repository' transitively imports 'react' via: @/features/home/data/bad-repository → @/features/home/home-screen → react.
+```ts
+import { HomeScreen } from "@/features/home/home-screen";
+```
 FIX: Remove any imports that transitively pull in React. Data layer modules must only import from @/lib, external non-React packages, or other framework-agnostic modules. Move any React-dependent logic to a ViewModel or Container in the features layer.
 ---------
 
 # architecture#no-react-transitively-in-data#@/features/profile/data/profile-repository
 Module '@/features/profile/data/profile-repository' transitively imports 'react' via: @/features/profile/data/profile-repository → @/features/home/home-screen → react.
+```ts
+import { HomeScreen } from "@/features/home/home-screen";
+```
 FIX: Remove any imports that transitively pull in React. Data layer modules must only import from @/lib, external non-React packages, or other framework-agnostic modules. Move any React-dependent logic to a ViewModel or Container in the features layer.
 ---------
 
 # architecture#no-tests-import-in-features#@/features/home/home.spec
 Module '@/features/home/home.spec' directly imports '@tests/test-log'.
+```ts
+import * from "@tests/test-log"
+```
 FIX: Remove the import from the tests directory. If you need shared data structures, move them to @/lib or @/features instead.

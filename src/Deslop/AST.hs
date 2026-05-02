@@ -12,8 +12,9 @@ import TypeScript.CST (TsNode (..), TsProgram (cst, path))
 import TypeScript.Config (TsConfig)
 import TypeScript.ModuleResolver (ModuleId (..), dropTypeScriptExtension, moduleIdUnsafe)
 
-newtype AstNode = ImportNode
+data AstNode = ImportNode
     { target :: ModuleId
+    , rawStatement :: Text
     }
     deriving stock (Show, Eq)
 data AstModule = AstModule
@@ -33,9 +34,10 @@ parseAst prog = do
   where
     programModuleId = fixTarget prog.path (decodeOsPath . dropTypeScriptExtension $ prog.path.osPath)
     parseNode :: TsNode -> Maybe AstNode
-    parseNode (Import _ t _) =
+    parseNode (Import pre t suf) =
         Just $
             ImportNode
                 { target = moduleIdUnsafe t
+                , rawStatement = pre <> t <> suf
                 }
     parseNode _ = Nothing

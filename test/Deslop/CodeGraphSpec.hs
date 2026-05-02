@@ -1,10 +1,11 @@
 module Deslop.CodeGraphSpec (spec) where
 
-import Deslop.AST (AstModule (..), AstNode (..))
+import Deslop.AST (AstModule (..))
 import Deslop.CodeGraph (buildModuleGraph, findKnownPath, hasPath, reachableFrom)
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
 import Test.Hspec
+import TestUtils (mkImportNode)
 import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe)
 
 -- | Build a minimal AstModule with given id and import targets.
@@ -12,7 +13,7 @@ mkModule :: Text -> [Text] -> AstModule
 mkModule i targets =
     AstModule
         { id = moduleIdUnsafe i
-        , nodes = [ImportNode {target = moduleIdUnsafe t} | t <- targets]
+        , nodes = map mkImportNode targets
         }
 
 runHasPath :: AstModule -> AstModule -> [AstModule] -> Bool

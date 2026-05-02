@@ -1,6 +1,6 @@
 module Deslop.RuleEnforcerSpec (spec) where
 
-import Deslop.AST (AstModule (..), AstNode (..))
+import Deslop.AST (AstModule (..))
 import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Problem (Problem (..))
 import Deslop.RuleEnforcer (enforceRulebooks)
@@ -9,13 +9,14 @@ import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Test.Hspec (Spec, describe, it, shouldBe)
+import TestUtils (mkImportNode)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 
 mkModule :: Text -> [Text] -> AstModule
 mkModule mid deps =
     AstModule
         { id = moduleIdUnsafe mid
-        , nodes = [ImportNode {target = moduleIdUnsafe d} | d <- deps]
+        , nodes = map mkImportNode deps
         }
 
 testRulebook :: Rulebook
@@ -123,7 +124,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
             let m =
                     AstModule
                         { id = moduleIdUnsafe "@/components/Button"
-                        , nodes = [ImportNode {target = moduleIdUnsafe "react"}]
+                        , nodes = [mkImportNode "react"]
                         }
             problems <- runTest m
             problems `shouldBe` []
@@ -132,7 +133,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
             let m =
                     AstModule
                         { id = moduleIdUnsafe "@/components/Button"
-                        , nodes = [ImportNode {target = moduleIdUnsafe "@/forbidden/module"}]
+                        , nodes = [mkImportNode "@/forbidden/module"]
                         }
             problems <- runTest m
             problems
@@ -140,7 +141,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbidden-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' directly imports '@/forbidden/module'."
+                                , description = "Module '@/components/Button' directly imports '@/forbidden/module'.\n```ts\nimport { ... } from '@/forbidden/module'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -161,7 +162,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbidden-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store' via: @/components/Button → @/forbidden/store."
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store' via: @/components/Button → @/forbidden/store.\n```ts\nimport { ... } from '@/forbidden/store'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -176,7 +177,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbidden-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store' via: @/components/Button → @/lib/util → @/forbidden/store."
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store' via: @/components/Button → @/lib/util → @/forbidden/store.\n```ts\nimport { ... } from '@/lib/util'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -193,14 +194,14 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbidden-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeA' via: @/components/Button → @/lib/util → @/forbidden/storeA."
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeA' via: @/components/Button → @/lib/util → @/forbidden/storeA.\n```ts\nimport { ... } from '@/lib/util'\n```"
                                 , fix = "Remove the import"
                                 }
                            , RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbidden-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeB' via: @/components/Button → @/lib/helpers → @/forbidden/storeB."
+                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeB' via: @/components/Button → @/lib/helpers → @/forbidden/storeB.\n```ts\nimport { ... } from '@/lib/helpers'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -216,7 +217,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "domain-rules"
                                 , rule = RuleId "no-react-in-domain"
                                 , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
-                                , description = "Module '@/domain/LoginUseCase' transitively imports 'react' via: @/domain/LoginUseCase → @/domain/UserRepository → @/infrastructure/HttpClient → react."
+                                , description = "Module '@/domain/LoginUseCase' transitively imports 'react' via: @/domain/LoginUseCase → @/domain/UserRepository → @/infrastructure/HttpClient → react.\n```ts\nimport { ... } from '@/domain/UserRepository'\n```"
                                 , fix = "Move React dependencies out of the domain layer."
                                 }
                            ]

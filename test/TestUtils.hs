@@ -22,9 +22,12 @@ module TestUtils (
     ap,
     rp,
     baselineOf,
+    mkImportNode,
 ) where
 
 import Control.Exception (throwIO)
+import Deslop.AST (AstNode (..))
+import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Control.Exception.Base (AssertionFailed (..))
 import Data.HashSet qualified as HS
 import Deslop.Baseline (Baseline (..))
@@ -173,3 +176,11 @@ rp = relativePathUnsafe . encodeOsPath
 
 baselineOf :: [Text] -> Baseline
 baselineOf = Baseline . HS.fromList . fmap ProblemId
+
+-- | Constructs an ImportNode with a realistic raw import statement.
+mkImportNode :: Text -> AstNode
+mkImportNode t =
+    ImportNode
+        { target = moduleIdUnsafe t
+        , rawStatement = "import { ... } from '" <> t <> "'"
+        }
