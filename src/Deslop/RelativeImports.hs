@@ -24,6 +24,7 @@ noRelativeImports (old, new) projectPath modulePath =
         , location = Location {file = relativePathTo projectPath modulePath, code = render old}
         , description = "Relative imports are not allowed. Use aliased ones."
         , fix = "Use ```" <> render new <> "``` instead."
+        , autoFixable = True
         }
 
 importAliases ::
@@ -39,7 +40,7 @@ importAliases prog = do
   where
     fixImport old@(Import _ t _) = do
         t' <- (.text) <$> fixTarget prog.path t
-        if (t /= t')
+        if t /= t'
             then do
                 let new = old {target = t'}
                 projPath <- asks @TsConfig (.baseUrl)

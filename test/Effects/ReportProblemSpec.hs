@@ -27,6 +27,7 @@ spec = describe "Effects.ReportProblem" $ do
                         , location = Location {file = rp "src/Foo.ts", code = "x"}
                         , description = "Something wrong"
                         , fix = "Do this"
+                        , autoFixable = False
                         }
             problems <-
                 runEff
@@ -43,6 +44,7 @@ spec = describe "Effects.ReportProblem" $ do
                         , location = Location {file = rp "a.ts", code = "1"}
                         , description = "First"
                         , fix = "fix1"
+                        , autoFixable = False
                         }
             let p2 =
                     LintProblem
@@ -50,6 +52,7 @@ spec = describe "Effects.ReportProblem" $ do
                         , location = Location {file = rp "b.ts", code = "2"}
                         , description = "Second"
                         , fix = "fix2"
+                        , autoFixable = False
                         }
             problems <-
                 runEff
@@ -67,6 +70,7 @@ spec = describe "Effects.ReportProblem" $ do
                         , location = Location {file = rp "f", code = "c"}
                         , description = "desc"
                         , fix = "fix"
+                        , autoFixable = True
                         }
             result <-
                 runEff

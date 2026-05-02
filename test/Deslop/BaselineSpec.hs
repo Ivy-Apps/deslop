@@ -59,6 +59,7 @@ problemC =
         , location = Location{file = relativePathUnsafe (encodeOsPath "src/file.ts"), code = "bad code"}
         , description = "problem C"
         , fix = "fix C"
+        , autoFixable = False
         }
 
 spec :: Spec

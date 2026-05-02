@@ -233,6 +233,52 @@ spec = describe "Deslop.GlobPlus" $ do
             let pat = unsafeCompileRule "**"
             moduleFromGlob env pat `shouldBe` Nothing
 
+    describe "Deslop.GlobPlus.renderRulePattern" $ do
+        let env =
+                MatchEnv
+                    { targetDir = "@/features/auth"
+                    , casings =
+                        Map.fromList
+                            [ (PascalCase, "UserAuth")
+                            , (CamelCase, "userAuth")
+                            , (KebabCase, "user-auth")
+                            , (ConstantCase, "USER_AUTH")
+                            ]
+                    }
+
+        it "substitutes TARGET_DIR and FileName into a concrete path" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}StateEvent"
+            renderRulePattern env pat `shouldBe` "@/features/auth/UserAuthStateEvent"
+
+        it "substitutes TARGET_DIR and file-name into a kebab-case path" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{file-name}}-repository"
+            renderRulePattern env pat `shouldBe` "@/features/auth/user-auth-repository"
+
+        it "substitutes TARGET_DIR and use{{FileName}}ViewModel pattern" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+            renderRulePattern env pat `shouldBe` "@/features/auth/useUserAuthViewModel"
+
+        it "keeps * wildcards literally" $ do
+            let pat = unsafeCompileRule "@/features/**/*Container"
+            renderRulePattern env pat `shouldBe` "@/features/**/*Container"
+
+        it "keeps ** wildcards literally" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/**/*.spec"
+            renderRulePattern env pat `shouldBe` "@/features/auth/**/*.spec"
+
+        it "renders a purely literal pattern unchanged" $ do
+            let pat = unsafeCompileRule "@/shared/constants"
+            renderRulePattern env pat `shouldBe` "@/shared/constants"
+
+        it "renders TARGET_DIR alone" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/index"
+            renderRulePattern env pat `shouldBe` "@/features/auth/index"
+
+        it "falls back to the variable placeholder when a casing key is absent" $ do
+            let sparseEnv = MatchEnv {targetDir = "@/features/x", casings = Map.empty}
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
+            renderRulePattern sparseEnv pat `shouldBe` "@/features/x/{{FileName}}View"
+
     describe "End-to-End Scenarios" $ do
         it "validates the Page Architecture ViewModel rule end-to-end" $ do
             let cTarget = unsafeCompileTarget "@/features/**/use{{FileName}}ViewModel"

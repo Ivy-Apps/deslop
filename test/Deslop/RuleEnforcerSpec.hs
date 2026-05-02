@@ -82,8 +82,7 @@ runTest m = do
         $ do
             enforceRulebooks m
             getProblems
-    ps <- requireRight show problemsRes
-    pure ps
+    requireRight show problemsRes
 
 runTransitiveTestWith :: [Rulebook] -> [AstModule] -> AstModule -> IO [Problem]
 runTransitiveTestWith rulebooks allModules m =
@@ -157,6 +156,42 @@ runExistsTest rulebooks allModules m =
         . runReportProblem
         . runReader (buildModuleGraph allModules)
         . runReader rulebooks
+        $ do
+            enforceRulebooks m
+            getProblems
+
+usesRulebook :: Rulebook
+usesRulebook =
+    fromRight (error "usesRulebook: invalid fixture") $
+        ruleBookFromDto
+            RulebookDto
+                { id = "uses-rules"
+                , name = "Uses Rules"
+                , description = Nothing
+                , rules =
+                    [ RuleDto
+                        { id = RuleId "container-wires-state-event"
+                        , description = Nothing
+                        , target = GlobDto "@/features/**/{{FileName}}Container"
+                        , exclude = Nothing
+                        , executionContext = Nothing
+                        , forbidden = Nothing
+                        , uses = Just [GlobDto "{{TARGET_DIR}}/{{FileName}}StateEvent"]
+                        , usesOptional = Nothing
+                        , exists = Nothing
+                        , example = Nothing
+                        , fix = "Import the StateEvent."
+                        }
+                    ]
+                }
+
+runUsesTest :: [AstModule] -> AstModule -> IO (Either DeslopError [Problem])
+runUsesTest allModules m =
+    runEff
+        . runErrorNoCallStack @DeslopError
+        . runReportProblem
+        . runReader (buildModuleGraph allModules)
+        . runReader [usesRulebook]
         $ do
             enforceRulebooks m
             getProblems
@@ -323,3 +358,117 @@ spec = describe "Deslop.RuleEnforcer" $ do
                     msg `shouldSatisfy` T.isInfixOf "wildcard-exists"
                 other ->
                     expectationFailure $ "expected InvalidRuleConfig, got: " <> show other
+
+    describe "uses enforcement" $ do
+        it "no violation when module imports a matching module" $ do
+            let container = mkModule "@/features/home/HomeContainer" ["@/features/home/HomeStateEvent"]
+            result <- runUsesTest [container] container
+            result `shouldBe` Right []
+
+        it "reports a violation when no import matches the uses pattern" $ do
+            let container = mkModule "@/features/home/HomeContainer" ["@/features/home/HomeView"]
+            result <- runUsesTest [container] container
+            result
+                `shouldBe` Right
+                    [ RuleViolation
+                        { rulebook = RulebookId "uses-rules"
+                        , rule = RuleId "container-wires-state-event"
+                        , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                        , description = "Module '@/features/home/HomeContainer' must import '@/features/home/HomeStateEvent'."
+                        , fix = "Import the StateEvent."
+                        }
+                    ]
+
+        it "reports a violation when module has no imports at all" $ do
+            let container = mkModule "@/features/home/HomeContainer" []
+            result <- runUsesTest [container] container
+            result
+                `shouldBe` Right
+                    [ RuleViolation
+                        { rulebook = RulebookId "uses-rules"
+                        , rule = RuleId "container-wires-state-event"
+                        , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                        , description = "Module '@/features/home/HomeContainer' must import '@/features/home/HomeStateEvent'."
+                        , fix = "Import the StateEvent."
+                        }
+                    ]
+
+        it "no violation for a module that does not match the target" $ do
+            let notAContainer = mkModule "@/features/home/HomeView" []
+            result <- runUsesTest [notAContainer] notAContainer
+            result `shouldBe` Right []
+
+        it "reports one violation per unmatched uses pattern" $ do
+            let multiUsesRulebook =
+                    fromRight (error "multiUsesRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            RulebookDto
+                                { id = "uses-rules"
+                                , name = "Uses Rules"
+                                , description = Nothing
+                                , rules =
+                                    [ RuleDto
+                                        { id = RuleId "container-wires-all"
+                                        , description = Nothing
+                                        , target = GlobDto "@/features/**/{{FileName}}Container"
+                                        , exclude = Nothing
+                                        , executionContext = Nothing
+                                        , forbidden = Nothing
+                                        , uses = Just
+                                            [ GlobDto "{{TARGET_DIR}}/{{FileName}}StateEvent"
+                                            , GlobDto "{{TARGET_DIR}}/{{FileName}}View"
+                                            ]
+                                        , usesOptional = Nothing
+                                        , exists = Nothing
+                                        , example = Nothing
+                                        , fix = "Wire the Container."
+                                        }
+                                    ]
+                                }
+                container = mkModule "@/features/home/HomeContainer" []
+            result <- runExistsTest [multiUsesRulebook] [container] container
+            result
+                `shouldBe` Right
+                    [ RuleViolation
+                        { rulebook = RulebookId "uses-rules"
+                        , rule = RuleId "container-wires-all"
+                        , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                        , description = "Module '@/features/home/HomeContainer' must import '@/features/home/HomeStateEvent'."
+                        , fix = "Wire the Container."
+                        }
+                    , RuleViolation
+                        { rulebook = RulebookId "uses-rules"
+                        , rule = RuleId "container-wires-all"
+                        , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                        , description = "Module '@/features/home/HomeContainer' must import '@/features/home/HomeView'."
+                        , fix = "Wire the Container."
+                        }
+                    ]
+
+        it "wildcard uses pattern matches any qualifying import" $ do
+            let wildcardUsesRulebook =
+                    fromRight (error "wildcardUsesRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            RulebookDto
+                                { id = "uses-rules"
+                                , name = "Uses Rules"
+                                , description = Nothing
+                                , rules =
+                                    [ RuleDto
+                                        { id = RuleId "page-uses-container"
+                                        , description = Nothing
+                                        , target = GlobDto "@/app/**/page"
+                                        , exclude = Nothing
+                                        , executionContext = Nothing
+                                        , forbidden = Nothing
+                                        , uses = Just [GlobDto "@/features/**/*Container"]
+                                        , usesOptional = Nothing
+                                        , exists = Nothing
+                                        , example = Nothing
+                                        , fix = "Import a Container."
+                                        }
+                                    ]
+                                }
+                page = mkModule "@/app/home/page" ["@/features/home/HomeContainer"]
+            result <- runExistsTest [wildcardUsesRulebook] [page] page
+            result `shouldBe` Right []

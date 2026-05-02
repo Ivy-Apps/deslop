@@ -5,8 +5,9 @@ import Deslop.Problem (Location (..), Problem (..), ProblemId (..), problemId)
 
 formatProblem :: Problem -> Text
 formatProblem p@LintProblem {} =
-    problemHeader <> description <> code <> fixText
+    autoFix <> problemHeader <> description <> code <> fixText
   where
+    autoFix = bool "" "[AUTO-FIXABLE] " p.autoFixable
     problemHeader = "# " <> (problemId p).text <> "\n"
     description = p.description <> "\n"
     code = "```ts\n" <> T.strip p.location.code <> "\n```\n"
