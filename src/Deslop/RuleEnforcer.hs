@@ -81,6 +81,7 @@ enforceRule m rule = case isTarget m.id rule of
     execute env = do
         for_ rule.forbidden (traverse_ (executeForbidden m env))
         for_ rule.exists (traverse_ (executeExists m env))
+        for_ rules.uses (traverse_ (executeUses m env))
 
 isTarget :: ModuleId -> Rule -> Maybe MatchEnv
 isTarget moduleId rule = case matchTarget rule.target moduleId.text of
@@ -177,3 +178,12 @@ executeExists m env pat = do
                     <> mid.text
                     <> "' to exist."
         ruleViolation m msg >>= report
+
+executeUses ::
+    ( Reader ModuleGraph :> es
+    , Reader RulebookId :> es
+    , Reader Rule :> es
+    , ReportProblem :> es
+    ) =>
+    AstModule -> MatchEnv -> CompiledRulePattern -> Eff es ()
+executeUses = todo
