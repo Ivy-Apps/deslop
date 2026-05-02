@@ -164,3 +164,8 @@ Module '@/features/home/home.spec' directly imports '@tests/test-log'.
 import * from "@tests/test-log"
 ```
 FIX: Remove the import from the tests directory. If you need shared data structures, move them to @/lib or @/features instead.
+---------
+
+# architecture#viewmodel-has-spec#@/features/profile/useUserProfileViewModel
+Module '@/features/profile/useUserProfileViewModel' requires '@/features/profile/useUserProfileViewModel.spec' to exist.
+FIX: Create a spec file named 'use{{FileName}}ViewModel.spec.ts' in the same directory as the ViewModel.
