@@ -4,6 +4,8 @@ module Deslop.Baseline (
     loadBaseline,
     loadBaselineFromFile,
     applyBaseline,
+    inBaseline,
+    Baseline,
 ) where
 
 import Data.HashSet qualified as HS
@@ -18,7 +20,10 @@ import System.OsPath (OsPath, osp)
 newtype Baseline = Baseline (HashSet ProblemId) deriving (Show, Eq)
 
 applyBaseline :: Baseline -> [Problem] -> [Problem]
-applyBaseline (Baseline bs) = filter (not . (`HS.member` bs) . problemId)
+applyBaseline baseline = filter (not . inBaseline baseline)
+
+inBaseline :: Baseline -> Problem -> Bool
+inBaseline (Baseline bs) = (`HS.member` bs) . problemId
 
 emptyBaseline :: Baseline
 emptyBaseline = Baseline HS.empty

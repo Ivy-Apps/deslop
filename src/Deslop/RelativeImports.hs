@@ -3,9 +3,10 @@ module Deslop.RelativeImports (
     fixTarget,
 ) where
 
+import Deslop.Baseline (Baseline, inBaseline)
 import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
 import Effectful (Eff, type (:>))
-import Effectful.Reader.Static (Reader, asks)
+import Effectful.Reader.Static (Reader, ask, asks)
 import Effects.FileSystem (AbsPath (..), RoFileSystem, relativePathTo)
 import Effects.ReportProblem (ReportProblem, report)
 import TypeScript.CST (
@@ -27,6 +28,7 @@ noRelativeImports (old, new) projectPath modulePath =
 
 importAliases ::
     ( Reader TsConfig :> es
+    , Reader Baseline :> es
     , ReportProblem :> es
     , RoFileSystem :> es
     ) =>
@@ -37,14 +39,17 @@ importAliases prog = do
   where
     fixImport old@(Import _ t _) = do
         t' <- (.text) <$> fixTarget prog.path t
-        let new = old {target = t'}
-        when
-            (t /= t')
-            ( do
+        if (t /= t')
+            then do
+                let new = old {target = t'}
                 projPath <- asks @TsConfig (.baseUrl)
-                report $ noRelativeImports (old, new) projPath prog.path
-            )
-        pure new
+                let problem = noRelativeImports (old, new) projPath prog.path
+                report problem
+                baseline <- ask @Baseline
+                if inBaseline baseline problem
+                    then pure old -- don't change baselined imports
+                    else pure new
+            else pure old
     fixImport x = pure x
 
 fixTarget ::

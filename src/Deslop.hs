@@ -9,7 +9,7 @@ module Deslop (
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.AST (AstModule, parseAst)
-import Deslop.Baseline (applyBaseline, loadBaseline)
+import Deslop.Baseline (Baseline, applyBaseline, loadBaseline)
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
 import Deslop.RelativeImports (importAliases)
 import Deslop.RuleEnforcer (enforceRulebooks)
@@ -94,7 +94,7 @@ doWork ::
 doWork params _ = do
     logTitle params
     baseline <- loadBaseline params.projectPath
-    deslopProject params
+    deslopProject params baseline
     bool logFixSummary (checkModeResult baseline) params.checkMode
   where
     checkModeResult baseline = do
@@ -116,8 +116,9 @@ deslopProject ::
     , Concurrent :> es
     ) =>
     Params ->
+    Baseline ->
     Eff es ()
-deslopProject params = do
+deslopProject params baseline = do
     rulebookRes <- loadRuleBook params.projectPath
     rulebook <- case rulebookRes of
         Right rb -> pure rb
@@ -129,6 +130,7 @@ deslopProject params = do
         fmap partitionEithers
             . runReader @TsConfig cfg
             . runReader @Params params
+            . runReader @Baseline baseline
             $ pooledMapConcurrentlyN 32 deslopFile files
     traverse_ logError lintErrors
     when
@@ -146,6 +148,7 @@ deslopFile ::
     , WrFileSystem :> es
     , Reader TsConfig :> es
     , Reader Params :> es
+    , Reader Baseline :> es
     , CLILog :> es
     , ReportProblem :> es
     ) =>
@@ -165,6 +168,7 @@ deslopFile src = do
 
 lintFile ::
     ( Reader TsConfig :> es
+    , Reader Baseline :> es
     , ReportProblem :> es
     , RoFileSystem :> es
     ) =>
