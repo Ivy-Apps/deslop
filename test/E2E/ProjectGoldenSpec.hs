@@ -35,6 +35,7 @@ spec = describe "E2E.ProjectGolden" $ do
         , "vitest.config.ts"
         , "next.config.ts"
         , "next.config.spec.ts"
+        , "src/lib/util.ts" -- baseline file should not be changed
         ]
 
     itFixes
