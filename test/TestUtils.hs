@@ -23,17 +23,17 @@ module TestUtils (
     rp,
     baselineOf,
     mkImportNode,
+    failBeatiful,
 ) where
 
 import Control.Exception (throwIO)
-import Deslop.AST (AstNode (..))
-import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Control.Exception.Base (AssertionFailed (..))
 import Data.HashSet qualified as HS
-import Deslop.Baseline (Baseline (..))
-import Deslop.Problem (ProblemId (..))
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
+import Deslop.AST (AstNode (..))
+import Deslop.Baseline (Baseline (..))
+import Deslop.Problem (ProblemId (..))
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
@@ -48,6 +48,7 @@ import System.OsPath (OsPath, osp, takeExtension, (</>))
 import Test.Hspec (expectationFailure)
 import Test.Hspec.Golden (Golden, defaultGolden)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
+import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (Renderable (render))
 import UI (problemsLogText)
 
@@ -167,6 +168,9 @@ requireRight :: (HasCallStack) => (e -> String) -> Either e a -> IO a
 requireRight formatErr = \case
     Left e -> expectationFailure (formatErr e) >> throwIO (AssertionFailed "unreachable")
     Right x -> pure x
+
+failBeatiful :: (HasCallStack) => Text -> IO a
+failBeatiful msg = expectationFailure (show msg) >> throwIO (AssertionFailed "unreachable")
 
 ap :: Text -> AbsPath
 ap = absPathUnsafe . encodeOsPath

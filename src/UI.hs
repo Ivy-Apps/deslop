@@ -98,3 +98,5 @@ humanReadable CheckModeFoundProblems =
     "Problems found. Run without deslop without --check to fix."
 humanReadable (RulebookErorr msg) =
     "Could not load Rulebook: " <> msg
+humanReadable (InvalidRuleConfig msg) =
+    "Invalid rule configuration: " <> msg

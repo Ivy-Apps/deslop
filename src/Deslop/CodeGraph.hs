@@ -5,6 +5,7 @@ module Deslop.CodeGraph (
     ModuleGraph (..),
     buildModuleGraph,
     hasPath,
+    moduleExists,
     reachableFrom,
     findKnownPath,
 ) where
@@ -63,6 +64,11 @@ buildModuleGraph modules =
             , nodeFromV = nodeV
             , vertexFromId = keyV
             }
+
+moduleExists :: (Reader ModuleGraph :> es) => ModuleId -> Eff es Bool
+moduleExists mid = do
+    mg <- ask @ModuleGraph
+    pure $ isJust (mg.vertexFromId mid)
 
 hasPath :: (Reader ModuleGraph :> es) => ModuleId -> ModuleId -> Eff es Bool
 hasPath from to = do

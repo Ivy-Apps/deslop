@@ -21,6 +21,9 @@ module Deslop.GlobPlus (
     -- * Matching Engines (Hot Path)
     matchTarget,
     matchRule,
+
+    -- * Expansion
+    moduleFromGlob,
 ) where
 
 import Data.Char (isUpper)
@@ -97,8 +100,10 @@ data RuleChunk
     | VarChunk RuleVar
     deriving (Show, Eq)
 
-newtype CompiledRulePattern = CompiledRulePattern
-    {chunks :: [RuleChunk]}
+data CompiledRulePattern = CompiledRulePattern
+    { chunks :: [RuleChunk]         -- regex form for matchRule (hot path)
+    , rawTokens :: [Token RuleVar]  -- original tokens for moduleFromGlob
+    }
     deriving (Show, Eq)
 
 --------------------------------------------------------------------------------
@@ -167,8 +172,10 @@ compileTargetPattern (Pattern tokens) =
 
 compileRulePattern :: RulePattern -> CompiledRulePattern
 compileRulePattern (Pattern tokens) =
-    let optimizedChunks = StaticChunk "^" : map toChunk tokens ++ [StaticChunk "$"]
-     in CompiledRulePattern {chunks = optimizeChunks optimizedChunks}
+    CompiledRulePattern
+        { chunks = optimizeChunks $ StaticChunk "^" : map toChunk tokens ++ [StaticChunk "$"]
+        , rawTokens = tokens
+        }
   where
     toChunk (Literal t) = StaticChunk (escapeRegex t)
     toChunk Star = StaticChunk "[^/]*"
@@ -212,6 +219,18 @@ matchRule crp env targetPath =
     resolveChunk (VarChunk RTargetDir) = escapeRegex env.targetDir
     resolveChunk (VarChunk (RVar c)) =
         maybe ".*" escapeRegex (Map.lookup c env.casings)
+
+-- | Expands a rule pattern into a concrete module path by substituting
+-- variables from the MatchEnv. Returns Nothing if the pattern contains
+-- wildcards (* or **), which cannot be deterministically expanded.
+moduleFromGlob :: MatchEnv -> CompiledRulePattern -> Maybe Text
+moduleFromGlob env crp = T.concat <$> traverse expand crp.rawTokens
+  where
+    expand (Literal t) = Just t
+    expand Star = Nothing
+    expand GlobStar = Nothing
+    expand (Var RTargetDir) = Just env.targetDir
+    expand (Var (RVar casing)) = Just $ fromMaybe "" (Map.lookup casing env.casings)
 
 --------------------------------------------------------------------------------
 -- 6. Case Tokenization & Enrichment
