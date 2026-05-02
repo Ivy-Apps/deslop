@@ -16,4 +16,5 @@ data DeslopError
     | TsConfigParseError Text
     | CheckModeFoundProblems
     | RulebookErorr Text
+    | InvalidRuleConfig Text
     deriving (Show, Eq)

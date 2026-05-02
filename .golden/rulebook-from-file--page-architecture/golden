@@ -32,7 +32,15 @@ Right
             , uses =
                 Just
                   (CompiledRulePattern
-                     { chunks = [ StaticChunk "^@/features/.*/[^/]*Container$" ] } :|
+                     { chunks = [ StaticChunk "^@/features/.*/[^/]*Container$" ]
+                     , rawTokens =
+                         [ Literal "@/features/"
+                         , GlobStar
+                         , Literal "/"
+                         , Star
+                         , Literal "Container"
+                         ]
+                     } :|
                      [])
             , usesOptional = Nothing
             , exists = Nothing
@@ -59,6 +67,12 @@ Right
                          , VarChunk (RVar PascalCase)
                          , StaticChunk "StateEvent$"
                          ]
+                     , rawTokens =
+                         [ Var RTargetDir
+                         , Literal "/"
+                         , Var (RVar PascalCase)
+                         , Literal "StateEvent"
+                         ]
                      } :|
                      [ CompiledRulePattern
                          { chunks =
@@ -68,6 +82,12 @@ Right
                              , VarChunk (RVar PascalCase)
                              , StaticChunk "ViewModel$"
                              ]
+                         , rawTokens =
+                             [ Var RTargetDir
+                             , Literal "/use"
+                             , Var (RVar PascalCase)
+                             , Literal "ViewModel"
+                             ]
                          }
                      , CompiledRulePattern
                          { chunks =
@@ -76,6 +96,12 @@ Right
                              , StaticChunk "/"
                              , VarChunk (RVar PascalCase)
                              , StaticChunk "View$"
+                             ]
+                         , rawTokens =
+                             [ Var RTargetDir
+                             , Literal "/"
+                             , Var (RVar PascalCase)
+                             , Literal "View"
                              ]
                          }
                      ])
@@ -108,13 +134,28 @@ Right
                                    , VarChunk (RVar PascalCase)
                                    , StaticChunk "View$"
                                    ]
+                               , rawTokens =
+                                   [ Var RTargetDir
+                                   , Literal "/"
+                                   , Var (RVar PascalCase)
+                                   , Literal "View"
+                                   ]
                                }
                          , transitive = False
                          }
                      , ForbiddenImport
                          { target =
                              CompiledRulePattern
-                               { chunks = [ StaticChunk "^@/.*/components/.*/[^/]*$" ] }
+                               { chunks = [ StaticChunk "^@/.*/components/.*/[^/]*$" ]
+                               , rawTokens =
+                                   [ Literal "@/"
+                                   , GlobStar
+                                   , Literal "/components/"
+                                   , GlobStar
+                                   , Literal "/"
+                                   , Star
+                                   ]
+                               }
                          , transitive = False
                          }
                      ])
@@ -127,6 +168,12 @@ Right
                          , StaticChunk "/"
                          , VarChunk (RVar PascalCase)
                          , StaticChunk "StateEvent$"
+                         ]
+                     , rawTokens =
+                         [ Var RTargetDir
+                         , Literal "/"
+                         , Var (RVar PascalCase)
+                         , Literal "StateEvent"
                          ]
                      } :|
                      [])
@@ -157,6 +204,12 @@ Right
                          , VarChunk (RVar PascalCase)
                          , StaticChunk "ViewModel$"
                          ]
+                     , rawTokens =
+                         [ Var RTargetDir
+                         , Literal "/use"
+                         , Var (RVar PascalCase)
+                         , Literal "ViewModel"
+                         ]
                      } :|
                      [])
             , usesOptional = Nothing
@@ -169,6 +222,12 @@ Right
                          , StaticChunk "/use"
                          , VarChunk (RVar PascalCase)
                          , StaticChunk "ViewModel\\.spec$"
+                         ]
+                     , rawTokens =
+                         [ Var RTargetDir
+                         , Literal "/use"
+                         , Var (RVar PascalCase)
+                         , Literal "ViewModel.spec"
                          ]
                      } :|
                      [])
@@ -200,6 +259,12 @@ Right
                          , VarChunk (RVar PascalCase)
                          , StaticChunk "StateEvent$"
                          ]
+                     , rawTokens =
+                         [ Var RTargetDir
+                         , Literal "/"
+                         , Var (RVar PascalCase)
+                         , Literal "StateEvent"
+                         ]
                      } :|
                      [])
             , usesOptional = Nothing
@@ -230,6 +295,12 @@ Right
                          , StaticChunk "/"
                          , VarChunk (RVar PascalCase)
                          , StaticChunk "View\\.stories$"
+                         ]
+                     , rawTokens =
+                         [ Var RTargetDir
+                         , Literal "/"
+                         , Var (RVar PascalCase)
+                         , Literal "View.stories"
                          ]
                      } :|
                      [])

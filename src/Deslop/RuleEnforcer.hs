@@ -2,14 +2,16 @@ module Deslop.RuleEnforcer (enforceRulebooks) where
 
 import Data.Text qualified as T
 import Deslop.AST (AstModule (..), AstNode (..))
-import Deslop.CodeGraph (ModuleGraph, findKnownPath, reachableFrom)
-import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget)
+import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
+import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern, MatchEnv, matchRule, matchTarget, moduleFromGlob)
 import Deslop.Problem (Problem (..))
-import Deslop.Rulebook (Forbidden (..), Rule (..), Rulebook (..), RulebookId)
+import Deslop.Rulebook (Forbidden (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..))
 import Effectful (Eff, (:>))
+import Effectful.Error.Static (Error, throwError)
 import Effectful.Reader.Static (Reader, ask, runReader)
 import Effects.ReportProblem (ReportProblem, report)
-import TypeScript.ModuleResolver (ModuleId (..))
+import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe)
+import Types (DeslopError (..))
 import Utils (todo)
 
 ruleViolation ::
@@ -35,6 +37,7 @@ enforceRulebooks ::
     ( Reader [Rulebook] :> es
     , Reader ModuleGraph :> es
     , ReportProblem :> es
+    , Error DeslopError :> es
     ) =>
     AstModule -> Eff es ()
 enforceRulebooks m = do
@@ -47,6 +50,7 @@ enforceRulebook ::
     ( Reader ModuleGraph :> es
     , Reader ReachableModules :> es
     , ReportProblem :> es
+    , Error DeslopError :> es
     ) =>
     AstModule -> Rulebook -> Eff es ()
 enforceRulebook m rulebook =
@@ -58,6 +62,7 @@ enforceRule ::
     , Reader ReachableModules :> es
     , Reader RulebookId :> es
     , ReportProblem :> es
+    , Error DeslopError :> es
     ) =>
     AstModule -> Rule -> Eff es ()
 enforceRule m rule = case isTarget m.id rule of
@@ -70,10 +75,12 @@ enforceRule m rule = case isTarget m.id rule of
         , Reader ModuleGraph :> es
         , Reader ReachableModules :> es
         , ReportProblem :> es
+        , Error DeslopError :> es
         ) =>
         MatchEnv -> Eff es ()
-    execute env =
+    execute env = do
         for_ rule.forbidden (traverse_ (executeForbidden m env))
+        for_ rule.exists (traverse_ (executeExists m env))
 
 isTarget :: ModuleId -> Rule -> Maybe MatchEnv
 isTarget moduleId rule = case matchTarget rule.target moduleId.text of
@@ -139,3 +146,34 @@ executeForbidden m env (ForbiddenImport target transitive)
             ruleViolation m message >>= report
         | otherwise = pure ()
 executeForbidden _ _ (ForbiddenFunctionCall _) = todo
+
+executeExists ::
+    ( Reader ModuleGraph :> es
+    , Reader RulebookId :> es
+    , Reader Rule :> es
+    , ReportProblem :> es
+    , Error DeslopError :> es
+    ) =>
+    AstModule -> MatchEnv -> CompiledRulePattern -> Eff es ()
+executeExists m env pat = do
+    mid <- case moduleFromGlob env pat of
+        Just t -> pure (moduleIdUnsafe t)
+        Nothing -> do
+            RulebookId rbIdText <- ask @RulebookId
+            rule <- ask @Rule
+            let RuleId ruleIdText = rule.id
+            throwError . InvalidRuleConfig $
+                "Rule '"
+                    <> ruleIdText
+                    <> "' in rulebook '"
+                    <> rbIdText
+                    <> "': 'exists' patterns must not contain wildcards (* or **)."
+    exists <- moduleExists mid
+    unless exists $ do
+        let msg =
+                "Module '"
+                    <> m.id.text
+                    <> "' requires '"
+                    <> mid.text
+                    <> "' to exist."
+        ruleViolation m msg >>= report

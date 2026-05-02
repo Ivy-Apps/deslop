@@ -24,6 +24,16 @@ rules:
       Remove the direct React import from this library module.
       Extract any React-specific code into a component under @/components or @/features.
 
+  - id: viewmodel-has-spec
+    description: >-
+      Every ViewModel hook must have a corresponding spec file in the same directory
+      to verify its state transitions and business logic.
+    target: "@/features/**/use{{FileName}}ViewModel"
+    exists:
+      - "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
+    fix: >-
+      Create a spec file named 'use{{FileName}}ViewModel.spec.ts' in the same directory as the ViewModel.
+
   - id: no-react-transitively-in-data
     description: >-
       Data layer modules in @/features/**/data must not transitively depend on React.
