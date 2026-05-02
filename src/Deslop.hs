@@ -138,11 +138,15 @@ deslopProject params = do
             . runReader @Params params
             $ pooledMapConcurrentlyN 32 deslopFile files
     traverse_ logError lintErrors
-    let mg = buildModuleGraph asts
-    runReader @[Rulebook] rulebook
-        . runReader @ModuleGraph mg
-        . traverse_ enforceRulebooks
-        $ asts
+    when
+        params.checkMode
+        ( do
+            let mg = buildModuleGraph asts
+            runReader @[Rulebook] rulebook
+                . runReader @ModuleGraph mg
+                . traverse_ enforceRulebooks
+                $ asts
+        )
 
 deslopFile ::
     ( RoFileSystem :> es
