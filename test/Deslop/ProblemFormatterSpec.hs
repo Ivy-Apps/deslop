@@ -18,6 +18,7 @@ lintProblem =
                 }
         , description = "No relative imports allowed"
         , fix = "Use absolute imports"
+        , autoFixable = False
         }
 
 ruleViolation :: Problem
@@ -47,6 +48,26 @@ spec = describe "Deslop.ProblemFormatter" $ do
                 let result = formatProblem p
                 result
                     `shouldBe` "# no-relative-imports#src/Foo.ts\n"
+                        <> "No relative imports allowed\n"
+                        <> "```ts\nimport {bar} from './bar'\n```\n"
+                        <> "FIX: Use absolute imports"
+
+            it "prefixes [AUTO-FIXABLE] when autoFixable is True" $ do
+                let p =
+                        LintProblem
+                            { lintRule = LintRuleId "no-relative-imports"
+                            , location =
+                                Location
+                                    { file = relativePathUnsafe (encodeOsPath "src/Foo.ts")
+                                    , code = "   import {bar} from './bar'   \n"
+                                    }
+                            , description = "No relative imports allowed"
+                            , fix = "Use absolute imports"
+                            , autoFixable = True
+                            }
+                let result = formatProblem p
+                result
+                    `shouldBe` "[AUTO-FIXABLE] # no-relative-imports#src/Foo.ts\n"
                         <> "No relative imports allowed\n"
                         <> "```ts\nimport {bar} from './bar'\n```\n"
                         <> "FIX: Use absolute imports"

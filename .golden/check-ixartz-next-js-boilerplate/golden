@@ -1,4 +1,4 @@
-# no-relative-imports#.storybook/preview.ts
+[AUTO-FIXABLE] # no-relative-imports#.storybook/preview.ts
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import '../src/styles/global.css';
@@ -6,7 +6,7 @@ import '../src/styles/global.css';
 FIX: Use ```import '@/styles/global.css';``` instead.
 ---------
 
-# no-relative-imports#next.config.ts
+[AUTO-FIXABLE] # no-relative-imports#next.config.ts
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import './src/libs/Env';
@@ -14,7 +14,7 @@ import './src/libs/Env';
 FIX: Use ```import '@/libs/Env';``` instead.
 ---------
 
-# no-relative-imports#src/components/Hello.tsx
+[AUTO-FIXABLE] # no-relative-imports#src/components/Hello.tsx
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Sponsors } from './Sponsors';
@@ -22,7 +22,7 @@ import { Sponsors } from './Sponsors';
 FIX: Use ```import { Sponsors } from '@/components/Sponsors';``` instead.
 ---------
 
-# no-relative-imports#src/libs/DB.ts
+[AUTO-FIXABLE] # no-relative-imports#src/libs/DB.ts
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Env } from './Env';
@@ -30,7 +30,7 @@ import { Env } from './Env';
 FIX: Use ```import { Env } from '@/libs/Env';``` instead.
 ---------
 
-# no-relative-imports#src/libs/I18n.ts
+[AUTO-FIXABLE] # no-relative-imports#src/libs/I18n.ts
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { routing } from './I18nRouting';
@@ -38,7 +38,7 @@ import { routing } from './I18nRouting';
 FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
 ---------
 
-# no-relative-imports#src/libs/I18nNavigation.ts
+[AUTO-FIXABLE] # no-relative-imports#src/libs/I18nNavigation.ts
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { routing } from './I18nRouting';
@@ -46,7 +46,7 @@ import { routing } from './I18nRouting';
 FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
 ---------
 
-# no-relative-imports#src/libs/Logger.ts
+[AUTO-FIXABLE] # no-relative-imports#src/libs/Logger.ts
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Env } from './Env';
@@ -54,7 +54,7 @@ import { Env } from './Env';
 FIX: Use ```import { Env } from '@/libs/Env';``` instead.
 ---------
 
-# no-relative-imports#src/proxy.ts
+[AUTO-FIXABLE] # no-relative-imports#src/proxy.ts
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { routing } from './libs/I18nRouting';
@@ -62,7 +62,7 @@ import { routing } from './libs/I18nRouting';
 FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
 ---------
 
-# no-relative-imports#src/templates/BaseTemplate.stories.tsx
+[AUTO-FIXABLE] # no-relative-imports#src/templates/BaseTemplate.stories.tsx
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { BaseTemplate } from './BaseTemplate';
@@ -70,7 +70,7 @@ import { BaseTemplate } from './BaseTemplate';
 FIX: Use ```import { BaseTemplate } from '@/templates/BaseTemplate';``` instead.
 ---------
 
-# no-relative-imports#src/templates/BaseTemplate.test.tsx
+[AUTO-FIXABLE] # no-relative-imports#src/templates/BaseTemplate.test.tsx
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { BaseTemplate } from './BaseTemplate';
@@ -78,7 +78,7 @@ import { BaseTemplate } from './BaseTemplate';
 FIX: Use ```import { BaseTemplate } from '@/templates/BaseTemplate';``` instead.
 ---------
 
-# no-relative-imports#src/utils/Helpers.test.ts
+[AUTO-FIXABLE] # no-relative-imports#src/utils/Helpers.test.ts
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { getI18nPath } from './Helpers';

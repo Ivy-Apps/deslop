@@ -22,6 +22,7 @@ data Problem
         , location :: Location
         , description :: Text
         , fix :: Text
+        , autoFixable :: Bool
         }
     | RuleViolation
         { rulebook :: RulebookId

@@ -24,6 +24,7 @@ noRelativeImports (old, new) projectPath modulePath =
         , location = Location {file = relativePathTo projectPath modulePath, code = render old}
         , description = "Relative imports are not allowed. Use aliased ones."
         , fix = "Use ```" <> render new <> "``` instead."
+        , autoFixable = True
         }
 
 importAliases ::

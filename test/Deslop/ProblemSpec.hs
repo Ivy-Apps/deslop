@@ -20,6 +20,7 @@ spec = describe "Deslop.Problem" $ do
                                 }
                         , description = "No relative imports allowed"
                         , fix = "Use absolute imports"
+                        , autoFixable = False
                         }
             problemId p `shouldBe` ProblemId "no-relative-imports#src/Foo.ts"
 
