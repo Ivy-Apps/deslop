@@ -5,13 +5,12 @@ import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Problem (Problem (..))
 import Deslop.RuleEnforcer (enforceRulebooks)
 import Deslop.Rulebook (ForbiddenDto (..), GlobDto (..), RuleDto (..), RuleId (..), Rulebook, RulebookDto (..), RulebookId (..), ruleBookFromDto)
-import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Test.Hspec (Spec, describe, it, shouldBe)
-import TestUtils (defaultTsConfig, mkImportNode, requireRight)
+import TestUtils (mkImportNode, requireRight)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (DeslopError)
 
@@ -79,8 +78,6 @@ runTest m = do
         . runReportProblem
         . runReader (buildModuleGraph [])
         . runReader [testRulebook]
-        . runReader defaultTsConfig
-        . runMockRoFileSystem (mockFiles [])
         $ do
             enforceRulebooks m
             getProblems
@@ -95,8 +92,6 @@ runTransitiveTestWith rulebooks allModules m =
         . runReportProblem
         . runReader (buildModuleGraph allModules)
         . runReader rulebooks
-        . runReader defaultTsConfig
-        . runMockRoFileSystem (mockFiles [])
         $ do
             enforceRulebooks m
             getProblems

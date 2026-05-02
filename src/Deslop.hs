@@ -139,7 +139,6 @@ deslopProject params baseline = do
             let mg = buildModuleGraph asts
             runReader @[Rulebook] rulebook
                 . runReader @ModuleGraph mg
-                . runReader @TsConfig cfg
                 . traverse_ enforceRulebooks
                 $ asts
         )
