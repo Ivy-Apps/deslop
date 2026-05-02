@@ -2,7 +2,7 @@ module Effects.CLILog (
     CLILog (..),
     logTitle,
     logModification,
-    logSummary,
+    logFixSummary,
     logProblems,
     logNoProblemsFound,
     logError,
@@ -19,12 +19,12 @@ import Effects.FileSystem (AbsPath (..), decodeOsPath)
 import Fmt (fmt, pretty, (+|), (|+))
 import Params (Params (..))
 import System.Console.ANSI
-import UI (ProblemsLog (..), printDividerStderr, printErr, printSuccess, printTitle, putStderrLn)
+import UI (ProblemsLog (..), printDivider, printDividerStderr, printErr, printSuccess, printTitle, putStderrLn)
 
 data CLILog :: Effect where
     LogTitle :: Params -> CLILog m ()
     LogModification :: AbsPath -> CLILog m ()
-    LogSummary :: CLILog m ()
+    LogFixSummary :: CLILog m ()
     LogProblems :: [Problem] -> CLILog m ()
     LogNoProblemsFound :: CLILog m ()
     LogError :: String -> CLILog m ()
@@ -37,8 +37,8 @@ logTitle = send . LogTitle
 logModification :: (CLILog :> es) => AbsPath -> Eff es ()
 logModification = send . LogModification
 
-logSummary :: (CLILog :> es) => Eff es ()
-logSummary = send LogSummary
+logFixSummary :: (CLILog :> es) => Eff es ()
+logFixSummary = send LogFixSummary
 
 logProblems :: (CLILog :> es) => [Problem] -> Eff es ()
 logProblems = send . LogProblems
@@ -66,7 +66,8 @@ runCLILog action = do
                     setSGR [Reset]
                     putStrLn (T.unpack . decodeOsPath $ path.osPath)
                     hFlush stdout
-                LogSummary -> liftIO $ do
+                LogFixSummary -> liftIO $ do
+                    printDivider
                     count <- readTVarIO counterVar
                     setSGR [SetColor Foreground Vivid Green, SetConsoleIntensity BoldIntensity]
                     if count > 0
@@ -75,6 +76,7 @@ runCLILog action = do
                         else
                             putStrLn "✨ The project is already clean!"
                     setSGR [Reset]
+                    printDivider
                 LogProblems ps -> liftIO $ do
                     putStderrLn (fmt $ "Found " +| length ps |+ " problems:")
                     printDividerStderr

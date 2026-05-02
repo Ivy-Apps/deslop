@@ -19,8 +19,8 @@ import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, asks, runReader)
-import Effects.AI
-import Effects.CLILog
+import Effects.AI (AI, runAI)
+import Effects.CLILog (CLILog, logError, logFixSummary, logModification, logNoProblemsFound, logProblems, logTitle, runCLILog)
 import Effects.FileSystem (
     AbsPath (osPath),
     RoFileSystem,
@@ -96,7 +96,7 @@ doWork params _ = do
     unless params.checkMode (liftIO . putStrLn $ "Changelog:")
     baseline <- loadBaseline params.projectPath
     deslopProject params
-    bool fixResult (checkModeResult baseline) params.checkMode
+    bool logFixSummary (checkModeResult baseline) params.checkMode
   where
     checkModeResult baseline = do
         ps <- applyBaseline baseline <$> getProblems
@@ -106,11 +106,6 @@ doWork params _ = do
             else do
                 logProblems ps
                 throwError CheckModeFoundProblems
-
-    fixResult = do
-        liftIO printDivider
-        unless params.checkMode logSummary
-        liftIO printDivider
 
 deslopProject ::
     ( WrFileSystem :> es

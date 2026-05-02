@@ -55,7 +55,7 @@ runCLILogTest :: (IOE :> es) => IORef (Maybe TestLogs) -> Eff (CLILog : es) a ->
 runCLILogTest ref = interpret $ \_ -> \case
     LogTitle _ -> pure ()
     LogModification _ -> pure ()
-    LogSummary -> pure ()
+    LogFixSummary -> pure ()
     LogProblems ps ->
         liftIO $ writeIORef ref (Just . TestLogs . problemsLogText $ ps)
     LogNoProblemsFound -> pure ()
