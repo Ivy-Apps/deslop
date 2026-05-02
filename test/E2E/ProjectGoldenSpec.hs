@@ -1,7 +1,7 @@
 module E2E.ProjectGoldenSpec (spec) where
 
 import Data.Text qualified as T
-import Deslop (deslopProject, doWork)
+import Deslop (doWork)
 import Doubles.FileSystem (runMockWrFileSystem)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
@@ -111,7 +111,8 @@ spec = describe "E2E.ProjectGolden" $ do
                     . runGitTest []
                     . runReportProblem
                     . runConcurrent
-                    $ deslopProject params
+                    . runAIAlwaysFail
+                    $ doWork params testSecrets
 
             -- Then
             res `shouldBe` Right ()

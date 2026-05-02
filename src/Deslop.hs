@@ -2,7 +2,6 @@
 
 module Deslop (
     deslopFile,
-    deslopProject,
     doWork,
     runDeslop,
 ) where
@@ -95,11 +94,11 @@ doWork ::
 doWork params _ = do
     logTitle params
     unless params.checkMode (liftIO . putStrLn $ "Changelog:")
+    baseline <- loadBaseline params.projectPath
     deslopProject params
-    bool fixResult checkModeResult params.checkMode
+    bool fixResult (checkModeResult baseline) params.checkMode
   where
-    checkModeResult = do
-        baseline <- loadBaseline params.projectPath
+    checkModeResult baseline = do
         ps <- applyBaseline baseline <$> getProblems
         if null ps
             then
