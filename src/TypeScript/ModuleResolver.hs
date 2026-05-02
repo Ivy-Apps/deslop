@@ -37,9 +37,14 @@ reverseResolveImport ::
 reverseResolveImport importingFile target = do
     maybeAbsPath <- resolve importingFile target
     case maybeAbsPath of
-        Just absPath ->
-            reverseResolve absPath
-                >>= pure . fromMaybe target
+        Just absPath -> do
+            maybeResolved <- reverseResolve absPath
+            pure $ case maybeResolved of
+                Nothing -> target
+                Just resolved ->
+                    if resolved.text == target.text <> "/index"
+                        then target -- original already names the index implicitly
+                        else resolved
         Nothing -> pure target -- keep the original target
 
 reverseResolve :: (Reader TsConfig :> es) => AbsPath -> Eff es (Maybe ModuleId)
