@@ -5,7 +5,7 @@ module Deslop.Baseline (
     loadBaselineFromFile,
     applyBaseline,
     inBaseline,
-    Baseline,
+    Baseline (..),
 ) where
 
 import Data.HashSet qualified as HS

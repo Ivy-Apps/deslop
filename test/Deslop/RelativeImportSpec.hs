@@ -9,20 +9,24 @@ import Effects.FileSystem (absPathUnsafe)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import System.OsPath (osp)
 import Test.Hspec
-import TestUtils (defaultTsConfig)
+import TestUtils (baselineOf, defaultTsConfig)
 import TypeScript.CST (TsNode (..), TsProgram (..))
 
 spec :: Spec
 spec = describe "Deslop.RelativeImport" $ do
-    let runTest cfg existingFiles prog =
+    let runTest cfg baseline existingFiles prog =
             runEff
                 . runMockRoFileSystem (mockFiles existingFiles)
                 . runReportProblem
                 . runReader cfg
+                . runReader baseline
                 $ do
                     result <- importAliases prog
                     problems <- getProblems
                     pure (result, problems)
+
+    let runTestNoBaseline cfg existingFiles prog =
+            runTest cfg (baselineOf []) existingFiles prog
 
     let mkProg fp = TsModule (absPathUnsafe fp)
     let mkImport t = Import {prefix = "import * from '", target = t, suffix = "';\n"}
@@ -34,7 +38,7 @@ spec = describe "Deslop.RelativeImport" $ do
                         [osp|/home/repo/src/features/home/home.ts|]
                         [mkImport "../../lib/welcome"]
             (result, problems) <-
-                runTest
+                runTestNoBaseline
                     defaultTsConfig
                     [[osp|/home/repo/src/lib/welcome.ts|]]
                     prog
@@ -50,7 +54,7 @@ spec = describe "Deslop.RelativeImport" $ do
                         [osp|/home/repo/src/features/home/home.ts|]
                         [mkImport "./useHomeViewModel"]
             (result, problems) <-
-                runTest
+                runTestNoBaseline
                     defaultTsConfig
                     [[osp|/home/repo/src/features/home/useHomeViewModel.ts|]]
                     prog
@@ -66,7 +70,7 @@ spec = describe "Deslop.RelativeImport" $ do
                         [osp|/home/repo/src/app.ts|]
                         [mkImport "../test/auth-fixture"]
             (result, problems) <-
-                runTest
+                runTestNoBaseline
                     defaultTsConfig
                     [[osp|/home/repo/test/auth-fixture.ts|]]
                     prog
@@ -75,7 +79,7 @@ spec = describe "Deslop.RelativeImport" $ do
 
         it "leaves a package import unchanged and reports no problem" $ do
             let prog = mkProg [osp|/home/repo/src/app.ts|] [mkImport "react"]
-            (result, problems) <- runTest defaultTsConfig [] prog
+            (result, problems) <- runTestNoBaseline defaultTsConfig [] prog
             map (.target) result.cst `shouldBe` ["react"]
             problems `shouldBe` []
 
@@ -85,7 +89,7 @@ spec = describe "Deslop.RelativeImport" $ do
                         [osp|/home/repo/src/app.ts|]
                         [mkImport "@/components/Button"]
             (result, problems) <-
-                runTest
+                runTestNoBaseline
                     defaultTsConfig
                     [[osp|/home/repo/src/components/Button.ts|]]
                     prog
@@ -100,7 +104,7 @@ spec = describe "Deslop.RelativeImport" $ do
                         , mkImport "react"
                         ]
             (result, problems) <-
-                runTest
+                runTestNoBaseline
                     defaultTsConfig
                     [[osp|/home/repo/test/auth-fixture.ts|]]
                     prog
@@ -116,7 +120,7 @@ spec = describe "Deslop.RelativeImport" $ do
                         , Source {raw = "export default x;\n"}
                         ]
             (result, _) <-
-                runTest
+                runTestNoBaseline
                     defaultTsConfig
                     [[osp|/home/repo/src/utils.ts|]]
                     prog
@@ -125,3 +129,41 @@ spec = describe "Deslop.RelativeImport" $ do
                     n0 `shouldBe` Source {raw = "const x = 1;\n"}
                     n2 `shouldBe` Source {raw = "export default x;\n"}
                 _ -> expectationFailure "expected at least 3 nodes"
+
+    describe "importAliases with baseline" $ do
+        it "baselined import is reported as problem but kept as-is (not fixed)" $ do
+            -- problemId for LintProblem = lintRuleId <> "#" <> filePath
+            -- file is relative to projectPath (baseUrl), so:
+            -- "no-relative-imports#src/features/home/home.ts"
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/features/home/home.ts|]
+                        [mkImport "../../lib/welcome"]
+            let baseline = baselineOf ["no-relative-imports#src/features/home/home.ts"]
+            (result, problems) <-
+                runTest
+                    defaultTsConfig
+                    baseline
+                    [[osp|/home/repo/src/lib/welcome.ts|]]
+                    prog
+            -- import is NOT fixed — kept as original relative import
+            map (.target) result.cst `shouldBe` ["../../lib/welcome"]
+            -- problem is still reported
+            length problems `shouldBe` 1
+
+        it "import in a different (non-baselined) file is still fixed" $ do
+            -- baseline only covers home.ts, not auth.ts
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/features/auth/auth.ts|]
+                        [mkImport "../../../test/auth-fixture"]
+            let baseline = baselineOf ["no-relative-imports#src/features/home/home.ts"]
+            (result, problems) <-
+                runTest
+                    defaultTsConfig
+                    baseline
+                    [[osp|/home/repo/test/auth-fixture.ts|]]
+                    prog
+            -- auth.ts is not baselined, so the import is fixed
+            map (.target) result.cst `shouldBe` ["@test/auth-fixture"]
+            length problems `shouldBe` 1

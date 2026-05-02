@@ -21,10 +21,14 @@ module TestUtils (
     requireRight,
     ap,
     rp,
+    baselineOf,
 ) where
 
 import Control.Exception (throwIO)
 import Control.Exception.Base (AssertionFailed (..))
+import Data.HashSet qualified as HS
+import Deslop.Baseline (Baseline (..))
+import Deslop.Problem (ProblemId (..))
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Effectful
@@ -166,3 +170,6 @@ ap = absPathUnsafe . encodeOsPath
 
 rp :: Text -> RelativePath
 rp = relativePathUnsafe . encodeOsPath
+
+baselineOf :: [Text] -> Baseline
+baselineOf = Baseline . HS.fromList . fmap ProblemId
