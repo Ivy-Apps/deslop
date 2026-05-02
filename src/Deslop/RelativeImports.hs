@@ -40,7 +40,7 @@ importAliases prog = do
   where
     fixImport old@(Import _ t _) = do
         t' <- (.text) <$> fixTarget prog.path t
-        if (t /= t')
+        if t /= t'
             then do
                 let new = old {target = t'}
                 projPath <- asks @TsConfig (.baseUrl)

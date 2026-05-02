@@ -82,8 +82,7 @@ runTest m = do
         $ do
             enforceRulebooks m
             getProblems
-    ps <- requireRight show problemsRes
-    pure ps
+    requireRight show problemsRes
 
 runTransitiveTestWith :: [Rulebook] -> [AstModule] -> AstModule -> IO [Problem]
 runTransitiveTestWith rulebooks allModules m =

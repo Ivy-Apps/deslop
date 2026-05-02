@@ -133,7 +133,7 @@ executeForbidden m env (ForbiddenImport target transitive)
             p <- findKnownPath m.id rid
             let via = " via: " <> T.intercalate " → " (map (.text) (toList p))
                 firstHop = listToMaybe (drop 1 (toList p))
-                importRaw hop = (T.strip . (.rawStatement)) <$> find (\n -> n.target == hop) m.nodes
+                importRaw hop = T.strip . (.rawStatement) <$> find (\n -> n.target == hop) m.nodes
                 stmtSuffix = maybe "" (\raw -> "\n```ts\n" <> raw <> "\n```") (firstHop >>= importRaw)
                 message =
                     "Module '"

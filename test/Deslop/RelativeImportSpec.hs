@@ -25,8 +25,7 @@ spec = describe "Deslop.RelativeImport" $ do
                     problems <- getProblems
                     pure (result, problems)
 
-    let runTestNoBaseline cfg existingFiles prog =
-            runTest cfg (baselineOf []) existingFiles prog
+    let runTestNoBaseline cfg = runTest cfg (baselineOf [])
 
     let mkProg fp = TsModule (absPathUnsafe fp)
     let mkImport t = Import {prefix = "import * from '", target = t, suffix = "';\n"}
