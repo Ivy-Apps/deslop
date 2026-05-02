@@ -34,6 +34,16 @@ rules:
     fix: >-
       Create a spec file named 'use{{FileName}}ViewModel.spec.ts' in the same directory as the ViewModel.
 
+  - id: container-uses-state-event
+    description: >-
+      Every Container must import its corresponding StateEvent module from the same directory.
+      The StateEvent defines the UiState and UiEvent types that wire the Container to the ViewModel and View.
+    target: "@/features/**/{{FileName}}Container"
+    uses:
+      - "{{TARGET_DIR}}/{{FileName}}StateEvent"
+    fix: >-
+      Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
+
   - id: no-react-transitively-in-data
     description: >-
       Data layer modules in @/features/**/data must not transitively depend on React.

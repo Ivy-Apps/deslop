@@ -142,6 +142,11 @@ import { HomeScreen } from "../../home/home-screen";
 FIX: Use ```import { HomeScreen } from "@/features/home/home-screen";``` instead.
 ---------
 
+# architecture#container-uses-state-event#@/features/products/ProductListContainer
+Module '@/features/products/ProductListContainer' must import '@/features/products/ProductListStateEvent'.
+FIX: Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
+---------
+
 # architecture#no-react-transitively-in-data#@/features/home/data/bad-repository
 Module '@/features/home/data/bad-repository' transitively imports 'react' via: @/features/home/data/bad-repository → @/features/home/home-screen → react.
 ```ts
