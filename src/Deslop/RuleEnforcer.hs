@@ -3,12 +3,14 @@ module Deslop.RuleEnforcer (enforceRulebooks) where
 import Data.Text qualified as T
 import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, reachableFrom)
-import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget)
+import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern, MatchEnv, matchRule, matchTarget)
 import Deslop.Problem (Problem (..))
 import Deslop.Rulebook (Forbidden (..), Rule (..), Rulebook (..), RulebookId)
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask, runReader)
+import Effects.FileSystem (RoFileSystem)
 import Effects.ReportProblem (ReportProblem, report)
+import TypeScript.Config (TsConfig)
 import TypeScript.ModuleResolver (ModuleId (..))
 import Utils (todo)
 
@@ -35,6 +37,8 @@ enforceRulebooks ::
     ( Reader [Rulebook] :> es
     , Reader ModuleGraph :> es
     , ReportProblem :> es
+    , RoFileSystem :> es
+    , Reader TsConfig :> es
     ) =>
     AstModule -> Eff es ()
 enforceRulebooks m = do
@@ -47,6 +51,8 @@ enforceRulebook ::
     ( Reader ModuleGraph :> es
     , Reader ReachableModules :> es
     , ReportProblem :> es
+    , RoFileSystem :> es
+    , Reader TsConfig :> es
     ) =>
     AstModule -> Rulebook -> Eff es ()
 enforceRulebook m rulebook =
@@ -58,6 +64,8 @@ enforceRule ::
     , Reader ReachableModules :> es
     , Reader RulebookId :> es
     , ReportProblem :> es
+    , RoFileSystem :> es
+    , Reader TsConfig :> es
     ) =>
     AstModule -> Rule -> Eff es ()
 enforceRule m rule = case isTarget m.id rule of
@@ -70,10 +78,12 @@ enforceRule m rule = case isTarget m.id rule of
         , Reader ModuleGraph :> es
         , Reader ReachableModules :> es
         , ReportProblem :> es
+        , RoFileSystem :> es
         ) =>
         MatchEnv -> Eff es ()
-    execute env =
+    execute env = do
         for_ rule.forbidden (traverse_ (executeForbidden m env))
+        for_ rule.exists (traverse_ (executeExists m env))
 
 isTarget :: ModuleId -> Rule -> Maybe MatchEnv
 isTarget moduleId rule = case matchTarget rule.target moduleId.text of
@@ -139,3 +149,13 @@ executeForbidden m env (ForbiddenImport target transitive)
             ruleViolation m message >>= report
         | otherwise = pure ()
 executeForbidden _ _ (ForbiddenFunctionCall _) = todo
+
+executeExists ::
+    ( Reader ReachableModules :> es
+    , Reader RulebookId :> es
+    , Reader Rule :> es
+    , ReportProblem :> es
+    , RoFileSystem :> es
+    ) =>
+    AstModule -> MatchEnv -> CompiledRulePattern -> Eff es ()
+executeExists = todo
