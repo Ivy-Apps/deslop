@@ -1,7 +1,7 @@
 module Deslop.CodeGraphSpec (spec) where
 
 import Deslop.AST (AstModule (..))
-import Deslop.CodeGraph (buildModuleGraph, findKnownPath, hasPath, reachableFrom)
+import Deslop.CodeGraph (buildModuleGraph, findKnownPath, hasPath, moduleExists, reachableFrom)
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
 import Test.Hspec
@@ -29,6 +29,12 @@ runReachableFrom from modules =
         . runPureEff
         . runReader (buildModuleGraph modules)
         $ reachableFrom from.id
+
+runModuleExists :: Text -> [AstModule] -> Bool
+runModuleExists mid modules =
+    runPureEff
+        . runReader (buildModuleGraph modules)
+        $ moduleExists (moduleIdUnsafe mid)
 
 runFindKnownPath :: AstModule -> AstModule -> [AstModule] -> [Text]
 runFindKnownPath from to modules =
@@ -101,6 +107,28 @@ spec = describe "Deslop.CodeGraph" $ do
                 b = mkModule "b" ["c"]
                 c = mkModule "c" ["a"]
             runReachableFrom a [a, b, c] `shouldBe` ["a", "b", "c"]
+
+    describe "moduleExists" $ do
+        it "returns True for an internal module in the graph" $ do
+            let a = mkModule "a" []
+            runModuleExists "a" [a] `shouldBe` True
+
+        it "returns False for a module not in the graph" $ do
+            let a = mkModule "a" []
+            runModuleExists "unknown" [a] `shouldBe` False
+
+        it "returns False for an empty graph" $ do
+            runModuleExists "a" [] `shouldBe` False
+
+        it "returns True for an external module referenced as an import target" $ do
+            -- "b" is never parsed but referenced by "a", so it exists as ExternalModule
+            let a = mkModule "a" ["b"]
+            runModuleExists "b" [a] `shouldBe` True
+
+        it "returns False when a sibling module exists but not the queried one" $ do
+            let a = mkModule "a" []
+                b = mkModule "b" []
+            runModuleExists "c" [a, b] `shouldBe` False
 
     describe "findKnownPath" $ do
         it "returns single-element path for self" $ do

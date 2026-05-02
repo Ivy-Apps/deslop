@@ -9,10 +9,11 @@ import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Data.Text qualified as T
+import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
 import TestUtils (mkImportNode, requireRight)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
-import Types (DeslopError)
+import Types (DeslopError (..))
 
 mkModule :: Text -> [Text] -> AstModule
 mkModule mid deps =
@@ -124,6 +125,42 @@ domainRulebook =
                     ]
                 }
 
+existsRulebook :: Rulebook
+existsRulebook =
+    fromRight (error "existsRulebook: invalid fixture") $
+        ruleBookFromDto
+            RulebookDto
+                { id = "exists-rules"
+                , name = "Exists Rules"
+                , description = Nothing
+                , rules =
+                    [ RuleDto
+                        { id = RuleId "requires-spec"
+                        , description = Nothing
+                        , target = GlobDto "@/features/**/use{{FileName}}ViewModel"
+                        , exclude = Nothing
+                        , executionContext = Nothing
+                        , forbidden = Nothing
+                        , uses = Nothing
+                        , usesOptional = Nothing
+                        , exists = Just [GlobDto "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"]
+                        , example = Nothing
+                        , fix = "Create the spec file."
+                        }
+                    ]
+                }
+
+runExistsTest :: [Rulebook] -> [AstModule] -> AstModule -> IO (Either DeslopError [Problem])
+runExistsTest rulebooks allModules m =
+    runEff
+        . runErrorNoCallStack @DeslopError
+        . runReportProblem
+        . runReader (buildModuleGraph allModules)
+        . runReader rulebooks
+        $ do
+            enforceRulebooks m
+            getProblems
+
 spec :: Spec
 spec = describe "Deslop.RuleEnforcer" $ do
     describe "forbidden imports" $ do
@@ -228,3 +265,61 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 , fix = "Move React dependencies out of the domain layer."
                                 }
                            ]
+
+    describe "exists enforcement" $ do
+        it "no violation when the required module exists in the graph" $ do
+            let viewModel = mkModule "@/features/home/useHomeViewModel" []
+                vmSpec = mkModule "@/features/home/useHomeViewModel.spec" []
+            result <- runExistsTest [existsRulebook] [viewModel, vmSpec] viewModel
+            result `shouldBe` Right []
+
+        it "reports a violation when the required module is missing from the graph" $ do
+            let viewModel = mkModule "@/features/home/useHomeViewModel" []
+            result <- runExistsTest [existsRulebook] [viewModel] viewModel
+            result
+                `shouldBe` Right
+                    [ RuleViolation
+                        { rulebook = RulebookId "exists-rules"
+                        , rule = RuleId "requires-spec"
+                        , badModule = moduleIdUnsafe "@/features/home/useHomeViewModel"
+                        , description = "Module '@/features/home/useHomeViewModel' requires '@/features/home/useHomeViewModel.spec' to exist."
+                        , fix = "Create the spec file."
+                        }
+                    ]
+
+        it "does not report a violation for a module that does not match the target" $ do
+            let notAViewModel = mkModule "@/features/home/HomeView" []
+            result <- runExistsTest [existsRulebook] [notAViewModel] notAViewModel
+            result `shouldBe` Right []
+
+        it "throws InvalidRuleConfig when an exists pattern contains wildcards" $ do
+            let wildcardRulebook =
+                    fromRight (error "wildcardRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            RulebookDto
+                                { id = "bad-rules"
+                                , name = "Bad Rules"
+                                , description = Nothing
+                                , rules =
+                                    [ RuleDto
+                                        { id = RuleId "wildcard-exists"
+                                        , description = Nothing
+                                        , target = GlobDto "@/features/**/*"
+                                        , exclude = Nothing
+                                        , executionContext = Nothing
+                                        , forbidden = Nothing
+                                        , uses = Nothing
+                                        , usesOptional = Nothing
+                                        , exists = Just [GlobDto "{{TARGET_DIR}}/**/*.spec"]
+                                        , example = Nothing
+                                        , fix = "Fix it."
+                                        }
+                                    ]
+                                }
+                m = mkModule "@/features/home/HomeView" []
+            result <- runExistsTest [wildcardRulebook] [m] m
+            case result of
+                Left (InvalidRuleConfig msg) ->
+                    msg `shouldSatisfy` T.isInfixOf "wildcard-exists"
+                other ->
+                    expectationFailure $ "expected InvalidRuleConfig, got: " <> show other

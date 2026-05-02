@@ -188,6 +188,51 @@ spec = describe "Deslop.GlobPlus" $ do
             -- TARGET_DIR is still exact
             matchRule rule sparseEnv "@/features/other/AnythingView" `shouldBe` False
 
+    describe "Deslop.GlobPlus.moduleFromGlob" $ do
+        let env =
+                MatchEnv
+                    { targetDir = "@/features/auth"
+                    , casings =
+                        Map.fromList
+                            [ (PascalCase, "UserAuth")
+                            , (CamelCase, "userAuth")
+                            , (KebabCase, "user-auth")
+                            , (ConstantCase, "USER_AUTH")
+                            ]
+                    }
+
+        it "expands TARGET_DIR and FileName into a concrete spec path" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
+            moduleFromGlob env pat `shouldBe` Just "@/features/auth/useUserAuthViewModel.spec"
+
+        it "expands TARGET_DIR and FileName into a concrete stories path" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View.stories"
+            moduleFromGlob env pat `shouldBe` Just "@/features/auth/UserAuthView.stories"
+
+        it "expands TARGET_DIR and file-name into a kebab-case repository path" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{file-name}}-repository"
+            moduleFromGlob env pat `shouldBe` Just "@/features/auth/user-auth-repository"
+
+        it "expands TARGET_DIR alone" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/index"
+            moduleFromGlob env pat `shouldBe` Just "@/features/auth/index"
+
+        it "expands a purely literal pattern unchanged" $ do
+            let pat = unsafeCompileRule "@/shared/constants"
+            moduleFromGlob env pat `shouldBe` Just "@/shared/constants"
+
+        it "returns Nothing when the pattern contains *" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/*.spec"
+            moduleFromGlob env pat `shouldBe` Nothing
+
+        it "returns Nothing when the pattern contains **" $ do
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/**/*.spec"
+            moduleFromGlob env pat `shouldBe` Nothing
+
+        it "returns Nothing for a pattern that is only a glob star" $ do
+            let pat = unsafeCompileRule "**"
+            moduleFromGlob env pat `shouldBe` Nothing
+
     describe "End-to-End Scenarios" $ do
         it "validates the Page Architecture ViewModel rule end-to-end" $ do
             let cTarget = unsafeCompileTarget "@/features/**/use{{FileName}}ViewModel"
