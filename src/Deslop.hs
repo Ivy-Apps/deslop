@@ -93,7 +93,6 @@ doWork ::
     Eff es ()
 doWork params _ = do
     logTitle params
-    unless params.checkMode (liftIO . putStrLn $ "Changelog:")
     baseline <- loadBaseline params.projectPath
     deslopProject params
     bool logFixSummary (checkModeResult baseline) params.checkMode

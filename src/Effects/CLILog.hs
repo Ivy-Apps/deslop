@@ -59,6 +59,7 @@ runCLILog action = do
                 LogTitle params -> do
                     let projectPath = decodeOsPath params.projectPath.osPath
                     liftIO . printTitle $ "🚀 Deslopping project: " <> projectPath
+                    unless params.checkMode (liftIO . putStrLn $ "Changelog:")
                 LogModification path -> liftIO $ do
                     atomically $ modifyTVar' counterVar (+ 1)
                     setSGR [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
