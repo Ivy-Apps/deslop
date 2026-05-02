@@ -3,7 +3,7 @@ module Deslop.RuleEnforcer (enforceRulebooks) where
 import Data.Text qualified as T
 import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
-import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern, MatchEnv, matchRule, matchTarget, moduleFromGlob)
+import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern, MatchEnv, matchRule, matchTarget, moduleFromGlob, renderRulePattern)
 import Deslop.Problem (Problem (..))
 import Deslop.Rulebook (Forbidden (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..))
 import Effectful (Eff, (:>))
@@ -81,7 +81,7 @@ enforceRule m rule = case isTarget m.id rule of
     execute env = do
         for_ rule.forbidden (traverse_ (executeForbidden m env))
         for_ rule.exists (traverse_ (executeExists m env))
-        for_ rules.uses (traverse_ (executeUses m env))
+        for_ rule.uses (traverse_ (executeUses m env))
 
 isTarget :: ModuleId -> Rule -> Maybe MatchEnv
 isTarget moduleId rule = case matchTarget rule.target moduleId.text of
@@ -180,10 +180,18 @@ executeExists m env pat = do
         ruleViolation m msg >>= report
 
 executeUses ::
-    ( Reader ModuleGraph :> es
-    , Reader RulebookId :> es
+    ( Reader RulebookId :> es
     , Reader Rule :> es
     , ReportProblem :> es
     ) =>
     AstModule -> MatchEnv -> CompiledRulePattern -> Eff es ()
-executeUses = todo
+executeUses m env usesPattern = do
+    let imports = m.nodes
+    unless (any (\node -> matchRule usesPattern env node.target.text) imports) $ do
+        let msg =
+                "Module '"
+                    <> m.id.text
+                    <> "' must import '"
+                    <> renderRulePattern env usesPattern
+                    <> "'."
+        ruleViolation m msg >>= report

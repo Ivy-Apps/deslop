@@ -24,6 +24,7 @@ module Deslop.GlobPlus (
 
     -- * Expansion
     moduleFromGlob,
+    renderRulePattern,
 ) where
 
 import Data.Char (isUpper)
@@ -231,6 +232,21 @@ moduleFromGlob env crp = T.concat <$> traverse expand crp.rawTokens
     expand GlobStar = Nothing
     expand (Var RTargetDir) = Just env.targetDir
     expand (Var (RVar casing)) = Just $ fromMaybe "" (Map.lookup casing env.casings)
+
+-- | Renders a rule pattern as a human-readable string by substituting
+-- variables from the MatchEnv and keeping wildcards (* or **) literally.
+renderRulePattern :: MatchEnv -> CompiledRulePattern -> Text
+renderRulePattern env crp = T.concat (map renderToken crp.rawTokens)
+  where
+    renderToken (Literal t) = t
+    renderToken Star = "*"
+    renderToken GlobStar = "**"
+    renderToken (Var RTargetDir) = env.targetDir
+    renderToken (Var (RVar casing)) = fromMaybe ("{{" <> caseName casing <> "}}") (Map.lookup casing env.casings)
+    caseName PascalCase = "FileName"
+    caseName CamelCase = "fileName"
+    caseName KebabCase = "file-name"
+    caseName ConstantCase = "FILE_NAME"
 
 --------------------------------------------------------------------------------
 -- 6. Case Tokenization & Enrichment
