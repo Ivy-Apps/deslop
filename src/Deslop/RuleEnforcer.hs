@@ -104,10 +104,17 @@ executeForbidden m env (ForbiddenImport target transitive)
         traverse_ transitiveCheck reachable
     | otherwise = traverse_ directForbiddenImport m.nodes
   where
-    directForbiddenImport (ImportNode t)
+    directForbiddenImport (ImportNode t rawStatement)
         | matchRule target env t.text =
             let
-                message = "Module '" <> m.id.text <> "' directly imports '" <> t.text <> "'."
+                message =
+                    "Module '"
+                        <> m.id.text
+                        <> "' directly imports '"
+                        <> t.text
+                        <> "'.\n```ts\n"
+                        <> T.strip rawStatement
+                        <> "\n```"
              in
                 ruleViolation m message
                     >>= report
@@ -117,7 +124,18 @@ executeForbidden m env (ForbiddenImport target transitive)
         | matchRule target env rid.text = do
             p <- findKnownPath m.id rid
             let via = " via: " <> T.intercalate " → " (map (.text) (toList p))
-                message = "Module '" <> m.id.text <> "' transitively imports '" <> rid.text <> "'" <> via <> "."
+                firstHop = listToMaybe (drop 1 (toList p))
+                importRaw hop = (T.strip . (.rawStatement)) <$> find (\n -> n.target == hop) m.nodes
+                stmtSuffix = maybe "" (\raw -> "\n```ts\n" <> raw <> "\n```") (firstHop >>= importRaw)
+                message =
+                    "Module '"
+                        <> m.id.text
+                        <> "' transitively imports '"
+                        <> rid.text
+                        <> "'"
+                        <> via
+                        <> "."
+                        <> stmtSuffix
             ruleViolation m message >>= report
         | otherwise = pure ()
 executeForbidden _ _ (ForbiddenFunctionCall _) = todo

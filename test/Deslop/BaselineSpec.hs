@@ -1,6 +1,6 @@
 module Deslop.BaselineSpec (spec) where
 
-import Deslop.Baseline (applyBaseline, loadBaselineFromFile)
+import Deslop.Baseline (Baseline, applyBaseline, inBaseline, loadBaselineFromFile)
 import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
 import Deslop.Rulebook (RuleId (..), RulebookId (..))
 import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, runMockRoFileSystem)
@@ -16,6 +16,9 @@ runTest :: MockRoFileSystem '[IOE] -> [Problem] -> IO [Problem]
 runTest mocks problems = runEff . runMockRoFileSystem mocks $ do
     baseline <- loadBaselineFromFile testPath
     pure $ applyBaseline baseline problems
+
+runLoadBaseline :: MockRoFileSystem '[IOE] -> IO Baseline
+runLoadBaseline mocks = runEff . runMockRoFileSystem mocks $ loadBaselineFromFile testPath
 
 mockWithFile :: ByteString -> MockRoFileSystem '[IOE]
 mockWithFile content =
@@ -100,3 +103,42 @@ spec = describe "Deslop.Baseline" $ do
                     \- lint-rule#src/file.ts\n"
             result <- runTest (mockWithFile yaml) [problemA, problemB, problemC]
             result `shouldBe` [problemB]
+
+    describe "inBaseline" $ do
+        it "problem present in baseline -> returns True" $ do
+            let yaml = "- rb#rule#modA\n"
+            baseline <- runLoadBaseline (mockWithFile yaml)
+            inBaseline baseline problemA `shouldBe` True
+
+        it "problem absent from baseline -> returns False" $ do
+            let yaml = "- rb#rule#modA\n"
+            baseline <- runLoadBaseline (mockWithFile yaml)
+            inBaseline baseline problemB `shouldBe` False
+
+        it "empty baseline -> always returns False" $ do
+            baseline <- runLoadBaseline (mockWithFile "[]\n")
+            inBaseline baseline problemA `shouldBe` False
+            inBaseline baseline problemB `shouldBe` False
+            inBaseline baseline problemC `shouldBe` False
+
+        it "no baseline file -> always returns False" $ do
+            let mocks = defaultMockRoFileSystem {mockFileExists = \_ -> pure False}
+            baseline <- runLoadBaseline mocks
+            inBaseline baseline problemA `shouldBe` False
+
+        it "LintProblem present in baseline -> returns True" $ do
+            let yaml = "- lint-rule#src/file.ts\n"
+            baseline <- runLoadBaseline (mockWithFile yaml)
+            inBaseline baseline problemC `shouldBe` True
+
+        it "LintProblem absent from baseline -> returns False" $ do
+            let yaml = "- rb#rule#modA\n"
+            baseline <- runLoadBaseline (mockWithFile yaml)
+            inBaseline baseline problemC `shouldBe` False
+
+        it "multiple problems in baseline -> each matched independently" $ do
+            let yaml = "- rb#rule#modA\n- rb#rule#modB\n"
+            baseline <- runLoadBaseline (mockWithFile yaml)
+            inBaseline baseline problemA `shouldBe` True
+            inBaseline baseline problemB `shouldBe` True
+            inBaseline baseline problemC `shouldBe` False

@@ -21,10 +21,17 @@ module TestUtils (
     requireRight,
     ap,
     rp,
+    baselineOf,
+    mkImportNode,
 ) where
 
 import Control.Exception (throwIO)
+import Deslop.AST (AstNode (..))
+import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Control.Exception.Base (AssertionFailed (..))
+import Data.HashSet qualified as HS
+import Deslop.Baseline (Baseline (..))
+import Deslop.Problem (ProblemId (..))
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Effectful
@@ -55,7 +62,7 @@ runCLILogTest :: (IOE :> es) => IORef (Maybe TestLogs) -> Eff (CLILog : es) a ->
 runCLILogTest ref = interpret $ \_ -> \case
     LogTitle _ -> pure ()
     LogModification _ -> pure ()
-    LogSummary -> pure ()
+    LogFixSummary -> pure ()
     LogProblems ps ->
         liftIO $ writeIORef ref (Just . TestLogs . problemsLogText $ ps)
     LogNoProblemsFound -> pure ()
@@ -166,3 +173,14 @@ ap = absPathUnsafe . encodeOsPath
 
 rp :: Text -> RelativePath
 rp = relativePathUnsafe . encodeOsPath
+
+baselineOf :: [Text] -> Baseline
+baselineOf = Baseline . HS.fromList . fmap ProblemId
+
+-- | Constructs an ImportNode with a realistic raw import statement.
+mkImportNode :: Text -> AstNode
+mkImportNode t =
+    ImportNode
+        { target = moduleIdUnsafe t
+        , rawStatement = "import { ... } from '" <> t <> "'"
+        }

@@ -1,7 +1,7 @@
 module E2E.ProjectGoldenSpec (spec) where
 
 import Data.Text qualified as T
-import Deslop (deslopProject, doWork)
+import Deslop (doWork)
 import Doubles.FileSystem (runMockWrFileSystem)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
@@ -35,6 +35,7 @@ spec = describe "E2E.ProjectGolden" $ do
         , "vitest.config.ts"
         , "next.config.ts"
         , "next.config.spec.ts"
+        , "src/lib/util.ts" -- baseline file should not be changed
         ]
 
     itFixes
@@ -111,7 +112,8 @@ spec = describe "E2E.ProjectGolden" $ do
                     . runGitTest []
                     . runReportProblem
                     . runConcurrent
-                    $ deslopProject params
+                    . runAIAlwaysFail
+                    $ doWork params testSecrets
 
             -- Then
             res `shouldBe` Right ()

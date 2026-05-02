@@ -4,3 +4,4 @@
 # Format for rulebook rules:   {rulebook-id}#{rule-id}#{module-id}
 - "no-relative-imports#src/features/home/data/home-repository.ts"
 - "architecture#no-react-in-lib#@/lib/react-helper"
+- "no-relative-imports#src/lib/util.ts"

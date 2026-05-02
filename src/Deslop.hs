@@ -2,7 +2,6 @@
 
 module Deslop (
     deslopFile,
-    deslopProject,
     doWork,
     runDeslop,
 ) where
@@ -10,7 +9,7 @@ module Deslop (
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.AST (AstModule, parseAst)
-import Deslop.Baseline (applyBaseline, loadBaseline)
+import Deslop.Baseline (Baseline, applyBaseline, loadBaseline)
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
 import Deslop.RelativeImports (importAliases)
 import Deslop.RuleEnforcer (enforceRulebooks)
@@ -20,8 +19,8 @@ import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static
 import Effectful.Reader.Static (Reader, asks, runReader)
-import Effects.AI
-import Effects.CLILog
+import Effects.AI (AI, runAI)
+import Effects.CLILog (CLILog, logError, logFixSummary, logModification, logNoProblemsFound, logProblems, logTitle, runCLILog)
 import Effects.FileSystem (
     AbsPath (osPath),
     RoFileSystem,
@@ -94,12 +93,11 @@ doWork ::
     Eff es ()
 doWork params _ = do
     logTitle params
-    unless params.checkMode (liftIO . putStrLn $ "Changelog:")
-    deslopProject params
-    bool fixResult checkModeResult params.checkMode
+    baseline <- loadBaseline params.projectPath
+    deslopProject params baseline
+    bool logFixSummary (checkModeResult baseline) params.checkMode
   where
-    checkModeResult = do
-        baseline <- loadBaseline params.projectPath
+    checkModeResult baseline = do
         ps <- applyBaseline baseline <$> getProblems
         if null ps
             then
@@ -107,11 +105,6 @@ doWork params _ = do
             else do
                 logProblems ps
                 throwError CheckModeFoundProblems
-
-    fixResult = do
-        liftIO printDivider
-        unless params.checkMode logSummary
-        liftIO printDivider
 
 deslopProject ::
     ( WrFileSystem :> es
@@ -123,8 +116,9 @@ deslopProject ::
     , Concurrent :> es
     ) =>
     Params ->
+    Baseline ->
     Eff es ()
-deslopProject params = do
+deslopProject params baseline = do
     rulebookRes <- loadRuleBook params.projectPath
     rulebook <- case rulebookRes of
         Right rb -> pure rb
@@ -136,19 +130,25 @@ deslopProject params = do
         fmap partitionEithers
             . runReader @TsConfig cfg
             . runReader @Params params
+            . runReader @Baseline baseline
             $ pooledMapConcurrentlyN 32 deslopFile files
     traverse_ logError lintErrors
-    let mg = buildModuleGraph asts
-    runReader @[Rulebook] rulebook
-        . runReader @ModuleGraph mg
-        . traverse_ enforceRulebooks
-        $ asts
+    when
+        params.checkMode
+        ( do
+            let mg = buildModuleGraph asts
+            runReader @[Rulebook] rulebook
+                . runReader @ModuleGraph mg
+                . traverse_ enforceRulebooks
+                $ asts
+        )
 
 deslopFile ::
     ( RoFileSystem :> es
     , WrFileSystem :> es
     , Reader TsConfig :> es
     , Reader Params :> es
+    , Reader Baseline :> es
     , CLILog :> es
     , ReportProblem :> es
     ) =>
@@ -168,6 +168,7 @@ deslopFile src = do
 
 lintFile ::
     ( Reader TsConfig :> es
+    , Reader Baseline :> es
     , ReportProblem :> es
     , RoFileSystem :> es
     ) =>

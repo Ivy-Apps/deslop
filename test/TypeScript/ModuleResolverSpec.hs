@@ -895,6 +895,18 @@ spec = describe "TypeScript.ModuleResolver" $ do
             let result = runRRTest importer cfg existingFiles "big.js"
             result `shouldBe` moduleIdUnsafe "big.js"
 
+        it "preserves an aliased import to a directory index — does not append /index (regression)" $ do
+            -- Regression: `@test/mock-server/handlers` was rewritten to
+            -- `@test/mock-server/handlers/index` because reverseResolveImport first
+            -- resolved the alias to the physical file (.../handlers/index.ts) and then
+            -- reverseResolved that path back to the alias — with the trailing /index included.
+            let importer = absPathUnsafe [osp|/home/repo/src/app/route.ts|]
+            let cfg = baseCfg {paths = [mkMapping (Wildcard "@test/" "") [Wildcard "test/" ""]]}
+            let existingFiles = [[osp|/home/repo/test/mock-server/handlers/index.ts|]]
+
+            let result = runRRTest importer cfg existingFiles "@test/mock-server/handlers"
+            result `shouldBe` moduleIdUnsafe "@test/mock-server/handlers"
+
         describe "catch-all mapping (*: [*])" $ do
             it "converts a relative import to its bare baseUrl-relative module id" $ do
                 let importer = absPathUnsafe [osp|/home/repo/src/pages/Home.tsx|]

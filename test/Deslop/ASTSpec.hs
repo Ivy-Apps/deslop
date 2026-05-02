@@ -40,7 +40,7 @@ spec = describe "Deslop.AST" $ do
             `shouldBe` AstModule
                 { id = moduleIdUnsafe "@/lib/demo"
                 , nodes =
-                    [ ImportNode {target = moduleIdUnsafe "@/types/errors"}
+                    [ ImportNode {target = moduleIdUnsafe "@/types/errors", rawStatement = "import * from'@/types/errors';"}
                     ]
                 }
 
@@ -70,7 +70,7 @@ spec = describe "Deslop.AST" $ do
             `shouldBe` AstModule
                 { id = moduleIdUnsafe "src/main"
                 , nodes =
-                    [ ImportNode {target = moduleIdUnsafe "react"}
-                    , ImportNode {target = moduleIdUnsafe "src/types/errors"}
+                    [ ImportNode {target = moduleIdUnsafe "react", rawStatement = "import { useEffect } from 'react';\n"}
+                    , ImportNode {target = moduleIdUnsafe "src/types/errors", rawStatement = "import type { Error } from 'src/types/errors';"}
                     ]
                 }
