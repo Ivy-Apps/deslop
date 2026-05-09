@@ -24,7 +24,7 @@ rules:
     description: Each page should have a Container that's executed on the client. It connects the View (pure UI) and its viewmodel hook.
     target: "@/app/**/page"
     uses:
-      - "@/features/**/*Container"
+      - import: "@/features/**/*Container"
     fix: Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container.
 
   - id: page-container-wires-view-and-viewmodel
@@ -34,9 +34,10 @@ rules:
     target: "@/features/**/{{FileName}}Container"
     execution-context: client
     uses:
-      - "{{TARGET_DIR}}/{{FileName}}StateEvent"
-      - "{{TARGET_DIR}}/use{{FileName}}ViewModel"
-      - "{{TARGET_DIR}}/{{FileName}}View"
+      - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"
+      - import: "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+      - import: "{{TARGET_DIR}}/{{FileName}}View"
+        transitive: true
     example: |
       "use client"
 
@@ -66,7 +67,7 @@ rules:
     target: "@/features/**/use{{FileName}}ViewModel"
     execution-context: client
     uses:
-      - "{{TARGET_DIR}}/{{FileName}}StateEvent"
+      - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"
     uses-optional:
       - "{{TARGET_DIR}}/data/{{FileName}}-repository"
       - "@/data/**/*-repository"
@@ -117,7 +118,7 @@ rules:
     exists:
       - "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
     uses:
-      - "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+      - import: "{{TARGET_DIR}}/use{{FileName}}ViewModel"
     example: |
       import { renderHook, act } from "@testing-library/react";
       import { useHomeViewModel } from "@/features/home/useHomeViewModel";
@@ -149,7 +150,7 @@ rules:
     target: "@/features/**/{{FileName}}View"
     execution-context: client
     uses:
-      - "{{TARGET_DIR}}/{{FileName}}StateEvent"
+      - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"
     uses-optional:
       - "{{TARGET_DIR}}/components/*"
       - "@/components/**/*"

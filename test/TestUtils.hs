@@ -24,6 +24,8 @@ module TestUtils (
     baselineOf,
     mkImportNode,
     failBeatiful,
+    mkUsesImportDto,
+    mkForbiddenImportDto,
 ) where
 
 import Control.Exception (throwIO)
@@ -34,6 +36,7 @@ import Data.Text.Encoding qualified as TE
 import Deslop.AST (AstNode (..))
 import Deslop.Baseline (Baseline (..))
 import Deslop.Problem (ProblemId (..))
+import Deslop.Rulebook (ForbiddenDto (..), GlobDto (GlobDto), UsesDto (UsesImportDto))
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
@@ -188,3 +191,9 @@ mkImportNode t =
         { target = moduleIdUnsafe t
         , rawStatement = "import { ... } from '" <> t <> "'"
         }
+
+mkForbiddenImportDto :: Text -> Bool -> ForbiddenDto
+mkForbiddenImportDto p transitive = ForbiddenImportDto (GlobDto p) (Just transitive)
+
+mkUsesImportDto :: Text -> Bool -> UsesDto
+mkUsesImportDto p transitive = UsesImportDto (GlobDto p) (Just transitive)

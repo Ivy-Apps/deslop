@@ -40,7 +40,7 @@ rules:
       The StateEvent defines the UiState and UiEvent types that wire the Container to the ViewModel and View.
     target: "@/features/**/{{FileName}}Container"
     uses:
-      - "{{TARGET_DIR}}/{{FileName}}StateEvent"
+      - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"
     fix: >-
       Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
 

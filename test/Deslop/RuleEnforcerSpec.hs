@@ -5,13 +5,13 @@ import Deslop.AST (AstModule (..))
 import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Problem (Problem (..))
 import Deslop.RuleEnforcer (enforceRulebooks)
-import Deslop.Rulebook (ForbiddenDto (..), GlobDto (..), RuleDto (..), RuleId (..), Rulebook, RulebookDto (..), RulebookId (..), ruleBookFromDto)
+import Deslop.Rulebook (GlobDto (..), RuleDto (..), RuleId (..), Rulebook, RulebookDto (..), RulebookId (..), ruleBookFromDto)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
-import TestUtils (mkImportNode, requireRight)
+import TestUtils (mkForbiddenImportDto, mkImportNode, mkUsesImportDto, requireRight)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (DeslopError (..))
 
@@ -37,7 +37,7 @@ testRulebook =
                         , target = GlobDto "@/components/**"
                         , exclude = Nothing
                         , executionContext = Nothing
-                        , forbids = Just [ForbiddenImportDto (GlobDto "@/forbids/**") Nothing]
+                        , forbids = Just [mkForbiddenImportDto "@/forbids/**" False]
                         , uses = Nothing
                         , usesOptional = Nothing
                         , exists = Nothing
@@ -62,7 +62,7 @@ testTransitiveRulebook =
                         , target = GlobDto "@/components/**"
                         , exclude = Nothing
                         , executionContext = Nothing
-                        , forbids = Just [ForbiddenImportDto (GlobDto "@/forbids/**") (Just True)]
+                        , forbids = Just [mkForbiddenImportDto "@/forbids/**" True]
                         , uses = Nothing
                         , usesOptional = Nothing
                         , exists = Nothing
@@ -114,7 +114,7 @@ domainRulebook =
                         , target = GlobDto "@/domain/**"
                         , exclude = Nothing
                         , executionContext = Nothing
-                        , forbids = Just [ForbiddenImportDto (GlobDto "react") (Just True)]
+                        , forbids = Just [mkForbiddenImportDto "react" True]
                         , uses = Nothing
                         , usesOptional = Nothing
                         , exists = Nothing
@@ -176,7 +176,7 @@ usesRulebook =
                         , exclude = Nothing
                         , executionContext = Nothing
                         , forbids = Nothing
-                        , uses = Just [GlobDto "{{TARGET_DIR}}/{{FileName}}StateEvent"]
+                        , uses = Just [mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" False]
                         , usesOptional = Nothing
                         , exists = Nothing
                         , example = Nothing
@@ -416,8 +416,8 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                         , forbids = Nothing
                                         , uses =
                                             Just
-                                                [ GlobDto "{{TARGET_DIR}}/{{FileName}}StateEvent"
-                                                , GlobDto "{{TARGET_DIR}}/{{FileName}}View"
+                                                [ mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" False
+                                                , mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}View" False
                                                 ]
                                         , usesOptional = Nothing
                                         , exists = Nothing
@@ -462,7 +462,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                         , exclude = Nothing
                                         , executionContext = Nothing
                                         , forbids = Nothing
-                                        , uses = Just [GlobDto "@/features/**/*Container"]
+                                        , uses = Just [mkUsesImportDto "@/features/**/*Container" False]
                                         , usesOptional = Nothing
                                         , exists = Nothing
                                         , example = Nothing
