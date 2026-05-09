@@ -79,7 +79,7 @@ enforceRule m rule = case isTarget m.id rule of
         ) =>
         MatchEnv -> Eff es ()
     execute env = do
-        for_ rule.forbidden (traverse_ (executeForbidden m env))
+        for_ rule.forbids (traverse_ (executeForbidden m env))
         for_ rule.exists (traverse_ (executeExists m env))
         for_ rule.uses (traverse_ (executeUses m env))
 

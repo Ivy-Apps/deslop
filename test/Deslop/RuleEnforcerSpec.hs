@@ -1,5 +1,6 @@
 module Deslop.RuleEnforcerSpec (spec) where
 
+import Data.Text qualified as T
 import Deslop.AST (AstModule (..))
 import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Problem (Problem (..))
@@ -9,7 +10,6 @@ import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
-import Data.Text qualified as T
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
 import TestUtils (mkImportNode, requireRight)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
@@ -32,12 +32,12 @@ testRulebook =
                 , description = Nothing
                 , rules =
                     [ RuleDto
-                        { id = RuleId "no-forbidden-import"
+                        { id = RuleId "no-forbids-import"
                         , description = Nothing
                         , target = GlobDto "@/components/**"
                         , exclude = Nothing
                         , executionContext = Nothing
-                        , forbidden = Just [ForbiddenImportDto (GlobDto "@/forbidden/**") Nothing]
+                        , forbids = Just [ForbiddenImportDto (GlobDto "@/forbids/**") Nothing]
                         , uses = Nothing
                         , usesOptional = Nothing
                         , exists = Nothing
@@ -57,12 +57,12 @@ testTransitiveRulebook =
                 , description = Nothing
                 , rules =
                     [ RuleDto
-                        { id = RuleId "no-forbidden-import"
+                        { id = RuleId "no-forbids-import"
                         , description = Nothing
                         , target = GlobDto "@/components/**"
                         , exclude = Nothing
                         , executionContext = Nothing
-                        , forbidden = Just [ForbiddenImportDto (GlobDto "@/forbidden/**") (Just True)]
+                        , forbids = Just [ForbiddenImportDto (GlobDto "@/forbids/**") (Just True)]
                         , uses = Nothing
                         , usesOptional = Nothing
                         , exists = Nothing
@@ -114,7 +114,7 @@ domainRulebook =
                         , target = GlobDto "@/domain/**"
                         , exclude = Nothing
                         , executionContext = Nothing
-                        , forbidden = Just [ForbiddenImportDto (GlobDto "react") (Just True)]
+                        , forbids = Just [ForbiddenImportDto (GlobDto "react") (Just True)]
                         , uses = Nothing
                         , usesOptional = Nothing
                         , exists = Nothing
@@ -139,7 +139,7 @@ existsRulebook =
                         , target = GlobDto "@/features/**/use{{FileName}}ViewModel"
                         , exclude = Nothing
                         , executionContext = Nothing
-                        , forbidden = Nothing
+                        , forbids = Nothing
                         , uses = Nothing
                         , usesOptional = Nothing
                         , exists = Just [GlobDto "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"]
@@ -175,7 +175,7 @@ usesRulebook =
                         , target = GlobDto "@/features/**/{{FileName}}Container"
                         , exclude = Nothing
                         , executionContext = Nothing
-                        , forbidden = Nothing
+                        , forbids = Nothing
                         , uses = Just [GlobDto "{{TARGET_DIR}}/{{FileName}}StateEvent"]
                         , usesOptional = Nothing
                         , exists = Nothing
@@ -198,7 +198,7 @@ runUsesTest allModules m =
 
 spec :: Spec
 spec = describe "Deslop.RuleEnforcer" $ do
-    describe "forbidden imports" $ do
+    describe "forbids imports" $ do
         it "no violations" $ do
             let m =
                     AstModule
@@ -212,75 +212,75 @@ spec = describe "Deslop.RuleEnforcer" $ do
             let m =
                     AstModule
                         { id = moduleIdUnsafe "@/components/Button"
-                        , nodes = [mkImportNode "@/forbidden/module"]
+                        , nodes = [mkImportNode "@/forbids/module"]
                         }
             problems <- runTest m
             problems
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
-                                , rule = RuleId "no-forbidden-import"
+                                , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' directly imports '@/forbidden/module'.\n```ts\nimport { ... } from '@/forbidden/module'\n```"
+                                , description = "Module '@/components/Button' directly imports '@/forbids/module'.\n```ts\nimport { ... } from '@/forbids/module'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
 
     describe "transitive import violations" $ do
-        it "no violations when no forbidden module is reachable" $ do
+        it "no violations when no forbids module is reachable" $ do
             let button = mkModule "@/components/Button" ["@/lib/util"]
                 util = mkModule "@/lib/util" []
             problems <- runTransitiveTest [button, util] button
             problems `shouldBe` []
 
         it "single-hop transitive violation" $ do
-            let button = mkModule "@/components/Button" ["@/forbidden/store"]
-                forbidden = mkModule "@/forbidden/store" []
-            problems <- runTransitiveTest [button, forbidden] button
+            let button = mkModule "@/components/Button" ["@/forbids/store"]
+                forbids = mkModule "@/forbids/store" []
+            problems <- runTransitiveTest [button, forbids] button
             problems
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
-                                , rule = RuleId "no-forbidden-import"
+                                , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store' via: @/components/Button → @/forbidden/store.\n```ts\nimport { ... } from '@/forbidden/store'\n```"
+                                , description = "Module '@/components/Button' transitively imports '@/forbids/store' via: @/components/Button → @/forbids/store.\n```ts\nimport { ... } from '@/forbids/store'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
 
         it "multi-hop transitive violation" $ do
             let button = mkModule "@/components/Button" ["@/lib/util"]
-                util = mkModule "@/lib/util" ["@/forbidden/store"]
-                forbidden = mkModule "@/forbidden/store" []
-            problems <- runTransitiveTest [button, util, forbidden] button
+                util = mkModule "@/lib/util" ["@/forbids/store"]
+                forbids = mkModule "@/forbids/store" []
+            problems <- runTransitiveTest [button, util, forbids] button
             problems
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
-                                , rule = RuleId "no-forbidden-import"
+                                , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/store' via: @/components/Button → @/lib/util → @/forbidden/store.\n```ts\nimport { ... } from '@/lib/util'\n```"
+                                , description = "Module '@/components/Button' transitively imports '@/forbids/store' via: @/components/Button → @/lib/util → @/forbids/store.\n```ts\nimport { ... } from '@/lib/util'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
 
-        it "reports multiple reachable forbidden modules" $ do
+        it "reports multiple reachable forbids modules" $ do
             let button = mkModule "@/components/Button" ["@/lib/util", "@/lib/helpers"]
-                util = mkModule "@/lib/util" ["@/forbidden/storeA"]
-                helpers = mkModule "@/lib/helpers" ["@/forbidden/storeB"]
-                forbiddenA = mkModule "@/forbidden/storeA" []
-                forbiddenB = mkModule "@/forbidden/storeB" []
-            problems <- runTransitiveTest [button, util, helpers, forbiddenA, forbiddenB] button
+                util = mkModule "@/lib/util" ["@/forbids/storeA"]
+                helpers = mkModule "@/lib/helpers" ["@/forbids/storeB"]
+                forbidsA = mkModule "@/forbids/storeA" []
+                forbidsB = mkModule "@/forbids/storeB" []
+            problems <- runTransitiveTest [button, util, helpers, forbidsA, forbidsB] button
             problems
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
-                                , rule = RuleId "no-forbidden-import"
+                                , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeA' via: @/components/Button → @/lib/util → @/forbidden/storeA.\n```ts\nimport { ... } from '@/lib/util'\n```"
+                                , description = "Module '@/components/Button' transitively imports '@/forbids/storeA' via: @/components/Button → @/lib/util → @/forbids/storeA.\n```ts\nimport { ... } from '@/lib/util'\n```"
                                 , fix = "Remove the import"
                                 }
                            , RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
-                                , rule = RuleId "no-forbidden-import"
+                                , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbidden/storeB' via: @/components/Button → @/lib/helpers → @/forbidden/storeB.\n```ts\nimport { ... } from '@/lib/helpers'\n```"
+                                , description = "Module '@/components/Button' transitively imports '@/forbids/storeB' via: @/components/Button → @/lib/helpers → @/forbids/storeB.\n```ts\nimport { ... } from '@/lib/helpers'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -342,7 +342,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                         , target = GlobDto "@/features/**/*"
                                         , exclude = Nothing
                                         , executionContext = Nothing
-                                        , forbidden = Nothing
+                                        , forbids = Nothing
                                         , uses = Nothing
                                         , usesOptional = Nothing
                                         , exists = Just [GlobDto "{{TARGET_DIR}}/**/*.spec"]
@@ -413,11 +413,12 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                         , target = GlobDto "@/features/**/{{FileName}}Container"
                                         , exclude = Nothing
                                         , executionContext = Nothing
-                                        , forbidden = Nothing
-                                        , uses = Just
-                                            [ GlobDto "{{TARGET_DIR}}/{{FileName}}StateEvent"
-                                            , GlobDto "{{TARGET_DIR}}/{{FileName}}View"
-                                            ]
+                                        , forbids = Nothing
+                                        , uses =
+                                            Just
+                                                [ GlobDto "{{TARGET_DIR}}/{{FileName}}StateEvent"
+                                                , GlobDto "{{TARGET_DIR}}/{{FileName}}View"
+                                                ]
                                         , usesOptional = Nothing
                                         , exists = Nothing
                                         , example = Nothing
@@ -460,7 +461,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                         , target = GlobDto "@/app/**/page"
                                         , exclude = Nothing
                                         , executionContext = Nothing
-                                        , forbidden = Nothing
+                                        , forbids = Nothing
                                         , uses = Just [GlobDto "@/features/**/*Container"]
                                         , usesOptional = Nothing
                                         , exists = Nothing

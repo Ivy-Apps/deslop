@@ -44,7 +44,7 @@ data Rule = Rule
     , target :: CompiledTargetPattern
     , exclude :: Maybe (NonEmpty CompiledTargetPattern)
     , executionContext :: ExecutionContext
-    , forbidden :: Maybe (NonEmpty Forbidden)
+    , forbids :: Maybe (NonEmpty Forbidden)
     , uses :: Maybe (NonEmpty CompiledRulePattern)
     , usesOptional :: Maybe (NonEmpty CompiledRulePattern)
     , exists :: Maybe (NonEmpty CompiledRulePattern)
@@ -92,7 +92,7 @@ data RuleDto = RuleDto
     , target :: GlobDto
     , exclude :: Maybe [GlobDto]
     , executionContext :: Maybe ExecutionContextDto
-    , forbidden :: Maybe [ForbiddenDto]
+    , forbids :: Maybe [ForbiddenDto]
     , uses :: Maybe [GlobDto]
     , usesOptional :: Maybe [GlobDto]
     , exists :: Maybe [GlobDto]
@@ -173,7 +173,7 @@ ruleFromDto dto = do
     compiledUses <- compileRuleGlobs dto.uses
     compiledUsesOptional <- compileRuleGlobs dto.usesOptional
     compiledExists <- compileRuleGlobs dto.exists
-    compiledForbidden <- compileForbiddens dto.forbidden
+    compiledForbidden <- compileForbiddens dto.forbids
     pure
         Rule
             { id = dto.id
@@ -181,7 +181,7 @@ ruleFromDto dto = do
             , target = compiledTarget
             , exclude = compiledExclude
             , executionContext = mapExecutionContext dto.executionContext
-            , forbidden = compiledForbidden
+            , forbids = compiledForbidden
             , uses = compiledUses
             , usesOptional = compiledUsesOptional
             , exists = compiledExists

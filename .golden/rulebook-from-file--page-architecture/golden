@@ -11,7 +11,7 @@ Right
             , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
             , executionContext = Neutral
-            , forbidden = Nothing
+            , forbids = Nothing
             , uses = Nothing
             , usesOptional = Nothing
             , exists = Nothing
@@ -28,7 +28,7 @@ Right
             , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
             , executionContext = Neutral
-            , forbidden = Nothing
+            , forbids = Nothing
             , uses =
                 Just
                   (CompiledRulePattern
@@ -56,7 +56,7 @@ Right
                 CompiledTargetPattern { regex = <regex> , vars = [ PascalCase ] }
             , exclude = Nothing
             , executionContext = Neutral
-            , forbidden = Nothing
+            , forbids = Nothing
             , uses =
                 Just
                   (CompiledRulePattern
@@ -121,7 +121,7 @@ Right
                 CompiledTargetPattern { regex = <regex> , vars = [ PascalCase ] }
             , exclude = Nothing
             , executionContext = Neutral
-            , forbidden =
+            , forbids =
                 Just
                   (ForbiddenFunctionCall { functionName = FunctionName "fetch" } :|
                      [ ForbiddenImport
@@ -193,7 +193,7 @@ Right
                 CompiledTargetPattern { regex = <regex> , vars = [ PascalCase ] }
             , exclude = Nothing
             , executionContext = Neutral
-            , forbidden = Nothing
+            , forbids = Nothing
             , uses =
                 Just
                   (CompiledRulePattern
@@ -245,7 +245,7 @@ Right
                 CompiledTargetPattern { regex = <regex> , vars = [ PascalCase ] }
             , exclude = Nothing
             , executionContext = Neutral
-            , forbidden =
+            , forbids =
                 Just
                   (ForbiddenFunctionCall { functionName = FunctionName "fetch" } :|
                      [])
@@ -283,7 +283,7 @@ Right
                 CompiledTargetPattern { regex = <regex> , vars = [ PascalCase ] }
             , exclude = Nothing
             , executionContext = Neutral
-            , forbidden = Nothing
+            , forbids = Nothing
             , uses = Nothing
             , usesOptional = Nothing
             , exists =

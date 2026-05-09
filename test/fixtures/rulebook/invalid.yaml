@@ -7,7 +7,7 @@ rules:
     target:
     exclude:
       - "@/**/*.e2e.spec.ts"
-    forbidden:
+    forbids:
       - import: react
         transitive: true # will check that its dependencies and their dependencies don't import React
       - import: "@/client/components/**/*"
@@ -15,6 +15,6 @@ rules:
   - id: no-test-code-in-impl
     exclude:
       - "**/*.spec.ts"
-    forbidden:
+    forbids:
       - import: "@test/**/*"
         transitive: true

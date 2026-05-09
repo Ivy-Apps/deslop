@@ -72,7 +72,7 @@ rules:
       - "@/data/**/*-repository"
       - "{{TARGET_DIR}}/domain/**/*"
       - "@/domain/**/*"
-    forbidden:
+    forbids:
       - functional-call: fetch
       - import: "{{TARGET_DIR}}/{{FileName}}View"
       - import: "@/**/components/**/*"
@@ -153,7 +153,7 @@ rules:
     uses-optional:
       - "{{TARGET_DIR}}/components/*"
       - "@/components/**/*"
-    forbidden:
+    forbids:
       - functional-call: fetch
     example: |
       import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent";
