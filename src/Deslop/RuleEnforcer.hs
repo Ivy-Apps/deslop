@@ -151,19 +151,31 @@ executeForbids _ _ (ForbiddenFunctionCall _) = todo
 executeUses ::
     ( Reader RulebookId :> es
     , Reader Rule :> es
+    , Reader ReachableModules :> es
     , ReportProblem :> es
     ) =>
     AstModule -> MatchEnv -> UsesClause -> Eff es ()
-executeUses m env (UsesImport usesPattern _transitive) = do
-    let imports = m.nodes
-    unless (any (\node -> matchRule usesPattern env node.target.text) imports) $ do
-        let msg =
-                "Module '"
-                    <> m.id.text
-                    <> "' must import '"
-                    <> renderRulePattern env usesPattern
-                    <> "'."
-        ruleViolation m msg >>= report
+executeUses m env (UsesImport usesPattern transitive)
+    | transitive = do
+        ReachableModules reachable <- ask @ReachableModules
+        unless (any (\rid -> matchRule usesPattern env rid.text) reachable) $ do
+            let msg =
+                    "Module '"
+                        <> m.id.text
+                        <> "' must transitively import '"
+                        <> renderRulePattern env usesPattern
+                        <> "'."
+            ruleViolation m msg >>= report
+    | otherwise = do
+        let imports = m.nodes
+        unless (any (\node -> matchRule usesPattern env node.target.text) imports) $ do
+            let msg =
+                    "Module '"
+                        <> m.id.text
+                        <> "' must import '"
+                        <> renderRulePattern env usesPattern
+                        <> "'."
+            ruleViolation m msg >>= report
 
 executeExists ::
     ( Reader ModuleGraph :> es

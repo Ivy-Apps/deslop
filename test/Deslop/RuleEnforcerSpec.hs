@@ -473,3 +473,122 @@ spec = describe "Deslop.RuleEnforcer" $ do
                 page = mkModule "@/app/home/page" ["@/features/home/HomeContainer"]
             result <- runExistsTest [wildcardUsesRulebook] [page] page
             result `shouldBe` Right []
+
+    describe "transitive uses enforcement" $ do
+        let usesTransitiveRulebook =
+                fromRight (error "usesTransitiveRulebook: invalid fixture") $
+                    ruleBookFromDto
+                        RulebookDto
+                            { id = "uses-rules"
+                            , name = "Uses Rules"
+                            , description = Nothing
+                            , rules =
+                                [ RuleDto
+                                    { id = RuleId "container-wires-state-event-transitively"
+                                    , description = Nothing
+                                    , target = GlobDto "@/features/**/{{FileName}}Container"
+                                    , exclude = Nothing
+                                    , executionContext = Nothing
+                                    , forbids = Nothing
+                                    , uses = Just [mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" True]
+                                    , usesOptional = Nothing
+                                    , exists = Nothing
+                                    , example = Nothing
+                                    , fix = "Import the StateEvent."
+                                    }
+                                ]
+                            }
+            runUsesTransitiveTest allModules m =
+                fmap (either (error . show) id)
+                    . runEff
+                    . runErrorNoCallStack @DeslopError
+                    . runReportProblem
+                    . runReader (buildModuleGraph allModules)
+                    . runReader [usesTransitiveRulebook]
+                    $ do
+                        enforceRulebooks m
+                        getProblems
+
+        it "no violation when module directly imports the required module" $ do
+            let container = mkModule "@/features/home/HomeContainer" ["@/features/home/HomeStateEvent"]
+            problems <- runUsesTransitiveTest [container] container
+            problems `shouldBe` []
+
+        it "no violation when module transitively imports the required module via an intermediary" $ do
+            let container = mkModule "@/features/home/HomeContainer" ["@/features/home/HomeView"]
+                view = mkModule "@/features/home/HomeView" ["@/features/home/HomeStateEvent"]
+                stateEvent = mkModule "@/features/home/HomeStateEvent" []
+            problems <- runUsesTransitiveTest [container, view, stateEvent] container
+            problems `shouldBe` []
+
+        it "reports a violation when the required module is not reachable" $ do
+            let container = mkModule "@/features/home/HomeContainer" ["@/features/home/HomeView"]
+                view = mkModule "@/features/home/HomeView" []
+            problems <- runUsesTransitiveTest [container, view] container
+            problems
+                `shouldBe` [ RuleViolation
+                                { rulebook = RulebookId "uses-rules"
+                                , rule = RuleId "container-wires-state-event-transitively"
+                                , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                , description = "Module '@/features/home/HomeContainer' must transitively import '@/features/home/HomeStateEvent'."
+                                , fix = "Import the StateEvent."
+                                }
+                           ]
+
+        it "reports a violation when module has no imports at all" $ do
+            let container = mkModule "@/features/home/HomeContainer" []
+            problems <- runUsesTransitiveTest [container] container
+            problems
+                `shouldBe` [ RuleViolation
+                                { rulebook = RulebookId "uses-rules"
+                                , rule = RuleId "container-wires-state-event-transitively"
+                                , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                , description = "Module '@/features/home/HomeContainer' must transitively import '@/features/home/HomeStateEvent'."
+                                , fix = "Import the StateEvent."
+                                }
+                           ]
+
+        it "no violation for a module that does not match the target" $ do
+            let notAContainer = mkModule "@/features/home/HomeView" []
+            problems <- runUsesTransitiveTest [notAContainer] notAContainer
+            problems `shouldBe` []
+
+        it "wildcard transitive uses pattern matches a reachable module" $ do
+            let wildcardTransitiveRulebook =
+                    fromRight (error "wildcardTransitiveRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            RulebookDto
+                                { id = "uses-rules"
+                                , name = "Uses Rules"
+                                , description = Nothing
+                                , rules =
+                                    [ RuleDto
+                                        { id = RuleId "domain-must-use-logger"
+                                        , description = Nothing
+                                        , target = GlobDto "@/domain/**"
+                                        , exclude = Nothing
+                                        , executionContext = Nothing
+                                        , forbids = Nothing
+                                        , uses = Just [mkUsesImportDto "@/infrastructure/**/*Logger" True]
+                                        , usesOptional = Nothing
+                                        , exists = Nothing
+                                        , example = Nothing
+                                        , fix = "Ensure a logger is used."
+                                        }
+                                    ]
+                                }
+                runWildcardTest allModules m =
+                    fmap (either (error . show) id)
+                        . runEff
+                        . runErrorNoCallStack @DeslopError
+                        . runReportProblem
+                        . runReader (buildModuleGraph allModules)
+                        . runReader [wildcardTransitiveRulebook]
+                        $ do
+                            enforceRulebooks m
+                            getProblems
+                useCase = mkModule "@/domain/LoginUseCase" ["@/domain/LoginService"]
+                service = mkModule "@/domain/LoginService" ["@/infrastructure/http/HttpLogger"]
+                logger = mkModule "@/infrastructure/http/HttpLogger" []
+            problems <- runWildcardTest [useCase, service, logger] useCase
+            problems `shouldBe` []
