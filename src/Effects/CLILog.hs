@@ -5,6 +5,7 @@ module Effects.CLILog (
     logFixSummary,
     logProblems,
     logNoProblemsFound,
+    logBaselineSaved,
     logError,
     runCLILog,
 ) where
@@ -17,7 +18,7 @@ import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.FileSystem (AbsPath (..), decodeOsPath)
 import Fmt (fmt, pretty, (+|), (|+))
-import Params (Params (..))
+import Params (Command (..), Params (..))
 import System.Console.ANSI
 import UI (ProblemsLog (..), printDivider, printDividerStderr, printErr, printSuccess, printTitle, putStderrLn)
 
@@ -27,6 +28,7 @@ data CLILog :: Effect where
     LogFixSummary :: CLILog m ()
     LogProblems :: [Problem] -> CLILog m ()
     LogNoProblemsFound :: CLILog m ()
+    LogBaselineSaved :: Int -> CLILog m ()
     LogError :: String -> CLILog m ()
 
 type instance DispatchOf CLILog = 'Dynamic
@@ -46,6 +48,9 @@ logProblems = send . LogProblems
 logNoProblemsFound :: (CLILog :> es) => Eff es ()
 logNoProblemsFound = send LogNoProblemsFound
 
+logBaselineSaved :: (CLILog :> es) => Int -> Eff es ()
+logBaselineSaved = send . LogBaselineSaved
+
 logError :: (CLILog :> es) => String -> Eff es ()
 logError = send . LogError
 
@@ -59,7 +64,7 @@ runCLILog action = do
                 LogTitle params -> do
                     let projectPath = decodeOsPath params.projectPath.osPath
                     liftIO . printTitle $ "🚀 Deslopping project: " <> projectPath
-                    unless params.checkMode (liftIO . putStrLn $ "Changelog:")
+                    when (params.command == FixC) (liftIO . putStrLn $ "Changelog:")
                 LogModification path -> liftIO $ do
                     atomically $ modifyTVar' counterVar (+ 1)
                     setSGR [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
@@ -84,5 +89,8 @@ runCLILog action = do
                     putStderrLn . pretty . ProblemsLog $ ps
                     printDividerStderr
                 LogNoProblemsFound -> liftIO $ printSuccess "No problems found."
+                LogBaselineSaved n ->
+                    liftIO . printSuccess $
+                        "Baseline generated with " <> T.pack (show n) <> " problem(s)."
                 LogError e -> liftIO . printErr . T.pack $ e
             )

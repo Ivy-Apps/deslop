@@ -1,6 +1,7 @@
 module E2E.ProjectGoldenSpec (spec) where
 
 import Data.Text qualified as T
+import Data.Text.Encoding qualified as TE
 import Deslop (doWork)
 import Doubles.FileSystem (runMockWrFileSystem)
 import Effectful (runEff)
@@ -8,7 +9,7 @@ import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (encodeOsPathString, runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
-import Params (Params (..))
+import Params (Command (..), Params (..))
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
@@ -21,6 +22,10 @@ spec = describe "E2E.ProjectGolden" $ do
     itChecks "ts-project-1"
     itChecks "ixartz-next-js-boilerplate"
     itChecks "melzar-nextjs-clean-architecture"
+
+    itBaselines "ts-project-1"
+    itBaselines "ixartz-next-js-boilerplate"
+    itBaselines "melzar-nextjs-clean-architecture"
 
     itFixes
         "ts-project-1"
@@ -70,7 +75,7 @@ spec = describe "E2E.ProjectGolden" $ do
         filesRef <- newIORef Nothing
         logsRef <- newIORef Nothing
         defParams <- defaultParams projectPath
-        let params = defParams {checkMode = True}
+        let params = defParams {command = CheckC}
 
         -- When
         res <-
@@ -93,6 +98,32 @@ spec = describe "E2E.ProjectGolden" $ do
 
         logs <- requireJust "Expected problems to be logged when check mode finds problems" maybeLogs
         pathSafeGolden ("check-" <> project) (T.unpack logs.problems)
+
+    itBaselines project = it ("baselines " <> project) $ do
+        -- Given
+        let projectPath = fixturesPath </> encodeOsPathString project
+        filesRef <- newIORef Nothing
+        logsRef <- newIORef Nothing
+        defParams <- defaultParams projectPath
+        let params = defParams {command = BaselineC}
+
+        -- When
+        res <-
+            runEff
+                . runMockWrFileSystem filesRef
+                . runRoFileSystemIO
+                . runErrorNoCallStack @DeslopError
+                . runCLILogTest logsRef
+                . runGitTest []
+                . runReportProblem
+                . runAIAlwaysFail
+                . runConcurrent
+                $ doWork params testSecrets
+
+        -- Then
+        res `shouldBe` Right ()
+        content <- requireJust "Expected baseline.yaml to be written" =<< readIORef filesRef
+        pathSafeGolden ("baseline-" <> project) (T.unpack . TE.decodeUtf8 $ content)
 
     itFixes project filesToCheck = it ("fixes " <> project) $ do
         withSystemTempDirectory "deslop-test" $ \tmpFp -> do

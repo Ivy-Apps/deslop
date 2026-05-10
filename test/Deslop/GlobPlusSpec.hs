@@ -326,17 +326,17 @@ spec = describe "Deslop.GlobPlus" $ do
             matchRule cStories env "@/features/profile/UserProfileView.storybook" `shouldBe` False
             matchRule cStories env "@/features/profile/UserProfileView.spec" `shouldBe` False
 
-        it "validates the ViewModel forbidden-import rule (page-architecture)" $ do
-            -- ViewModel must NOT import its own View; matchRule True = forbidden path detected
+        it "validates the ViewModel forbids-import rule (page-architecture)" $ do
+            -- ViewModel must NOT import its own View; matchRule True = forbids path detected
             let cTarget = unsafeCompileTarget "@/features/**/use{{FileName}}ViewModel"
-            let cForbidden = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
+            let cforbids = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
             let targetPath = "@/features/home/useHomeViewModel"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget cTarget targetPath
 
-            matchRule cForbidden env "@/features/home/HomeView" `shouldBe` True
-            -- Other paths in the same dir are not caught by this forbidden rule
-            matchRule cForbidden env "@/features/home/HomeContainer" `shouldBe` False
-            matchRule cForbidden env "@/features/other/HomeView" `shouldBe` False
+            matchRule cforbids env "@/features/home/HomeView" `shouldBe` True
+            -- Other paths in the same dir are not caught by this forbids rule
+            matchRule cforbids env "@/features/home/HomeContainer" `shouldBe` False
+            matchRule cforbids env "@/features/other/HomeView" `shouldBe` False
 
 -- Helpers
 

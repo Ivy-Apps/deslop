@@ -27,7 +27,7 @@ Used in the `target:` field of a rule. Matches a file path and **extracts variab
 
 ### RulePattern
 
-Used in `uses:`, `exists:`, `forbidden:`, etc. Matches a file path against a **hydrated** environment.
+Used in `uses:`, `exists:`, `forbids:`, etc. Matches a file path against a **hydrated** environment.
 
 - Supports everything TargetPattern does, plus:
   - `{{TARGET_DIR}}` — the directory of the matched target file.

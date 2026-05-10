@@ -5,6 +5,7 @@ module Doubles.FileSystem (
     runMockWrFileSystem,
     mockFiles,
     mockDirs,
+    mockFileAt,
 ) where
 
 import Data.Text qualified as T
@@ -27,6 +28,7 @@ runMockWrFileSystem ::
     Eff es a
 runMockWrFileSystem ref = interpret $ \_ -> \case
     WriteFile _path content -> liftIO $ writeIORef ref (Just content)
+    MkDirP _ -> pure ()
 
 {- | A product type containing mock implementations for all RoFileSystem operations.
 Parameterized over `es` so your mocks can utilize other effects in your test stack
@@ -87,6 +89,13 @@ mockFiles :: [OsPath] -> MockRoFileSystem es
 mockFiles existingFiles =
     defaultMockRoFileSystem
         { mockFileExists = \p -> pure $ p `elem` (absPathUnsafe <$> existingFiles)
+        }
+
+mockFileAt :: AbsPath -> ByteString -> MockRoFileSystem es
+mockFileAt path content =
+    defaultMockRoFileSystem
+        { mockFileExists = \p -> pure (p == path)
+        , mockReadFile = \_ -> pure content
         }
 
 -- | Build a mock that knows which paths are directories and what they contain.

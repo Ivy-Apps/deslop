@@ -1,0 +1,5 @@
+- no-relative-imports#.storybook/preview.tsx
+- no-relative-imports#src/app/layout.tsx
+- no-relative-imports#src/ui/common/components/layout/ContainerBox/ContainerBox.tsx
+- no-relative-imports#src/ui/common/components/layout/TopHeader/TopHeader.stories.tsx
+- no-relative-imports#src/ui/common/components/layout/TopNavigation/TopNavigation.tsx

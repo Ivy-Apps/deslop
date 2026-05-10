@@ -1,9 +1,9 @@
-const Forbidden = () => {
+const forbids = () => {
   return (
     <main className="xl:container xl:mx-auto flex min-h-screen flex-col  items-center justify-center p-24">
-      <span>FORBIDDEN 403</span>
+      <span>forbids 403</span>
     </main>
   );
 };
 
-export default Forbidden;
+export default forbids;

@@ -6,9 +6,11 @@ module Deslop.Rulebook (
     RuleId (..),
     GlobDto (..),
     ForbiddenDto (..),
+    UsesDto (..),
     Rulebook (..),
     Rule (..),
-    Forbidden (..),
+    ForbiddenClause (..),
+    UsesClause (..),
     RulebookId (..),
     parseRuleBookYaml,
     ruleBookFromDto,
@@ -44,8 +46,8 @@ data Rule = Rule
     , target :: CompiledTargetPattern
     , exclude :: Maybe (NonEmpty CompiledTargetPattern)
     , executionContext :: ExecutionContext
-    , forbidden :: Maybe (NonEmpty Forbidden)
-    , uses :: Maybe (NonEmpty CompiledRulePattern)
+    , forbids :: Maybe (NonEmpty ForbiddenClause)
+    , uses :: Maybe (NonEmpty UsesClause)
     , usesOptional :: Maybe (NonEmpty CompiledRulePattern)
     , exists :: Maybe (NonEmpty CompiledRulePattern)
     , example :: Maybe Text
@@ -53,9 +55,15 @@ data Rule = Rule
     }
     deriving stock (Show)
 
+data UsesClause = UsesImport
+    { target :: CompiledRulePattern
+    , transitive :: Bool
+    }
+    deriving stock (Show, Eq)
+
 newtype FunctionName = FunctionName Text deriving (Show, Eq)
 
-data Forbidden
+data ForbiddenClause
     = ForbiddenImport
         { target :: CompiledRulePattern
         , transitive :: Bool
@@ -72,7 +80,7 @@ data Forbidden
 data RulebookDto = RulebookDto
     { id :: Text
     , name :: Text
-    , description :: Maybe Text
+    , description :: Text
     , rules :: [RuleDto]
     }
     deriving stock (Show, Eq, Generic)
@@ -88,12 +96,12 @@ instance FromJSON ExecutionContextDto where
 
 data RuleDto = RuleDto
     { id :: RuleId
-    , description :: Maybe Text
+    , description :: Text
     , target :: GlobDto
     , exclude :: Maybe [GlobDto]
     , executionContext :: Maybe ExecutionContextDto
-    , forbidden :: Maybe [ForbiddenDto]
-    , uses :: Maybe [GlobDto]
+    , forbids :: Maybe [ForbiddenDto]
+    , uses :: Maybe [UsesDto]
     , usesOptional :: Maybe [GlobDto]
     , exists :: Maybe [GlobDto]
     , example :: Maybe Text
@@ -105,6 +113,16 @@ data RuleDto = RuleDto
 newtype RuleId = RuleId Text
     deriving stock (Show, Eq, Ord)
     deriving newtype (FromJSON)
+
+data UsesDto = UsesImportDto
+    { target :: GlobDto
+    , transitive :: Maybe Bool
+    }
+    deriving (Show, Eq)
+
+instance FromJSON UsesDto where
+    parseJSON = withObject "UsesDto" $ \v ->
+        UsesImportDto <$> v .: "import" <*> v .:? "transitive"
 
 data ForbiddenDto
     = ForbiddenImportDto
@@ -162,7 +180,7 @@ ruleBookFromDto rbDto = do
         Rulebook
             { id = RulebookId rbDto.id
             , name = rbDto.name
-            , description = fromMaybe "" rbDto.description
+            , description = rbDto.description
             , rules = parsedRules
             }
 
@@ -170,18 +188,18 @@ ruleFromDto :: RuleDto -> Either Text Rule
 ruleFromDto dto = do
     compiledTarget <- compileTargetGlob dto.target
     compiledExclude <- compileTargetGlobs dto.exclude
-    compiledUses <- compileRuleGlobs dto.uses
+    compiledUses <- compileUsesClauses dto.uses
     compiledUsesOptional <- compileRuleGlobs dto.usesOptional
     compiledExists <- compileRuleGlobs dto.exists
-    compiledForbidden <- compileForbiddens dto.forbidden
+    compiledForbidden <- compileForbiddenClauses dto.forbids
     pure
         Rule
             { id = dto.id
-            , description = fromMaybe "" dto.description
+            , description = dto.description
             , target = compiledTarget
             , exclude = compiledExclude
             , executionContext = mapExecutionContext dto.executionContext
-            , forbidden = compiledForbidden
+            , forbids = compiledForbidden
             , uses = compiledUses
             , usesOptional = compiledUsesOptional
             , exists = compiledExists
@@ -212,13 +230,30 @@ compileRuleGlobs :: Maybe [GlobDto] -> Either Text (Maybe (NonEmpty CompiledRule
 compileRuleGlobs Nothing = Right Nothing
 compileRuleGlobs (Just globs) = fmap nonEmpty (traverse compileRuleGlob globs)
 
-compileForbiddens :: Maybe [ForbiddenDto] -> Either Text (Maybe (NonEmpty Forbidden))
-compileForbiddens Nothing = Right Nothing
-compileForbiddens (Just fbs) = fmap nonEmpty (traverse compileForbidden fbs)
+compileUsesClauses :: Maybe [UsesDto] -> Either Text (Maybe (NonEmpty UsesClause))
+compileUsesClauses Nothing = Right Nothing
+compileUsesClauses (Just xs) = nonEmpty <$> traverse compileUses xs
 
-compileForbidden :: ForbiddenDto -> Either Text Forbidden
+compileUses :: UsesDto -> Either Text UsesClause
+compileUses (UsesImportDto (GlobDto s) transitive) = do
+    pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
+    Right
+        UsesImport
+            { target = compileRulePattern pattern
+            , transitive = fromMaybe False transitive
+            }
+
+compileForbiddenClauses :: Maybe [ForbiddenDto] -> Either Text (Maybe (NonEmpty ForbiddenClause))
+compileForbiddenClauses Nothing = Right Nothing
+compileForbiddenClauses (Just fbs) = nonEmpty <$> traverse compileForbidden fbs
+
+compileForbidden :: ForbiddenDto -> Either Text ForbiddenClause
 compileForbidden (ForbiddenImportDto (GlobDto s) transitive) = do
     pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
-    pure ForbiddenImport {target = compileRulePattern pattern, transitive = fromMaybe False transitive}
+    Right
+        ForbiddenImport
+            { target = compileRulePattern pattern
+            , transitive = fromMaybe False transitive
+            }
 compileForbidden (FunctionCallDto name) =
-    pure ForbiddenFunctionCall {functionName = FunctionName name}
+    Right ForbiddenFunctionCall {functionName = FunctionName name}
