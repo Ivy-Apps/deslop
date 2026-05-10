@@ -44,6 +44,19 @@ rules:
     fix: >-
       Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
 
+  - id: screen-transitively-uses-state-event
+    description: >-
+      Every Screen must transitively import its corresponding StateEvent module.
+      A Screen typically delegates to a Container which wires the StateEvent,
+      so the StateEvent must be reachable somewhere in the import chain.
+    target: "@/features/**/{{FileName}}Screen"
+    uses:
+      - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"
+        transitive: true
+    fix: >-
+      Ensure that '{{TARGET_DIR}}/{{FileName}}StateEvent' is reachable from this Screen,
+      typically by having the Screen import a Container that wires the StateEvent.
+
   - id: no-react-transitively-in-data
     description: >-
       Data layer modules in @/features/**/data must not transitively depend on React.

@@ -147,6 +147,11 @@ Module '@/features/products/ProductListContainer' must import '@/features/produc
 FIX: Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
 ---------
 
+# architecture#container-uses-state-event#@/features/settings/SettingsContainer
+Module '@/features/settings/SettingsContainer' must import '@/features/settings/SettingsStateEvent'.
+FIX: Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
+---------
+
 # architecture#no-react-transitively-in-data#@/features/home/data/bad-repository
 Module '@/features/home/data/bad-repository' transitively imports 'react' via: @/features/home/data/bad-repository → @/features/home/home-screen → react.
 ```ts
@@ -169,6 +174,11 @@ Module '@/features/home/home.spec' directly imports '@tests/test-log'.
 import * from "@tests/test-log"
 ```
 FIX: Remove the import from the tests directory. If you need shared data structures, move them to @/lib or @/features instead.
+---------
+
+# architecture#screen-transitively-uses-state-event#@/features/settings/SettingsScreen
+Module '@/features/settings/SettingsScreen' must transitively import '@/features/settings/SettingsStateEvent'.
+FIX: Ensure that '{{TARGET_DIR}}/{{FileName}}StateEvent' is reachable from this Screen, typically by having the Screen import a Container that wires the StateEvent.
 ---------
 
 # architecture#viewmodel-has-spec#@/features/profile/useUserProfileViewModel
