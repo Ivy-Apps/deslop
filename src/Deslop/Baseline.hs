@@ -45,4 +45,4 @@ loadBaselineFromFile fp = do
 parseBasline :: ByteString -> Either Text Baseline
 parseBasline bs =
     first (T.pack . show) (decodeEither' @[Text] bs)
-        <&> (Baseline . HS.fromList . fmap ProblemId)
+        <&> (Baseline . HS.fromList . fmap (ProblemId . T.strip))

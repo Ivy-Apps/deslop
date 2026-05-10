@@ -56,7 +56,7 @@ problemC :: Problem
 problemC =
     LintProblem
         { lintRule = LintRuleId "lint-rule"
-        , location = Location{file = relativePathUnsafe (encodeOsPath "src/file.ts"), code = "bad code"}
+        , location = Location {file = relativePathUnsafe (encodeOsPath "src/file.ts"), code = "bad code"}
         , description = "problem C"
         , fix = "fix C"
         , autoFixable = False
@@ -81,6 +81,11 @@ spec = describe "Deslop.Baseline" $ do
 
         it "partial baseline -> filters only matched problems" $ do
             let yaml = "- rb#rule#modA\n"
+            result <- runTest (mockWithFile yaml) [problemA, problemB]
+            result `shouldBe` [problemB]
+
+        it "strips whitespaces in the baseline" $ do
+            let yaml = "-  rb#rule#modA   \n"
             result <- runTest (mockWithFile yaml) [problemA, problemB]
             result `shouldBe` [problemB]
 
