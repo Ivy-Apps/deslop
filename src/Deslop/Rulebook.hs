@@ -122,7 +122,7 @@ data UsesDto = UsesImportDto
 
 instance FromJSON UsesDto where
     parseJSON = withObject "UsesDto" $ \v ->
-        (UsesImportDto <$> v .: "import" <*> v .:? "transitive")
+        UsesImportDto <$> v .: "import" <*> v .:? "transitive"
 
 data ForbiddenDto
     = ForbiddenImportDto

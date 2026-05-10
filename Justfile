@@ -8,7 +8,10 @@ check:
     cabal test all 
     cabal build
     just sandbox
-    cabal run deslop -- sandbox/
+    cabal run deslop -- fix sandbox/
+    just sandbox
+    cabal run deslop -- baseline sandbox/
+    cabal run deslop -- check sandbox/
 
 # Generate a testing '/sandbox' project dir
 @sandbox:
