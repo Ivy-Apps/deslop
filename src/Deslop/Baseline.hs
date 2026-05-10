@@ -5,16 +5,18 @@ module Deslop.Baseline (
     loadBaselineFromFile,
     applyBaseline,
     inBaseline,
+    saveBaseline,
+    emptyBaseline,
     Baseline (..),
 ) where
 
 import Data.HashSet qualified as HS
 import Data.Text qualified as T
-import Data.Yaml (decodeEither')
+import Data.Yaml (decodeEither', encode)
 import Deslop.Problem (Problem (..), ProblemId (..), problemId)
 import Effectful (Eff)
 import Effectful.Internal.Effect ((:>))
-import Effects.FileSystem (AbsPath, RoFileSystem, fsFileExists, fsReadFile, withAbsBaseUnsafe)
+import Effects.FileSystem (AbsPath, RoFileSystem, WrFileSystem, fsMkDirP, fsFileExists, fsReadFile, fsWriteFile, withAbsBaseUnsafe)
 import System.OsPath (OsPath, osp)
 
 newtype Baseline = Baseline (HashSet ProblemId) deriving (Show, Eq)
@@ -46,3 +48,12 @@ parseBasline :: ByteString -> Either Text Baseline
 parseBasline bs =
     first (T.pack . show) (decodeEither' @[Text] bs)
         <&> (Baseline . HS.fromList . fmap (ProblemId . T.strip))
+
+saveBaseline :: (WrFileSystem :> es) => AbsPath -> [Problem] -> Eff es ()
+saveBaseline projectPath problems = do
+    fsMkDirP deslopDir
+    fsWriteFile baselineFile (encode ids)
+  where
+    deslopDir = withAbsBaseUnsafe projectPath [osp|deslop|]
+    baselineFile = withAbsBaseUnsafe projectPath baselinePath
+    ids = map ((.text) . problemId) problems

@@ -14,6 +14,7 @@ module Effects.FileSystem (
     fsFileExists,
     fsReadFile,
     fsWriteFile,
+    fsMkDirP,
     fsDirectoryExists,
     fsListDirectory,
     fsGetHomeDirectory,
@@ -79,6 +80,7 @@ data RoFileSystem :: Effect where
 
 data WrFileSystem :: Effect where
     WriteFile :: AbsPath -> ByteString -> WrFileSystem m ()
+    MkDirP :: AbsPath -> WrFileSystem m ()
 
 type instance DispatchOf RoFileSystem = Dynamic
 type instance DispatchOf WrFileSystem = Dynamic
@@ -100,6 +102,9 @@ fsGetHomeDirectory = send GetHomeDirectory
 
 fsWriteFile :: (WrFileSystem :> es) => AbsPath -> ByteString -> Eff es ()
 fsWriteFile path content = send $ WriteFile path content
+
+fsMkDirP :: (WrFileSystem :> es) => AbsPath -> Eff es ()
+fsMkDirP = send . MkDirP
 
 fsMkAbsolute :: (RoFileSystem :> es) => OsPath -> Eff es AbsPath
 fsMkAbsolute = send . MkAbsolute
@@ -123,3 +128,4 @@ runRoFileSystemIO = interpret $ \_env -> \case
 runWrFileSystemIO :: (IOE :> es) => Eff (WrFileSystem : es) a -> Eff es a
 runWrFileSystemIO = interpret $ \_env -> \case
     WriteFile (AbsPath path) content -> liftIO $ SFO.writeFile' path content
+    MkDirP (AbsPath path) -> liftIO $ SDO.createDirectoryIfMissing True path

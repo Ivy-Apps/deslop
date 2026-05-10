@@ -70,6 +70,7 @@ runCLILogTest ref = interpret $ \_ -> \case
     LogProblems ps ->
         liftIO $ writeIORef ref (Just . TestLogs . problemsLogText $ ps)
     LogNoProblemsFound -> pure ()
+    LogBaselineSaved _ -> pure ()
     LogError _ -> pure ()
 
 defaultParams :: OsPath -> IO Params
@@ -78,7 +79,7 @@ defaultParams projPath = do
     pure
         Params
             { projectPath = absProjPath
-            , checkMode = False
+            , command = FixC
             }
 
 runGitTest :: ModifiedFiles -> Eff (Git : es) a -> Eff es a

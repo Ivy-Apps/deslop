@@ -6,6 +6,7 @@ module Params (
     parserPrefs,
     Params (..),
     ParamsDto (..),
+    Command (..),
     paramsFromDto,
 )
 where
@@ -18,15 +19,18 @@ import Options.Applicative
 import Paths_deslop (version)
 import System.OsPath (OsPath, osp)
 
+data Command = CheckC | FixC | BaselineC
+    deriving (Show, Eq)
+
 data Params = Params
     { projectPath :: AbsPath
-    , checkMode :: Bool
+    , command :: Command
     }
     deriving (Show, Eq)
 
 data ParamsDto = ParamsDto
-    { projectPath :: OsPath
-    , checkMode :: Bool
+    { command :: Command
+    , projectPath :: OsPath
     }
     deriving (Show, Eq)
 
@@ -36,23 +40,29 @@ paramsFromDto dto = do
     pure
         Params
             { projectPath = projPath
-            , checkMode = dto.checkMode
+            , command = dto.command
             }
+
+readCommand :: String -> Either String Command
+readCommand "check" = Right CheckC
+readCommand "fix" = Right FixC
+readCommand "baseline" = Right BaselineC
+readCommand s = Left $ "Unknown command '" <> s <> "'. Expected: check, fix, or baseline"
 
 pParams :: Parser ParamsDto
 pParams =
     ParamsDto
         <$> argument
+            (eitherReader readCommand)
+            ( metavar "COMMAND"
+                <> help "Command to run: check, fix, or baseline"
+            )
+        <*> argument
             (eitherReader (Right . encodeOsPath . T.pack))
-            ( metavar "PROJECT_PATH"
+            ( metavar "PROJECT_DIR"
                 <> help "Path to the TypeScript project"
                 <> value [osp|.|]
                 <> showDefault
-            )
-        <*> switch
-            ( long "check"
-                <> short 'c'
-                <> help "Check mode. Won't change files and will only report problems"
             )
 
 versionOption :: Parser (a -> a)
@@ -70,7 +80,7 @@ paramsParser =
         (helper <*> versionOption <*> pParams)
         ( fullDesc
             <> header "Deslop - A Haskell-powered code cleaner ✨"
-            <> progDesc "Removes slop from TypeScript projects."
+            <> progDesc "Removes slop from TypeScript projects. Commands: check, fix, baseline"
         )
 
 parserPrefs :: ParserPrefs

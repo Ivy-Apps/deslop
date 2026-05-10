@@ -9,7 +9,7 @@ module Deslop (
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.AST (AstModule, parseAst)
-import Deslop.Baseline (Baseline, applyBaseline, loadBaseline)
+import Deslop.Baseline (Baseline, applyBaseline, emptyBaseline, loadBaseline, saveBaseline)
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
 import Deslop.RelativeImports (importAliases)
 import Deslop.RuleEnforcer (enforceRulebooks)
@@ -17,10 +17,10 @@ import Deslop.Rulebook (Rulebook, loadRuleBook)
 import Effectful (Eff, IOE, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
-import Effectful.Error.Static
+import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Reader.Static (Reader, asks, runReader)
 import Effects.AI (AI, runAI)
-import Effects.CLILog (CLILog, logError, logFixSummary, logModification, logNoProblemsFound, logProblems, logTitle, runCLILog)
+import Effects.CLILog (CLILog, logBaselineSaved, logError, logFixSummary, logModification, logNoProblemsFound, logProblems, logTitle, runCLILog)
 import Effects.FileSystem (
     AbsPath (osPath),
     RoFileSystem,
@@ -93,18 +93,25 @@ doWork ::
     Eff es ()
 doWork params _ = do
     logTitle params
-    baseline <- loadBaseline params.projectPath
-    deslopProject params baseline
-    bool logFixSummary (checkModeResult baseline) params.checkMode
-  where
-    checkModeResult baseline = do
-        ps <- applyBaseline baseline <$> getProblems
-        if null ps
-            then
-                logNoProblemsFound
-            else do
-                logProblems ps
-                throwError CheckModeFoundProblems
+    case params.command of
+        FixC -> do
+            baseline <- loadBaseline params.projectPath
+            deslopProject params baseline
+            logFixSummary
+        CheckC -> do
+            baseline <- loadBaseline params.projectPath
+            deslopProject params baseline
+            ps <- applyBaseline baseline <$> getProblems
+            if null ps
+                then logNoProblemsFound
+                else do
+                    logProblems ps
+                    throwError CheckModeFoundProblems
+        BaselineC -> do
+            deslopProject params emptyBaseline
+            ps <- getProblems
+            saveBaseline params.projectPath ps
+            logBaselineSaved (length ps)
 
 deslopProject ::
     ( WrFileSystem :> es
@@ -134,7 +141,7 @@ deslopProject params baseline = do
             $ pooledMapConcurrentlyN 32 deslopFile files
     traverse_ logError lintErrors
     when
-        params.checkMode
+        (params.command /= FixC)
         ( do
             let mg = buildModuleGraph asts
             runReader @[Rulebook] rulebook
@@ -158,8 +165,8 @@ deslopFile src = do
     c <- fsReadFile src
     cstRes <- lintFile src c
     let c' = either (const c) renderProgram cstRes
-    checkMode <- asks @Params (.checkMode)
-    when (c /= c' && not checkMode) $ do
+    cmd <- asks @Params (.command)
+    when (c /= c' && cmd == FixC) $ do
         fsWriteFile src c'
         logModification src
     traverse parseAst cstRes

@@ -1,66 +1,68 @@
 module ParamsSpec (spec) where
 
 import Options.Applicative
-import Params (ParamsDto (..), paramsParser, parserPrefs)
+import Params (Command (..), ParamsDto (..), paramsParser, parserPrefs)
 import System.OsPath (osp)
 import Test.Hspec
 
 spec :: Spec
 spec = describe "Params" $ do
-    it "defaults project path to . and both flags to False when given no args" $ do
-        parseParams []
+    it "returns Nothing when no arguments given (command is required)" $ do
+        parseParams [] `shouldBe` Nothing
+
+    it "parses 'fix' command with default project dir" $ do
+        parseParams ["fix"]
             `shouldBe` Just
                 ( ParamsDto
-                    { projectPath = [osp|.|]
-                    , checkMode = False
+                    { command = FixC
+                    , projectPath = [osp|.|]
                     }
                 )
 
-    it "parses PROJECT_PATH as sole positional argument" $ do
-        parseParams ["/some/ts/project"]
+    it "parses 'check' command with default project dir" $ do
+        parseParams ["check"]
             `shouldBe` Just
                 ( ParamsDto
-                    { projectPath = [osp|/some/ts/project|]
-                    , checkMode = False
-                    }
-                )
-        parseParams ["."]
-            `shouldBe` Just
-                ( ParamsDto
-                    { projectPath = [osp|.|]
-                    , checkMode = False
-                    }
-                )
-        parseParams ["src"]
-            `shouldBe` Just
-                ( ParamsDto
-                    { projectPath = [osp|src|]
-                    , checkMode = False
+                    { command = CheckC
+                    , projectPath = [osp|.|]
                     }
                 )
 
-    it "parses --check / -c and sets checkMode to True" $ do
-        parseParams ["--check"]
+    it "parses 'baseline' command with default project dir" $ do
+        parseParams ["baseline"]
             `shouldBe` Just
                 ( ParamsDto
-                    { projectPath = [osp|.|]
-                    , checkMode = True
+                    { command = BaselineC
+                    , projectPath = [osp|.|]
                     }
                 )
-        parseParams ["-c"]
+
+    it "parses command with explicit PROJECT_DIR" $ do
+        parseParams ["fix", "/some/ts/project"]
             `shouldBe` Just
                 ( ParamsDto
-                    { projectPath = [osp|.|]
-                    , checkMode = True
+                    { command = FixC
+                    , projectPath = [osp|/some/ts/project|]
                     }
                 )
-        parseParams ["/path", "--check"]
+        parseParams ["check", "src"]
             `shouldBe` Just
                 ( ParamsDto
-                    { projectPath = [osp|/path|]
-                    , checkMode = True
+                    { command = CheckC
+                    , projectPath = [osp|src|]
                     }
                 )
+        parseParams ["baseline", "."]
+            `shouldBe` Just
+                ( ParamsDto
+                    { command = BaselineC
+                    , projectPath = [osp|.|]
+                    }
+                )
+
+    it "returns Nothing for an unknown command" $ do
+        parseParams ["lint"] `shouldBe` Nothing
+        parseParams ["run"] `shouldBe` Nothing
 
     it "returns Nothing for --help" $ do
         parseParams ["--help"] `shouldBe` Nothing

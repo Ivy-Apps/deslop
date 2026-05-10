@@ -27,6 +27,7 @@ runMockWrFileSystem ::
     Eff es a
 runMockWrFileSystem ref = interpret $ \_ -> \case
     WriteFile _path content -> liftIO $ writeIORef ref (Just content)
+    MkDirP _ -> pure ()
 
 {- | A product type containing mock implementations for all RoFileSystem operations.
 Parameterized over `es` so your mocks can utilize other effects in your test stack

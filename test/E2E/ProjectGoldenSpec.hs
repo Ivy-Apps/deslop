@@ -8,7 +8,7 @@ import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (encodeOsPathString, runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
-import Params (Params (..))
+import Params (Command (..), Params (..))
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
@@ -70,7 +70,7 @@ spec = describe "E2E.ProjectGolden" $ do
         filesRef <- newIORef Nothing
         logsRef <- newIORef Nothing
         defParams <- defaultParams projectPath
-        let params = defParams {checkMode = True}
+        let params = defParams {command = CheckC}
 
         -- When
         res <-
