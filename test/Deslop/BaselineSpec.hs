@@ -1,16 +1,24 @@
 module Deslop.BaselineSpec (spec) where
 
-import Deslop.Baseline (Baseline, applyBaseline, inBaseline, loadBaselineFromFile)
+import Deslop.Baseline (Baseline, applyBaseline, inBaseline, loadBaselineFromFile, saveBaseline)
 import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
 import Deslop.Rulebook (RuleId (..), RulebookId (..))
-import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, runMockRoFileSystem)
+import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, mockFileAt, runMockRoFileSystem, runMockWrFileSystem)
 import Effectful (IOE, runEff)
 import Effects.FileSystem (AbsPath, absPathUnsafe, encodeOsPath, relativePathUnsafe)
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
+import TestUtils (requireJust)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 
 testPath :: AbsPath
 testPath = absPathUnsafe (encodeOsPath "/test/baseline.yaml")
+
+testProjectPath :: AbsPath
+testProjectPath = absPathUnsafe (encodeOsPath "/test/project")
+
+-- The path saveBaseline writes to: projectPath </> "deslop/baseline.yaml"
+testBaselinePath :: AbsPath
+testBaselinePath = absPathUnsafe (encodeOsPath "/test/project/deslop/baseline.yaml")
 
 runTest :: MockRoFileSystem '[IOE] -> [Problem] -> IO [Problem]
 runTest mocks problems = runEff . runMockRoFileSystem mocks $ do
@@ -148,3 +156,46 @@ spec = describe "Deslop.Baseline" $ do
             inBaseline baseline problemA `shouldBe` True
             inBaseline baseline problemB `shouldBe` True
             inBaseline baseline problemC `shouldBe` False
+
+    describe "saveBaseline" $ do
+        it "writes something to the baseline file path" $ do
+            ref <- newIORef Nothing
+            runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath [problemA]
+            written <- readIORef ref
+            written `shouldSatisfy` isJust
+
+        it "empty problem list -> writes empty YAML list" $ do
+            ref <- newIORef Nothing
+            runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath []
+            content <- requireJust "saveBaseline did not write" =<< readIORef ref
+            result <-
+                runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
+                    loadBaselineFromFile testBaselinePath
+            applyBaseline result [problemA, problemB] `shouldBe` [problemA, problemB]
+
+        it "saves RuleViolation problem ID and round-trips through load" $ do
+            ref <- newIORef Nothing
+            runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath [problemA]
+            content <- requireJust "saveBaseline did not write" =<< readIORef ref
+            result <-
+                runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
+                    loadBaselineFromFile testBaselinePath
+            applyBaseline result [problemA, problemB] `shouldBe` [problemB]
+
+        it "saves LintProblem ID and round-trips through load" $ do
+            ref <- newIORef Nothing
+            runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath [problemC]
+            content <- requireJust "saveBaseline did not write" =<< readIORef ref
+            result <-
+                runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
+                    loadBaselineFromFile testBaselinePath
+            applyBaseline result [problemA, problemC] `shouldBe` [problemA]
+
+        it "saves multiple problems and round-trips through load" $ do
+            ref <- newIORef Nothing
+            runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath [problemA, problemB, problemC]
+            content <- requireJust "saveBaseline did not write" =<< readIORef ref
+            result <-
+                runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
+                    loadBaselineFromFile testBaselinePath
+            applyBaseline result [problemA, problemB, problemC] `shouldBe` []
