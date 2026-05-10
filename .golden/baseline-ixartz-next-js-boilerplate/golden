@@ -1,0 +1,11 @@
+- no-relative-imports#.storybook/preview.ts
+- no-relative-imports#next.config.ts
+- no-relative-imports#src/components/Hello.tsx
+- no-relative-imports#src/libs/DB.ts
+- no-relative-imports#src/libs/I18n.ts
+- no-relative-imports#src/libs/I18nNavigation.ts
+- no-relative-imports#src/libs/Logger.ts
+- no-relative-imports#src/proxy.ts
+- no-relative-imports#src/templates/BaseTemplate.stories.tsx
+- no-relative-imports#src/templates/BaseTemplate.test.tsx
+- no-relative-imports#src/utils/Helpers.test.ts
