@@ -29,11 +29,11 @@ testRulebook =
             RulebookDto
                 { id = "test-rulebook"
                 , name = "Test Rulebook"
-                , description = Nothing
+                , description = "Rulebook used for testing."
                 , rules =
                     [ RuleDto
                         { id = RuleId "no-forbids-import"
-                        , description = Just "Forbids modules must not be imported."
+                        , description = "Forbids modules must not be imported."
                         , target = GlobDto "@/components/**"
                         , exclude = Nothing
                         , executionContext = Nothing
@@ -54,11 +54,11 @@ testTransitiveRulebook =
             RulebookDto
                 { id = "test-rulebook"
                 , name = "Test Rulebook"
-                , description = Nothing
+                , description = "Rulebook used for testing"
                 , rules =
                     [ RuleDto
                         { id = RuleId "no-forbids-import"
-                        , description = Just "Forbids modules must not be transitively imported."
+                        , description = "Forbids modules must not be transitively imported."
                         , target = GlobDto "@/components/**"
                         , exclude = Nothing
                         , executionContext = Nothing
@@ -106,11 +106,11 @@ domainRulebook =
             RulebookDto
                 { id = "domain-rules"
                 , name = "Domain Rules"
-                , description = Nothing
+                , description = "Domain rulebook."
                 , rules =
                     [ RuleDto
                         { id = RuleId "no-react-in-domain"
-                        , description = Just "Domain layer must not depend on React."
+                        , description = "Domain layer must not depend on React."
                         , target = GlobDto "@/domain/**"
                         , exclude = Nothing
                         , executionContext = Nothing
@@ -131,11 +131,11 @@ existsRulebook =
             RulebookDto
                 { id = "exists-rules"
                 , name = "Exists Rules"
-                , description = Nothing
+                , description = "Exists rulebook."
                 , rules =
                     [ RuleDto
                         { id = RuleId "requires-spec"
-                        , description = Just "Every ViewModel must have a spec file."
+                        , description = "Every ViewModel must have a spec file."
                         , target = GlobDto "@/features/**/use{{FileName}}ViewModel"
                         , exclude = Nothing
                         , executionContext = Nothing
@@ -167,11 +167,11 @@ usesRulebook =
             RulebookDto
                 { id = "uses-rules"
                 , name = "Uses Rules"
-                , description = Nothing
+                , description = "Uses rulebook"
                 , rules =
                     [ RuleDto
                         { id = RuleId "container-wires-state-event"
-                        , description = Just "Containers must wire their StateEvent."
+                        , description = "Containers must wire their StateEvent."
                         , target = GlobDto "@/features/**/{{FileName}}Container"
                         , exclude = Nothing
                         , executionContext = Nothing
@@ -334,11 +334,11 @@ spec = describe "Deslop.RuleEnforcer" $ do
                             RulebookDto
                                 { id = "bad-rules"
                                 , name = "Bad Rules"
-                                , description = Nothing
+                                , description = "bad rules"
                                 , rules =
                                     [ RuleDto
                                         { id = RuleId "wildcard-exists"
-                                        , description = Nothing
+                                        , description = "wildcard exists"
                                         , target = GlobDto "@/features/**/*"
                                         , exclude = Nothing
                                         , executionContext = Nothing
@@ -405,11 +405,11 @@ spec = describe "Deslop.RuleEnforcer" $ do
                             RulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
-                                , description = Nothing
+                                , description = "uses rulebok"
                                 , rules =
                                     [ RuleDto
                                         { id = RuleId "container-wires-all"
-                                        , description = Just "Containers must wire all their dependencies."
+                                        , description = "Containers must wire all their dependencies."
                                         , target = GlobDto "@/features/**/{{FileName}}Container"
                                         , exclude = Nothing
                                         , executionContext = Nothing
@@ -453,11 +453,11 @@ spec = describe "Deslop.RuleEnforcer" $ do
                             RulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
-                                , description = Nothing
+                                , description = "uses rules"
                                 , rules =
                                     [ RuleDto
                                         { id = RuleId "page-uses-container"
-                                        , description = Nothing
+                                        , description = "page uses container"
                                         , target = GlobDto "@/app/**/page"
                                         , exclude = Nothing
                                         , executionContext = Nothing
@@ -481,11 +481,11 @@ spec = describe "Deslop.RuleEnforcer" $ do
                         RulebookDto
                             { id = "uses-rules"
                             , name = "Uses Rules"
-                            , description = Nothing
+                            , description = "uses rb"
                             , rules =
                                 [ RuleDto
                                     { id = RuleId "container-wires-state-event-transitively"
-                                    , description = Just "Containers must transitively wire their StateEvent."
+                                    , description = "Containers must transitively wire their StateEvent."
                                     , target = GlobDto "@/features/**/{{FileName}}Container"
                                     , exclude = Nothing
                                     , executionContext = Nothing
@@ -560,11 +560,11 @@ spec = describe "Deslop.RuleEnforcer" $ do
                             RulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
-                                , description = Nothing
+                                , description = "uses"
                                 , rules =
                                     [ RuleDto
                                         { id = RuleId "domain-must-use-logger"
-                                        , description = Nothing
+                                        , description = "domain must use logger"
                                         , target = GlobDto "@/domain/**"
                                         , exclude = Nothing
                                         , executionContext = Nothing

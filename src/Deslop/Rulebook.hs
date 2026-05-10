@@ -80,7 +80,7 @@ data ForbiddenClause
 data RulebookDto = RulebookDto
     { id :: Text
     , name :: Text
-    , description :: Maybe Text
+    , description :: Text
     , rules :: [RuleDto]
     }
     deriving stock (Show, Eq, Generic)
@@ -96,7 +96,7 @@ instance FromJSON ExecutionContextDto where
 
 data RuleDto = RuleDto
     { id :: RuleId
-    , description :: Maybe Text
+    , description :: Text
     , target :: GlobDto
     , exclude :: Maybe [GlobDto]
     , executionContext :: Maybe ExecutionContextDto
@@ -180,7 +180,7 @@ ruleBookFromDto rbDto = do
         Rulebook
             { id = RulebookId rbDto.id
             , name = rbDto.name
-            , description = fromMaybe "" rbDto.description
+            , description = rbDto.description
             , rules = parsedRules
             }
 
@@ -195,7 +195,7 @@ ruleFromDto dto = do
     pure
         Rule
             { id = dto.id
-            , description = fromMaybe "" dto.description
+            , description = dto.description
             , target = compiledTarget
             , exclude = compiledExclude
             , executionContext = mapExecutionContext dto.executionContext
