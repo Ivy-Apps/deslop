@@ -27,7 +27,7 @@ ruleViolation m desc = do
             { rulebook = rbId
             , rule = rule.id
             , badModule = m.id
-            , description = desc
+            , description = rule.description <> "\n\n" <> desc
             , fix = rule.fix
             }
 

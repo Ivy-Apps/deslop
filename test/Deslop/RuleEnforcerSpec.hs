@@ -33,7 +33,7 @@ testRulebook =
                 , rules =
                     [ RuleDto
                         { id = RuleId "no-forbids-import"
-                        , description = Nothing
+                        , description = Just "Forbids modules must not be imported."
                         , target = GlobDto "@/components/**"
                         , exclude = Nothing
                         , executionContext = Nothing
@@ -58,7 +58,7 @@ testTransitiveRulebook =
                 , rules =
                     [ RuleDto
                         { id = RuleId "no-forbids-import"
-                        , description = Nothing
+                        , description = Just "Forbids modules must not be transitively imported."
                         , target = GlobDto "@/components/**"
                         , exclude = Nothing
                         , executionContext = Nothing
@@ -110,7 +110,7 @@ domainRulebook =
                 , rules =
                     [ RuleDto
                         { id = RuleId "no-react-in-domain"
-                        , description = Nothing
+                        , description = Just "Domain layer must not depend on React."
                         , target = GlobDto "@/domain/**"
                         , exclude = Nothing
                         , executionContext = Nothing
@@ -135,7 +135,7 @@ existsRulebook =
                 , rules =
                     [ RuleDto
                         { id = RuleId "requires-spec"
-                        , description = Nothing
+                        , description = Just "Every ViewModel must have a spec file."
                         , target = GlobDto "@/features/**/use{{FileName}}ViewModel"
                         , exclude = Nothing
                         , executionContext = Nothing
@@ -171,7 +171,7 @@ usesRulebook =
                 , rules =
                     [ RuleDto
                         { id = RuleId "container-wires-state-event"
-                        , description = Nothing
+                        , description = Just "Containers must wire their StateEvent."
                         , target = GlobDto "@/features/**/{{FileName}}Container"
                         , exclude = Nothing
                         , executionContext = Nothing
@@ -220,7 +220,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' directly imports '@/forbids/module'.\n```ts\nimport { ... } from '@/forbids/module'\n```"
+                                , description = "Forbids modules must not be imported.\n\nModule '@/components/Button' directly imports '@/forbids/module'.\n```ts\nimport { ... } from '@/forbids/module'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -241,7 +241,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbids/store' via: @/components/Button → @/forbids/store.\n```ts\nimport { ... } from '@/forbids/store'\n```"
+                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/store' via: @/components/Button → @/forbids/store.\n```ts\nimport { ... } from '@/forbids/store'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -256,7 +256,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbids/store' via: @/components/Button → @/lib/util → @/forbids/store.\n```ts\nimport { ... } from '@/lib/util'\n```"
+                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/store' via: @/components/Button → @/lib/util → @/forbids/store.\n```ts\nimport { ... } from '@/lib/util'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -273,14 +273,14 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbids/storeA' via: @/components/Button → @/lib/util → @/forbids/storeA.\n```ts\nimport { ... } from '@/lib/util'\n```"
+                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/storeA' via: @/components/Button → @/lib/util → @/forbids/storeA.\n```ts\nimport { ... } from '@/lib/util'\n```"
                                 , fix = "Remove the import"
                                 }
                            , RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Module '@/components/Button' transitively imports '@/forbids/storeB' via: @/components/Button → @/lib/helpers → @/forbids/storeB.\n```ts\nimport { ... } from '@/lib/helpers'\n```"
+                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/storeB' via: @/components/Button → @/lib/helpers → @/forbids/storeB.\n```ts\nimport { ... } from '@/lib/helpers'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -296,7 +296,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "domain-rules"
                                 , rule = RuleId "no-react-in-domain"
                                 , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
-                                , description = "Module '@/domain/LoginUseCase' transitively imports 'react' via: @/domain/LoginUseCase → @/domain/UserRepository → @/infrastructure/HttpClient → react.\n```ts\nimport { ... } from '@/domain/UserRepository'\n```"
+                                , description = "Domain layer must not depend on React.\n\nModule '@/domain/LoginUseCase' transitively imports 'react' via: @/domain/LoginUseCase → @/domain/UserRepository → @/infrastructure/HttpClient → react.\n```ts\nimport { ... } from '@/domain/UserRepository'\n```"
                                 , fix = "Move React dependencies out of the domain layer."
                                 }
                            ]
@@ -317,7 +317,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                         { rulebook = RulebookId "exists-rules"
                         , rule = RuleId "requires-spec"
                         , badModule = moduleIdUnsafe "@/features/home/useHomeViewModel"
-                        , description = "Module '@/features/home/useHomeViewModel' requires '@/features/home/useHomeViewModel.spec' to exist."
+                        , description = "Every ViewModel must have a spec file.\n\nModule '@/features/home/useHomeViewModel' requires '@/features/home/useHomeViewModel.spec' to exist."
                         , fix = "Create the spec file."
                         }
                     ]
@@ -374,7 +374,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                         { rulebook = RulebookId "uses-rules"
                         , rule = RuleId "container-wires-state-event"
                         , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
-                        , description = "Module '@/features/home/HomeContainer' must import '@/features/home/HomeStateEvent'."
+                        , description = "Containers must wire their StateEvent.\n\nModule '@/features/home/HomeContainer' must import '@/features/home/HomeStateEvent'."
                         , fix = "Import the StateEvent."
                         }
                     ]
@@ -388,7 +388,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                         { rulebook = RulebookId "uses-rules"
                         , rule = RuleId "container-wires-state-event"
                         , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
-                        , description = "Module '@/features/home/HomeContainer' must import '@/features/home/HomeStateEvent'."
+                        , description = "Containers must wire their StateEvent.\n\nModule '@/features/home/HomeContainer' must import '@/features/home/HomeStateEvent'."
                         , fix = "Import the StateEvent."
                         }
                     ]
@@ -409,7 +409,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 , rules =
                                     [ RuleDto
                                         { id = RuleId "container-wires-all"
-                                        , description = Nothing
+                                        , description = Just "Containers must wire all their dependencies."
                                         , target = GlobDto "@/features/**/{{FileName}}Container"
                                         , exclude = Nothing
                                         , executionContext = Nothing
@@ -434,14 +434,14 @@ spec = describe "Deslop.RuleEnforcer" $ do
                         { rulebook = RulebookId "uses-rules"
                         , rule = RuleId "container-wires-all"
                         , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
-                        , description = "Module '@/features/home/HomeContainer' must import '@/features/home/HomeStateEvent'."
+                        , description = "Containers must wire all their dependencies.\n\nModule '@/features/home/HomeContainer' must import '@/features/home/HomeStateEvent'."
                         , fix = "Wire the Container."
                         }
                     , RuleViolation
                         { rulebook = RulebookId "uses-rules"
                         , rule = RuleId "container-wires-all"
                         , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
-                        , description = "Module '@/features/home/HomeContainer' must import '@/features/home/HomeView'."
+                        , description = "Containers must wire all their dependencies.\n\nModule '@/features/home/HomeContainer' must import '@/features/home/HomeView'."
                         , fix = "Wire the Container."
                         }
                     ]
@@ -485,7 +485,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                             , rules =
                                 [ RuleDto
                                     { id = RuleId "container-wires-state-event-transitively"
-                                    , description = Nothing
+                                    , description = Just "Containers must transitively wire their StateEvent."
                                     , target = GlobDto "@/features/**/{{FileName}}Container"
                                     , exclude = Nothing
                                     , executionContext = Nothing
@@ -530,7 +530,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "uses-rules"
                                 , rule = RuleId "container-wires-state-event-transitively"
                                 , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
-                                , description = "Module '@/features/home/HomeContainer' must transitively import '@/features/home/HomeStateEvent'."
+                                , description = "Containers must transitively wire their StateEvent.\n\nModule '@/features/home/HomeContainer' must transitively import '@/features/home/HomeStateEvent'."
                                 , fix = "Import the StateEvent."
                                 }
                            ]
@@ -543,7 +543,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "uses-rules"
                                 , rule = RuleId "container-wires-state-event-transitively"
                                 , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
-                                , description = "Module '@/features/home/HomeContainer' must transitively import '@/features/home/HomeStateEvent'."
+                                , description = "Containers must transitively wire their StateEvent.\n\nModule '@/features/home/HomeContainer' must transitively import '@/features/home/HomeStateEvent'."
                                 , fix = "Import the StateEvent."
                                 }
                            ]

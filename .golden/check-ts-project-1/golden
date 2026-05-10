@@ -143,16 +143,22 @@ FIX: Use ```import { HomeScreen } from "@/features/home/home-screen";``` instead
 ---------
 
 # architecture#container-uses-state-event#@/features/products/ProductListContainer
+Every Container must import its corresponding StateEvent module from the same directory. The StateEvent defines the UiState and UiEvent types that wire the Container to the ViewModel and View.
+
 Module '@/features/products/ProductListContainer' must import '@/features/products/ProductListStateEvent'.
 FIX: Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
 ---------
 
 # architecture#container-uses-state-event#@/features/settings/SettingsContainer
+Every Container must import its corresponding StateEvent module from the same directory. The StateEvent defines the UiState and UiEvent types that wire the Container to the ViewModel and View.
+
 Module '@/features/settings/SettingsContainer' must import '@/features/settings/SettingsStateEvent'.
 FIX: Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
 ---------
 
 # architecture#no-react-transitively-in-data#@/features/home/data/bad-repository
+Data layer modules in @/features/**/data must not transitively depend on React. Repositories and data access code must stay framework-agnostic so they can be reused in server-side and non-React contexts without pulling in the entire React runtime.
+
 Module '@/features/home/data/bad-repository' transitively imports 'react' via: @/features/home/data/bad-repository → @/features/home/home-screen → react.
 ```ts
 import { HomeScreen } from "@/features/home/home-screen";
@@ -161,6 +167,8 @@ FIX: Remove any imports that transitively pull in React. Data layer modules must
 ---------
 
 # architecture#no-react-transitively-in-data#@/features/profile/data/profile-repository
+Data layer modules in @/features/**/data must not transitively depend on React. Repositories and data access code must stay framework-agnostic so they can be reused in server-side and non-React contexts without pulling in the entire React runtime.
+
 Module '@/features/profile/data/profile-repository' transitively imports 'react' via: @/features/profile/data/profile-repository → @/features/home/home-screen → react.
 ```ts
 import { HomeScreen } from "@/features/home/home-screen";
@@ -169,6 +177,8 @@ FIX: Remove any imports that transitively pull in React. Data layer modules must
 ---------
 
 # architecture#no-tests-import-in-features#@/features/home/home.spec
+Feature modules must not import from the test fixtures directory (@tests). Test helpers are meant only for test files, not for production code.
+
 Module '@/features/home/home.spec' directly imports '@tests/test-log'.
 ```ts
 import * from "@tests/test-log"
@@ -177,10 +187,14 @@ FIX: Remove the import from the tests directory. If you need shared data structu
 ---------
 
 # architecture#screen-transitively-uses-state-event#@/features/settings/SettingsScreen
+Every Screen must transitively import its corresponding StateEvent module. A Screen typically delegates to a Container which wires the StateEvent, so the StateEvent must be reachable somewhere in the import chain.
+
 Module '@/features/settings/SettingsScreen' must transitively import '@/features/settings/SettingsStateEvent'.
 FIX: Ensure that '{{TARGET_DIR}}/{{FileName}}StateEvent' is reachable from this Screen, typically by having the Screen import a Container that wires the StateEvent.
 ---------
 
 # architecture#viewmodel-has-spec#@/features/profile/useUserProfileViewModel
+Every ViewModel hook must have a corresponding spec file in the same directory to verify its state transitions and business logic.
+
 Module '@/features/profile/useUserProfileViewModel' requires '@/features/profile/useUserProfileViewModel.spec' to exist.
 FIX: Create a spec file named 'use{{FileName}}ViewModel.spec.ts' in the same directory as the ViewModel.
