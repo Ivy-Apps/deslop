@@ -7,8 +7,8 @@ import Deslop.GlobPlus
 import TestUtils (requireJust)
 
 spec :: Spec
-spec = describe "Deslop.GlobPlus" $ do
-    describe "Deslop.GlobPlus.matchTarget" $ do
+spec = describe "Deslop.GlobPLus" $ do
+    describe "matchTarget" $ do
         it "matches exact literal paths and derives TARGET_DIR" $ do
             let target = unsafeCompileTarget "src/app/page"
             fmap (.targetDir) (matchTarget target "src/app/page") `shouldBe` Just "src/app"
@@ -105,7 +105,7 @@ spec = describe "Deslop.GlobPlus" $ do
             env.targetDir `shouldBe` "@/features/auth/oauth/google"
             Map.lookup PascalCase env.casings `shouldBe` Just "GoogleAuth"
 
-    describe "Deslop.GlobPlus.matchRule" $ do
+    describe "matchRule" $ do
         let sampleEnv =
                 MatchEnv
                     { targetDir = "@/features/user"
@@ -188,7 +188,7 @@ spec = describe "Deslop.GlobPlus" $ do
             -- TARGET_DIR is still exact
             matchRule rule sparseEnv "@/features/other/AnythingView" `shouldBe` False
 
-    describe "Deslop.GlobPlus.moduleFromGlob" $ do
+    describe "moduleFromGlob" $ do
         let env =
                 MatchEnv
                     { targetDir = "@/features/auth"
@@ -233,7 +233,7 @@ spec = describe "Deslop.GlobPlus" $ do
             let pat = unsafeCompileRule "**"
             moduleFromGlob env pat `shouldBe` Nothing
 
-    describe "Deslop.GlobPlus.renderRulePattern" $ do
+    describe "renderRulePattern" $ do
         let env =
                 MatchEnv
                     { targetDir = "@/features/auth"
