@@ -74,7 +74,7 @@ data ForbiddenClause
         }
     deriving stock (Show, Eq)
 
-data ExistsClause = ExistsModule
+newtype ExistsClause = ExistsModule
     { target :: CompiledRulePattern
     }
     deriving (Show, Eq)
@@ -144,7 +144,7 @@ instance FromJSON ForbiddenDto where
         (ForbiddenImportDto <$> v .: "import" <*> v .:? "transitive")
             <|> (FunctionCallDto <$> v .: "functional-call")
 
-data ExistsDto = ExistsModuleDto
+newtype ExistsDto = ExistsModuleDto
     { target :: GlobDto
     }
     deriving stock (Show, Eq)

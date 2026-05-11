@@ -11,7 +11,7 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
-import TestUtils (mkExistsModuleDto, mkForbiddenImportDto, mkImportNode, mkUsesImportDto, requireRight)
+import TestUtils (mkExistsModuleDto, mkForbiddenImportDto, mkImportNode, mkUsesImportDto, requireRight, ruleDto, rulebookDto)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (DeslopError (..))
 
@@ -26,21 +26,13 @@ testRulebook :: Rulebook
 testRulebook =
     fromRight (error "testRulebook: invalid fixture") $
         ruleBookFromDto
-            RulebookDto
-                { id = "test-rulebook"
-                , name = "Test Rulebook"
-                , description = "Rulebook used for testing."
-                , rules =
-                    [ RuleDto
+            rulebookDto
+                { rules =
+                    [ ruleDto
                         { id = RuleId "no-forbids-import"
                         , description = "Forbids modules must not be imported."
                         , target = GlobDto "@/components/**"
-                        , exclude = Nothing
-                        , executionContext = Nothing
                         , forbids = Just [mkForbiddenImportDto "@/forbids/**" False]
-                        , uses = Nothing
-                        , exists = Nothing
-                        , example = Nothing
                         , fix = "Remove the import"
                         }
                     ]
@@ -50,21 +42,13 @@ testTransitiveRulebook :: Rulebook
 testTransitiveRulebook =
     fromRight (error "testTransitiveRulebook: invalid fixture") $
         ruleBookFromDto
-            RulebookDto
-                { id = "test-rulebook"
-                , name = "Test Rulebook"
-                , description = "Rulebook used for testing"
-                , rules =
-                    [ RuleDto
+            rulebookDto
+                { rules =
+                    [ ruleDto
                         { id = RuleId "no-forbids-import"
                         , description = "Forbids modules must not be transitively imported."
                         , target = GlobDto "@/components/**"
-                        , exclude = Nothing
-                        , executionContext = Nothing
                         , forbids = Just [mkForbiddenImportDto "@/forbids/**" True]
-                        , uses = Nothing
-                        , exists = Nothing
-                        , example = Nothing
                         , fix = "Remove the import"
                         }
                     ]
@@ -101,21 +85,16 @@ domainRulebook :: Rulebook
 domainRulebook =
     fromRight (error "domainRulebook: invalid fixture") $
         ruleBookFromDto
-            RulebookDto
+            rulebookDto
                 { id = "domain-rules"
                 , name = "Domain Rules"
                 , description = "Domain rulebook."
                 , rules =
-                    [ RuleDto
+                    [ ruleDto
                         { id = RuleId "no-react-in-domain"
                         , description = "Domain layer must not depend on React."
                         , target = GlobDto "@/domain/**"
-                        , exclude = Nothing
-                        , executionContext = Nothing
                         , forbids = Just [mkForbiddenImportDto "react" True]
-                        , uses = Nothing
-                        , exists = Nothing
-                        , example = Nothing
                         , fix = "Move React dependencies out of the domain layer."
                         }
                     ]
@@ -125,24 +104,16 @@ existsRulebook :: Rulebook
 existsRulebook =
     fromRight (error "existsRulebook: invalid fixture") $
         ruleBookFromDto
-            RulebookDto
+            rulebookDto
                 { id = "exists-rules"
                 , name = "Exists Rules"
                 , description = "Exists rulebook."
                 , rules =
-                    [ RuleDto
+                    [ ruleDto
                         { id = RuleId "requires-spec"
                         , description = "Every ViewModel must have a spec file."
                         , target = GlobDto "@/features/**/use{{FileName}}ViewModel"
-                        , exclude = Nothing
-                        , executionContext = Nothing
-                        , forbids = Nothing
-                        , uses = Nothing
-                        , exists =
-                            Just
-                                [ mkExistsModuleDto "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
-                                ]
-                        , example = Nothing
+                        , exists = Just [mkExistsModuleDto "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"]
                         , fix = "Create the spec file."
                         }
                     ]
@@ -163,21 +134,16 @@ usesRulebook :: Rulebook
 usesRulebook =
     fromRight (error "usesRulebook: invalid fixture") $
         ruleBookFromDto
-            RulebookDto
+            rulebookDto
                 { id = "uses-rules"
                 , name = "Uses Rules"
                 , description = "Uses rulebook"
                 , rules =
-                    [ RuleDto
+                    [ ruleDto
                         { id = RuleId "container-wires-state-event"
                         , description = "Containers must wire their StateEvent."
                         , target = GlobDto "@/features/**/{{FileName}}Container"
-                        , exclude = Nothing
-                        , executionContext = Nothing
-                        , forbids = Nothing
                         , uses = Just [mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" False]
-                        , exists = Nothing
-                        , example = Nothing
                         , fix = "Import the StateEvent."
                         }
                     ]
@@ -329,21 +295,16 @@ spec = describe "Deslop.RuleEnforcer" $ do
             let wildcardRulebook =
                     fromRight (error "wildcardRulebook: invalid fixture") $
                         ruleBookFromDto
-                            RulebookDto
+                            rulebookDto
                                 { id = "bad-rules"
                                 , name = "Bad Rules"
                                 , description = "bad rules"
                                 , rules =
-                                    [ RuleDto
+                                    [ ruleDto
                                         { id = RuleId "wildcard-exists"
                                         , description = "wildcard exists"
                                         , target = GlobDto "@/features/**/*"
-                                        , exclude = Nothing
-                                        , executionContext = Nothing
-                                        , forbids = Nothing
-                                        , uses = Nothing
                                         , exists = Just [mkExistsModuleDto "{{TARGET_DIR}}/**/*.spec"]
-                                        , example = Nothing
                                         , fix = "Fix it."
                                         }
                                     ]
@@ -399,25 +360,20 @@ spec = describe "Deslop.RuleEnforcer" $ do
             let multiUsesRulebook =
                     fromRight (error "multiUsesRulebook: invalid fixture") $
                         ruleBookFromDto
-                            RulebookDto
+                            rulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
                                 , description = "uses rulebok"
                                 , rules =
-                                    [ RuleDto
+                                    [ ruleDto
                                         { id = RuleId "container-wires-all"
                                         , description = "Containers must wire all their dependencies."
                                         , target = GlobDto "@/features/**/{{FileName}}Container"
-                                        , exclude = Nothing
-                                        , executionContext = Nothing
-                                        , forbids = Nothing
                                         , uses =
                                             Just
                                                 [ mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" False
                                                 , mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}View" False
                                                 ]
-                                        , exists = Nothing
-                                        , example = Nothing
                                         , fix = "Wire the Container."
                                         }
                                     ]
@@ -446,21 +402,16 @@ spec = describe "Deslop.RuleEnforcer" $ do
             let wildcardUsesRulebook =
                     fromRight (error "wildcardUsesRulebook: invalid fixture") $
                         ruleBookFromDto
-                            RulebookDto
+                            rulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
                                 , description = "uses rules"
                                 , rules =
-                                    [ RuleDto
+                                    [ ruleDto
                                         { id = RuleId "page-uses-container"
                                         , description = "page uses container"
                                         , target = GlobDto "@/app/**/page"
-                                        , exclude = Nothing
-                                        , executionContext = Nothing
-                                        , forbids = Nothing
                                         , uses = Just [mkUsesImportDto "@/features/**/*Container" False]
-                                        , exists = Nothing
-                                        , example = Nothing
                                         , fix = "Import a Container."
                                         }
                                     ]
@@ -473,21 +424,16 @@ spec = describe "Deslop.RuleEnforcer" $ do
         let usesTransitiveRulebook =
                 fromRight (error "usesTransitiveRulebook: invalid fixture") $
                     ruleBookFromDto
-                        RulebookDto
+                        rulebookDto
                             { id = "uses-rules"
                             , name = "Uses Rules"
                             , description = "uses rb"
                             , rules =
-                                [ RuleDto
+                                [ ruleDto
                                     { id = RuleId "container-wires-state-event-transitively"
                                     , description = "Containers must transitively wire their StateEvent."
                                     , target = GlobDto "@/features/**/{{FileName}}Container"
-                                    , exclude = Nothing
-                                    , executionContext = Nothing
-                                    , forbids = Nothing
                                     , uses = Just [mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" True]
-                                    , exists = Nothing
-                                    , example = Nothing
                                     , fix = "Import the StateEvent."
                                     }
                                 ]
@@ -551,21 +497,16 @@ spec = describe "Deslop.RuleEnforcer" $ do
             let wildcardTransitiveRulebook =
                     fromRight (error "wildcardTransitiveRulebook: invalid fixture") $
                         ruleBookFromDto
-                            RulebookDto
+                            rulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
                                 , description = "uses"
                                 , rules =
-                                    [ RuleDto
+                                    [ ruleDto
                                         { id = RuleId "domain-must-use-logger"
                                         , description = "domain must use logger"
                                         , target = GlobDto "@/domain/**"
-                                        , exclude = Nothing
-                                        , executionContext = Nothing
-                                        , forbids = Nothing
                                         , uses = Just [mkUsesImportDto "@/infrastructure/**/*Logger" True]
-                                        , exists = Nothing
-                                        , example = Nothing
                                         , fix = "Ensure a logger is used."
                                         }
                                     ]
