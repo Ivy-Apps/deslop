@@ -56,4 +56,4 @@ saveBaseline projectPath problems = do
   where
     deslopDir = withAbsBaseUnsafe projectPath [osp|deslop|]
     baselineFile = withAbsBaseUnsafe projectPath baselinePath
-    ids = HS.toList . HS.fromList . fmap ((.text) . problemId) $ problems
+    ids = sort . HS.toList . HS.fromList . fmap ((.text) . problemId) $ problems

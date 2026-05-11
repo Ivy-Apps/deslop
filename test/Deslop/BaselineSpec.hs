@@ -169,43 +169,59 @@ spec = describe "Deslop.Baseline" $ do
             ref <- newIORef Nothing
             runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath []
             content <- requireJust "saveBaseline did not write" =<< readIORef ref
-            result <-
+            baseline <-
                 runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
                     loadBaselineFromFile testBaselinePath
-            applyBaseline result [problemA, problemB] `shouldBe` [problemA, problemB]
+            applyBaseline baseline [problemA, problemB] `shouldBe` [problemA, problemB]
 
         it "saves RuleViolation problem ID and round-trips through load" $ do
             ref <- newIORef Nothing
             runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath [problemA]
             content <- requireJust "saveBaseline did not write" =<< readIORef ref
-            result <-
+            baseline <-
                 runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
                     loadBaselineFromFile testBaselinePath
-            applyBaseline result [problemA, problemB] `shouldBe` [problemB]
+            applyBaseline baseline [problemA, problemB] `shouldBe` [problemB]
 
         it "saves LintProblem ID and round-trips through load" $ do
             ref <- newIORef Nothing
             runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath [problemC]
             content <- requireJust "saveBaseline did not write" =<< readIORef ref
-            result <-
+            baseline <-
                 runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
                     loadBaselineFromFile testBaselinePath
-            applyBaseline result [problemA, problemC] `shouldBe` [problemA]
+            applyBaseline baseline [problemA, problemC] `shouldBe` [problemA]
 
         it "saves multiple problems and round-trips through load" $ do
             ref <- newIORef Nothing
             runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath [problemA, problemB, problemC]
             content <- requireJust "saveBaseline did not write" =<< readIORef ref
-            result <-
+            baseline <-
                 runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
                     loadBaselineFromFile testBaselinePath
-            applyBaseline result [problemA, problemB, problemC] `shouldBe` []
+            applyBaseline baseline [problemA, problemB, problemC] `shouldBe` []
 
         it "deduplicates the baseline" $ do
             ref <- newIORef Nothing
-            runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath [problemA, problemB, problemA]
+            runEff . runMockWrFileSystem ref $
+                saveBaseline testProjectPath [problemA, problemB, problemA]
             content <- requireJust "saveBaseline did not write" =<< readIORef ref
             Baseline baseline <-
                 runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
                     loadBaselineFromFile testBaselinePath
             baseline `shouldBe` HS.fromList [problemId problemA, problemId problemB]
+
+        it "the baseline is sorted" $ do
+            ref <- newIORef Nothing
+            runEff . runMockWrFileSystem ref $
+                saveBaseline testProjectPath [problemC, problemA, problemB]
+            content <- requireJust "saveBaseline did not write" =<< readIORef ref
+            Baseline baseline <-
+                runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
+                    loadBaselineFromFile testBaselinePath
+            baseline
+                `shouldBe` HS.fromList
+                    [ problemId problemA
+                    , problemId problemB
+                    , problemId problemC
+                    ]
