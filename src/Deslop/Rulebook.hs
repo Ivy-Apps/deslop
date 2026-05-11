@@ -50,7 +50,6 @@ data Rule = Rule
     , executionContext :: ExecutionContext
     , forbids :: Maybe (NonEmpty ForbiddenClause)
     , uses :: Maybe (NonEmpty UsesClause)
-    , usesOptional :: Maybe (NonEmpty CompiledRulePattern)
     , exists :: Maybe (NonEmpty ExistsClause)
     , example :: Maybe Text
     , fix :: Text
@@ -109,7 +108,6 @@ data RuleDto = RuleDto
     , executionContext :: Maybe ExecutionContextDto
     , forbids :: Maybe [ForbiddenDto]
     , uses :: Maybe [UsesDto]
-    , usesOptional :: Maybe [GlobDto]
     , exists :: Maybe [ExistsDto]
     , example :: Maybe Text
     , fix :: Text
@@ -205,7 +203,6 @@ ruleFromDto dto = do
     compiledTarget <- compileTargetGlob dto.target
     compiledExclude <- compileTargetGlobs dto.exclude
     compiledUses <- compileUsesClauses dto.uses
-    compiledUsesOptional <- compileRuleGlobs dto.usesOptional
     compiledExists <- compileExistsClauses dto.exists
     compiledForbidden <- compileForbiddenClauses dto.forbids
     pure
@@ -217,7 +214,6 @@ ruleFromDto dto = do
             , executionContext = mapExecutionContext dto.executionContext
             , forbids = compiledForbidden
             , uses = compiledUses
-            , usesOptional = compiledUsesOptional
             , exists = compiledExists
             , example = dto.example
             , fix = dto.fix
@@ -236,15 +232,6 @@ compileTargetGlob (GlobDto s) =
 compileTargetGlobs :: Maybe [GlobDto] -> Either Text (Maybe (NonEmpty CompiledTargetPattern))
 compileTargetGlobs Nothing = Right Nothing
 compileTargetGlobs (Just globs) = fmap nonEmpty (traverse compileTargetGlob globs)
-
-compileRuleGlob :: GlobDto -> Either Text CompiledRulePattern
-compileRuleGlob (GlobDto s) =
-    first (T.pack . show) (parseRulePattern s)
-        <&> compileRulePattern
-
-compileRuleGlobs :: Maybe [GlobDto] -> Either Text (Maybe (NonEmpty CompiledRulePattern))
-compileRuleGlobs Nothing = Right Nothing
-compileRuleGlobs (Just globs) = fmap nonEmpty (traverse compileRuleGlob globs)
 
 compileExistsClauses :: Maybe [ExistsDto] -> Either Text (Maybe (NonEmpty ExistsClause))
 compileExistsClauses Nothing = Right Nothing
