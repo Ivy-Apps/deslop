@@ -142,8 +142,8 @@ Right
             , executionContext = Neutral
             , forbids =
                 Just
-                  (ForbiddenFunctionCall { functionName = FunctionName "fetch" } :|
-                     [ ForbiddenImport
+                  (ForbidsFunctionCall { functionName = FunctionName "fetch" } :|
+                     [ ForbidsImport
                          { target =
                              CompiledRulePattern
                                { chunks =
@@ -162,7 +162,7 @@ Right
                                }
                          , transitive = False
                          }
-                     , ForbiddenImport
+                     , ForbidsImport
                          { target =
                              CompiledRulePattern
                                { chunks = [ StaticChunk "^@/(.*/)?components/(.*/)?[^/]*$" ]
@@ -277,8 +277,7 @@ Right
             , executionContext = Neutral
             , forbids =
                 Just
-                  (ForbiddenFunctionCall { functionName = FunctionName "fetch" } :|
-                     [])
+                  (ForbidsFunctionCall { functionName = FunctionName "fetch" } :| [])
             , uses =
                 Just
                   (UsesImport

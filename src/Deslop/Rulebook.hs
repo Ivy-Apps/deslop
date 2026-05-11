@@ -5,12 +5,12 @@ module Deslop.Rulebook (
     RuleDto (..),
     RuleId (..),
     GlobDto (..),
-    ForbiddenDto (..),
+    ForbidsDto (..),
     UsesDto (..),
     ExistsDto (..),
     Rulebook (..),
     Rule (..),
-    ForbiddenClause (..),
+    ForbidsClause (..),
     UsesClause (..),
     ExistsClause (..),
     RulebookId (..),
@@ -48,7 +48,7 @@ data Rule = Rule
     , target :: CompiledTargetPattern
     , exclude :: Maybe (NonEmpty CompiledTargetPattern)
     , executionContext :: ExecutionContext
-    , forbids :: Maybe (NonEmpty ForbiddenClause)
+    , forbids :: Maybe (NonEmpty ForbidsClause)
     , uses :: Maybe (NonEmpty UsesClause)
     , exists :: Maybe (NonEmpty ExistsClause)
     , example :: Maybe Text
@@ -64,12 +64,12 @@ data UsesClause = UsesImport
 
 newtype FunctionName = FunctionName Text deriving (Show, Eq)
 
-data ForbiddenClause
-    = ForbiddenImport
+data ForbidsClause
+    = ForbidsImport
         { target :: CompiledRulePattern
         , transitive :: Bool
         }
-    | ForbiddenFunctionCall
+    | ForbidsFunctionCall
         { functionName :: FunctionName
         }
     deriving stock (Show, Eq)
@@ -106,7 +106,7 @@ data RuleDto = RuleDto
     , target :: GlobDto
     , exclude :: Maybe [GlobDto]
     , executionContext :: Maybe ExecutionContextDto
-    , forbids :: Maybe [ForbiddenDto]
+    , forbids :: Maybe [ForbidsDto]
     , uses :: Maybe [UsesDto]
     , exists :: Maybe [ExistsDto]
     , example :: Maybe Text
@@ -129,20 +129,20 @@ instance FromJSON UsesDto where
     parseJSON = withObject "UsesDto" $ \v ->
         UsesImportDto <$> v .: "import" <*> v .:? "transitive"
 
-data ForbiddenDto
-    = ForbiddenImportDto
+data ForbidsDto
+    = ForbidsImportDto
         { target :: GlobDto
         , transitive :: Maybe Bool
         }
-    | FunctionCallDto
+    | ForbidsFunctionCallDto
         { functionName :: Text
         }
     deriving stock (Show, Eq)
 
-instance FromJSON ForbiddenDto where
+instance FromJSON ForbidsDto where
     parseJSON = withObject "ForbiddenDto" $ \v ->
-        (ForbiddenImportDto <$> v .: "import" <*> v .:? "transitive")
-            <|> (FunctionCallDto <$> v .: "functional-call")
+        (ForbidsImportDto <$> v .: "import" <*> v .:? "transitive")
+            <|> (ForbidsFunctionCallDto <$> v .: "functional-call")
 
 newtype ExistsDto = ExistsModuleDto
     { target :: GlobDto
@@ -258,17 +258,17 @@ compileUses (UsesImportDto (GlobDto s) transitive) = do
             , transitive = fromMaybe False transitive
             }
 
-compileForbiddenClauses :: Maybe [ForbiddenDto] -> Either Text (Maybe (NonEmpty ForbiddenClause))
+compileForbiddenClauses :: Maybe [ForbidsDto] -> Either Text (Maybe (NonEmpty ForbidsClause))
 compileForbiddenClauses Nothing = Right Nothing
 compileForbiddenClauses (Just fbs) = nonEmpty <$> traverse compileForbidden fbs
 
-compileForbidden :: ForbiddenDto -> Either Text ForbiddenClause
-compileForbidden (ForbiddenImportDto (GlobDto s) transitive) = do
+compileForbidden :: ForbidsDto -> Either Text ForbidsClause
+compileForbidden (ForbidsImportDto (GlobDto s) transitive) = do
     pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
     Right
-        ForbiddenImport
+        ForbidsImport
             { target = compileRulePattern pattern
             , transitive = fromMaybe False transitive
             }
-compileForbidden (FunctionCallDto name) =
-    Right ForbiddenFunctionCall {functionName = FunctionName name}
+compileForbidden (ForbidsFunctionCallDto name) =
+    Right ForbidsFunctionCall {functionName = FunctionName name}

@@ -5,7 +5,7 @@ import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
 import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget, moduleFromGlob, renderRulePattern)
 import Deslop.Problem (Problem (..))
-import Deslop.Rulebook (ExistsClause (..), ForbiddenClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
+import Deslop.Rulebook (ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Effectful (Eff, (:>))
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Reader.Static (Reader, ask, runReader)
@@ -105,8 +105,8 @@ executeForbids ::
     , Reader Rule :> es
     , ReportProblem :> es
     ) =>
-    AstModule -> MatchEnv -> ForbiddenClause -> Eff es ()
-executeForbids m env (ForbiddenImport target transitive)
+    AstModule -> MatchEnv -> ForbidsClause -> Eff es ()
+executeForbids m env (ForbidsImport target transitive)
     | transitive = do
         ReachableModules reachable <- ask @ReachableModules
         traverse_ transitiveCheck reachable
@@ -146,7 +146,7 @@ executeForbids m env (ForbiddenImport target transitive)
                         <> stmtSuffix
             ruleViolation m message >>= report
         | otherwise = pure ()
-executeForbids _ _ (ForbiddenFunctionCall _) = todo
+executeForbids _ _ (ForbidsFunctionCall _) = todo
 
 executeUses ::
     ( Reader RulebookId :> es

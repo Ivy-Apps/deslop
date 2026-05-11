@@ -11,7 +11,7 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
-import TestUtils (mkExistsModuleDto, mkForbiddenImportDto, mkImportNode, mkUsesImportDto, requireRight, ruleDto, rulebookDto)
+import TestUtils (mkExistsModuleDto, mkForbidsImportDto, mkImportNode, mkUsesImportDto, requireRight, ruleDto, rulebookDto)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (DeslopError (..))
 
@@ -32,7 +32,7 @@ testRulebook =
                         { id = RuleId "no-forbids-import"
                         , description = "Forbids modules must not be imported."
                         , target = GlobDto "@/components/**"
-                        , forbids = Just [mkForbiddenImportDto "@/forbids/**" False]
+                        , forbids = Just [mkForbidsImportDto "@/forbids/**" False]
                         , fix = "Remove the import"
                         }
                     ]
@@ -48,7 +48,7 @@ testTransitiveRulebook =
                         { id = RuleId "no-forbids-import"
                         , description = "Forbids modules must not be transitively imported."
                         , target = GlobDto "@/components/**"
-                        , forbids = Just [mkForbiddenImportDto "@/forbids/**" True]
+                        , forbids = Just [mkForbidsImportDto "@/forbids/**" True]
                         , fix = "Remove the import"
                         }
                     ]
@@ -94,7 +94,7 @@ domainRulebook =
                         { id = RuleId "no-react-in-domain"
                         , description = "Domain layer must not depend on React."
                         , target = GlobDto "@/domain/**"
-                        , forbids = Just [mkForbiddenImportDto "react" True]
+                        , forbids = Just [mkForbidsImportDto "react" True]
                         , fix = "Move React dependencies out of the domain layer."
                         }
                     ]
