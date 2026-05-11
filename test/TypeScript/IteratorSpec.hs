@@ -130,6 +130,10 @@ spec = describe "TypeScript.Iterator" $ do
                 [(root, [nextDir]), (nextDir, [ap "/project/.next/server.ts"])]
                 >>= (`shouldBe` [])
 
+        it "skips .next-env.d.ts" $ do
+            let nextTypes = ap "/project/.next-env.d.ts"
+            run [(root, [nextTypes])] >>= (`shouldBe` [])
+
         it "skips all ignored dirs simultaneously while collecting from valid ones" $ do
             let nodeModules = ap "/project/node_modules"
             let distDir = ap "/project/dist"
@@ -140,7 +144,18 @@ spec = describe "TypeScript.Iterator" $ do
             let srcFiles = [ap "/project/src/api.ts", ap "/project/src/types.ts"]
             let pageFiles = [ap "/project/pages/index.tsx", ap "/project/pages/about.tsx"]
             run
-                [ (root, [nodeModules, distDir, gitDir, nextDir, srcDir, pagesDir])
+                [
+                    ( root
+                    ,
+                        [ nodeModules
+                        , distDir
+                        , gitDir
+                        , nextDir
+                        , srcDir
+                        , pagesDir
+                        , ap "/project/.next-env.d.ts"
+                        ]
+                    )
                 , (nodeModules, [ap "/project/node_modules/lib.ts"])
                 , (distDir, [ap "/project/dist/main.js"])
                 , (gitDir, [ap "/project/.git/config.ts"])

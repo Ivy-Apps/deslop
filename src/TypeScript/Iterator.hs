@@ -10,7 +10,15 @@ getTsFiles :: (RoFileSystem :> es) => AbsPath -> Eff es [AbsPath]
 getTsFiles dir = fsListDirectory dir >>= fmap concat . traverse processEntry
   where
     tsExtensions = [[osp|.ts|], [osp|.tsx|]]
-    ignored = map encodeOsPath ["node_modules", ".git", "dist", ".next"]
+    ignored =
+        fmap
+            encodeOsPath
+            [ "node_modules"
+            , ".git"
+            , "dist"
+            , ".next"
+            , ".next-env.d.ts"
+            ]
 
     processEntry entry
         | takeFileName entry.osPath `elem` ignored = pure []

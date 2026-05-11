@@ -156,6 +156,16 @@ Module '@/features/settings/SettingsContainer' must import '@/features/settings/
 FIX: Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
 ---------
 
+# architecture#no-react-in-lib#@/lib/dom-utils
+Library modules in @/lib must not directly import React. The lib layer should contain pure, framework-agnostic utilities.
+
+Module '@/lib/dom-utils' directly imports 'react'.
+```ts
+import React from 'react';
+```
+FIX: Remove the direct React import from this library module. Extract any React-specific code into a component under @/components or @/features.
+---------
+
 # architecture#no-react-transitively-in-data#@/features/home/data/bad-repository
 Data layer modules in @/features/**/data must not transitively depend on React. Repositories and data access code must stay framework-agnostic so they can be reused in server-side and non-React contexts without pulling in the entire React runtime.
 
