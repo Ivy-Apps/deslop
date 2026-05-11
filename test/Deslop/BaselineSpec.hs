@@ -1,7 +1,8 @@
 module Deslop.BaselineSpec (spec) where
 
-import Deslop.Baseline (Baseline, applyBaseline, inBaseline, loadBaselineFromFile, saveBaseline)
-import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
+import Data.HashSet qualified as HS
+import Deslop.Baseline (Baseline (..), applyBaseline, inBaseline, loadBaselineFromFile, saveBaseline)
+import Deslop.Problem (LintRuleId (..), Location (..), Problem (..), problemId)
 import Deslop.Rulebook (RuleId (..), RulebookId (..))
 import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, mockFileAt, runMockRoFileSystem, runMockWrFileSystem)
 import Effectful (IOE, runEff)
@@ -199,3 +200,12 @@ spec = describe "Deslop.Baseline" $ do
                 runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
                     loadBaselineFromFile testBaselinePath
             applyBaseline result [problemA, problemB, problemC] `shouldBe` []
+
+        it "deduplicates the baseline" $ do
+            ref <- newIORef Nothing
+            runEff . runMockWrFileSystem ref $ saveBaseline testProjectPath [problemA, problemB, problemA]
+            content <- requireJust "saveBaseline did not write" =<< readIORef ref
+            Baseline baseline <-
+                runEff . runMockRoFileSystem (mockFileAt testBaselinePath content) $
+                    loadBaselineFromFile testBaselinePath
+            baseline `shouldBe` HS.fromList [problemId problemA, problemId problemB]
