@@ -280,7 +280,7 @@ generateAllCasings txt =
 
 tokenizeCase :: Text -> [Text]
 tokenizeCase txt =
-    let segments = filter (not . T.null) $ concatMap (T.splitOn "_") (T.splitOn "-" txt)
+    let segments = concatMap (filter (not . T.null) . T.splitOn "_") (T.splitOn "-" txt)
      in concatMap processSegment segments
   where
     -- An all-uppercase segment (e.g. "MAX", "HTTP") is one word; mixed-case
