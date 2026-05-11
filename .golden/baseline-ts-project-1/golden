@@ -19,6 +19,8 @@
 - no-relative-imports#src/lib/util.ts
 - architecture#container-uses-state-event#@/features/products/ProductListContainer
 - architecture#container-uses-state-event#@/features/settings/SettingsContainer
+- architecture#no-react-in-lib#@/lib/dom-utils
+- architecture#no-react-in-lib#@/lib/react-helper
 - architecture#no-react-transitively-in-data#@/features/home/data/bad-repository
 - architecture#no-react-transitively-in-data#@/features/home/data/home-repository
 - architecture#no-react-transitively-in-data#@/features/profile/data/profile-repository
