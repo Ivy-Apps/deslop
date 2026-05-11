@@ -26,6 +26,7 @@ module TestUtils (
     failBeatiful,
     mkUsesImportDto,
     mkForbiddenImportDto,
+    mkExistsModuleDto,
 ) where
 
 import Control.Exception (throwIO)
@@ -36,7 +37,7 @@ import Data.Text.Encoding qualified as TE
 import Deslop.AST (AstNode (..))
 import Deslop.Baseline (Baseline (..))
 import Deslop.Problem (ProblemId (..))
-import Deslop.Rulebook (ForbiddenDto (..), GlobDto (GlobDto), UsesDto (UsesImportDto))
+import Deslop.Rulebook (ExistsDto (ExistsModuleDto), ForbiddenDto (..), GlobDto (GlobDto), UsesDto (UsesImportDto))
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
@@ -198,3 +199,6 @@ mkForbiddenImportDto p transitive = ForbiddenImportDto (GlobDto p) (Just transit
 
 mkUsesImportDto :: Text -> Bool -> UsesDto
 mkUsesImportDto p transitive = UsesImportDto (GlobDto p) (Just transitive)
+
+mkExistsModuleDto :: Text -> ExistsDto
+mkExistsModuleDto = ExistsModuleDto . GlobDto

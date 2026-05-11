@@ -7,10 +7,12 @@ module Deslop.Rulebook (
     GlobDto (..),
     ForbiddenDto (..),
     UsesDto (..),
+    ExistsDto (..),
     Rulebook (..),
     Rule (..),
     ForbiddenClause (..),
     UsesClause (..),
+    ExistsClause (..),
     RulebookId (..),
     parseRuleBookYaml,
     ruleBookFromDto,
@@ -49,7 +51,7 @@ data Rule = Rule
     , forbids :: Maybe (NonEmpty ForbiddenClause)
     , uses :: Maybe (NonEmpty UsesClause)
     , usesOptional :: Maybe (NonEmpty CompiledRulePattern)
-    , exists :: Maybe (NonEmpty CompiledRulePattern)
+    , exists :: Maybe (NonEmpty ExistsClause)
     , example :: Maybe Text
     , fix :: Text
     }
@@ -72,6 +74,11 @@ data ForbiddenClause
         { functionName :: FunctionName
         }
     deriving stock (Show, Eq)
+
+data ExistsClause = ExistsModule
+    { target :: CompiledRulePattern
+    }
+    deriving (Show, Eq)
 
 --------------------------------------------------------------------------------
 -- DTOs
@@ -103,7 +110,7 @@ data RuleDto = RuleDto
     , forbids :: Maybe [ForbiddenDto]
     , uses :: Maybe [UsesDto]
     , usesOptional :: Maybe [GlobDto]
-    , exists :: Maybe [GlobDto]
+    , exists :: Maybe [ExistsDto]
     , example :: Maybe Text
     , fix :: Text
     }
@@ -138,6 +145,15 @@ instance FromJSON ForbiddenDto where
     parseJSON = withObject "ForbiddenDto" $ \v ->
         (ForbiddenImportDto <$> v .: "import" <*> v .:? "transitive")
             <|> (FunctionCallDto <$> v .: "functional-call")
+
+data ExistsDto = ExistsModuleDto
+    { target :: GlobDto
+    }
+    deriving stock (Show, Eq)
+
+instance FromJSON ExistsDto where
+    parseJSON = withObject "ExistsDto" $ \v ->
+        ExistsModuleDto <$> v .: "module"
 
 newtype GlobDto = GlobDto Text
     deriving stock (Show, Eq)
@@ -190,7 +206,7 @@ ruleFromDto dto = do
     compiledExclude <- compileTargetGlobs dto.exclude
     compiledUses <- compileUsesClauses dto.uses
     compiledUsesOptional <- compileRuleGlobs dto.usesOptional
-    compiledExists <- compileRuleGlobs dto.exists
+    compiledExists <- compileExistsClauses dto.exists
     compiledForbidden <- compileForbiddenClauses dto.forbids
     pure
         Rule
@@ -229,6 +245,18 @@ compileRuleGlob (GlobDto s) =
 compileRuleGlobs :: Maybe [GlobDto] -> Either Text (Maybe (NonEmpty CompiledRulePattern))
 compileRuleGlobs Nothing = Right Nothing
 compileRuleGlobs (Just globs) = fmap nonEmpty (traverse compileRuleGlob globs)
+
+compileExistsClauses :: Maybe [ExistsDto] -> Either Text (Maybe (NonEmpty ExistsClause))
+compileExistsClauses Nothing = Right Nothing
+compileExistsClauses (Just xs) = nonEmpty <$> traverse compileExists xs
+
+compileExists :: ExistsDto -> Either Text ExistsClause
+compileExists (ExistsModuleDto (GlobDto t)) = do
+    pattern <- first (T.pack . errorBundlePretty) (parseRulePattern t)
+    Right
+        ExistsModule
+            { target = compileRulePattern pattern
+            }
 
 compileUsesClauses :: Maybe [UsesDto] -> Either Text (Maybe (NonEmpty UsesClause))
 compileUsesClauses Nothing = Right Nothing

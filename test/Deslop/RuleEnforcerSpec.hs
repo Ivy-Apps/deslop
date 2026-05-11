@@ -11,7 +11,7 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
-import TestUtils (mkForbiddenImportDto, mkImportNode, mkUsesImportDto, requireRight)
+import TestUtils (mkExistsModuleDto, mkForbiddenImportDto, mkImportNode, mkUsesImportDto, requireRight)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (DeslopError (..))
 
@@ -142,7 +142,10 @@ existsRulebook =
                         , forbids = Nothing
                         , uses = Nothing
                         , usesOptional = Nothing
-                        , exists = Just [GlobDto "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"]
+                        , exists =
+                            Just
+                                [ mkExistsModuleDto "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
+                                ]
                         , example = Nothing
                         , fix = "Create the spec file."
                         }
@@ -345,7 +348,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                         , forbids = Nothing
                                         , uses = Nothing
                                         , usesOptional = Nothing
-                                        , exists = Just [GlobDto "{{TARGET_DIR}}/**/*.spec"]
+                                        , exists = Just [mkExistsModuleDto "{{TARGET_DIR}}/**/*.spec"]
                                         , example = Nothing
                                         , fix = "Fix it."
                                         }

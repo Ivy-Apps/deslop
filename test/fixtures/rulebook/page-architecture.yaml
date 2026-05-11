@@ -9,14 +9,14 @@ rules:
       Use the page to SSR data and pass it as a parameter to the Container that will display the UI.
     target: "@/app/**/page"
     execution-context: server
-    example: | 
+    example: |
       import { HomeContainer } from "@/features/home/HomeContainer";
 
       export default async function HomePage() {
         const user = await fetchUserSSR();
         return <HomeContainer initialData={user} />
       }
-    fix: >- 
+    fix: >-
       Make sure that there is no 'use client' and no client-side code is executed in the page TS module.
       If you need a client side code (React state / hooks) move it to a @/features/**/*Container.
 
@@ -28,7 +28,7 @@ rules:
     fix: Extract the client-side logic in a Container and put it in @/features/{feature-name}/{Feature}Container.
 
   - id: page-container-wires-view-and-viewmodel
-    description: >- 
+    description: >-
       A Container is a glue code executed on the client side that connects a View with its ViewModel hook.
       The Container optionally accepts initial SSR data from the page and passes it to the ViewModel.
     target: "@/features/**/{{FileName}}Container"
@@ -116,7 +116,7 @@ rules:
       event handling, and business logic independently of the UI components.
     target: "@/features/**/use{{FileName}}ViewModel"
     exists:
-      - "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
+      - module: "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
     uses:
       - import: "{{TARGET_DIR}}/use{{FileName}}ViewModel"
     example: |
@@ -144,7 +144,7 @@ rules:
       Ensure you import the ViewModel hook from `{{TARGET_DIR}}/use{{FileName}}ViewModel` and test its state and event dispatcher.
 
   - id: page-view
-    description: >- 
+    description: >-
       Each page/feature should have a pure UI (View) that renders the UiState 
       and submits user interactions as UiEvents.
     target: "@/features/**/{{FileName}}View"
@@ -187,8 +187,8 @@ rules:
       Each pure UI View should have a corresponding Storybook file to develop, test, 
       and document its various UI states in isolation.
     target: "@/features/**/{{FileName}}View"
-    exists: 
-      - "{{TARGET_DIR}}/{{FileName}}View.stories"
+    exists:
+      - module: "{{TARGET_DIR}}/{{FileName}}View.stories"
     example: |
       import type { Meta, StoryObj } from "@storybook/react";
       import { HomeView } from "@/features/home/HomeView";

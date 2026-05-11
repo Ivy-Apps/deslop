@@ -246,20 +246,23 @@ Right
             , usesOptional = Nothing
             , exists =
                 Just
-                  (CompiledRulePattern
-                     { chunks =
-                         [ StaticChunk "^"
-                         , VarChunk RTargetDir
-                         , StaticChunk "/use"
-                         , VarChunk (RVar PascalCase)
-                         , StaticChunk "ViewModel\\.spec$"
-                         ]
-                     , rawTokens =
-                         [ Var RTargetDir
-                         , Literal "/use"
-                         , Var (RVar PascalCase)
-                         , Literal "ViewModel.spec"
-                         ]
+                  (ExistsModule
+                     { target =
+                         CompiledRulePattern
+                           { chunks =
+                               [ StaticChunk "^"
+                               , VarChunk RTargetDir
+                               , StaticChunk "/use"
+                               , VarChunk (RVar PascalCase)
+                               , StaticChunk "ViewModel\\.spec$"
+                               ]
+                           , rawTokens =
+                               [ Var RTargetDir
+                               , Literal "/use"
+                               , Var (RVar PascalCase)
+                               , Literal "ViewModel.spec"
+                               ]
+                           }
                      } :|
                      [])
             , example =
@@ -325,20 +328,23 @@ Right
             , usesOptional = Nothing
             , exists =
                 Just
-                  (CompiledRulePattern
-                     { chunks =
-                         [ StaticChunk "^"
-                         , VarChunk RTargetDir
-                         , StaticChunk "/"
-                         , VarChunk (RVar PascalCase)
-                         , StaticChunk "View\\.stories$"
-                         ]
-                     , rawTokens =
-                         [ Var RTargetDir
-                         , Literal "/"
-                         , Var (RVar PascalCase)
-                         , Literal "View.stories"
-                         ]
+                  (ExistsModule
+                     { target =
+                         CompiledRulePattern
+                           { chunks =
+                               [ StaticChunk "^"
+                               , VarChunk RTargetDir
+                               , StaticChunk "/"
+                               , VarChunk (RVar PascalCase)
+                               , StaticChunk "View\\.stories$"
+                               ]
+                           , rawTokens =
+                               [ Var RTargetDir
+                               , Literal "/"
+                               , Var (RVar PascalCase)
+                               , Literal "View.stories"
+                               ]
+                           }
                      } :|
                      [])
             , example =

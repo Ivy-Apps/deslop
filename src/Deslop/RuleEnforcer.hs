@@ -3,9 +3,9 @@ module Deslop.RuleEnforcer (enforceRulebooks) where
 import Data.Text qualified as T
 import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
-import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern, MatchEnv, matchRule, matchTarget, moduleFromGlob, renderRulePattern)
+import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget, moduleFromGlob, renderRulePattern)
 import Deslop.Problem (Problem (..))
-import Deslop.Rulebook (ForbiddenClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
+import Deslop.Rulebook (ExistsClause (..), ForbiddenClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Effectful (Eff, (:>))
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Reader.Static (Reader, ask, runReader)
@@ -184,8 +184,8 @@ executeExists ::
     , ReportProblem :> es
     , Error DeslopError :> es
     ) =>
-    AstModule -> MatchEnv -> CompiledRulePattern -> Eff es ()
-executeExists m env pat = do
+    AstModule -> MatchEnv -> ExistsClause -> Eff es ()
+executeExists m env (ExistsModule pat) = do
     mid <- case moduleFromGlob env pat of
         Just t -> pure (moduleIdUnsafe t)
         Nothing -> do
