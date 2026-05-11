@@ -199,6 +199,87 @@ spec = describe "Deslop.GlobPLus" $ do
             matchTarget star     "@/lib/a/b" `shouldBe` Nothing
             matchTarget globStar "@/lib/a/b" `shouldSatisfy` isJust
 
+        it "extracts {{FILE_NAME}} (ConstantCase) and enriches all other casings" $ do
+            let target = unsafeCompileTarget "src/constants/{{FILE_NAME}}"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget target "src/constants/MAX_RETRY_COUNT"
+            env.targetDir `shouldBe` "src/constants"
+            Map.lookup ConstantCase env.casings `shouldBe` Just "MAX_RETRY_COUNT"
+            Map.lookup PascalCase   env.casings `shouldBe` Just "MaxRetryCount"
+            Map.lookup CamelCase    env.casings `shouldBe` Just "maxRetryCount"
+            Map.lookup KebabCase    env.casings `shouldBe` Just "max-retry-count"
+
+        it "rejects a path whose casing does not satisfy {{FILE_NAME}} (requires [A-Z0-9_]+)" $ do
+            let target = unsafeCompileTarget "src/constants/{{FILE_NAME}}"
+            matchTarget target "src/constants/maxRetryCount"   `shouldBe` Nothing
+            matchTarget target "src/constants/max-retry-count" `shouldBe` Nothing
+
+        it "treats an all-uppercase captured word as a single token (HTTP -> http)" $ do
+            let target = unsafeCompileTarget "@/services/{{FileName}}Client"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/services/HTTPClient"
+            -- Original PascalCase capture is preserved by Map.union
+            Map.lookup PascalCase   env.casings `shouldBe` Just "HTTP"
+            -- Derived casings treat "HTTP" as one word
+            Map.lookup KebabCase    env.casings `shouldBe` Just "http"
+            Map.lookup CamelCase    env.casings `shouldBe` Just "http"
+            Map.lookup ConstantCase env.casings `shouldBe` Just "HTTP"
+
+        it "extracts {{FileName}} with an embedded digit (OAuth2Service)" $ do
+            let target = unsafeCompileTarget "@/services/{{FileName}}Service"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/services/OAuth2Service"
+            Map.lookup PascalCase   env.casings `shouldBe` Just "OAuth2"
+            Map.lookup CamelCase    env.casings `shouldBe` Just "oAuth2"
+            Map.lookup KebabCase    env.casings `shouldBe` Just "o-auth2"
+            Map.lookup ConstantCase env.casings `shouldBe` Just "O_AUTH2"
+
+        it "extracts {{file-name}} combined with ** at zero subdirs" $ do
+            let target = unsafeCompileTarget "@/features/**/{{file-name}}-service"
+            envZero <- requireJust "zero-subdir failed" $
+                matchTarget target "@/features/user-auth-service"
+            envZero.targetDir `shouldBe` "@/features"
+            Map.lookup KebabCase  envZero.casings `shouldBe` Just "user-auth"
+            Map.lookup PascalCase envZero.casings `shouldBe` Just "UserAuth"
+            envOne <- requireJust "one-subdir failed" $
+                matchTarget target "@/features/auth/user-auth-service"
+            envOne.targetDir `shouldBe` "@/features/auth"
+            Map.lookup KebabCase  envOne.casings `shouldBe` Just "user-auth"
+
+        it "escapes dots in literal path segments of a target pattern" $ do
+            let target = unsafeCompileTarget "src/utils.lib/{{FileName}}"
+            matchTarget target "src/utils.lib/HomeView" `shouldSatisfy` isJust
+            matchTarget target "src/utils_lib/HomeView" `shouldBe` Nothing
+            matchTarget target "src/utilsXlib/HomeView" `shouldBe` Nothing
+
+        it "derives empty string as TARGET_DIR for a root-level (single-segment) file" $ do
+            let target = unsafeCompileTarget "{{FileName}}"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget target "HomeView"
+            env.targetDir `shouldBe` ""
+            Map.lookup PascalCase env.casings `shouldBe` Just "HomeView"
+
+        -- TypeScript cross-casing: KebabCase ↔ PascalCase ↔ CamelCase
+        it "derives all casings correctly for a three-word kebab-case name" $ do
+            -- Typical TypeScript: file named user-profile-card.tsx → component UserProfileCard
+            let target = unsafeCompileTarget "@/components/{{file-name}}"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/components/user-profile-card"
+            Map.lookup KebabCase    env.casings `shouldBe` Just "user-profile-card"
+            Map.lookup PascalCase   env.casings `shouldBe` Just "UserProfileCard"
+            Map.lookup CamelCase    env.casings `shouldBe` Just "userProfileCard"
+            Map.lookup ConstantCase env.casings `shouldBe` Just "USER_PROFILE_CARD"
+
+        it "derives all casings correctly for a three-word camelCase name" $ do
+            -- Typical TypeScript: service/hook named userProfileCardService
+            let target = unsafeCompileTarget "@/services/{{fileName}}Service"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/services/userProfileCardService"
+            Map.lookup CamelCase    env.casings `shouldBe` Just "userProfileCard"
+            Map.lookup PascalCase   env.casings `shouldBe` Just "UserProfileCard"
+            Map.lookup KebabCase    env.casings `shouldBe` Just "user-profile-card"
+            Map.lookup ConstantCase env.casings `shouldBe` Just "USER_PROFILE_CARD"
+
     describe "matchRule" $ do
         let sampleEnv =
                 MatchEnv
@@ -322,6 +403,15 @@ spec = describe "Deslop.GlobPLus" $ do
             matchRule rule richEnv "@/features/home/HomeProfile.test" `shouldBe` False
             matchRule rule richEnv "@/features/other/HomeProfile.spec" `shouldBe` False
 
+        it "escapes regex metacharacters in TARGET_DIR (dot must not match arbitrary chars)" $ do
+            let env = MatchEnv
+                    { targetDir = "src/v1.0/features"
+                    , casings   = Map.fromList [(PascalCase, "Home")]
+                    }
+            let rule = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
+            matchRule rule env "src/v1.0/features/HomeView" `shouldBe` True
+            matchRule rule env "src/v1X0/features/HomeView" `shouldBe` False
+
     describe "moduleFromGlob" $ do
         let env =
                 MatchEnv
@@ -366,6 +456,12 @@ spec = describe "Deslop.GlobPLus" $ do
         it "returns Nothing for a pattern that is only a glob star" $ do
             let pat = unsafeCompileRule "**"
             moduleFromGlob env pat `shouldBe` Nothing
+
+        it "returns Just with an empty segment when a casing key is absent from the env" $ do
+            -- fromMaybe "" means missing keys silently expand to empty string, not Nothing
+            let sparseEnv = MatchEnv {targetDir = "@/features/x", casings = Map.empty}
+            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
+            moduleFromGlob sparseEnv pat `shouldBe` Just "@/features/x/View"
 
     describe "renderRulePattern" $ do
         let env =
@@ -471,6 +567,73 @@ spec = describe "Deslop.GlobPLus" $ do
             -- Other paths in the same dir are not caught by this forbids rule
             matchRule cforbids env "@/features/home/HomeContainer" `shouldBe` False
             matchRule cforbids env "@/features/other/HomeView" `shouldBe` False
+
+        it "validates a ConstantCase naming convention end-to-end" $ do
+            -- Cross-casing from ConstantCase is lossy (see matchTarget tests above),
+            -- so same-casing enforcement ({{FILE_NAME}} -> {{FILE_NAME}}) is reliable.
+            let cTarget = unsafeCompileTarget "src/constants/{{FILE_NAME}}"
+            let cRule   = unsafeCompileRule   "src/types/{{FILE_NAME}}_types"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget cTarget "src/constants/MAX_RETRY_COUNT"
+            -- same casing is preserved exactly, so same-style rules match correctly
+            matchRule cRule env "src/types/MAX_RETRY_COUNT_types" `shouldBe` True
+            -- wrong constant name
+            matchRule cRule env "src/types/MIN_RETRY_COUNT_types" `shouldBe` False
+            -- wrong directory
+            matchRule cRule env "src/constants/MAX_RETRY_COUNT_types" `shouldBe` False
+
+    describe "TypeScript web codebase patterns" $ do
+        -- PascalCase → KebabCase: the canonical React pattern
+        it "PascalCase component enforces kebab-case CSS module" $ do
+            let cTarget    = unsafeCompileTarget "@/components/{{FileName}}"
+            let cCssModule = unsafeCompileRule "{{TARGET_DIR}}/{{file-name}}.module.css"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget cTarget "@/components/UserProfileCard"
+            matchRule cCssModule env "@/components/user-profile-card.module.css" `shouldBe` True
+            -- PascalCase CSS module name is wrong
+            matchRule cCssModule env "@/components/UserProfileCard.module.css"   `shouldBe` False
+            -- Partial name mismatch
+            matchRule cCssModule env "@/components/user-profile.module.css"      `shouldBe` False
+
+        it "PascalCase component enforces PascalCase stories and spec" $ do
+            let cTarget  = unsafeCompileTarget "@/features/**/{{FileName}}"
+            let cStories = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}.stories"
+            let cSpec    = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}.spec"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget cTarget "@/features/auth/LoginForm"
+            matchRule cStories env "@/features/auth/LoginForm.stories" `shouldBe` True
+            matchRule cSpec    env "@/features/auth/LoginForm.spec"    `shouldBe` True
+            -- Kebab-case versions of stories/spec are wrong
+            matchRule cStories env "@/features/auth/login-form.stories" `shouldBe` False
+            matchRule cSpec    env "@/features/auth/login-form.spec"    `shouldBe` False
+
+        -- KebabCase → PascalCase: the reverse cross-casing direction
+        it "kebab-case file target enforces PascalCase component and camelCase hook rules" $ do
+            let cTarget    = unsafeCompileTarget "@/components/{{file-name}}"
+            let cComponent = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}"
+            let cHook      = unsafeCompileRule "{{TARGET_DIR}}/use{{FileName}}"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget cTarget "@/components/login-form"
+            matchRule cComponent env "@/components/LoginForm"    `shouldBe` True
+            matchRule cHook      env "@/components/useLoginForm" `shouldBe` True
+            -- Kebab casing is wrong in a PascalCase rule slot
+            matchRule cComponent env "@/components/login-form"   `shouldBe` False
+            -- Capital "Use" is wrong (hook prefix is camelCase)
+            matchRule cHook      env "@/components/UseLoginForm" `shouldBe` False
+
+        -- CamelCase → PascalCase + KebabCase: TypeScript service/interface convention
+        it "camelCase service target enforces PascalCase interface and kebab-case spec" $ do
+            let cTarget    = unsafeCompileTarget "@/services/{{fileName}}Service"
+            let cInterface = unsafeCompileRule "{{TARGET_DIR}}/I{{FileName}}Service"
+            let cSpec      = unsafeCompileRule "{{TARGET_DIR}}/{{file-name}}-service.spec"
+            env <- requireJust "matchTarget returned Nothing" $
+                matchTarget cTarget "@/services/userProfileService"
+            matchRule cInterface env "@/services/IUserProfileService"       `shouldBe` True
+            matchRule cSpec      env "@/services/user-profile-service.spec" `shouldBe` True
+            -- Wrong casing for interface (lowercase 'i' prefix or wrong name form)
+            matchRule cInterface env "@/services/userProfileService"        `shouldBe` False
+            -- PascalCase spec file name is wrong
+            matchRule cSpec      env "@/services/UserProfileService.spec"   `shouldBe` False
 
 -- Helpers
 

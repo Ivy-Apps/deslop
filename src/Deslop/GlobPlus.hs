@@ -280,18 +280,20 @@ generateAllCasings txt =
 
 tokenizeCase :: Text -> [Text]
 tokenizeCase txt =
-    let spaced =
-            T.concatMap
-                ( \c ->
-                    if c `elem` ("-_" :: String)
-                        then " "
-                        else
-                            if isUpper c
-                                then " " <> T.singleton c
-                                else T.singleton c
-                )
-                txt
-     in filter (not . T.null) $ T.words (T.toLower spaced)
+    let segments = filter (not . T.null) $ concatMap (T.splitOn "_") (T.splitOn "-" txt)
+     in concatMap processSegment segments
+  where
+    -- An all-uppercase segment (e.g. "MAX", "HTTP") is one word; mixed-case
+    -- segments (e.g. "UserProfile") are split on CamelCase boundaries.
+    processSegment seg
+        | T.all isUpper seg = [T.toLower seg]
+        | otherwise =
+            filter (not . T.null)
+                . map T.toLower
+                . T.words
+                . T.concatMap
+                    (\c -> if isUpper c then " " <> T.singleton c else T.singleton c)
+                $ seg
 
 toPascalCase, toCamelCase, toKebabCase, toConstantCase :: [Text] -> Text
 toPascalCase = T.concat . map capitalize
