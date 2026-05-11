@@ -105,8 +105,8 @@ data RuleChunk
     deriving (Show, Eq)
 
 data CompiledRulePattern = CompiledRulePattern
-    { chunks :: [RuleChunk]         -- regex form for matchRule (hot path)
-    , rawTokens :: [Token RuleVar]  -- original tokens for moduleFromGlob
+    { chunks :: [RuleChunk] -- regex form for matchRule (hot path)
+    , rawTokens :: [Token RuleVar] -- original tokens for moduleFromGlob
     }
     deriving (Show, Eq)
 
@@ -162,9 +162,12 @@ compileTargetPattern :: TargetPattern -> CompiledTargetPattern
 compileTargetPattern (Pattern tokens) =
     let regexStr = "^" <> T.concat (mapTokensGlob "(.*/)?" toRegex tokens) <> "$"
         extractedVars = [c | Var (TVar c) <- tokens]
-        -- Typeclass infers `Text` as the source!
         regexObj = makeRegex regexStr :: Regex
-     in CompiledTargetPattern {regex = regexObj, vars = extractedVars, globCaptures = countGlobSlash tokens}
+     in CompiledTargetPattern
+            { regex = regexObj
+            , vars = extractedVars
+            , globCaptures = countGlobSlash tokens
+            }
   where
     toRegex (Literal t) = escapeRegex t
     toRegex Star = "[^/]*"
@@ -177,7 +180,9 @@ compileTargetPattern (Pattern tokens) =
 compileRulePattern :: RulePattern -> CompiledRulePattern
 compileRulePattern (Pattern tokens) =
     CompiledRulePattern
-        { chunks = optimizeChunks $ StaticChunk "^" : mapTokensGlob (StaticChunk "(.*/)?") toChunk tokens ++ [StaticChunk "$"]
+        { chunks =
+            optimizeChunks $
+                StaticChunk "^" : mapTokensGlob (StaticChunk "(.*/)?") toChunk tokens ++ [StaticChunk "$"]
         , rawTokens = tokens
         }
   where
@@ -225,9 +230,10 @@ matchRule crp env targetPath =
     resolveChunk (VarChunk (RVar c)) =
         maybe ".*" escapeRegex (Map.lookup c env.casings)
 
--- | Expands a rule pattern into a concrete module path by substituting
--- variables from the MatchEnv. Returns Nothing if the pattern contains
--- wildcards (* or **), which cannot be deterministically expanded.
+{- | Expands a rule pattern into a concrete module path by substituting
+variables from the MatchEnv. Returns Nothing if the pattern contains
+wildcards (* or **), which cannot be deterministically expanded.
+-}
 moduleFromGlob :: MatchEnv -> CompiledRulePattern -> Maybe Text
 moduleFromGlob env crp = T.concat <$> traverse expand crp.rawTokens
   where
@@ -237,8 +243,9 @@ moduleFromGlob env crp = T.concat <$> traverse expand crp.rawTokens
     expand (Var RTargetDir) = Just env.targetDir
     expand (Var (RVar casing)) = Just $ fromMaybe "" (Map.lookup casing env.casings)
 
--- | Renders a rule pattern as a human-readable string by substituting
--- variables from the MatchEnv and keeping wildcards (* or **) literally.
+{- | Renders a rule pattern as a human-readable string by substituting
+variables from the MatchEnv and keeping wildcards (* or **) literally.
+-}
 renderRulePattern :: MatchEnv -> CompiledRulePattern -> Text
 renderRulePattern env crp = T.concat (map renderToken crp.rawTokens)
   where
@@ -302,11 +309,12 @@ capitalize t = case T.uncons t of
 -- Utilities
 --------------------------------------------------------------------------------
 
--- | Like 'map' over a token list, but absorbs the /**/ glob idiom:
--- when 'GlobStar' is immediately followed by a 'Literal' whose text starts
--- with '/', the leading '/' is stripped and 'slashAbsorbed' is emitted in
--- place of applying 'f' to 'GlobStar'.  This lets ** match zero path segments
--- so that e.g. @a\/**\/*@ matches @a\/x@ in addition to @a\/x\/y@.
+{- | Like 'map' over a token list, but absorbs the /**/ glob idiom:
+when 'GlobStar' is immediately followed by a 'Literal' whose text starts
+with '/', the leading '/' is stripped and 'slashAbsorbed' is emitted in
+place of applying 'f' to 'GlobStar'.  This lets ** match zero path segments
+so that e.g. @a\/**\/*@ matches @a\/x@ in addition to @a\/x\/y@.
+-}
 mapTokensGlob :: a -> (Token v -> a) -> [Token v] -> [a]
 mapTokensGlob slashAbsorbed f = go
   where
@@ -316,10 +324,11 @@ mapTokensGlob slashAbsorbed f = go
             slashAbsorbed : go (Literal l' : rest)
     go (t : rest) = f t : go rest
 
--- | Counts how many times the /**/ idiom appears in a token list —
--- i.e. GlobStar immediately followed by a Literal starting with '/'.
--- Must mirror the recursion in 'mapTokensGlob' so the count matches the
--- number of extra capture groups introduced by the (.*)? replacement.
+{- | Counts how many times the /**/ idiom appears in a token list —
+i.e. GlobStar immediately followed by a Literal starting with '/'.
+Must mirror the recursion in 'mapTokensGlob' so the count matches the
+number of extra capture groups introduced by the (.*)? replacement.
+-}
 countGlobSlash :: [Token v] -> Int
 countGlobSlash [] = 0
 countGlobSlash (GlobStar : Literal l : rest)
