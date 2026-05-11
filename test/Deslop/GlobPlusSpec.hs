@@ -141,6 +141,64 @@ spec = describe "Deslop.GlobPLus" $ do
             matchTarget target "@/a/x/b/y/c" `shouldSatisfy` isJust
             matchTarget target "@/a/x/y/b/z/w/c" `shouldSatisfy` isJust
 
+        -- * single-segment wildcard
+        it "* matches any single segment" $ do
+            let target = unsafeCompileTarget "@/lib/*"
+            matchTarget target "@/lib/jwt" `shouldSatisfy` isJust
+            matchTarget target "@/lib/user-auth" `shouldSatisfy` isJust
+            matchTarget target "@/lib/UserProfile" `shouldSatisfy` isJust
+
+        it "* does not match two or more segments" $ do
+            let target = unsafeCompileTarget "@/lib/*"
+            matchTarget target "@/lib/auth/jwt" `shouldBe` Nothing
+            matchTarget target "@/lib/a/b/c" `shouldBe` Nothing
+
+        it "* does not match the base path with the trailing segment missing" $ do
+            let target = unsafeCompileTarget "@/lib/*"
+            matchTarget target "@/lib" `shouldBe` Nothing
+
+        it "* in the middle matches exactly one segment at that position" $ do
+            let target = unsafeCompileTarget "@/lib/*/route"
+            matchTarget target "@/lib/auth/route" `shouldSatisfy` isJust
+            matchTarget target "@/lib/route" `shouldBe` Nothing
+            matchTarget target "@/lib/auth/user/route" `shouldBe` Nothing
+
+        it "multiple * each constrain exactly one segment" $ do
+            let target = unsafeCompileTarget "@/lib/*/*"
+            matchTarget target "@/lib/a/b" `shouldSatisfy` isJust
+            matchTarget target "@/lib/a" `shouldBe` Nothing
+            matchTarget target "@/lib/a/b/c" `shouldBe` Nothing
+
+        -- ** recursive wildcard
+        it "**/segment matches that segment at any depth including zero" $ do
+            let target = unsafeCompileTarget "**/index"
+            matchTarget target "index" `shouldSatisfy` isJust
+            matchTarget target "src/index" `shouldSatisfy` isJust
+            matchTarget target "src/app/index" `shouldSatisfy` isJust
+            matchTarget target "src/app/deep/index" `shouldSatisfy` isJust
+            matchTarget target "other" `shouldBe` Nothing
+
+        it "**/segment does not match paths whose final segment only shares a suffix" $ do
+            let target = unsafeCompileTarget "**/components"
+            matchTarget target "xcomponents" `shouldBe` Nothing
+            matchTarget target "a/xcomponents" `shouldBe` Nothing
+            matchTarget target "components/child" `shouldBe` Nothing
+
+        it "@/features/**/{{FileName}} at zero subdirs extracts the variable correctly" $ do
+            let target = unsafeCompileTarget "@/features/**/{{FileName}}Container"
+            envZero <- requireJust "zero-subdir match failed" $
+                matchTarget target "@/features/HomeContainer"
+            Map.lookup PascalCase envZero.casings `shouldBe` Just "Home"
+            envOne <- requireJust "one-subdir match failed" $
+                matchTarget target "@/features/auth/HomeContainer"
+            Map.lookup PascalCase envOne.casings `shouldBe` Just "Home"
+
+        it "* and ** are distinct: * stops at a slash, ** crosses slashes" $ do
+            let star     = unsafeCompileTarget "@/lib/*"
+            let globStar = unsafeCompileTarget "@/lib/**"
+            matchTarget star     "@/lib/a/b" `shouldBe` Nothing
+            matchTarget globStar "@/lib/a/b" `shouldSatisfy` isJust
+
     describe "matchRule" $ do
         let sampleEnv =
                 MatchEnv
@@ -223,6 +281,46 @@ spec = describe "Deslop.GlobPLus" $ do
             matchRule rule sparseEnv "@/features/x/SomethingElseView" `shouldBe` True
             -- TARGET_DIR is still exact
             matchRule rule sparseEnv "@/features/other/AnythingView" `shouldBe` False
+
+        -- * in rules
+        it "* in a rule matches exactly one segment" $ do
+            let rule = unsafeCompileRule "{{TARGET_DIR}}/*"
+            matchRule rule sampleEnv "@/features/user/anything" `shouldBe` True
+            matchRule rule sampleEnv "@/features/user/a/b" `shouldBe` False
+            matchRule rule sampleEnv "@/features/other/anything" `shouldBe` False
+
+        it "* in the middle of a rule does not cross a path separator" $ do
+            let rule = unsafeCompileRule "{{TARGET_DIR}}/*/index"
+            matchRule rule sampleEnv "@/features/user/components/index" `shouldBe` True
+            matchRule rule sampleEnv "@/features/user/a/b/index" `shouldBe` False
+            matchRule rule sampleEnv "@/features/user/index" `shouldBe` False
+
+        -- ** in rules
+        it "{{TARGET_DIR}}/**/* matches zero subdirs (rule regression)" $ do
+            let rule = unsafeCompileRule "{{TARGET_DIR}}/**/*"
+            matchRule rule sampleEnv "@/features/user/Button" `shouldBe` True
+            matchRule rule sampleEnv "@/features/user/components/Button" `shouldBe` True
+            matchRule rule sampleEnv "@/features/other/Button" `shouldBe` False
+
+        it "{{TARGET_DIR}}/** matches any path at any depth below TARGET_DIR" $ do
+            let rule = unsafeCompileRule "{{TARGET_DIR}}/**"
+            matchRule rule sampleEnv "@/features/user/anything" `shouldBe` True
+            matchRule rule sampleEnv "@/features/user/a/b/c" `shouldBe` True
+            matchRule rule sampleEnv "@/features/other/anything" `shouldBe` False
+
+        it "{{TARGET_DIR}}/**/*.spec matches .spec files at any depth including zero subdirs" $ do
+            let rule = unsafeCompileRule "{{TARGET_DIR}}/**/*.spec"
+            matchRule rule sampleEnv "@/features/user/Button.spec" `shouldBe` True
+            matchRule rule sampleEnv "@/features/user/components/Button.spec" `shouldBe` True
+            matchRule rule sampleEnv "@/features/user/Button.test" `shouldBe` False
+            matchRule rule sampleEnv "@/features/other/Button.spec" `shouldBe` False
+
+        it "{{TARGET_DIR}}/**/{{FileName}}.spec matches at any depth including zero subdirs" $ do
+            let rule = unsafeCompileRule "{{TARGET_DIR}}/**/{{FileName}}.spec"
+            matchRule rule richEnv "@/features/home/HomeProfile.spec" `shouldBe` True
+            matchRule rule richEnv "@/features/home/auth/HomeProfile.spec" `shouldBe` True
+            matchRule rule richEnv "@/features/home/HomeProfile.test" `shouldBe` False
+            matchRule rule richEnv "@/features/other/HomeProfile.spec" `shouldBe` False
 
     describe "moduleFromGlob" $ do
         let env =
