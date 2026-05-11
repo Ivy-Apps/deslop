@@ -79,9 +79,9 @@ enforceRule m rule = case isTarget m.id rule of
         ) =>
         MatchEnv -> Eff es ()
     execute env = do
-        for_ rule.forbids (traverse_ (executeForbids m env))
-        for_ rule.exists (traverse_ (executeExists m env))
-        for_ rule.uses (traverse_ (executeUses m env))
+        for_ rule.forbids (traverse_ (enforceForbids m env))
+        for_ rule.exists (traverse_ (enforceExists m env))
+        for_ rule.uses (traverse_ (enforceUses m env))
 
 isTarget :: ModuleId -> Rule -> Maybe MatchEnv
 isTarget moduleId rule = case matchTarget rule.target moduleId.text of
@@ -98,7 +98,7 @@ isTarget moduleId rule = case matchTarget rule.target moduleId.text of
         Just _ -> True
         Nothing -> isExcluded (Just xs)
 
-executeForbids ::
+enforceForbids ::
     ( Reader ModuleGraph :> es
     , Reader ReachableModules :> es
     , Reader RulebookId :> es
@@ -106,7 +106,7 @@ executeForbids ::
     , ReportProblem :> es
     ) =>
     AstModule -> MatchEnv -> ForbidsClause -> Eff es ()
-executeForbids m env (ForbidsImport target transitive)
+enforceForbids m env (ForbidsImport target transitive)
     | transitive = do
         ReachableModules reachable <- ask @ReachableModules
         traverse_ transitiveCheck reachable
@@ -128,9 +128,9 @@ executeForbids m env (ForbidsImport target transitive)
                     >>= report
         | otherwise = pure ()
 
-    transitiveCheck rid
-        | matchRule target env rid.text = do
-            p <- findKnownPath m.id rid
+    transitiveCheck reachableModuleId
+        | matchRule target env reachableModuleId.text = do
+            p <- findKnownPath m.id reachableModuleId
             let via = " via: " <> T.intercalate " → " (map (.text) (toList p))
                 firstHop = listToMaybe (drop 1 (toList p))
                 importRaw hop = T.strip . (.rawStatement) <$> find (\n -> n.target == hop) m.nodes
@@ -139,23 +139,23 @@ executeForbids m env (ForbidsImport target transitive)
                     "Module '"
                         <> m.id.text
                         <> "' transitively imports '"
-                        <> rid.text
+                        <> reachableModuleId.text
                         <> "'"
                         <> via
                         <> "."
                         <> stmtSuffix
             ruleViolation m message >>= report
         | otherwise = pure ()
-executeForbids _ _ (ForbidsFunctionCall _) = todo
+enforceForbids _ _ (ForbidsFunctionCall _) = todo
 
-executeUses ::
+enforceUses ::
     ( Reader RulebookId :> es
     , Reader Rule :> es
     , Reader ReachableModules :> es
     , ReportProblem :> es
     ) =>
     AstModule -> MatchEnv -> UsesClause -> Eff es ()
-executeUses m env (UsesImport usesPattern transitive)
+enforceUses m env (UsesImport usesPattern transitive)
     | transitive = do
         ReachableModules reachable <- ask @ReachableModules
         unless (any (\rid -> matchRule usesPattern env rid.text) reachable) $ do
@@ -177,7 +177,7 @@ executeUses m env (UsesImport usesPattern transitive)
                         <> "'."
             ruleViolation m msg >>= report
 
-executeExists ::
+enforceExists ::
     ( Reader ModuleGraph :> es
     , Reader RulebookId :> es
     , Reader Rule :> es
@@ -185,7 +185,7 @@ executeExists ::
     , Error DeslopError :> es
     ) =>
     AstModule -> MatchEnv -> ExistsClause -> Eff es ()
-executeExists m env (ExistsModule pat) = do
+enforceExists m env (ExistsModule pat) = do
     mid <- case moduleFromGlob env pat of
         Just t -> pure (moduleIdUnsafe t)
         Nothing -> do

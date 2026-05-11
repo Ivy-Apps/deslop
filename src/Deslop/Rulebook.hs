@@ -119,16 +119,6 @@ newtype RuleId = RuleId Text
     deriving stock (Show, Eq, Ord)
     deriving newtype (FromJSON)
 
-data UsesDto = UsesImportDto
-    { target :: GlobDto
-    , transitive :: Maybe Bool
-    }
-    deriving (Show, Eq)
-
-instance FromJSON UsesDto where
-    parseJSON = withObject "UsesDto" $ \v ->
-        UsesImportDto <$> v .: "import" <*> v .:? "transitive"
-
 data ForbidsDto
     = ForbidsImportDto
         { target :: GlobDto
@@ -140,9 +130,19 @@ data ForbidsDto
     deriving stock (Show, Eq)
 
 instance FromJSON ForbidsDto where
-    parseJSON = withObject "ForbiddenDto" $ \v ->
+    parseJSON = withObject "ForbidsDto" $ \v ->
         (ForbidsImportDto <$> v .: "import" <*> v .:? "transitive")
             <|> (ForbidsFunctionCallDto <$> v .: "functional-call")
+
+data UsesDto = UsesImportDto
+    { target :: GlobDto
+    , transitive :: Maybe Bool
+    }
+    deriving (Show, Eq)
+
+instance FromJSON UsesDto where
+    parseJSON = withObject "UsesDto" $ \v ->
+        UsesImportDto <$> v .: "import" <*> v .:? "transitive"
 
 newtype ExistsDto = ExistsModuleDto
     { target :: GlobDto
