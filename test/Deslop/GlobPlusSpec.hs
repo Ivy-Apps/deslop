@@ -107,15 +107,39 @@ spec = describe "Deslop.GlobPLus" $ do
 
         it "/**/* matches zero dirs which includes /*" $ do
             let target = unsafeCompileTarget "@/lib/**/*"
-            matchTargetDir target "@/lib/jwt" `shouldBe` Just "@/lib/jwt"
-            matchTargetDir target "@/lib/auth/user" `shouldBe` Just "@/lib/auth/user"
+            matchTarget target "@/lib/jwt" `shouldSatisfy` isJust
+            matchTarget target "@/lib/auth/user" `shouldSatisfy` isJust
 
         it "** matches everything" $ do
             let target = unsafeCompileTarget "**"
-            matchTargetDir target "a" `shouldBe` Just "a"
-            matchTargetDir target "lib/a" `shouldBe` Just "lib/a"
-            matchTargetDir target "dir/" `shouldBe` Just "dir/"
-            matchTargetDir target "dir1/dir2/b" `shouldBe` Just "dir1/dir2/b"
+            matchTarget target "a" `shouldSatisfy` isJust
+            matchTarget target "lib/a" `shouldSatisfy` isJust
+            matchTarget target "dir/" `shouldSatisfy` isJust
+            matchTarget target "dir1/dir2/b" `shouldSatisfy` isJust
+
+        it "@/lib/** matches any depth under @/lib/ but not @/lib itself" $ do
+            let target = unsafeCompileTarget "@/lib/**"
+            matchTarget target "@/lib/jwt" `shouldSatisfy` isJust
+            matchTarget target "@/lib/auth/user" `shouldSatisfy` isJust
+            matchTarget target "@/lib/a/b/c/d" `shouldSatisfy` isJust
+            matchTarget target "@/lib" `shouldBe` Nothing
+
+        it "/**/* does not match the base path or a different prefix" $ do
+            let target = unsafeCompileTarget "@/lib/**/*"
+            matchTarget target "@/lib" `shouldBe` Nothing
+            matchTarget target "@/other/jwt" `shouldBe` Nothing
+
+        it "**/* matches any path at any depth including a single segment" $ do
+            let target = unsafeCompileTarget "**/*"
+            matchTarget target "jwt" `shouldSatisfy` isJust
+            matchTarget target "lib/jwt" `shouldSatisfy` isJust
+            matchTarget target "a/b/c" `shouldSatisfy` isJust
+
+        it "multiple ** globstars each independently match zero or more dirs" $ do
+            let target = unsafeCompileTarget "@/a/**/b/**/*"
+            matchTarget target "@/a/b/c" `shouldSatisfy` isJust
+            matchTarget target "@/a/x/b/y/c" `shouldSatisfy` isJust
+            matchTarget target "@/a/x/y/b/z/w/c" `shouldSatisfy` isJust
 
     describe "matchRule" $ do
         let sampleEnv =
@@ -361,6 +385,3 @@ unsafeCompileRule :: Text -> CompiledRulePattern
 unsafeCompileRule t = case parseRulePattern t of
     Right ast -> compileRulePattern ast
     Left err -> error $ "Failed to parse rule pattern: " <> show err
-
-matchTargetDir :: CompiledTargetPattern -> Text -> Maybe Text
-matchTargetDir pattern t = fmap (.targetDir) (matchTarget pattern t)
