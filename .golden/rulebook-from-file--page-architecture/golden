@@ -15,7 +15,6 @@ Right
             , executionContext = Neutral
             , forbids = Nothing
             , uses = Nothing
-            , usesOptional = Nothing
             , exists = Nothing
             , example =
                 Just
@@ -50,7 +49,6 @@ Right
                      , transitive = False
                      } :|
                      [])
-            , usesOptional = Nothing
             , exists = Nothing
             , example = Nothing
             , fix =
@@ -126,7 +124,6 @@ Right
                          , transitive = True
                          }
                      ])
-            , usesOptional = Nothing
             , exists = Nothing
             , example =
                 Just
@@ -145,8 +142,8 @@ Right
             , executionContext = Neutral
             , forbids =
                 Just
-                  (ForbiddenFunctionCall { functionName = FunctionName "fetch" } :|
-                     [ ForbiddenImport
+                  (ForbidsFunctionCall { functionName = FunctionName "fetch" } :|
+                     [ ForbidsImport
                          { target =
                              CompiledRulePattern
                                { chunks =
@@ -165,7 +162,7 @@ Right
                                }
                          , transitive = False
                          }
-                     , ForbiddenImport
+                     , ForbidsImport
                          { target =
                              CompiledRulePattern
                                { chunks = [ StaticChunk "^@/(.*/)?components/(.*/)?[^/]*$" ]
@@ -203,7 +200,6 @@ Right
                      , transitive = False
                      } :|
                      [])
-            , usesOptional = Nothing
             , exists = Nothing
             , example =
                 Just
@@ -243,23 +239,25 @@ Right
                      , transitive = False
                      } :|
                      [])
-            , usesOptional = Nothing
             , exists =
                 Just
-                  (CompiledRulePattern
-                     { chunks =
-                         [ StaticChunk "^"
-                         , VarChunk RTargetDir
-                         , StaticChunk "/use"
-                         , VarChunk (RVar PascalCase)
-                         , StaticChunk "ViewModel\\.spec$"
-                         ]
-                     , rawTokens =
-                         [ Var RTargetDir
-                         , Literal "/use"
-                         , Var (RVar PascalCase)
-                         , Literal "ViewModel.spec"
-                         ]
+                  (ExistsModule
+                     { target =
+                         CompiledRulePattern
+                           { chunks =
+                               [ StaticChunk "^"
+                               , VarChunk RTargetDir
+                               , StaticChunk "/use"
+                               , VarChunk (RVar PascalCase)
+                               , StaticChunk "ViewModel\\.spec$"
+                               ]
+                           , rawTokens =
+                               [ Var RTargetDir
+                               , Literal "/use"
+                               , Var (RVar PascalCase)
+                               , Literal "ViewModel.spec"
+                               ]
+                           }
                      } :|
                      [])
             , example =
@@ -279,8 +277,7 @@ Right
             , executionContext = Neutral
             , forbids =
                 Just
-                  (ForbiddenFunctionCall { functionName = FunctionName "fetch" } :|
-                     [])
+                  (ForbidsFunctionCall { functionName = FunctionName "fetch" } :| [])
             , uses =
                 Just
                   (UsesImport
@@ -303,7 +300,6 @@ Right
                      , transitive = False
                      } :|
                      [])
-            , usesOptional = Nothing
             , exists = Nothing
             , example =
                 Just
@@ -322,23 +318,25 @@ Right
             , executionContext = Neutral
             , forbids = Nothing
             , uses = Nothing
-            , usesOptional = Nothing
             , exists =
                 Just
-                  (CompiledRulePattern
-                     { chunks =
-                         [ StaticChunk "^"
-                         , VarChunk RTargetDir
-                         , StaticChunk "/"
-                         , VarChunk (RVar PascalCase)
-                         , StaticChunk "View\\.stories$"
-                         ]
-                     , rawTokens =
-                         [ Var RTargetDir
-                         , Literal "/"
-                         , Var (RVar PascalCase)
-                         , Literal "View.stories"
-                         ]
+                  (ExistsModule
+                     { target =
+                         CompiledRulePattern
+                           { chunks =
+                               [ StaticChunk "^"
+                               , VarChunk RTargetDir
+                               , StaticChunk "/"
+                               , VarChunk (RVar PascalCase)
+                               , StaticChunk "View\\.stories$"
+                               ]
+                           , rawTokens =
+                               [ Var RTargetDir
+                               , Literal "/"
+                               , Var (RVar PascalCase)
+                               , Literal "View.stories"
+                               ]
+                           }
                      } :|
                      [])
             , example =

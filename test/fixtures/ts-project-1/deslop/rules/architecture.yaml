@@ -30,7 +30,7 @@ rules:
       to verify its state transitions and business logic.
     target: "@/features/**/use{{FileName}}ViewModel"
     exists:
-      - "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
+      - module: "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
     fix: >-
       Create a spec file named 'use{{FileName}}ViewModel.spec.ts' in the same directory as the ViewModel.
 

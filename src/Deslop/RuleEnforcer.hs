@@ -3,9 +3,9 @@ module Deslop.RuleEnforcer (enforceRulebooks) where
 import Data.Text qualified as T
 import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
-import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern, MatchEnv, matchRule, matchTarget, moduleFromGlob, renderRulePattern)
+import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget, moduleFromGlob, renderRulePattern)
 import Deslop.Problem (Problem (..))
-import Deslop.Rulebook (ForbiddenClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
+import Deslop.Rulebook (ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Effectful (Eff, (:>))
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Reader.Static (Reader, ask, runReader)
@@ -79,9 +79,9 @@ enforceRule m rule = case isTarget m.id rule of
         ) =>
         MatchEnv -> Eff es ()
     execute env = do
-        for_ rule.forbids (traverse_ (executeForbids m env))
-        for_ rule.exists (traverse_ (executeExists m env))
-        for_ rule.uses (traverse_ (executeUses m env))
+        for_ rule.forbids (traverse_ (enforceForbids m env))
+        for_ rule.exists (traverse_ (enforceExists m env))
+        for_ rule.uses (traverse_ (enforceUses m env))
 
 isTarget :: ModuleId -> Rule -> Maybe MatchEnv
 isTarget moduleId rule = case matchTarget rule.target moduleId.text of
@@ -98,15 +98,15 @@ isTarget moduleId rule = case matchTarget rule.target moduleId.text of
         Just _ -> True
         Nothing -> isExcluded (Just xs)
 
-executeForbids ::
+enforceForbids ::
     ( Reader ModuleGraph :> es
     , Reader ReachableModules :> es
     , Reader RulebookId :> es
     , Reader Rule :> es
     , ReportProblem :> es
     ) =>
-    AstModule -> MatchEnv -> ForbiddenClause -> Eff es ()
-executeForbids m env (ForbiddenImport target transitive)
+    AstModule -> MatchEnv -> ForbidsClause -> Eff es ()
+enforceForbids m env (ForbidsImport target transitive)
     | transitive = do
         ReachableModules reachable <- ask @ReachableModules
         traverse_ transitiveCheck reachable
@@ -128,9 +128,9 @@ executeForbids m env (ForbiddenImport target transitive)
                     >>= report
         | otherwise = pure ()
 
-    transitiveCheck rid
-        | matchRule target env rid.text = do
-            p <- findKnownPath m.id rid
+    transitiveCheck reachableModuleId
+        | matchRule target env reachableModuleId.text = do
+            p <- findKnownPath m.id reachableModuleId
             let via = " via: " <> T.intercalate " → " (map (.text) (toList p))
                 firstHop = listToMaybe (drop 1 (toList p))
                 importRaw hop = T.strip . (.rawStatement) <$> find (\n -> n.target == hop) m.nodes
@@ -139,23 +139,23 @@ executeForbids m env (ForbiddenImport target transitive)
                     "Module '"
                         <> m.id.text
                         <> "' transitively imports '"
-                        <> rid.text
+                        <> reachableModuleId.text
                         <> "'"
                         <> via
                         <> "."
                         <> stmtSuffix
             ruleViolation m message >>= report
         | otherwise = pure ()
-executeForbids _ _ (ForbiddenFunctionCall _) = todo
+enforceForbids _ _ (ForbidsFunctionCall _) = todo
 
-executeUses ::
+enforceUses ::
     ( Reader RulebookId :> es
     , Reader Rule :> es
     , Reader ReachableModules :> es
     , ReportProblem :> es
     ) =>
     AstModule -> MatchEnv -> UsesClause -> Eff es ()
-executeUses m env (UsesImport usesPattern transitive)
+enforceUses m env (UsesImport usesPattern transitive)
     | transitive = do
         ReachableModules reachable <- ask @ReachableModules
         unless (any (\rid -> matchRule usesPattern env rid.text) reachable) $ do
@@ -177,15 +177,15 @@ executeUses m env (UsesImport usesPattern transitive)
                         <> "'."
             ruleViolation m msg >>= report
 
-executeExists ::
+enforceExists ::
     ( Reader ModuleGraph :> es
     , Reader RulebookId :> es
     , Reader Rule :> es
     , ReportProblem :> es
     , Error DeslopError :> es
     ) =>
-    AstModule -> MatchEnv -> CompiledRulePattern -> Eff es ()
-executeExists m env pat = do
+    AstModule -> MatchEnv -> ExistsClause -> Eff es ()
+enforceExists m env (ExistsModule pat) = do
     mid <- case moduleFromGlob env pat of
         Just t -> pure (moduleIdUnsafe t)
         Nothing -> do

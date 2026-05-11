@@ -25,7 +25,10 @@ module TestUtils (
     mkImportNode,
     failBeatiful,
     mkUsesImportDto,
-    mkForbiddenImportDto,
+    mkForbidsImportDto,
+    mkExistsModuleDto,
+    rulebookDto,
+    ruleDto,
 ) where
 
 import Control.Exception (throwIO)
@@ -36,7 +39,7 @@ import Data.Text.Encoding qualified as TE
 import Deslop.AST (AstNode (..))
 import Deslop.Baseline (Baseline (..))
 import Deslop.Problem (ProblemId (..))
-import Deslop.Rulebook (ForbiddenDto (..), GlobDto (GlobDto), UsesDto (UsesImportDto))
+import Deslop.Rulebook (ExistsDto (ExistsModuleDto), ForbidsDto (..), GlobDto (GlobDto), RuleDto (..), RuleId (..), RulebookDto (..), UsesDto (UsesImportDto))
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
@@ -193,8 +196,35 @@ mkImportNode t =
         , rawStatement = "import { ... } from '" <> t <> "'"
         }
 
-mkForbiddenImportDto :: Text -> Bool -> ForbiddenDto
-mkForbiddenImportDto p transitive = ForbiddenImportDto (GlobDto p) (Just transitive)
+mkForbidsImportDto :: Text -> Bool -> ForbidsDto
+mkForbidsImportDto p transitive = ForbidsImportDto (GlobDto p) (Just transitive)
 
 mkUsesImportDto :: Text -> Bool -> UsesDto
 mkUsesImportDto p transitive = UsesImportDto (GlobDto p) (Just transitive)
+
+mkExistsModuleDto :: Text -> ExistsDto
+mkExistsModuleDto = ExistsModuleDto . GlobDto
+
+rulebookDto :: RulebookDto
+rulebookDto =
+    RulebookDto
+        { id = "test-rulebook"
+        , rules = []
+        , name = "Test rulebook"
+        , description = "Rulebook used for testing"
+        }
+
+ruleDto :: RuleDto
+ruleDto =
+    RuleDto
+        { id = RuleId "test-rule"
+        , description = "test"
+        , target = GlobDto ""
+        , exclude = Nothing
+        , executionContext = Nothing
+        , forbids = Nothing
+        , uses = Nothing
+        , exists = Nothing
+        , fix = ""
+        , example = Nothing
+        }
