@@ -5,10 +5,10 @@ import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
 import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget, moduleFromGlob, renderRulePattern)
 import Deslop.Problem (Problem (..))
-import Deslop.Rulebook (ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
+import Deslop.Rulebook (AllowsClause (..), ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Effectful (Eff, (:>))
 import Effectful.Error.Static (Error, throwError)
-import Effectful.Reader.Static (Reader, ask, runReader)
+import Effectful.Reader.Static (Reader, ask, asks, runReader)
 import Effects.ReportProblem (ReportProblem, report)
 import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe)
 import Types (DeslopError (..))
@@ -109,43 +109,55 @@ enforceForbids ::
 enforceForbids m env (ForbidsImport target transitive)
     | transitive = do
         ReachableModules reachable <- ask @ReachableModules
-        traverse_ transitiveCheck reachable
+        traverse_ transitiveForbiddenImport reachable
     | otherwise = traverse_ directForbiddenImport m.nodes
   where
     directForbiddenImport (ImportNode t rawStatement)
-        | matchRule target env t.text =
-            let
-                message =
-                    "Module '"
-                        <> m.id.text
-                        <> "' directly imports '"
-                        <> t.text
-                        <> "'.\n```ts\n"
-                        <> T.strip rawStatement
-                        <> "\n```"
-             in
+        | matchRule target env t.text = do
+            allowed <- inAllows t
+            unless allowed $ do
+                let message =
+                        "Module '"
+                            <> m.id.text
+                            <> "' directly imports '"
+                            <> t.text
+                            <> "'.\n```ts\n"
+                            <> T.strip rawStatement
+                            <> "\n```"
                 ruleViolation m message
                     >>= report
         | otherwise = pure ()
 
-    transitiveCheck reachableModuleId
+    transitiveForbiddenImport reachableModuleId
         | matchRule target env reachableModuleId.text = do
-            p <- findKnownPath m.id reachableModuleId
-            let via = " via: " <> T.intercalate " → " (map (.text) (toList p))
-                firstHop = listToMaybe (drop 1 (toList p))
-                importRaw hop = T.strip . (.rawStatement) <$> find (\n -> n.target == hop) m.nodes
-                stmtSuffix = maybe "" (\raw -> "\n```ts\n" <> raw <> "\n```") (firstHop >>= importRaw)
-                message =
-                    "Module '"
-                        <> m.id.text
-                        <> "' transitively imports '"
-                        <> reachableModuleId.text
-                        <> "'"
-                        <> via
-                        <> "."
-                        <> stmtSuffix
-            ruleViolation m message >>= report
+            allowed <- inAllows reachableModuleId
+            unless allowed $ do
+                p <- findKnownPath m.id reachableModuleId
+                let via = " via: " <> T.intercalate " → " (map (.text) (toList p))
+                    firstHop = listToMaybe (drop 1 (toList p))
+                    importRaw hop = T.strip . (.rawStatement) <$> find (\n -> n.target == hop) m.nodes
+                    stmtSuffix = maybe "" (\raw -> "\n```ts\n" <> raw <> "\n```") (firstHop >>= importRaw)
+                    message =
+                        "Module '"
+                            <> m.id.text
+                            <> "' transitively imports '"
+                            <> reachableModuleId.text
+                            <> "'"
+                            <> via
+                            <> "."
+                            <> stmtSuffix
+                ruleViolation m message >>= report
         | otherwise = pure ()
+
+    inAllows moduleId = do
+        allows <- asks @Rule (.allows)
+        case allows of
+            Nothing -> pure False
+            Just as -> pure . any (inAllowClause moduleId) $ as
+
+    inAllowClause :: ModuleId -> AllowsClause -> Bool
+    inAllowClause moduleId (AllowsImport pattern) =
+        matchRule pattern env moduleId.text
 enforceForbids _ _ (ForbidsFunctionCall _) = todo
 
 enforceUses ::
