@@ -219,3 +219,12 @@ rules:
     fix: >-
       Create a Storybook file named `{{FileName}}View.stories.tsx` in the same directory as the View.
       Ensure you mock the necessary `state` to showcase various UI states and provide a no-op for the `onEvent` prop.
+
+  - id: features-cant-import-other-features
+    description: Features can't import from other features.
+    target: "@/features/**"
+    forbids:
+      - import: "@/features/**" # forbid all features imports
+    allows:
+      - import: "{{TARGET_DIR}}/**" # except when imports from the target dir
+    fix: Use only what's internally in the feature folder or promote the used code to a shared place.

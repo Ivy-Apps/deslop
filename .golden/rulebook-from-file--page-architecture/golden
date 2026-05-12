@@ -14,6 +14,7 @@ Right
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
+            , allows = Nothing
             , uses = Nothing
             , exists = Nothing
             , example =
@@ -32,6 +33,7 @@ Right
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
+            , allows = Nothing
             , uses =
                 Just
                   (UsesImport
@@ -64,6 +66,7 @@ Right
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
+            , allows = Nothing
             , uses =
                 Just
                   (UsesImport
@@ -178,6 +181,7 @@ Right
                          , transitive = False
                          }
                      ])
+            , allows = Nothing
             , uses =
                 Just
                   (UsesImport
@@ -217,6 +221,7 @@ Right
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
+            , allows = Nothing
             , uses =
                 Just
                   (UsesImport
@@ -278,6 +283,7 @@ Right
             , forbids =
                 Just
                   (ForbidsFunctionCall { functionName = FunctionName "fetch" } :| [])
+            , allows = Nothing
             , uses =
                 Just
                   (UsesImport
@@ -317,6 +323,7 @@ Right
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
+            , allows = Nothing
             , uses = Nothing
             , exists =
                 Just
@@ -344,6 +351,42 @@ Right
                   "import type { Meta, StoryObj } from \"@storybook/react\";\nimport { HomeView } from \"@/features/home/HomeView\";\n\nconst meta: Meta<typeof HomeView> = {\n  component: HomeView,\n  title: \"Features/Home/HomeView\",\n};\n\nexport default meta;\ntype Story = StoryObj<typeof HomeView>;\n\nconst noop = () => {};\n\nexport const Default: Story = {\n  args: {\n    state: { user: { name: \"Alice\" } },\n    onEvent: noop,\n  },\n};\n\nexport const Guest: Story = {\n  args: {\n    state: { user: null },\n    onEvent: noop,\n  },\n};\n"
             , fix =
                 "Create a Storybook file named `{{FileName}}View.stories.tsx` in the same directory as the View. Ensure you mock the necessary `state` to showcase various UI states and provide a no-op for the `onEvent` prop."
+            }
+        , Rule
+            { id = RuleId "features-cant-import-other-features"
+            , description = "Features can't import from other features."
+            , target =
+                CompiledTargetPattern
+                  { regex = <regex> , vars = [] , globCaptures = 0 }
+            , exclude = Nothing
+            , executionContext = Neutral
+            , forbids =
+                Just
+                  (ForbidsImport
+                     { target =
+                         CompiledRulePattern
+                           { chunks = [ StaticChunk "^@/features/.*$" ]
+                           , rawTokens = [ Literal "@/features/" , GlobStar ]
+                           }
+                     , transitive = False
+                     } :|
+                     [])
+            , allows =
+                Just
+                  (AllowsImport
+                     { target =
+                         CompiledRulePattern
+                           { chunks =
+                               [ StaticChunk "^" , VarChunk RTargetDir , StaticChunk "/.*$" ]
+                           , rawTokens = [ Var RTargetDir , Literal "/" , GlobStar ]
+                           }
+                     } :|
+                     [])
+            , uses = Nothing
+            , exists = Nothing
+            , example = Nothing
+            , fix =
+                "Use only what's internally in the feature folder or promote the used code to a shared place."
             }
         ]
     }

@@ -223,6 +223,7 @@ ruleDto =
         , exclude = Nothing
         , executionContext = Nothing
         , forbids = Nothing
+        , allows = Nothing
         , uses = Nothing
         , exists = Nothing
         , fix = ""

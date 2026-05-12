@@ -1,5 +1,16 @@
 - architecture#container-uses-state-event#@/features/products/ProductListContainer
 - architecture#container-uses-state-event#@/features/settings/SettingsContainer
+- architecture#features-cant-import-other-features#@/features/auth/useUserAuthViewModel.spec
+- architecture#features-cant-import-other-features#@/features/dashboard/UserDashboardContainer
+- architecture#features-cant-import-other-features#@/features/home/data/bad-repository
+- architecture#features-cant-import-other-features#@/features/home/home-component
+- architecture#features-cant-import-other-features#@/features/home/home-screen
+- architecture#features-cant-import-other-features#@/features/home/home.spec
+- architecture#features-cant-import-other-features#@/features/login/login.spec
+- architecture#features-cant-import-other-features#@/features/notifications/NotificationsContainer
+- architecture#features-cant-import-other-features#@/features/notifications/NotificationsScreen
+- architecture#features-cant-import-other-features#@/features/profile/data/profile-repository
+- architecture#features-cant-import-other-features#@/features/settings/SettingsScreen
 - architecture#no-react-in-lib#@/lib/dom-utils
 - architecture#no-react-in-lib#@/lib/react-helper
 - architecture#no-react-transitively-in-data#@/features/home/data/bad-repository

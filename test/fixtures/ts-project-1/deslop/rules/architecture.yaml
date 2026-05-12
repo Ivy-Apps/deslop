@@ -71,3 +71,12 @@ rules:
       Remove any imports that transitively pull in React. Data layer modules must only
       import from @/lib, external non-React packages, or other framework-agnostic modules.
       Move any React-dependent logic to a ViewModel or Container in the features layer.
+
+  - id: features-cant-import-other-features
+    description: Features can't import from other features.
+    target: "@/features/**"
+    forbids:
+      - import: "@/features/**" # forbid all features imports
+    allows:
+      - import: "{{TARGET_DIR}}/**" # except when imports from the target dir
+    fix: Use only what's internally in the feature folder or promote the used code to a shared place.

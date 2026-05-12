@@ -156,6 +156,116 @@ Module '@/features/settings/SettingsContainer' must import '@/features/settings/
 FIX: Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
 ---------
 
+# architecture#features-cant-import-other-features#@/features/auth/useUserAuthViewModel.spec
+Features can't import from other features.
+
+Module '@/features/auth/useUserAuthViewModel.spec' directly imports '@/features/auth/useUserAuthViewModel'.
+```ts
+import { useUserAuthViewModel } from '@/features/auth/useUserAuthViewModel';
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
+# architecture#features-cant-import-other-features#@/features/dashboard/UserDashboardContainer
+Features can't import from other features.
+
+Module '@/features/dashboard/UserDashboardContainer' directly imports '@/features/dashboard/UserDashboardStateEvent'.
+```ts
+import { UserDashboardUiState, UserDashboardUiEvent } from '@/features/dashboard/UserDashboardStateEvent';
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
+# architecture#features-cant-import-other-features#@/features/home/data/bad-repository
+Features can't import from other features.
+
+Module '@/features/home/data/bad-repository' directly imports '@/features/home/home-screen'.
+```ts
+import { HomeScreen } from "@/features/home/home-screen";
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
+# architecture#features-cant-import-other-features#@/features/home/home-component
+Features can't import from other features.
+
+Module '@/features/home/home-component' directly imports '@/features/heavy-module'.
+```ts
+import ('@/features/heavy-module');
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
+# architecture#features-cant-import-other-features#@/features/home/home-screen
+Features can't import from other features.
+
+Module '@/features/home/home-screen' directly imports '@/features/home/home-component'.
+```ts
+import { getHomeData } from "@/features/home/home-component";
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
+# architecture#features-cant-import-other-features#@/features/home/home.spec
+Features can't import from other features.
+
+Module '@/features/home/home.spec' directly imports '@/features/home/home-component'.
+```ts
+import { getHomeData } from "@/features/home/home-component";
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
+# architecture#features-cant-import-other-features#@/features/login/login.spec
+Features can't import from other features.
+
+Module '@/features/login/login.spec' directly imports '@/features/login/login-form'.
+```ts
+import { validateUsername } from "@/features/login/login-form";
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
+# architecture#features-cant-import-other-features#@/features/notifications/NotificationsContainer
+Features can't import from other features.
+
+Module '@/features/notifications/NotificationsContainer' directly imports '@/features/notifications/NotificationsStateEvent'.
+```ts
+import { NotificationsUiState, NotificationsUiEvent } from '@/features/notifications/NotificationsStateEvent';
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
+# architecture#features-cant-import-other-features#@/features/notifications/NotificationsScreen
+Features can't import from other features.
+
+Module '@/features/notifications/NotificationsScreen' directly imports '@/features/notifications/NotificationsContainer'.
+```ts
+import { NotificationsContainer } from '@/features/notifications/NotificationsContainer';
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
+# architecture#features-cant-import-other-features#@/features/profile/data/profile-repository
+Features can't import from other features.
+
+Module '@/features/profile/data/profile-repository' directly imports '@/features/home/home-screen'.
+```ts
+import { HomeScreen } from "@/features/home/home-screen";
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
+# architecture#features-cant-import-other-features#@/features/settings/SettingsScreen
+Features can't import from other features.
+
+Module '@/features/settings/SettingsScreen' directly imports '@/features/settings/SettingsContainer'.
+```ts
+import { SettingsContainer } from '@/features/settings/SettingsContainer';
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
 # architecture#no-react-in-lib#@/lib/dom-utils
 Library modules in @/lib must not directly import React. The lib layer should contain pure, framework-agnostic utilities.
 

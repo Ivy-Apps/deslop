@@ -6,11 +6,13 @@ module Deslop.Rulebook (
     RuleId (..),
     GlobDto (..),
     ForbidsDto (..),
+    AllowsDto (..),
     UsesDto (..),
     ExistsDto (..),
     Rulebook (..),
     Rule (..),
     ForbidsClause (..),
+    AllowsClause (..),
     UsesClause (..),
     ExistsClause (..),
     RulebookId (..),
@@ -49,6 +51,7 @@ data Rule = Rule
     , exclude :: Maybe (NonEmpty CompiledTargetPattern)
     , executionContext :: ExecutionContext
     , forbids :: Maybe (NonEmpty ForbidsClause)
+    , allows :: Maybe (NonEmpty AllowsClause)
     , uses :: Maybe (NonEmpty UsesClause)
     , exists :: Maybe (NonEmpty ExistsClause)
     , example :: Maybe Text
@@ -74,10 +77,16 @@ data ForbidsClause
         }
     deriving stock (Show, Eq)
 
+data AllowsClause
+    = AllowsImport
+    { target :: CompiledRulePattern
+    }
+    deriving stock (Show, Eq)
+
 newtype ExistsClause = ExistsModule
     { target :: CompiledRulePattern
     }
-    deriving (Show, Eq)
+    deriving stock (Show, Eq)
 
 --------------------------------------------------------------------------------
 -- DTOs
@@ -107,6 +116,7 @@ data RuleDto = RuleDto
     , exclude :: Maybe [GlobDto]
     , executionContext :: Maybe ExecutionContextDto
     , forbids :: Maybe [ForbidsDto]
+    , allows :: Maybe [AllowsDto]
     , uses :: Maybe [UsesDto]
     , exists :: Maybe [ExistsDto]
     , example :: Maybe Text
@@ -133,6 +143,16 @@ instance FromJSON ForbidsDto where
     parseJSON = withObject "ForbidsDto" $ \v ->
         (ForbidsImportDto <$> v .: "import" <*> v .:? "transitive")
             <|> (ForbidsFunctionCallDto <$> v .: "functional-call")
+
+data AllowsDto
+    = AllowsImportDto
+    { target :: GlobDto
+    }
+    deriving stock (Show, Eq)
+
+instance FromJSON AllowsDto where
+    parseJSON = withObject "AllowsDto" $ \v ->
+        AllowsImportDto <$> v .: "import"
 
 data UsesDto = UsesImportDto
     { target :: GlobDto
@@ -200,29 +220,26 @@ ruleBookFromDto rbDto = do
 
 ruleFromDto :: RuleDto -> Either Text Rule
 ruleFromDto dto = do
-    compiledTarget <- compileTargetGlob dto.target
-    compiledExclude <- compileTargetGlobs dto.exclude
-    compiledUses <- compileUsesClauses dto.uses
-    compiledExists <- compileExistsClauses dto.exists
-    compiledForbids <- compileForbidsClauses dto.forbids
+    target <- compileTargetGlob dto.target
+    exclude <- compileTargetGlobs dto.exclude
+    forbids <- compileForbidsClauses dto.forbids
+    allows <- compileAllowsClauses dto.allows
+    uses <- compileUsesClauses dto.uses
+    exists <- compileExistsClauses dto.exists
     pure
         Rule
             { id = dto.id
             , description = dto.description
-            , target = compiledTarget
-            , exclude = compiledExclude
+            , target = target
+            , exclude = exclude
             , executionContext = mapExecutionContext dto.executionContext
-            , forbids = compiledForbids
-            , uses = compiledUses
-            , exists = compiledExists
+            , forbids = forbids
+            , allows = allows
+            , uses = uses
+            , exists = exists
             , example = dto.example
             , fix = dto.fix
             }
-
-mapExecutionContext :: Maybe ExecutionContextDto -> ExecutionContext
-mapExecutionContext Nothing = Neutral
-mapExecutionContext (Just UseClientDto) = UseClient
-mapExecutionContext (Just UseServerDto) = UseServer
 
 compileTargetGlobs :: Maybe [GlobDto] -> Either Text (Maybe (NonEmpty CompiledTargetPattern))
 compileTargetGlobs Nothing = Right Nothing
@@ -233,15 +250,30 @@ compileTargetGlob (GlobDto s) =
     first (T.pack . show) (parseTargetPattern s)
         <&> compileTargetPattern
 
-compileExistsClauses :: Maybe [ExistsDto] -> Either Text (Maybe (NonEmpty ExistsClause))
-compileExistsClauses Nothing = Right Nothing
-compileExistsClauses (Just xs) = nonEmpty <$> traverse compileExists xs
+compileForbidsClauses :: Maybe [ForbidsDto] -> Either Text (Maybe (NonEmpty ForbidsClause))
+compileForbidsClauses Nothing = Right Nothing
+compileForbidsClauses (Just fbs) = nonEmpty <$> traverse compileForbids fbs
   where
-    compileExists :: ExistsDto -> Either Text ExistsClause
-    compileExists (ExistsModuleDto (GlobDto t)) = do
-        pattern <- first (T.pack . errorBundlePretty) (parseRulePattern t)
+    compileForbids :: ForbidsDto -> Either Text ForbidsClause
+    compileForbids (ForbidsImportDto (GlobDto s) transitive) = do
+        pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
         Right
-            ExistsModule
+            ForbidsImport
+                { target = compileRulePattern pattern
+                , transitive = fromMaybe False transitive
+                }
+    compileForbids (ForbidsFunctionCallDto name) =
+        Right ForbidsFunctionCall {functionName = FunctionName name}
+
+compileAllowsClauses :: Maybe [AllowsDto] -> Either Text (Maybe (NonEmpty AllowsClause))
+compileAllowsClauses Nothing = Right Nothing
+compileAllowsClauses (Just xs) = nonEmpty <$> traverse compileAllows xs
+  where
+    compileAllows :: AllowsDto -> Either Text AllowsClause
+    compileAllows (AllowsImportDto (GlobDto s)) = do
+        pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
+        Right
+            AllowsImport
                 { target = compileRulePattern pattern
                 }
 
@@ -258,17 +290,19 @@ compileUsesClauses (Just xs) = nonEmpty <$> traverse compileUses xs
                 , transitive = fromMaybe False transitive
                 }
 
-compileForbidsClauses :: Maybe [ForbidsDto] -> Either Text (Maybe (NonEmpty ForbidsClause))
-compileForbidsClauses Nothing = Right Nothing
-compileForbidsClauses (Just fbs) = nonEmpty <$> traverse compileForbids fbs
+compileExistsClauses :: Maybe [ExistsDto] -> Either Text (Maybe (NonEmpty ExistsClause))
+compileExistsClauses Nothing = Right Nothing
+compileExistsClauses (Just xs) = nonEmpty <$> traverse compileExists xs
   where
-    compileForbids :: ForbidsDto -> Either Text ForbidsClause
-    compileForbids (ForbidsImportDto (GlobDto s) transitive) = do
-        pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
+    compileExists :: ExistsDto -> Either Text ExistsClause
+    compileExists (ExistsModuleDto (GlobDto t)) = do
+        pattern <- first (T.pack . errorBundlePretty) (parseRulePattern t)
         Right
-            ForbidsImport
+            ExistsModule
                 { target = compileRulePattern pattern
-                , transitive = fromMaybe False transitive
                 }
-    compileForbids (ForbidsFunctionCallDto name) =
-        Right ForbidsFunctionCall {functionName = FunctionName name}
+
+mapExecutionContext :: Maybe ExecutionContextDto -> ExecutionContext
+mapExecutionContext Nothing = Neutral
+mapExecutionContext (Just UseClientDto) = UseClient
+mapExecutionContext (Just UseServerDto) = UseServer
