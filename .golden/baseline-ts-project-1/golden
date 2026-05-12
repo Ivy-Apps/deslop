@@ -1,5 +1,6 @@
 - architecture#container-uses-state-event#@/features/products/ProductListContainer
 - architecture#container-uses-state-event#@/features/settings/SettingsContainer
+- architecture#features-cant-import-other-features#@/features/auth/auth-home-bridge
 - architecture#features-cant-import-other-features#@/features/home/data/bad-repository
 - architecture#features-cant-import-other-features#@/features/home/home-component
 - architecture#features-cant-import-other-features#@/features/profile/data/profile-repository
@@ -11,6 +12,7 @@
 - architecture#no-tests-import-in-features#@/features/home/home.spec
 - architecture#screen-transitively-uses-state-event#@/features/settings/SettingsScreen
 - architecture#viewmodel-has-spec#@/features/profile/useUserProfileViewModel
+- domain-rules#domain-purity#@/domain/order/OrderService
 - no-relative-imports#src/app/[locale]/login/page.tsx
 - no-relative-imports#src/app/[locale]/page.tsx
 - no-relative-imports#src/features/auth/auth-service.ts

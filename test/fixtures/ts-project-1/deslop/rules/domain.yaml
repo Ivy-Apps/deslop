@@ -1,0 +1,22 @@
+id: domain-rules
+name: Domain Rules
+description: >-
+  Enforces a clean domain layer free of infrastructure, UI, and framework dependencies.
+  The domain must remain a stable core that can be reasoned about and tested in isolation.
+rules:
+  - id: domain-purity
+    description: >-
+      Domain modules may only import from other domain modules or shared utilities.
+      Importing from infrastructure, features, components, or external UI frameworks
+      pollutes the domain and couples it to delivery/infrastructure concerns.
+    target: "@/domain/**"
+    forbids:
+      - import: "**"
+    allows:
+      - import: "@/domain/**"
+      - import: "@/shared/**"
+    fix: >-
+      Move the dependency out of the domain layer.
+      Infrastructure concerns (HTTP, DB) belong in @/infrastructure.
+      UI concerns belong in @/features or @/components.
+      Shared pure utilities belong in @/shared.

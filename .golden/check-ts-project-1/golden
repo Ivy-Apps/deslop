@@ -156,6 +156,16 @@ Module '@/features/settings/SettingsContainer' must import '@/features/settings/
 FIX: Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
 ---------
 
+# architecture#features-cant-import-other-features#@/features/auth/auth-home-bridge
+Features can't import from other features.
+
+Module '@/features/auth/auth-home-bridge' directly imports '@/features/home/data/home-repository'.
+```ts
+import { fetchHomeData } from "@/features/home/data/home-repository";
+```
+FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
+---------
+
 # architecture#features-cant-import-other-features#@/features/home/data/bad-repository
 Features can't import from other features.
 
@@ -238,3 +248,13 @@ Every ViewModel hook must have a corresponding spec file in the same directory t
 
 Module '@/features/profile/useUserProfileViewModel' requires '@/features/profile/useUserProfileViewModel.spec' to exist.
 FIX: Create a spec file named 'use{{FileName}}ViewModel.spec.ts' in the same directory as the ViewModel.
+---------
+
+# domain-rules#domain-purity#@/domain/order/OrderService
+Domain modules may only import from other domain modules or shared utilities. Importing from infrastructure, features, components, or external UI frameworks pollutes the domain and couples it to delivery/infrastructure concerns.
+
+Module '@/domain/order/OrderService' directly imports '@/infrastructure/HttpClient'.
+```ts
+import { httpGet } from "@/infrastructure/HttpClient";
+```
+FIX: Move the dependency out of the domain layer. Infrastructure concerns (HTTP, DB) belong in @/infrastructure. UI concerns belong in @/features or @/components. Shared pure utilities belong in @/shared.
