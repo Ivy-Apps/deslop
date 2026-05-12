@@ -141,7 +141,7 @@ spec = describe "Deslop.GlobPLus" $ do
             matchTarget target "@/a/x/b/y/c" `shouldSatisfy` isJust
             matchTarget target "@/a/x/y/b/z/w/c" `shouldSatisfy` isJust
 
-        -- * single-segment wildcard
+        -- \* single-segment wildcard
         it "* matches any single segment" $ do
             let target = unsafeCompileTarget "@/lib/*"
             matchTarget target "@/lib/jwt" `shouldSatisfy` isJust
@@ -169,7 +169,7 @@ spec = describe "Deslop.GlobPLus" $ do
             matchTarget target "@/lib/a" `shouldBe` Nothing
             matchTarget target "@/lib/a/b/c" `shouldBe` Nothing
 
-        -- ** recursive wildcard
+        -- \** recursive wildcard
         it "**/segment matches that segment at any depth including zero" $ do
             let target = unsafeCompileTarget "**/index"
             matchTarget target "index" `shouldSatisfy` isJust
@@ -186,65 +186,72 @@ spec = describe "Deslop.GlobPLus" $ do
 
         it "@/features/**/{{FileName}} at zero subdirs extracts the variable correctly" $ do
             let target = unsafeCompileTarget "@/features/**/{{FileName}}Container"
-            envZero <- requireJust "zero-subdir match failed" $
-                matchTarget target "@/features/HomeContainer"
+            envZero <-
+                requireJust "zero-subdir match failed" $
+                    matchTarget target "@/features/HomeContainer"
             Map.lookup PascalCase envZero.casings `shouldBe` Just "Home"
-            envOne <- requireJust "one-subdir match failed" $
-                matchTarget target "@/features/auth/HomeContainer"
+            envOne <-
+                requireJust "one-subdir match failed" $
+                    matchTarget target "@/features/auth/HomeContainer"
             Map.lookup PascalCase envOne.casings `shouldBe` Just "Home"
 
         it "* and ** are distinct: * stops at a slash, ** crosses slashes" $ do
-            let star     = unsafeCompileTarget "@/lib/*"
+            let star = unsafeCompileTarget "@/lib/*"
             let globStar = unsafeCompileTarget "@/lib/**"
-            matchTarget star     "@/lib/a/b" `shouldBe` Nothing
+            matchTarget star "@/lib/a/b" `shouldBe` Nothing
             matchTarget globStar "@/lib/a/b" `shouldSatisfy` isJust
 
         it "extracts {{FILE_NAME}} (ConstantCase) and enriches all other casings" $ do
             let target = unsafeCompileTarget "src/constants/{{FILE_NAME}}"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget target "src/constants/MAX_RETRY_COUNT"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "src/constants/MAX_RETRY_COUNT"
             env.targetDir `shouldBe` "src/constants"
             Map.lookup ConstantCase env.casings `shouldBe` Just "MAX_RETRY_COUNT"
-            Map.lookup PascalCase   env.casings `shouldBe` Just "MaxRetryCount"
-            Map.lookup CamelCase    env.casings `shouldBe` Just "maxRetryCount"
-            Map.lookup KebabCase    env.casings `shouldBe` Just "max-retry-count"
+            Map.lookup PascalCase env.casings `shouldBe` Just "MaxRetryCount"
+            Map.lookup CamelCase env.casings `shouldBe` Just "maxRetryCount"
+            Map.lookup KebabCase env.casings `shouldBe` Just "max-retry-count"
 
         it "rejects a path whose casing does not satisfy {{FILE_NAME}} (requires [A-Z0-9_]+)" $ do
             let target = unsafeCompileTarget "src/constants/{{FILE_NAME}}"
-            matchTarget target "src/constants/maxRetryCount"   `shouldBe` Nothing
+            matchTarget target "src/constants/maxRetryCount" `shouldBe` Nothing
             matchTarget target "src/constants/max-retry-count" `shouldBe` Nothing
 
         it "treats an all-uppercase captured word as a single token (HTTP -> http)" $ do
             let target = unsafeCompileTarget "@/services/{{FileName}}Client"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget target "@/services/HTTPClient"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/services/HTTPClient"
             -- Original PascalCase capture is preserved by Map.union
-            Map.lookup PascalCase   env.casings `shouldBe` Just "HTTP"
+            Map.lookup PascalCase env.casings `shouldBe` Just "HTTP"
             -- Derived casings treat "HTTP" as one word
-            Map.lookup KebabCase    env.casings `shouldBe` Just "http"
-            Map.lookup CamelCase    env.casings `shouldBe` Just "http"
+            Map.lookup KebabCase env.casings `shouldBe` Just "http"
+            Map.lookup CamelCase env.casings `shouldBe` Just "http"
             Map.lookup ConstantCase env.casings `shouldBe` Just "HTTP"
 
         it "extracts {{FileName}} with an embedded digit (OAuth2Service)" $ do
             let target = unsafeCompileTarget "@/services/{{FileName}}Service"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget target "@/services/OAuth2Service"
-            Map.lookup PascalCase   env.casings `shouldBe` Just "OAuth2"
-            Map.lookup CamelCase    env.casings `shouldBe` Just "oAuth2"
-            Map.lookup KebabCase    env.casings `shouldBe` Just "o-auth2"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/services/OAuth2Service"
+            Map.lookup PascalCase env.casings `shouldBe` Just "OAuth2"
+            Map.lookup CamelCase env.casings `shouldBe` Just "oAuth2"
+            Map.lookup KebabCase env.casings `shouldBe` Just "o-auth2"
             Map.lookup ConstantCase env.casings `shouldBe` Just "O_AUTH2"
 
         it "extracts {{file-name}} combined with ** at zero subdirs" $ do
             let target = unsafeCompileTarget "@/features/**/{{file-name}}-service"
-            envZero <- requireJust "zero-subdir failed" $
-                matchTarget target "@/features/user-auth-service"
+            envZero <-
+                requireJust "zero-subdir failed" $
+                    matchTarget target "@/features/user-auth-service"
             envZero.targetDir `shouldBe` "@/features"
-            Map.lookup KebabCase  envZero.casings `shouldBe` Just "user-auth"
+            Map.lookup KebabCase envZero.casings `shouldBe` Just "user-auth"
             Map.lookup PascalCase envZero.casings `shouldBe` Just "UserAuth"
-            envOne <- requireJust "one-subdir failed" $
-                matchTarget target "@/features/auth/user-auth-service"
+            envOne <-
+                requireJust "one-subdir failed" $
+                    matchTarget target "@/features/auth/user-auth-service"
             envOne.targetDir `shouldBe` "@/features/auth"
-            Map.lookup KebabCase  envOne.casings `shouldBe` Just "user-auth"
+            Map.lookup KebabCase envOne.casings `shouldBe` Just "user-auth"
 
         it "escapes dots in literal path segments of a target pattern" $ do
             let target = unsafeCompileTarget "src/utils.lib/{{FileName}}"
@@ -254,8 +261,9 @@ spec = describe "Deslop.GlobPLus" $ do
 
         it "derives empty string as TARGET_DIR for a root-level (single-segment) file" $ do
             let target = unsafeCompileTarget "{{FileName}}"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget target "HomeView"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "HomeView"
             env.targetDir `shouldBe` ""
             Map.lookup PascalCase env.casings `shouldBe` Just "HomeView"
 
@@ -263,24 +271,26 @@ spec = describe "Deslop.GlobPLus" $ do
         it "derives all casings correctly for a three-word kebab-case name" $ do
             -- Typical TypeScript: file named user-profile-card.tsx → component UserProfileCard
             let target = unsafeCompileTarget "@/components/{{file-name}}"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget target "@/components/user-profile-card"
-            Map.lookup KebabCase    env.casings `shouldBe` Just "user-profile-card"
-            Map.lookup PascalCase   env.casings `shouldBe` Just "UserProfileCard"
-            Map.lookup CamelCase    env.casings `shouldBe` Just "userProfileCard"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/components/user-profile-card"
+            Map.lookup KebabCase env.casings `shouldBe` Just "user-profile-card"
+            Map.lookup PascalCase env.casings `shouldBe` Just "UserProfileCard"
+            Map.lookup CamelCase env.casings `shouldBe` Just "userProfileCard"
             Map.lookup ConstantCase env.casings `shouldBe` Just "USER_PROFILE_CARD"
 
         it "derives all casings correctly for a three-word camelCase name" $ do
             -- Typical TypeScript: service/hook named userProfileCardService
             let target = unsafeCompileTarget "@/services/{{fileName}}Service"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget target "@/services/userProfileCardService"
-            Map.lookup CamelCase    env.casings `shouldBe` Just "userProfileCard"
-            Map.lookup PascalCase   env.casings `shouldBe` Just "UserProfileCard"
-            Map.lookup KebabCase    env.casings `shouldBe` Just "user-profile-card"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/services/userProfileCardService"
+            Map.lookup CamelCase env.casings `shouldBe` Just "userProfileCard"
+            Map.lookup PascalCase env.casings `shouldBe` Just "UserProfileCard"
+            Map.lookup KebabCase env.casings `shouldBe` Just "user-profile-card"
             Map.lookup ConstantCase env.casings `shouldBe` Just "USER_PROFILE_CARD"
 
-    describe "matchRule" $ do
+    describe "matchClause" $ do
         let sampleEnv =
                 MatchEnv
                     { targetDir = "@/features/user"
@@ -305,112 +315,113 @@ spec = describe "Deslop.GlobPLus" $ do
                     }
 
         it "interpolates {{TARGET_DIR}} and static strings successfully" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/data/repository"
-            matchRule rule sampleEnv "@/features/user/data/repository" `shouldBe` True
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/data/repository"
+            matchClause rule sampleEnv "@/features/user/data/repository" `shouldBe` True
 
         it "interpolates {{file-name}} casings correctly" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/data/{{file-name}}-repository"
-            matchRule rule sampleEnv "@/features/user/data/user-settings-repository" `shouldBe` True
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/data/{{file-name}}-repository"
+            matchClause rule sampleEnv "@/features/user/data/user-settings-repository" `shouldBe` True
 
         it "rejects paths where the interpolated variables are incorrect" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/data/{{file-name}}-repository"
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/data/{{file-name}}-repository"
             -- Mismatched directory
-            matchRule rule sampleEnv "@/features/other/data/user-settings-repository" `shouldBe` False
+            matchClause rule sampleEnv "@/features/other/data/user-settings-repository" `shouldBe` False
             -- Wrong casing (PascalCase instead of kebab-case)
-            matchRule rule sampleEnv "@/features/user/data/UserSettings-repository" `shouldBe` False
+            matchClause rule sampleEnv "@/features/user/data/UserSettings-repository" `shouldBe` False
 
         it "handles globs correctly alongside variables" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/**/*{{FileName}}*"
-            matchRule rule sampleEnv "@/features/user/components/buttons/UserSettingsButton" `shouldBe` True
-            matchRule rule sampleEnv "@/features/user/components/buttons/OtherButton" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/**/*{{FileName}}*"
+            matchClause rule sampleEnv "@/features/user/components/buttons/UserSettingsButton" `shouldBe` True
+            matchClause rule sampleEnv "@/features/user/components/buttons/OtherButton" `shouldBe` False
 
         it "interpolates {{FileName}} (PascalCase) into a rule" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
-            matchRule rule richEnv "@/features/home/HomeProfileView" `shouldBe` True
-            matchRule rule richEnv "@/features/home/homeProfileView" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
+            matchClause rule richEnv "@/features/home/HomeProfileView" `shouldBe` True
+            matchClause rule richEnv "@/features/home/homeProfileView" `shouldBe` False
 
         it "interpolates {{fileName}} (camelCase) into a rule" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/{{fileName}}Service"
-            matchRule rule richEnv "@/features/home/homeProfileService" `shouldBe` True
-            matchRule rule richEnv "@/features/home/HomeProfileService" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/{{fileName}}Service"
+            matchClause rule richEnv "@/features/home/homeProfileService" `shouldBe` True
+            matchClause rule richEnv "@/features/home/HomeProfileService" `shouldBe` False
 
         it "interpolates {{FILE_NAME}} (CONSTANT_CASE) into a rule" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/{{FILE_NAME}}_config"
-            matchRule rule richEnv "@/features/home/HOME_PROFILE_config" `shouldBe` True
-            matchRule rule richEnv "@/features/home/home-profile_config" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/{{FILE_NAME}}_config"
+            matchClause rule richEnv "@/features/home/HOME_PROFILE_config" `shouldBe` True
+            matchClause rule richEnv "@/features/home/home-profile_config" `shouldBe` False
 
         it "interpolates a literal prefix alongside {{FileName}} (use{{FileName}}ViewModel)" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/use{{FileName}}ViewModel"
-            matchRule rule richEnv "@/features/home/useHomeProfileViewModel" `shouldBe` True
-            matchRule rule richEnv "@/features/home/HomeProfileViewModel" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+            matchClause rule richEnv "@/features/home/useHomeProfileViewModel" `shouldBe` True
+            matchClause rule richEnv "@/features/home/HomeProfileViewModel" `shouldBe` False
 
         it "matches a .spec existence pattern" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
-            matchRule rule richEnv "@/features/home/useHomeProfileViewModel.spec" `shouldBe` True
-            matchRule rule richEnv "@/features/home/useHomeProfileViewModel.test" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
+            matchClause rule richEnv "@/features/home/useHomeProfileViewModel.spec" `shouldBe` True
+            matchClause rule richEnv "@/features/home/useHomeProfileViewModel.test" `shouldBe` False
 
         it "matches a .stories existence pattern" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View.stories"
-            matchRule rule richEnv "@/features/home/HomeProfileView.stories" `shouldBe` True
-            matchRule rule richEnv "@/features/home/HomeProfileView.spec" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View.stories"
+            matchClause rule richEnv "@/features/home/HomeProfileView.stories" `shouldBe` True
+            matchClause rule richEnv "@/features/home/HomeProfileView.spec" `shouldBe` False
 
         it "falls back to .* when a casing key is absent from the environment" $ do
             let sparseEnv = MatchEnv {targetDir = "@/features/x", casings = Map.empty}
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
             -- Missing casing → .* matches any value in that slot
-            matchRule rule sparseEnv "@/features/x/AnythingView" `shouldBe` True
-            matchRule rule sparseEnv "@/features/x/SomethingElseView" `shouldBe` True
+            matchClause rule sparseEnv "@/features/x/AnythingView" `shouldBe` True
+            matchClause rule sparseEnv "@/features/x/SomethingElseView" `shouldBe` True
             -- TARGET_DIR is still exact
-            matchRule rule sparseEnv "@/features/other/AnythingView" `shouldBe` False
+            matchClause rule sparseEnv "@/features/other/AnythingView" `shouldBe` False
 
-        -- * in rules
+        -- \* in rules
         it "* in a rule matches exactly one segment" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/*"
-            matchRule rule sampleEnv "@/features/user/anything" `shouldBe` True
-            matchRule rule sampleEnv "@/features/user/a/b" `shouldBe` False
-            matchRule rule sampleEnv "@/features/other/anything" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/*"
+            matchClause rule sampleEnv "@/features/user/anything" `shouldBe` True
+            matchClause rule sampleEnv "@/features/user/a/b" `shouldBe` False
+            matchClause rule sampleEnv "@/features/other/anything" `shouldBe` False
 
         it "* in the middle of a rule does not cross a path separator" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/*/index"
-            matchRule rule sampleEnv "@/features/user/components/index" `shouldBe` True
-            matchRule rule sampleEnv "@/features/user/a/b/index" `shouldBe` False
-            matchRule rule sampleEnv "@/features/user/index" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/*/index"
+            matchClause rule sampleEnv "@/features/user/components/index" `shouldBe` True
+            matchClause rule sampleEnv "@/features/user/a/b/index" `shouldBe` False
+            matchClause rule sampleEnv "@/features/user/index" `shouldBe` False
 
-        -- ** in rules
+        -- \** in rules
         it "{{TARGET_DIR}}/**/* matches zero subdirs (rule regression)" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/**/*"
-            matchRule rule sampleEnv "@/features/user/Button" `shouldBe` True
-            matchRule rule sampleEnv "@/features/user/components/Button" `shouldBe` True
-            matchRule rule sampleEnv "@/features/other/Button" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/**/*"
+            matchClause rule sampleEnv "@/features/user/Button" `shouldBe` True
+            matchClause rule sampleEnv "@/features/user/components/Button" `shouldBe` True
+            matchClause rule sampleEnv "@/features/other/Button" `shouldBe` False
 
         it "{{TARGET_DIR}}/** matches any path at any depth below TARGET_DIR" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/**"
-            matchRule rule sampleEnv "@/features/user/anything" `shouldBe` True
-            matchRule rule sampleEnv "@/features/user/a/b/c" `shouldBe` True
-            matchRule rule sampleEnv "@/features/other/anything" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/**"
+            matchClause rule sampleEnv "@/features/user/anything" `shouldBe` True
+            matchClause rule sampleEnv "@/features/user/a/b/c" `shouldBe` True
+            matchClause rule sampleEnv "@/features/other/anything" `shouldBe` False
 
         it "{{TARGET_DIR}}/**/*.spec matches .spec files at any depth including zero subdirs" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/**/*.spec"
-            matchRule rule sampleEnv "@/features/user/Button.spec" `shouldBe` True
-            matchRule rule sampleEnv "@/features/user/components/Button.spec" `shouldBe` True
-            matchRule rule sampleEnv "@/features/user/Button.test" `shouldBe` False
-            matchRule rule sampleEnv "@/features/other/Button.spec" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/**/*.spec"
+            matchClause rule sampleEnv "@/features/user/Button.spec" `shouldBe` True
+            matchClause rule sampleEnv "@/features/user/components/Button.spec" `shouldBe` True
+            matchClause rule sampleEnv "@/features/user/Button.test" `shouldBe` False
+            matchClause rule sampleEnv "@/features/other/Button.spec" `shouldBe` False
 
         it "{{TARGET_DIR}}/**/{{FileName}}.spec matches at any depth including zero subdirs" $ do
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/**/{{FileName}}.spec"
-            matchRule rule richEnv "@/features/home/HomeProfile.spec" `shouldBe` True
-            matchRule rule richEnv "@/features/home/auth/HomeProfile.spec" `shouldBe` True
-            matchRule rule richEnv "@/features/home/HomeProfile.test" `shouldBe` False
-            matchRule rule richEnv "@/features/other/HomeProfile.spec" `shouldBe` False
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/**/{{FileName}}.spec"
+            matchClause rule richEnv "@/features/home/HomeProfile.spec" `shouldBe` True
+            matchClause rule richEnv "@/features/home/auth/HomeProfile.spec" `shouldBe` True
+            matchClause rule richEnv "@/features/home/HomeProfile.test" `shouldBe` False
+            matchClause rule richEnv "@/features/other/HomeProfile.spec" `shouldBe` False
 
         it "escapes regex metacharacters in TARGET_DIR (dot must not match arbitrary chars)" $ do
-            let env = MatchEnv
-                    { targetDir = "src/v1.0/features"
-                    , casings   = Map.fromList [(PascalCase, "Home")]
-                    }
-            let rule = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
-            matchRule rule env "src/v1.0/features/HomeView" `shouldBe` True
-            matchRule rule env "src/v1X0/features/HomeView" `shouldBe` False
+            let env =
+                    MatchEnv
+                        { targetDir = "src/v1.0/features"
+                        , casings = Map.fromList [(PascalCase, "Home")]
+                        }
+            let rule = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
+            matchClause rule env "src/v1.0/features/HomeView" `shouldBe` True
+            matchClause rule env "src/v1X0/features/HomeView" `shouldBe` False
 
     describe "moduleFromGlob" $ do
         let env =
@@ -426,44 +437,44 @@ spec = describe "Deslop.GlobPLus" $ do
                     }
 
         it "expands TARGET_DIR and FileName into a concrete spec path" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
             moduleFromGlob env pat `shouldBe` Just "@/features/auth/useUserAuthViewModel.spec"
 
         it "expands TARGET_DIR and FileName into a concrete stories path" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View.stories"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View.stories"
             moduleFromGlob env pat `shouldBe` Just "@/features/auth/UserAuthView.stories"
 
         it "expands TARGET_DIR and file-name into a kebab-case repository path" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{file-name}}-repository"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/{{file-name}}-repository"
             moduleFromGlob env pat `shouldBe` Just "@/features/auth/user-auth-repository"
 
         it "expands TARGET_DIR alone" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/index"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/index"
             moduleFromGlob env pat `shouldBe` Just "@/features/auth/index"
 
         it "expands a purely literal pattern unchanged" $ do
-            let pat = unsafeCompileRule "@/shared/constants"
+            let pat = unsafeCompileClause "@/shared/constants"
             moduleFromGlob env pat `shouldBe` Just "@/shared/constants"
 
         it "returns Nothing when the pattern contains *" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/*.spec"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/*.spec"
             moduleFromGlob env pat `shouldBe` Nothing
 
         it "returns Nothing when the pattern contains **" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/**/*.spec"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/**/*.spec"
             moduleFromGlob env pat `shouldBe` Nothing
 
         it "returns Nothing for a pattern that is only a glob star" $ do
-            let pat = unsafeCompileRule "**"
+            let pat = unsafeCompileClause "**"
             moduleFromGlob env pat `shouldBe` Nothing
 
         it "returns Just with an empty segment when a casing key is absent from the env" $ do
             -- fromMaybe "" means missing keys silently expand to empty string, not Nothing
             let sparseEnv = MatchEnv {targetDir = "@/features/x", casings = Map.empty}
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
             moduleFromGlob sparseEnv pat `shouldBe` Just "@/features/x/View"
 
-    describe "renderRulePattern" $ do
+    describe "renderClausePattern" $ do
         let env =
                 MatchEnv
                     { targetDir = "@/features/auth"
@@ -477,163 +488,168 @@ spec = describe "Deslop.GlobPLus" $ do
                     }
 
         it "substitutes TARGET_DIR and FileName into a concrete path" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}StateEvent"
-            renderRulePattern env pat `shouldBe` "@/features/auth/UserAuthStateEvent"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}StateEvent"
+            renderClausePattern env pat `shouldBe` "@/features/auth/UserAuthStateEvent"
 
         it "substitutes TARGET_DIR and file-name into a kebab-case path" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{file-name}}-repository"
-            renderRulePattern env pat `shouldBe` "@/features/auth/user-auth-repository"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/{{file-name}}-repository"
+            renderClausePattern env pat `shouldBe` "@/features/auth/user-auth-repository"
 
         it "substitutes TARGET_DIR and use{{FileName}}ViewModel pattern" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/use{{FileName}}ViewModel"
-            renderRulePattern env pat `shouldBe` "@/features/auth/useUserAuthViewModel"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+            renderClausePattern env pat `shouldBe` "@/features/auth/useUserAuthViewModel"
 
         it "keeps * wildcards literally" $ do
-            let pat = unsafeCompileRule "@/features/**/*Container"
-            renderRulePattern env pat `shouldBe` "@/features/**/*Container"
+            let pat = unsafeCompileClause "@/features/**/*Container"
+            renderClausePattern env pat `shouldBe` "@/features/**/*Container"
 
         it "keeps ** wildcards literally" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/**/*.spec"
-            renderRulePattern env pat `shouldBe` "@/features/auth/**/*.spec"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/**/*.spec"
+            renderClausePattern env pat `shouldBe` "@/features/auth/**/*.spec"
 
         it "renders a purely literal pattern unchanged" $ do
-            let pat = unsafeCompileRule "@/shared/constants"
-            renderRulePattern env pat `shouldBe` "@/shared/constants"
+            let pat = unsafeCompileClause "@/shared/constants"
+            renderClausePattern env pat `shouldBe` "@/shared/constants"
 
         it "renders TARGET_DIR alone" $ do
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/index"
-            renderRulePattern env pat `shouldBe` "@/features/auth/index"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/index"
+            renderClausePattern env pat `shouldBe` "@/features/auth/index"
 
         it "falls back to the variable placeholder when a casing key is absent" $ do
             let sparseEnv = MatchEnv {targetDir = "@/features/x", casings = Map.empty}
-            let pat = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
-            renderRulePattern sparseEnv pat `shouldBe` "@/features/x/{{FileName}}View"
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
+            renderClausePattern sparseEnv pat `shouldBe` "@/features/x/{{FileName}}View"
 
     describe "End-to-End Scenarios" $ do
         it "validates the Page Architecture ViewModel rule end-to-end" $ do
             let cTarget = unsafeCompileTarget "@/features/**/use{{FileName}}ViewModel"
-            let cRule = unsafeCompileRule "{{TARGET_DIR}}/data/{{file-name}}-repository"
+            let cRule = unsafeCompileClause "{{TARGET_DIR}}/data/{{file-name}}-repository"
             let targetPath = "@/features/auth/useUserAuthViewModel"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget cTarget targetPath
 
-            matchRule cRule env "@/features/auth/data/user-auth-repository" `shouldBe` True
-            matchRule cRule env "@/features/auth/data/global-repository" `shouldBe` False
-            matchRule cRule env "@/features/other/data/user-auth-repository" `shouldBe` False
+            matchClause cRule env "@/features/auth/data/user-auth-repository" `shouldBe` True
+            matchClause cRule env "@/features/auth/data/global-repository" `shouldBe` False
+            matchClause cRule env "@/features/other/data/user-auth-repository" `shouldBe` False
 
         it "validates the Container wires View and ViewModel (page-architecture)" $ do
             let cTarget = unsafeCompileTarget "@/features/**/{{FileName}}Container"
-            let cStateEvent = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}StateEvent"
-            let cViewModel = unsafeCompileRule "{{TARGET_DIR}}/use{{FileName}}ViewModel"
-            let cView = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
+            let cStateEvent = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}StateEvent"
+            let cViewModel = unsafeCompileClause "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+            let cView = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
             let targetPath = "@/features/checkout/PaymentContainer"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget cTarget targetPath
 
-            matchRule cStateEvent env "@/features/checkout/PaymentStateEvent" `shouldBe` True
-            matchRule cViewModel env "@/features/checkout/usePaymentViewModel" `shouldBe` True
-            matchRule cView env "@/features/checkout/PaymentView" `shouldBe` True
+            matchClause cStateEvent env "@/features/checkout/PaymentStateEvent" `shouldBe` True
+            matchClause cViewModel env "@/features/checkout/usePaymentViewModel" `shouldBe` True
+            matchClause cView env "@/features/checkout/PaymentView" `shouldBe` True
             -- Wrong feature dir
-            matchRule cStateEvent env "@/features/home/PaymentStateEvent" `shouldBe` False
+            matchClause cStateEvent env "@/features/home/PaymentStateEvent" `shouldBe` False
             -- Wrong component name
-            matchRule cViewModel env "@/features/checkout/useCheckoutViewModel" `shouldBe` False
+            matchClause cViewModel env "@/features/checkout/useCheckoutViewModel" `shouldBe` False
 
         it "validates the ViewModel test existence rule (page-architecture)" $ do
             let cTarget = unsafeCompileTarget "@/features/**/use{{FileName}}ViewModel"
-            let cSpec = unsafeCompileRule "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
+            let cSpec = unsafeCompileClause "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
             let targetPath = "@/features/auth/useUserAuthViewModel"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget cTarget targetPath
 
-            matchRule cSpec env "@/features/auth/useUserAuthViewModel.spec" `shouldBe` True
-            matchRule cSpec env "@/features/auth/useUserAuthViewModel.test" `shouldBe` False
-            matchRule cSpec env "@/features/other/useUserAuthViewModel.spec" `shouldBe` False
+            matchClause cSpec env "@/features/auth/useUserAuthViewModel.spec" `shouldBe` True
+            matchClause cSpec env "@/features/auth/useUserAuthViewModel.test" `shouldBe` False
+            matchClause cSpec env "@/features/other/useUserAuthViewModel.spec" `shouldBe` False
 
         it "validates the View Storybook existence rule (page-architecture)" $ do
             let cTarget = unsafeCompileTarget "@/features/**/{{FileName}}View"
-            let cStories = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View.stories"
+            let cStories = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View.stories"
             let targetPath = "@/features/profile/UserProfileView"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget cTarget targetPath
 
-            matchRule cStories env "@/features/profile/UserProfileView.stories" `shouldBe` True
-            matchRule cStories env "@/features/profile/UserProfileView.storybook" `shouldBe` False
-            matchRule cStories env "@/features/profile/UserProfileView.spec" `shouldBe` False
+            matchClause cStories env "@/features/profile/UserProfileView.stories" `shouldBe` True
+            matchClause cStories env "@/features/profile/UserProfileView.storybook" `shouldBe` False
+            matchClause cStories env "@/features/profile/UserProfileView.spec" `shouldBe` False
 
         it "validates the ViewModel forbids-import rule (page-architecture)" $ do
-            -- ViewModel must NOT import its own View; matchRule True = forbids path detected
+            -- ViewModel must NOT import its own View; matchClause True = forbids path detected
             let cTarget = unsafeCompileTarget "@/features/**/use{{FileName}}ViewModel"
-            let cforbids = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}View"
+            let cforbids = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
             let targetPath = "@/features/home/useHomeViewModel"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget cTarget targetPath
 
-            matchRule cforbids env "@/features/home/HomeView" `shouldBe` True
+            matchClause cforbids env "@/features/home/HomeView" `shouldBe` True
             -- Other paths in the same dir are not caught by this forbids rule
-            matchRule cforbids env "@/features/home/HomeContainer" `shouldBe` False
-            matchRule cforbids env "@/features/other/HomeView" `shouldBe` False
+            matchClause cforbids env "@/features/home/HomeContainer" `shouldBe` False
+            matchClause cforbids env "@/features/other/HomeView" `shouldBe` False
 
         it "validates a ConstantCase naming convention end-to-end" $ do
             -- Cross-casing from ConstantCase is lossy (see matchTarget tests above),
             -- so same-casing enforcement ({{FILE_NAME}} -> {{FILE_NAME}}) is reliable.
             let cTarget = unsafeCompileTarget "src/constants/{{FILE_NAME}}"
-            let cRule   = unsafeCompileRule   "src/types/{{FILE_NAME}}_types"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget cTarget "src/constants/MAX_RETRY_COUNT"
+            let cRule = unsafeCompileClause "src/types/{{FILE_NAME}}_types"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget cTarget "src/constants/MAX_RETRY_COUNT"
             -- same casing is preserved exactly, so same-style rules match correctly
-            matchRule cRule env "src/types/MAX_RETRY_COUNT_types" `shouldBe` True
+            matchClause cRule env "src/types/MAX_RETRY_COUNT_types" `shouldBe` True
             -- wrong constant name
-            matchRule cRule env "src/types/MIN_RETRY_COUNT_types" `shouldBe` False
+            matchClause cRule env "src/types/MIN_RETRY_COUNT_types" `shouldBe` False
             -- wrong directory
-            matchRule cRule env "src/constants/MAX_RETRY_COUNT_types" `shouldBe` False
+            matchClause cRule env "src/constants/MAX_RETRY_COUNT_types" `shouldBe` False
 
     describe "TypeScript web codebase patterns" $ do
         -- PascalCase → KebabCase: the canonical React pattern
         it "PascalCase component enforces kebab-case CSS module" $ do
-            let cTarget    = unsafeCompileTarget "@/components/{{FileName}}"
-            let cCssModule = unsafeCompileRule "{{TARGET_DIR}}/{{file-name}}.module.css"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget cTarget "@/components/UserProfileCard"
-            matchRule cCssModule env "@/components/user-profile-card.module.css" `shouldBe` True
+            let cTarget = unsafeCompileTarget "@/components/{{FileName}}"
+            let cCssModule = unsafeCompileClause "{{TARGET_DIR}}/{{file-name}}.module.css"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget cTarget "@/components/UserProfileCard"
+            matchClause cCssModule env "@/components/user-profile-card.module.css" `shouldBe` True
             -- PascalCase CSS module name is wrong
-            matchRule cCssModule env "@/components/UserProfileCard.module.css"   `shouldBe` False
+            matchClause cCssModule env "@/components/UserProfileCard.module.css" `shouldBe` False
             -- Partial name mismatch
-            matchRule cCssModule env "@/components/user-profile.module.css"      `shouldBe` False
+            matchClause cCssModule env "@/components/user-profile.module.css" `shouldBe` False
 
         it "PascalCase component enforces PascalCase stories and spec" $ do
-            let cTarget  = unsafeCompileTarget "@/features/**/{{FileName}}"
-            let cStories = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}.stories"
-            let cSpec    = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}.spec"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget cTarget "@/features/auth/LoginForm"
-            matchRule cStories env "@/features/auth/LoginForm.stories" `shouldBe` True
-            matchRule cSpec    env "@/features/auth/LoginForm.spec"    `shouldBe` True
+            let cTarget = unsafeCompileTarget "@/features/**/{{FileName}}"
+            let cStories = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}.stories"
+            let cSpec = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}.spec"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget cTarget "@/features/auth/LoginForm"
+            matchClause cStories env "@/features/auth/LoginForm.stories" `shouldBe` True
+            matchClause cSpec env "@/features/auth/LoginForm.spec" `shouldBe` True
             -- Kebab-case versions of stories/spec are wrong
-            matchRule cStories env "@/features/auth/login-form.stories" `shouldBe` False
-            matchRule cSpec    env "@/features/auth/login-form.spec"    `shouldBe` False
+            matchClause cStories env "@/features/auth/login-form.stories" `shouldBe` False
+            matchClause cSpec env "@/features/auth/login-form.spec" `shouldBe` False
 
         -- KebabCase → PascalCase: the reverse cross-casing direction
         it "kebab-case file target enforces PascalCase component and camelCase hook rules" $ do
-            let cTarget    = unsafeCompileTarget "@/components/{{file-name}}"
-            let cComponent = unsafeCompileRule "{{TARGET_DIR}}/{{FileName}}"
-            let cHook      = unsafeCompileRule "{{TARGET_DIR}}/use{{FileName}}"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget cTarget "@/components/login-form"
-            matchRule cComponent env "@/components/LoginForm"    `shouldBe` True
-            matchRule cHook      env "@/components/useLoginForm" `shouldBe` True
+            let cTarget = unsafeCompileTarget "@/components/{{file-name}}"
+            let cComponent = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}"
+            let cHook = unsafeCompileClause "{{TARGET_DIR}}/use{{FileName}}"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget cTarget "@/components/login-form"
+            matchClause cComponent env "@/components/LoginForm" `shouldBe` True
+            matchClause cHook env "@/components/useLoginForm" `shouldBe` True
             -- Kebab casing is wrong in a PascalCase rule slot
-            matchRule cComponent env "@/components/login-form"   `shouldBe` False
+            matchClause cComponent env "@/components/login-form" `shouldBe` False
             -- Capital "Use" is wrong (hook prefix is camelCase)
-            matchRule cHook      env "@/components/UseLoginForm" `shouldBe` False
+            matchClause cHook env "@/components/UseLoginForm" `shouldBe` False
 
         -- CamelCase → PascalCase + KebabCase: TypeScript service/interface convention
         it "camelCase service target enforces PascalCase interface and kebab-case spec" $ do
-            let cTarget    = unsafeCompileTarget "@/services/{{fileName}}Service"
-            let cInterface = unsafeCompileRule "{{TARGET_DIR}}/I{{FileName}}Service"
-            let cSpec      = unsafeCompileRule "{{TARGET_DIR}}/{{file-name}}-service.spec"
-            env <- requireJust "matchTarget returned Nothing" $
-                matchTarget cTarget "@/services/userProfileService"
-            matchRule cInterface env "@/services/IUserProfileService"       `shouldBe` True
-            matchRule cSpec      env "@/services/user-profile-service.spec" `shouldBe` True
+            let cTarget = unsafeCompileTarget "@/services/{{fileName}}Service"
+            let cInterface = unsafeCompileClause "{{TARGET_DIR}}/I{{FileName}}Service"
+            let cSpec = unsafeCompileClause "{{TARGET_DIR}}/{{file-name}}-service.spec"
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget cTarget "@/services/userProfileService"
+            matchClause cInterface env "@/services/IUserProfileService" `shouldBe` True
+            matchClause cSpec env "@/services/user-profile-service.spec" `shouldBe` True
             -- Wrong casing for interface (lowercase 'i' prefix or wrong name form)
-            matchRule cInterface env "@/services/userProfileService"        `shouldBe` False
+            matchClause cInterface env "@/services/userProfileService" `shouldBe` False
             -- PascalCase spec file name is wrong
-            matchRule cSpec      env "@/services/UserProfileService.spec"   `shouldBe` False
+            matchClause cSpec env "@/services/UserProfileService.spec" `shouldBe` False
 
 -- Helpers
 
@@ -642,7 +658,7 @@ unsafeCompileTarget t = case parseTargetPattern t of
     Right ast -> compileTargetPattern ast
     Left err -> error $ "Failed to parse target pattern: " <> show err
 
-unsafeCompileRule :: Text -> CompiledRulePattern
-unsafeCompileRule t = case parseRulePattern t of
-    Right ast -> compileRulePattern ast
+unsafeCompileClause :: Text -> CompiledClausePattern
+unsafeCompileClause t = case parseClausePattern t of
+    Right ast -> compileClausePattern ast
     Left err -> error $ "Failed to parse rule pattern: " <> show err

@@ -2,29 +2,29 @@ module Deslop.GlobPlus (
     -- * Core Types
     Pattern,
     TargetPattern,
-    RulePattern,
+    ClausePattern,
     MatchEnv (..),
     Casing (..),
 
     -- * Compiled Types (For Reader Env)
     CompiledTargetPattern (..),
-    CompiledRulePattern (..),
+    CompiledClausePattern (..),
 
     -- * Parsing
     parseTargetPattern,
-    parseRulePattern,
+    parseClausePattern,
 
     -- * Compiling (Ahead-of-Time)
     compileTargetPattern,
-    compileRulePattern,
+    compileClausePattern,
 
     -- * Matching Engines (Hot Path)
     matchTarget,
-    matchRule,
+    matchClause,
 
     -- * Expansion
     moduleFromGlob,
-    renderRulePattern,
+    renderClausePattern,
 ) where
 
 import Data.Char (isUpper)
@@ -56,10 +56,10 @@ newtype TargetVar = TVar Casing
     deriving (Show, Eq, Ord)
 
 -- | Variables allowed in a Rule/Dependent pattern
-data RuleVar
-    = RVar Casing
+data ClauseVar
+    = CVar Casing
     | -- | {{TARGET_DIR}}
-      RTargetDir
+      CTargetDir
     deriving (Show, Eq, Ord)
 
 data Token var
@@ -73,7 +73,7 @@ newtype Pattern var = Pattern [Token var]
     deriving (Show, Eq)
 
 type TargetPattern = Pattern TargetVar
-type RulePattern = Pattern RuleVar
+type ClausePattern = Pattern ClauseVar
 
 data MatchEnv = MatchEnv
     { targetDir :: Text
@@ -99,14 +99,14 @@ instance Show CompiledTargetPattern where
             . shows ctp.globCaptures
             . showString "}"
 
-data RuleChunk
+data ClauseChunk
     = StaticChunk Text
-    | VarChunk RuleVar
+    | VarChunk ClauseVar
     deriving (Show, Eq)
 
-data CompiledRulePattern = CompiledRulePattern
-    { chunks :: [RuleChunk] -- regex form for matchRule (hot path)
-    , rawTokens :: [Token RuleVar] -- original tokens for moduleFromGlob
+data CompiledClausePattern = CompiledClausePattern
+    { chunks :: [ClauseChunk] -- regex form for matchClause (hot path)
+    , rawTokens :: [Token ClauseVar] -- original tokens for moduleFromGlob
     }
     deriving (Show, Eq)
 
@@ -119,8 +119,8 @@ type Parser = Parsec Void Text
 parseTargetPattern :: Text -> Either (ParseErrorBundle Text Void) TargetPattern
 parseTargetPattern = parse (Pattern <$> many (pToken pTargetVar) <* eof) ""
 
-parseRulePattern :: Text -> Either (ParseErrorBundle Text Void) RulePattern
-parseRulePattern = parse (Pattern <$> many (pToken pRuleVar) <* eof) ""
+parseClausePattern :: Text -> Either (ParseErrorBundle Text Void) ClausePattern
+parseClausePattern = parse (Pattern <$> many (pToken pClauseVar) <* eof) ""
 
 pToken :: Parser var -> Parser (Token var)
 pToken pVarParser = choice [try pGlobStar, pStar, Var <$> pVarParser, pLiteral]
@@ -137,12 +137,12 @@ pLiteral = Literal . T.pack <$> some pLitChar
 pTargetVar :: Parser TargetVar
 pTargetVar = TVar <$> between (string "{{") (string "}}") pCasing
 
-pRuleVar :: Parser RuleVar
-pRuleVar =
+pClauseVar :: Parser ClauseVar
+pClauseVar =
     between (string "{{") (string "}}") $
         choice
-            [ RTargetDir <$ string "TARGET_DIR"
-            , RVar <$> pCasing
+            [ CTargetDir <$ string "TARGET_DIR"
+            , CVar <$> pCasing
             ]
 
 pCasing :: Parser Casing
@@ -177,9 +177,9 @@ compileTargetPattern (Pattern tokens) =
     toRegex (Var (TVar KebabCase)) = "([a-z0-9-]+)"
     toRegex (Var (TVar ConstantCase)) = "([A-Z0-9_]+)"
 
-compileRulePattern :: RulePattern -> CompiledRulePattern
-compileRulePattern (Pattern tokens) =
-    CompiledRulePattern
+compileClausePattern :: ClausePattern -> CompiledClausePattern
+compileClausePattern (Pattern tokens) =
+    CompiledClausePattern
         { chunks =
             optimizeChunks $
                 StaticChunk "^" : mapTokensGlob (StaticChunk "(.*/)?") toChunk tokens ++ [StaticChunk "$"]
@@ -213,47 +213,47 @@ matchTarget ctp targetPath =
 getDirName :: Text -> Text
 getDirName = maybe "." (T.intercalate "/" . init) . nonEmpty . T.splitOn "/"
 
--- TODO(perf): `matchRule` currently recompiles the hydrated regex on every call.
--- Fix: eta-reduce to `matchRule crp env = let regexObj = makeRegex ... in match regexObj`
+-- TODO(perf): `matchClause` currently recompiles the hydrated regex on every call.
+-- Fix: eta-reduce to `matchClause crp env = let regexObj = makeRegex ... in match regexObj`
 -- so the Regex is compiled once when partially applied to `(crp, env)`, and bind
--- `matchRule p e` to a `let`/`where` name at each call site to guarantee sharing
+-- `matchClause p e` to a `let`/`where` name at each call site to guarantee sharing
 -- across the inner loop (e.g. the transitive reachability traverse in RuleEnforcer).
-matchRule :: CompiledRulePattern -> MatchEnv -> Text -> Bool
-matchRule crp env targetPath =
+matchClause :: CompiledClausePattern -> MatchEnv -> Text -> Bool
+matchClause crp env targetPath =
     let regexStr = T.concat (map resolveChunk crp.chunks)
         -- Compiles the dynamically hydrated Text directly into a Regex
         regexObj = makeRegex regexStr :: Regex
      in match regexObj targetPath :: Bool
   where
     resolveChunk (StaticChunk s) = s
-    resolveChunk (VarChunk RTargetDir) = escapeRegex env.targetDir
-    resolveChunk (VarChunk (RVar c)) =
+    resolveChunk (VarChunk CTargetDir) = escapeRegex env.targetDir
+    resolveChunk (VarChunk (CVar c)) =
         maybe ".*" escapeRegex (Map.lookup c env.casings)
 
 {- | Expands a rule pattern into a concrete module path by substituting
 variables from the MatchEnv. Returns Nothing if the pattern contains
 wildcards (* or **), which cannot be deterministically expanded.
 -}
-moduleFromGlob :: MatchEnv -> CompiledRulePattern -> Maybe Text
+moduleFromGlob :: MatchEnv -> CompiledClausePattern -> Maybe Text
 moduleFromGlob env crp = T.concat <$> traverse expand crp.rawTokens
   where
     expand (Literal t) = Just t
     expand Star = Nothing
     expand GlobStar = Nothing
-    expand (Var RTargetDir) = Just env.targetDir
-    expand (Var (RVar casing)) = Just $ fromMaybe "" (Map.lookup casing env.casings)
+    expand (Var CTargetDir) = Just env.targetDir
+    expand (Var (CVar casing)) = Just $ fromMaybe "" (Map.lookup casing env.casings)
 
 {- | Renders a rule pattern as a human-readable string by substituting
 variables from the MatchEnv and keeping wildcards (* or **) literally.
 -}
-renderRulePattern :: MatchEnv -> CompiledRulePattern -> Text
-renderRulePattern env crp = T.concat (map renderToken crp.rawTokens)
+renderClausePattern :: MatchEnv -> CompiledClausePattern -> Text
+renderClausePattern env crp = T.concat (map renderToken crp.rawTokens)
   where
     renderToken (Literal t) = t
     renderToken Star = "*"
     renderToken GlobStar = "**"
-    renderToken (Var RTargetDir) = env.targetDir
-    renderToken (Var (RVar casing)) = fromMaybe ("{{" <> caseName casing <> "}}") (Map.lookup casing env.casings)
+    renderToken (Var CTargetDir) = env.targetDir
+    renderToken (Var (CVar casing)) = fromMaybe ("{{" <> caseName casing <> "}}") (Map.lookup casing env.casings)
     caseName PascalCase = "FileName"
     caseName CamelCase = "fileName"
     caseName KebabCase = "file-name"

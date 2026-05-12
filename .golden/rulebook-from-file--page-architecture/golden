@@ -38,7 +38,7 @@ Right
                 Just
                   (UsesImport
                      { target =
-                         CompiledRulePattern
+                         CompiledClausePattern
                            { chunks = [ StaticChunk "^@/features/(.*/)?[^/]*Container$" ]
                            , rawTokens =
                                [ Literal "@/features/"
@@ -71,18 +71,18 @@ Right
                 Just
                   (UsesImport
                      { target =
-                         CompiledRulePattern
+                         CompiledClausePattern
                            { chunks =
                                [ StaticChunk "^"
-                               , VarChunk RTargetDir
+                               , VarChunk CTargetDir
                                , StaticChunk "/"
-                               , VarChunk (RVar PascalCase)
+                               , VarChunk (CVar PascalCase)
                                , StaticChunk "StateEvent$"
                                ]
                            , rawTokens =
-                               [ Var RTargetDir
+                               [ Var CTargetDir
                                , Literal "/"
-                               , Var (RVar PascalCase)
+                               , Var (CVar PascalCase)
                                , Literal "StateEvent"
                                ]
                            }
@@ -90,18 +90,18 @@ Right
                      } :|
                      [ UsesImport
                          { target =
-                             CompiledRulePattern
+                             CompiledClausePattern
                                { chunks =
                                    [ StaticChunk "^"
-                                   , VarChunk RTargetDir
+                                   , VarChunk CTargetDir
                                    , StaticChunk "/use"
-                                   , VarChunk (RVar PascalCase)
+                                   , VarChunk (CVar PascalCase)
                                    , StaticChunk "ViewModel$"
                                    ]
                                , rawTokens =
-                                   [ Var RTargetDir
+                                   [ Var CTargetDir
                                    , Literal "/use"
-                                   , Var (RVar PascalCase)
+                                   , Var (CVar PascalCase)
                                    , Literal "ViewModel"
                                    ]
                                }
@@ -109,18 +109,18 @@ Right
                          }
                      , UsesImport
                          { target =
-                             CompiledRulePattern
+                             CompiledClausePattern
                                { chunks =
                                    [ StaticChunk "^"
-                                   , VarChunk RTargetDir
+                                   , VarChunk CTargetDir
                                    , StaticChunk "/"
-                                   , VarChunk (RVar PascalCase)
+                                   , VarChunk (CVar PascalCase)
                                    , StaticChunk "View$"
                                    ]
                                , rawTokens =
-                                   [ Var RTargetDir
+                                   [ Var CTargetDir
                                    , Literal "/"
-                                   , Var (RVar PascalCase)
+                                   , Var (CVar PascalCase)
                                    , Literal "View"
                                    ]
                                }
@@ -148,18 +148,18 @@ Right
                   (ForbidsFunctionCall { functionName = FunctionName "fetch" } :|
                      [ ForbidsImport
                          { target =
-                             CompiledRulePattern
+                             CompiledClausePattern
                                { chunks =
                                    [ StaticChunk "^"
-                                   , VarChunk RTargetDir
+                                   , VarChunk CTargetDir
                                    , StaticChunk "/"
-                                   , VarChunk (RVar PascalCase)
+                                   , VarChunk (CVar PascalCase)
                                    , StaticChunk "View$"
                                    ]
                                , rawTokens =
-                                   [ Var RTargetDir
+                                   [ Var CTargetDir
                                    , Literal "/"
-                                   , Var (RVar PascalCase)
+                                   , Var (CVar PascalCase)
                                    , Literal "View"
                                    ]
                                }
@@ -167,7 +167,7 @@ Right
                          }
                      , ForbidsImport
                          { target =
-                             CompiledRulePattern
+                             CompiledClausePattern
                                { chunks = [ StaticChunk "^@/(.*/)?components/(.*/)?[^/]*$" ]
                                , rawTokens =
                                    [ Literal "@/"
@@ -186,18 +186,18 @@ Right
                 Just
                   (UsesImport
                      { target =
-                         CompiledRulePattern
+                         CompiledClausePattern
                            { chunks =
                                [ StaticChunk "^"
-                               , VarChunk RTargetDir
+                               , VarChunk CTargetDir
                                , StaticChunk "/"
-                               , VarChunk (RVar PascalCase)
+                               , VarChunk (CVar PascalCase)
                                , StaticChunk "StateEvent$"
                                ]
                            , rawTokens =
-                               [ Var RTargetDir
+                               [ Var CTargetDir
                                , Literal "/"
-                               , Var (RVar PascalCase)
+                               , Var (CVar PascalCase)
                                , Literal "StateEvent"
                                ]
                            }
@@ -226,18 +226,18 @@ Right
                 Just
                   (UsesImport
                      { target =
-                         CompiledRulePattern
+                         CompiledClausePattern
                            { chunks =
                                [ StaticChunk "^"
-                               , VarChunk RTargetDir
+                               , VarChunk CTargetDir
                                , StaticChunk "/use"
-                               , VarChunk (RVar PascalCase)
+                               , VarChunk (CVar PascalCase)
                                , StaticChunk "ViewModel$"
                                ]
                            , rawTokens =
-                               [ Var RTargetDir
+                               [ Var CTargetDir
                                , Literal "/use"
-                               , Var (RVar PascalCase)
+                               , Var (CVar PascalCase)
                                , Literal "ViewModel"
                                ]
                            }
@@ -248,18 +248,18 @@ Right
                 Just
                   (ExistsModule
                      { target =
-                         CompiledRulePattern
+                         CompiledClausePattern
                            { chunks =
                                [ StaticChunk "^"
-                               , VarChunk RTargetDir
+                               , VarChunk CTargetDir
                                , StaticChunk "/use"
-                               , VarChunk (RVar PascalCase)
+                               , VarChunk (CVar PascalCase)
                                , StaticChunk "ViewModel\\.spec$"
                                ]
                            , rawTokens =
-                               [ Var RTargetDir
+                               [ Var CTargetDir
                                , Literal "/use"
-                               , Var (RVar PascalCase)
+                               , Var (CVar PascalCase)
                                , Literal "ViewModel.spec"
                                ]
                            }
@@ -288,18 +288,18 @@ Right
                 Just
                   (UsesImport
                      { target =
-                         CompiledRulePattern
+                         CompiledClausePattern
                            { chunks =
                                [ StaticChunk "^"
-                               , VarChunk RTargetDir
+                               , VarChunk CTargetDir
                                , StaticChunk "/"
-                               , VarChunk (RVar PascalCase)
+                               , VarChunk (CVar PascalCase)
                                , StaticChunk "StateEvent$"
                                ]
                            , rawTokens =
-                               [ Var RTargetDir
+                               [ Var CTargetDir
                                , Literal "/"
-                               , Var (RVar PascalCase)
+                               , Var (CVar PascalCase)
                                , Literal "StateEvent"
                                ]
                            }
@@ -329,18 +329,18 @@ Right
                 Just
                   (ExistsModule
                      { target =
-                         CompiledRulePattern
+                         CompiledClausePattern
                            { chunks =
                                [ StaticChunk "^"
-                               , VarChunk RTargetDir
+                               , VarChunk CTargetDir
                                , StaticChunk "/"
-                               , VarChunk (RVar PascalCase)
+                               , VarChunk (CVar PascalCase)
                                , StaticChunk "View\\.stories$"
                                ]
                            , rawTokens =
-                               [ Var RTargetDir
+                               [ Var CTargetDir
                                , Literal "/"
-                               , Var (RVar PascalCase)
+                               , Var (CVar PascalCase)
                                , Literal "View.stories"
                                ]
                            }
@@ -364,7 +364,7 @@ Right
                 Just
                   (ForbidsImport
                      { target =
-                         CompiledRulePattern
+                         CompiledClausePattern
                            { chunks = [ StaticChunk "^@/features/.*$" ]
                            , rawTokens = [ Literal "@/features/" , GlobStar ]
                            }
@@ -375,10 +375,10 @@ Right
                 Just
                   (AllowsImport
                      { target =
-                         CompiledRulePattern
+                         CompiledClausePattern
                            { chunks =
-                               [ StaticChunk "^" , VarChunk RTargetDir , StaticChunk "/.*$" ]
-                           , rawTokens = [ Var RTargetDir , Literal "/" , GlobStar ]
+                               [ StaticChunk "^" , VarChunk CTargetDir , StaticChunk "/.*$" ]
+                           , rawTokens = [ Var CTargetDir , Literal "/" , GlobStar ]
                            }
                      } :|
                      [])
