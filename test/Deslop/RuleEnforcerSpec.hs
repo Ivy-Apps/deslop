@@ -11,7 +11,7 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
-import TestUtils (mkExistsModuleDto, mkForbidsImportDto, mkImportNode, mkUsesImportDto, requireRight, ruleDto, rulebookDto)
+import TestUtils (mkAllowsImportDto, mkExistsModuleDto, mkForbidsImportDto, mkImportNode, mkUsesImportDto, requireRight, ruleDto, rulebookDto)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (DeslopError (..))
 
@@ -526,3 +526,391 @@ spec = describe "Deslop.RuleEnforcer" $ do
                 logger = mkModule "@/infrastructure/http/HttpLogger" []
             problems <- runWildcardTest [useCase, service, logger] useCase
             problems `shouldBe` []
+
+    describe "allows override" $ do
+        describe "direct forbids with allows" $ do
+            let directAllowsRulebook =
+                    fromRight (error "directAllowsRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            rulebookDto
+                                { rules =
+                                    [ ruleDto
+                                        { id = RuleId "no-forbidden-imports"
+                                        , description = "Forbidden imports not allowed."
+                                        , target = GlobDto "@/components/**"
+                                        , forbids = Just [mkForbidsImportDto "@/forbids/**" False]
+                                        , allows = Just [mkAllowsImportDto "@/allowed/**"]
+                                        , fix = "Remove the import."
+                                        }
+                                    ]
+                                }
+                sharedOnlyRulebook =
+                    fromRight (error "sharedOnlyRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            rulebookDto
+                                { rules =
+                                    [ ruleDto
+                                        { id = RuleId "shared-only"
+                                        , description = "Only shared imports allowed."
+                                        , target = GlobDto "@/components/**"
+                                        , forbids = Just [mkForbidsImportDto "**" False]
+                                        , allows = Just [mkAllowsImportDto "@/shared/**"]
+                                        , fix = "Use shared modules only."
+                                        }
+                                    ]
+                                }
+                domainPurityRulebook =
+                    fromRight (error "domainPurityRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            rulebookDto
+                                { rules =
+                                    [ ruleDto
+                                        { id = RuleId "domain-purity"
+                                        , description = "Domain modules may only import from domain or shared layers."
+                                        , target = GlobDto "@/domain/**"
+                                        , forbids = Just [mkForbidsImportDto "**" False]
+                                        , allows = Just (map mkAllowsImportDto ["@/domain/**", "@/shared/**"])
+                                        , fix = "Move the dependency to the correct layer."
+                                        }
+                                    ]
+                                }
+
+            it "no violation when import matches allows pattern" $ do
+                let m = mkModule "@/components/Button" ["@/allowed/utils"]
+                problems <- runTransitiveTestWith [directAllowsRulebook] [m] m
+                problems `shouldBe` []
+
+            it "violation when import matches forbids but not allows" $ do
+                let m = mkModule "@/components/Button" ["@/forbids/store"]
+                problems <- runTransitiveTestWith [directAllowsRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "no-forbidden-imports"
+                                    , badModule = moduleIdUnsafe "@/components/Button"
+                                    , description = "Forbidden imports not allowed.\n\nModule '@/components/Button' directly imports '@/forbids/store'.\n```ts\nimport { ... } from '@/forbids/store'\n```"
+                                    , fix = "Remove the import."
+                                    }
+                               ]
+
+            it "no violation when forbids all (**) but import matches allows (shared module exception)" $ do
+                let m = mkModule "@/components/Button" ["@/shared/utils"]
+                problems <- runTransitiveTestWith [sharedOnlyRulebook] [m] m
+                problems `shouldBe` []
+
+            it "violation when forbids all (**) and import does not match any allows pattern" $ do
+                let m = mkModule "@/components/Button" ["react"]
+                problems <- runTransitiveTestWith [sharedOnlyRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "shared-only"
+                                    , badModule = moduleIdUnsafe "@/components/Button"
+                                    , description = "Only shared imports allowed.\n\nModule '@/components/Button' directly imports 'react'.\n```ts\nimport { ... } from 'react'\n```"
+                                    , fix = "Use shared modules only."
+                                    }
+                               ]
+
+            it "no violation: domain purity - same-domain import allowed" $ do
+                let m = mkModule "@/domain/LoginUseCase" ["@/domain/UserRepository"]
+                problems <- runTransitiveTestWith [domainPurityRulebook] [m] m
+                problems `shouldBe` []
+
+            it "no violation: domain purity - shared layer import allowed" $ do
+                let m = mkModule "@/domain/LoginUseCase" ["@/shared/Result"]
+                problems <- runTransitiveTestWith [domainPurityRulebook] [m] m
+                problems `shouldBe` []
+
+            it "no violation: domain purity - deeply nested module imports another domain sub-namespace" $ do
+                let m = mkModule "@/domain/user/login/LoginUseCase" ["@/domain/user/profile/ProfileRepository"]
+                problems <- runTransitiveTestWith [domainPurityRulebook] [m] m
+                problems `shouldBe` []
+
+            it "violation: domain purity - infrastructure import blocked by forbids all" $ do
+                let m = mkModule "@/domain/LoginUseCase" ["@/infrastructure/HttpClient"]
+                problems <- runTransitiveTestWith [domainPurityRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "domain-purity"
+                                    , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
+                                    , description = "Domain modules may only import from domain or shared layers.\n\nModule '@/domain/LoginUseCase' directly imports '@/infrastructure/HttpClient'.\n```ts\nimport { ... } from '@/infrastructure/HttpClient'\n```"
+                                    , fix = "Move the dependency to the correct layer."
+                                    }
+                               ]
+
+            it "violation: domain purity - external library import blocked" $ do
+                let m = mkModule "@/domain/LoginUseCase" ["react"]
+                problems <- runTransitiveTestWith [domainPurityRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "domain-purity"
+                                    , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
+                                    , description = "Domain modules may only import from domain or shared layers.\n\nModule '@/domain/LoginUseCase' directly imports 'react'.\n```ts\nimport { ... } from 'react'\n```"
+                                    , fix = "Move the dependency to the correct layer."
+                                    }
+                               ]
+
+            it "violation: domain purity - deeply nested domain module imports infrastructure layer" $ do
+                let m = mkModule "@/domain/user/login/LoginUseCase" ["@/infrastructure/db/UserDbRepository"]
+                problems <- runTransitiveTestWith [domainPurityRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "domain-purity"
+                                    , badModule = moduleIdUnsafe "@/domain/user/login/LoginUseCase"
+                                    , description = "Domain modules may only import from domain or shared layers.\n\nModule '@/domain/user/login/LoginUseCase' directly imports '@/infrastructure/db/UserDbRepository'.\n```ts\nimport { ... } from '@/infrastructure/db/UserDbRepository'\n```"
+                                    , fix = "Move the dependency to the correct layer."
+                                    }
+                               ]
+
+        describe "transitive forbids with allows" $ do
+            let storeAllowsRulebook =
+                    fromRight (error "storeAllowsRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            rulebookDto
+                                { rules =
+                                    [ ruleDto
+                                        { id = RuleId "no-transitive-store"
+                                        , description = "Components must not transitively import store modules."
+                                        , target = GlobDto "@/components/**"
+                                        , forbids = Just [mkForbidsImportDto "@/store/**" True]
+                                        , allows = Just [mkAllowsImportDto "@/store/ui-store"]
+                                        , fix = "Remove the transitive store import."
+                                        }
+                                    ]
+                                }
+                domainPurityTransitiveRulebook =
+                    fromRight (error "domainPurityTransitiveRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            rulebookDto
+                                { rules =
+                                    [ ruleDto
+                                        { id = RuleId "domain-purity-transitive"
+                                        , description = "Domain must not transitively reach non-domain/shared modules."
+                                        , target = GlobDto "@/domain/**"
+                                        , forbids = Just [mkForbidsImportDto "**" True]
+                                        , allows = Just (map mkAllowsImportDto ["@/domain/**", "@/shared/**"])
+                                        , fix = "Keep domain pure."
+                                        }
+                                    ]
+                                }
+
+            it "no violation when transitive import matches allows pattern" $ do
+                let button = mkModule "@/components/Button" ["@/lib/hooks"]
+                    hooks = mkModule "@/lib/hooks" ["@/store/ui-store"]
+                    uiStore = mkModule "@/store/ui-store" []
+                problems <- runTransitiveTestWith [storeAllowsRulebook] [button, hooks, uiStore] button
+                problems `shouldBe` []
+
+            it "violation when transitive import matches forbids but not allows" $ do
+                let button = mkModule "@/components/Button" ["@/lib/hooks"]
+                    hooks = mkModule "@/lib/hooks" ["@/store/app-store"]
+                    appStore = mkModule "@/store/app-store" []
+                problems <- runTransitiveTestWith [storeAllowsRulebook] [button, hooks, appStore] button
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "no-transitive-store"
+                                    , badModule = moduleIdUnsafe "@/components/Button"
+                                    , description = "Components must not transitively import store modules.\n\nModule '@/components/Button' transitively imports '@/store/app-store' via: @/components/Button → @/lib/hooks → @/store/app-store.\n```ts\nimport { ... } from '@/lib/hooks'\n```"
+                                    , fix = "Remove the transitive store import."
+                                    }
+                               ]
+
+            it "no violation: domain purity transitive - multi-hop chain through domain and shared only" $ do
+                let useCase = mkModule "@/domain/LoginUseCase" ["@/domain/UserRepository"]
+                    repo = mkModule "@/domain/UserRepository" ["@/shared/Result"]
+                    result = mkModule "@/shared/Result" []
+                problems <- runTransitiveTestWith [domainPurityTransitiveRulebook] [useCase, repo, result] useCase
+                problems `shouldBe` []
+
+            it "violation: domain purity transitive - infra reachable via intermediate domain service" $ do
+                let useCase = mkModule "@/domain/LoginUseCase" ["@/domain/AuthService"]
+                    service = mkModule "@/domain/AuthService" ["@/infrastructure/HttpClient"]
+                    http = mkModule "@/infrastructure/HttpClient" []
+                problems <- runTransitiveTestWith [domainPurityTransitiveRulebook] [useCase, service, http] useCase
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "domain-purity-transitive"
+                                    , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
+                                    , description = "Domain must not transitively reach non-domain/shared modules.\n\nModule '@/domain/LoginUseCase' transitively imports '@/infrastructure/HttpClient' via: @/domain/LoginUseCase → @/domain/AuthService → @/infrastructure/HttpClient.\n```ts\nimport { ... } from '@/domain/AuthService'\n```"
+                                    , fix = "Keep domain pure."
+                                    }
+                               ]
+
+        describe "cross-feature isolation" $ do
+            -- {{TARGET_DIR}} expands to the directory of the matched module.
+            -- e.g. @/features/home/HomeContainer → {{TARGET_DIR}} = @/features/home
+            --      @/features/home/data/HomeRepository → {{TARGET_DIR}} = @/features/home/data
+            -- This enforces directory-level isolation: a module may only import from its
+            -- own directory (and any subdirectories, since ** spans segments).
+            let dirIsolationRulebook =
+                    fromRight (error "dirIsolationRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            rulebookDto
+                                { rules =
+                                    [ ruleDto
+                                        { id = RuleId "dir-isolation"
+                                        , description = "Feature modules may only import from their own directory."
+                                        , target = GlobDto "@/features/**"
+                                        , forbids = Just [mkForbidsImportDto "**" False]
+                                        , allows = Just [mkAllowsImportDto "{{TARGET_DIR}}/**"]
+                                        , fix = "Keep imports within the same directory or extract to shared."
+                                        }
+                                    ]
+                                }
+                -- Relaxed variant: also permits @/shared/** imports
+                dirIsolationWithSharedRulebook =
+                    fromRight (error "dirIsolationWithSharedRulebook: invalid fixture") $
+                        ruleBookFromDto
+                            rulebookDto
+                                { rules =
+                                    [ ruleDto
+                                        { id = RuleId "dir-isolation-shared"
+                                        , description = "Feature modules may only import from their own directory or shared."
+                                        , target = GlobDto "@/features/**"
+                                        , forbids = Just [mkForbidsImportDto "**" False]
+                                        , allows = Just (map mkAllowsImportDto ["{{TARGET_DIR}}/**", "@/shared/**"])
+                                        , fix = "Keep imports within the same directory or use shared modules."
+                                        }
+                                    ]
+                                }
+
+            it "no violation: top-level feature module imports sibling in same directory" $ do
+                let m = mkModule "@/features/home/HomeContainer" ["@/features/home/HomeService"]
+                problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
+                problems `shouldBe` []
+
+            it "no violation: top-level feature module imports from its own subdirectory" $ do
+                -- {{TARGET_DIR}} of @/features/home/HomeContainer = @/features/home
+                -- @/features/home/** matches @/features/home/data/HomeRepository ✓
+                let m = mkModule "@/features/home/HomeContainer" ["@/features/home/data/HomeRepository"]
+                problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
+                problems `shouldBe` []
+
+            it "violation: top-level feature module imports from a different feature" $ do
+                let m = mkModule "@/features/home/HomeContainer" ["@/features/auth/AuthService"]
+                problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "dir-isolation"
+                                    , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                    , description = "Feature modules may only import from their own directory.\n\nModule '@/features/home/HomeContainer' directly imports '@/features/auth/AuthService'.\n```ts\nimport { ... } from '@/features/auth/AuthService'\n```"
+                                    , fix = "Keep imports within the same directory or extract to shared."
+                                    }
+                               ]
+
+            it "violation: top-level feature module imports external library" $ do
+                let m = mkModule "@/features/home/HomeContainer" ["react"]
+                problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "dir-isolation"
+                                    , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                    , description = "Feature modules may only import from their own directory.\n\nModule '@/features/home/HomeContainer' directly imports 'react'.\n```ts\nimport { ... } from 'react'\n```"
+                                    , fix = "Keep imports within the same directory or extract to shared."
+                                    }
+                               ]
+
+            it "no violation: nested module imports from same nested directory" $ do
+                -- {{TARGET_DIR}} of @/features/home/data/HomeRepository = @/features/home/data
+                let m = mkModule "@/features/home/data/HomeRepository" ["@/features/home/data/HomeDataSource"]
+                problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
+                problems `shouldBe` []
+
+            it "violation (edge case): nested module cannot import from its parent directory" $ do
+                -- {{TARGET_DIR}} = @/features/home/data — does not match @/features/home/HomeService
+                let m = mkModule "@/features/home/data/HomeRepository" ["@/features/home/HomeService"]
+                problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "dir-isolation"
+                                    , badModule = moduleIdUnsafe "@/features/home/data/HomeRepository"
+                                    , description = "Feature modules may only import from their own directory.\n\nModule '@/features/home/data/HomeRepository' directly imports '@/features/home/HomeService'.\n```ts\nimport { ... } from '@/features/home/HomeService'\n```"
+                                    , fix = "Keep imports within the same directory or extract to shared."
+                                    }
+                               ]
+
+            it "violation (edge case): nested module cannot import from sibling directory within same feature" $ do
+                -- @/features/home/data/** does not match @/features/home/ui/HomeButton
+                let m = mkModule "@/features/home/data/HomeRepository" ["@/features/home/ui/HomeButton"]
+                problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "dir-isolation"
+                                    , badModule = moduleIdUnsafe "@/features/home/data/HomeRepository"
+                                    , description = "Feature modules may only import from their own directory.\n\nModule '@/features/home/data/HomeRepository' directly imports '@/features/home/ui/HomeButton'.\n```ts\nimport { ... } from '@/features/home/ui/HomeButton'\n```"
+                                    , fix = "Keep imports within the same directory or extract to shared."
+                                    }
+                               ]
+
+            it "violation: nested module imports from a completely different feature" $ do
+                let m = mkModule "@/features/home/data/HomeRepository" ["@/features/auth/data/AuthRepository"]
+                problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "dir-isolation"
+                                    , badModule = moduleIdUnsafe "@/features/home/data/HomeRepository"
+                                    , description = "Feature modules may only import from their own directory.\n\nModule '@/features/home/data/HomeRepository' directly imports '@/features/auth/data/AuthRepository'.\n```ts\nimport { ... } from '@/features/auth/data/AuthRepository'\n```"
+                                    , fix = "Keep imports within the same directory or extract to shared."
+                                    }
+                               ]
+
+            it "no violation: relaxed rule - top-level module imports from shared" $ do
+                let m = mkModule "@/features/home/HomeContainer" ["@/shared/utils"]
+                problems <- runTransitiveTestWith [dirIsolationWithSharedRulebook] [m] m
+                problems `shouldBe` []
+
+            it "no violation: relaxed rule - nested module imports from shared" $ do
+                let m = mkModule "@/features/home/data/HomeRepository" ["@/shared/Result"]
+                problems <- runTransitiveTestWith [dirIsolationWithSharedRulebook] [m] m
+                problems `shouldBe` []
+
+            it "violation: relaxed rule - cross-feature still blocked even though shared is allowed" $ do
+                let m = mkModule "@/features/home/HomeContainer" ["@/features/auth/AuthService"]
+                problems <- runTransitiveTestWith [dirIsolationWithSharedRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "dir-isolation-shared"
+                                    , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                    , description = "Feature modules may only import from their own directory or shared.\n\nModule '@/features/home/HomeContainer' directly imports '@/features/auth/AuthService'.\n```ts\nimport { ... } from '@/features/auth/AuthService'\n```"
+                                    , fix = "Keep imports within the same directory or use shared modules."
+                                    }
+                               ]
+
+            it "violation: relaxed rule - external library still blocked" $ do
+                let m = mkModule "@/features/home/HomeContainer" ["react"]
+                problems <- runTransitiveTestWith [dirIsolationWithSharedRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "dir-isolation-shared"
+                                    , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                    , description = "Feature modules may only import from their own directory or shared.\n\nModule '@/features/home/HomeContainer' directly imports 'react'.\n```ts\nimport { ... } from 'react'\n```"
+                                    , fix = "Keep imports within the same directory or use shared modules."
+                                    }
+                               ]
+
+            it "violation: relaxed rule - nested module's parent-dir import still blocked" $ do
+                -- Even with shared allowed, the asymmetric edge case still holds:
+                -- nested module cannot reach its own parent directory
+                let m = mkModule "@/features/home/data/HomeRepository" ["@/features/home/HomeService"]
+                problems <- runTransitiveTestWith [dirIsolationWithSharedRulebook] [m] m
+                problems
+                    `shouldBe` [ RuleViolation
+                                    { rulebook = RulebookId "test-rulebook"
+                                    , rule = RuleId "dir-isolation-shared"
+                                    , badModule = moduleIdUnsafe "@/features/home/data/HomeRepository"
+                                    , description = "Feature modules may only import from their own directory or shared.\n\nModule '@/features/home/data/HomeRepository' directly imports '@/features/home/HomeService'.\n```ts\nimport { ... } from '@/features/home/HomeService'\n```"
+                                    , fix = "Keep imports within the same directory or use shared modules."
+                                    }
+                               ]

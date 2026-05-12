@@ -26,6 +26,7 @@ module TestUtils (
     failBeatiful,
     mkUsesImportDto,
     mkForbidsImportDto,
+    mkAllowsImportDto,
     mkExistsModuleDto,
     rulebookDto,
     ruleDto,
@@ -39,7 +40,7 @@ import Data.Text.Encoding qualified as TE
 import Deslop.AST (AstNode (..))
 import Deslop.Baseline (Baseline (..))
 import Deslop.Problem (ProblemId (..))
-import Deslop.Rulebook (ExistsDto (ExistsModuleDto), ForbidsDto (..), GlobDto (GlobDto), RuleDto (..), RuleId (..), RulebookDto (..), UsesDto (UsesImportDto))
+import Deslop.Rulebook (AllowsDto (AllowsImportDto), ExistsDto (ExistsModuleDto), ForbidsDto (..), GlobDto (GlobDto), RuleDto (..), RuleId (..), RulebookDto (..), UsesDto (UsesImportDto))
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
@@ -198,6 +199,9 @@ mkImportNode t =
 
 mkForbidsImportDto :: Text -> Bool -> ForbidsDto
 mkForbidsImportDto p transitive = ForbidsImportDto (GlobDto p) (Just transitive)
+
+mkAllowsImportDto :: Text -> AllowsDto
+mkAllowsImportDto p = AllowsImportDto (GlobDto p)
 
 mkUsesImportDto :: Text -> Bool -> UsesDto
 mkUsesImportDto p transitive = UsesImportDto (GlobDto p) (Just transitive)
