@@ -25,7 +25,7 @@ Used in the `target:` field of a rule. Matches a file path and **extracts variab
 - Supports `*`, `**`, and `{{FileName}}` / `{{fileName}}` / `{{file-name}}` / `{{FILE_NAME}}` variables.
 - Does **not** support `{{TARGET_DIR}}` (there is no directory yet — it is derived from the match).
 
-### RulePattern
+### ClausePattern
 
 Used in `uses:`, `exists:`, `forbids:`, etc. Matches a file path against a **hydrated** environment.
 
@@ -53,7 +53,7 @@ Used in `uses:`, `exists:`, `forbids:`, etc. Matches a file path against a **hyd
 | `{{file-name}}` | kebab-case    | `home-screen`                 |
 | `{{FILE_NAME}}` | CONSTANT_CASE | `HOME_SCREEN`                 |
 
-All four variables refer to the **same captured name** — just rendered in different cases. If a TargetPattern captures `Home` via `{{FileName}}`, then a RulePattern can reference `{{file-name}}` and it will expand to `home`.
+All four variables refer to the **same captured name** — just rendered in different cases. If a TargetPattern captures `Home` via `{{FileName}}`, then a ClausePattern can reference `{{file-name}}` and it will expand to `home`.
 
 ### Rule-Only Variable
 
@@ -80,9 +80,9 @@ For a target matched at `@/features/home/HomeContainer`, `{{TARGET_DIR}}` expand
    - `targetDir`: the directory of the matched path.
    - `casings`: a map from each `Casing` to the corresponding string value.
 
-### Rule Matching (`matchRule`)
+### Rule Matching (`matchClause`)
 
-1. The RulePattern is compiled into a list of chunks: static regex fragments and variable references.
+1. The ClausePattern is compiled into a list of chunks: static regex fragments and variable references.
 2. At match time, each variable chunk is resolved from the `MatchEnv`:
    - `{{TARGET_DIR}}` → `env.targetDir` (regex-escaped)
    - Case variables → `env.casings[casing]` (regex-escaped), or `.*` if not found
@@ -99,7 +99,7 @@ When a target captures `HomeContainer` via `{{FileName}}`, the tokenizer splits 
 | kebab-case    | `home-container`  |
 | CONSTANT_CASE | `HOME_CONTAINER`  |
 
-This means a TargetPattern that captures via `{{FileName}}` automatically makes `{{file-name}}` and `{{FILE_NAME}}` available in RulePatterns.
+This means a TargetPattern that captures via `{{FileName}}` automatically makes `{{file-name}}` and `{{FILE_NAME}}` available in ClausePatterns.
 
 ---
 
@@ -110,10 +110,10 @@ In a `.yaml` rulebook, Glob+ patterns appear in:
 | Field             | Pattern Type   | Description                                              |
 |-------------------|----------------|----------------------------------------------------------|
 | `target:`         | TargetPattern  | Which files the rule applies to; captures variables      |
-| `uses:`           | RulePattern    | Imports that must be present                             |
-| `uses-optional:`  | RulePattern    | Imports that are allowed but not required                |
-| `exists:`         | RulePattern    | Files that must exist (e.g. test or Storybook)           |
-| `forbidden.import:` | RulePattern  | Imports that must not be present                         |
+| `uses:`           | ClausePattern    | Imports that must be present                             |
+| `uses-optional:`  | ClausePattern    | Imports that are allowed but not required                |
+| `exists:`         | ClausePattern    | Files that must exist (e.g. test or Storybook)           |
+| `forbidden.import:` | ClausePattern  | Imports that must not be present                         |
 
 ### Example
 
@@ -139,8 +139,8 @@ The `uses:` patterns expand to:
 
 ## Implementation Notes
 
-- Parsing is done with **Megaparsec**. `parseTargetPattern` and `parseRulePattern` return typed ASTs.
-- Ahead-of-time compilation (`compileTargetPattern`, `compileRulePattern`) separates the parse/compile step from the hot matching path.
+- Parsing is done with **Megaparsec**. `parseTargetPattern` and `parseClausePattern` return typed ASTs.
+- Ahead-of-time compilation (`compileTargetPattern`, `compileClausePattern`) separates the parse/compile step from the hot matching path.
 - Regex engine: **TDFA** (`Text.Regex.TDFA`) operating directly on `Text`.
-- Adjacent static chunks in a CompiledRulePattern are merged at compile time to minimize allocations on the hot path.
+- Adjacent static chunks in a CompiledClausePattern are merged at compile time to minimize allocations on the hot path.
 - A single `{` that is not followed by another `{` is treated as a literal character, not a variable delimiter.

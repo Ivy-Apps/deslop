@@ -26,7 +26,7 @@ module Deslop.Rulebook (
 import Data.Aeson (FromJSON (..), withObject, withText, (.:), (.:?))
 import Data.Text qualified as T
 import Data.Yaml (decodeEither')
-import Deslop.GlobPlus (CompiledRulePattern, CompiledTargetPattern, compileRulePattern, compileTargetPattern, parseRulePattern, parseTargetPattern)
+import Deslop.GlobPlus (CompiledClausePattern, CompiledTargetPattern, compileClausePattern, compileTargetPattern, parseClausePattern, parseTargetPattern)
 import Effectful
 import Effects.FileSystem (AbsPath, RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile, withAbsBaseUnsafe)
 import System.OsPath (OsPath, osp)
@@ -60,7 +60,7 @@ data Rule = Rule
     deriving stock (Show)
 
 data UsesClause = UsesImport
-    { target :: CompiledRulePattern
+    { target :: CompiledClausePattern
     , transitive :: Bool
     }
     deriving stock (Show, Eq)
@@ -69,7 +69,7 @@ newtype FunctionName = FunctionName Text deriving (Show, Eq)
 
 data ForbidsClause
     = ForbidsImport
-        { target :: CompiledRulePattern
+        { target :: CompiledClausePattern
         , transitive :: Bool
         }
     | ForbidsFunctionCall
@@ -79,12 +79,12 @@ data ForbidsClause
 
 data AllowsClause
     = AllowsImport
-    { target :: CompiledRulePattern
+    { target :: CompiledClausePattern
     }
     deriving stock (Show, Eq)
 
 newtype ExistsClause = ExistsModule
-    { target :: CompiledRulePattern
+    { target :: CompiledClausePattern
     }
     deriving stock (Show, Eq)
 
@@ -256,10 +256,10 @@ compileForbidsClauses (Just fbs) = nonEmpty <$> traverse compileForbids fbs
   where
     compileForbids :: ForbidsDto -> Either Text ForbidsClause
     compileForbids (ForbidsImportDto (GlobDto s) transitive) = do
-        pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
+        pattern <- first (T.pack . errorBundlePretty) (parseClausePattern s)
         Right
             ForbidsImport
-                { target = compileRulePattern pattern
+                { target = compileClausePattern pattern
                 , transitive = fromMaybe False transitive
                 }
     compileForbids (ForbidsFunctionCallDto name) =
@@ -271,10 +271,10 @@ compileAllowsClauses (Just xs) = nonEmpty <$> traverse compileAllows xs
   where
     compileAllows :: AllowsDto -> Either Text AllowsClause
     compileAllows (AllowsImportDto (GlobDto s)) = do
-        pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
+        pattern <- first (T.pack . errorBundlePretty) (parseClausePattern s)
         Right
             AllowsImport
-                { target = compileRulePattern pattern
+                { target = compileClausePattern pattern
                 }
 
 compileUsesClauses :: Maybe [UsesDto] -> Either Text (Maybe (NonEmpty UsesClause))
@@ -283,10 +283,10 @@ compileUsesClauses (Just xs) = nonEmpty <$> traverse compileUses xs
   where
     compileUses :: UsesDto -> Either Text UsesClause
     compileUses (UsesImportDto (GlobDto s) transitive) = do
-        pattern <- first (T.pack . errorBundlePretty) (parseRulePattern s)
+        pattern <- first (T.pack . errorBundlePretty) (parseClausePattern s)
         Right
             UsesImport
-                { target = compileRulePattern pattern
+                { target = compileClausePattern pattern
                 , transitive = fromMaybe False transitive
                 }
 
@@ -296,10 +296,10 @@ compileExistsClauses (Just xs) = nonEmpty <$> traverse compileExists xs
   where
     compileExists :: ExistsDto -> Either Text ExistsClause
     compileExists (ExistsModuleDto (GlobDto t)) = do
-        pattern <- first (T.pack . errorBundlePretty) (parseRulePattern t)
+        pattern <- first (T.pack . errorBundlePretty) (parseClausePattern t)
         Right
             ExistsModule
-                { target = compileRulePattern pattern
+                { target = compileClausePattern pattern
                 }
 
 mapExecutionContext :: Maybe ExecutionContextDto -> ExecutionContext

@@ -3,7 +3,7 @@ module Deslop.RuleEnforcer (enforceRulebooks) where
 import Data.Text qualified as T
 import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
-import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchRule, matchTarget, moduleFromGlob, renderRulePattern)
+import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchClause, matchTarget, moduleFromGlob, renderClausePattern)
 import Deslop.Problem (Problem (..))
 import Deslop.Rulebook (AllowsClause (..), ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Effectful (Eff, (:>))
@@ -113,7 +113,7 @@ enforceForbids m env (ForbidsImport target transitive)
     | otherwise = traverse_ directForbiddenImport m.nodes
   where
     directForbiddenImport (ImportNode t rawStatement)
-        | matchRule target env t.text = do
+        | matchClause target env t.text = do
             allowed <- inAllows t
             unless allowed $ do
                 let message =
@@ -129,7 +129,7 @@ enforceForbids m env (ForbidsImport target transitive)
         | otherwise = pure ()
 
     transitiveForbiddenImport reachableModuleId
-        | matchRule target env reachableModuleId.text = do
+        | matchClause target env reachableModuleId.text = do
             allowed <- inAllows reachableModuleId
             unless allowed $ do
                 p <- findKnownPath m.id reachableModuleId
@@ -157,7 +157,7 @@ enforceForbids m env (ForbidsImport target transitive)
 
     inAllowClause :: ModuleId -> AllowsClause -> Bool
     inAllowClause moduleId (AllowsImport pattern) =
-        matchRule pattern env moduleId.text
+        matchClause pattern env moduleId.text
 enforceForbids _ _ (ForbidsFunctionCall _) = todo
 
 enforceUses ::
@@ -170,22 +170,22 @@ enforceUses ::
 enforceUses m env (UsesImport usesPattern transitive)
     | transitive = do
         ReachableModules reachable <- ask @ReachableModules
-        unless (any (\rid -> matchRule usesPattern env rid.text) reachable) $ do
+        unless (any (\rid -> matchClause usesPattern env rid.text) reachable) $ do
             let msg =
                     "Module '"
                         <> m.id.text
                         <> "' must transitively import '"
-                        <> renderRulePattern env usesPattern
+                        <> renderClausePattern env usesPattern
                         <> "'."
             ruleViolation m msg >>= report
     | otherwise = do
         let imports = m.nodes
-        unless (any (\node -> matchRule usesPattern env node.target.text) imports) $ do
+        unless (any (\node -> matchClause usesPattern env node.target.text) imports) $ do
             let msg =
                     "Module '"
                         <> m.id.text
                         <> "' must import '"
-                        <> renderRulePattern env usesPattern
+                        <> renderClausePattern env usesPattern
                         <> "'."
             ruleViolation m msg >>= report
 
