@@ -1,29 +1,56 @@
-Copyright (c) 2025, ILIYANGERMANOV
+# DESLOP END USER LICENSE AGREEMENT (EULA)
 
+This End User License Agreement ("Agreement") is a legal agreement between you (either an individual or a single legal entity) ("Licensee") and Ivy Apps Ltd ("Licensor"). 
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+By downloading, installing, or using the Deslop software ("Software"), you agree to be bound by the terms of this Agreement. If you do not agree to the terms of this Agreement, do not install or use the Software.
 
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+### 1. DEFINITIONS
+* **"Software"** refers to the Deslop command-line interface (CLI) tool, including its executable binaries, associated scripts, documentation, and any updates provided by the Licensor.
+* **"Local Development Environment"** means a personal physical or virtual workstation where a human operator is directly and physically interacting with the Software via a standard terminal emulator.
+* **"Automated Environment"** means any headless, unattended, or script-driven environment. This includes, but is not limited to, Continuous Integration (CI) systems, Continuous Deployment (CD) pipelines (e.g., GitHub Actions, GitLab CI, Jenkins, CircleCI), automated testing servers, or any environment where standard inputs and outputs are piped, mocked, or automated.
+* **"Commercial License"** means a paid subscription or license key legitimately obtained from the Licensor that explicitly grants rights beyond the Free Tier.
 
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials provided
-      with the distribution.
+### 2. GRANT OF LICENSE (FREE TIER)
+Subject to your continuous compliance with this Agreement, the Licensor grants you a limited, personal, non-exclusive, non-transferable, and revocable license to use the Software free of charge **strictly within a Local Development Environment**. 
 
-    * Neither the name of the copyright holder nor the names of its
-      contributors may be used to endorse or promote products derived
-      from this software without specific prior written permission.
+### 3. OWNERSHIP AND INTELLECTUAL PROPERTY
+The Software is licensed, not sold. Ivy Apps Ltd retains all rights, title, and interest in and to the Software, including all copyrights, patents, trade secrets, trademarks, and other intellectual property rights therein. This Agreement does not grant you any rights to trademarks or service marks of Ivy Apps Ltd. All rights not expressly granted to you in this Agreement are reserved by the Licensor.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+### 4. RESTRICTIONS ON FREE TIER USE (CI/CD PAYWALL)
+You may **not** use the Free Tier of the Software in any Automated Environment. 
+To run, execute, or integrate the Software within an Automated Environment, you must purchase and maintain a valid Commercial License (Pro License Key).
+
+### 5. TECHNICAL ENFORCEMENT AND PROHIBITED ACTIONS
+The Software contains technical mechanisms designed to detect Prohibited Uses (e.g., detecting Automated Environments and prompting for human verification). 
+
+You expressly agree that you will not:
+1. Attempt to bypass, disable, spoof, or circumvent any technical enforcement, environment variable checks, or human-verification prompts (CAPTCHAs) built into the Software.
+2. Use wrappers, pseudo-terminals (PTYs), or automated scripts to simulate a Local Development Environment in an attempt to evade the Commercial License requirement.
+3. Reverse-engineer, decompile, disassemble, or modify the compiled binary of the Software.
+
+Any attempt to bypass these mechanisms constitutes a material breach of this Agreement and terminates your license immediately. The Licensor reserves the right to implement functionality that delays, halts, or restricts execution if an unverified Automated Environment is detected.
+
+### 6. TELEMETRY AND LICENSE VALIDATION
+The Software may transmit basic telemetry, environment data, or license keys to Licensor's servers strictly for the purpose of license validation and enforcing the terms of this Agreement. You acknowledge and agree to this data transmission. The Licensor disclaims any liability for the accidental exposure of sensitive data or secrets resulting from attempts to bypass, intercept, or manipulate the Software's environment checks.
+
+### 7. DISCLAIMER OF WARRANTIES
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. THE LICENSOR DOES NOT WARRANT THAT THE SOFTWARE IS FREE OF DEFECTS, ERRORS, OR SECURITY VULNERABILITIES, OR THAT IT WILL OPERATE WITHOUT INTERRUPTION. THE ENTIRE RISK ARISING OUT OF THE USE OR PERFORMANCE OF THE SOFTWARE REMAINS WITH YOU.
+
+### 8. LIMITATION OF LIABILITY
+IN NO EVENT SHALL IVY APPS LTD, ITS DIRECTORS, EMPLOYEES, OR ITS SUPPLIERS BE LIABLE FOR ANY DAMAGES WHATSOEVER (INCLUDING, WITHOUT LIMITATION, INCIDENTAL, DIRECT, INDIRECT, SPECIAL, OR CONSEQUENTIAL DAMAGES, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, COMPUTING COSTS, DATA LOSS, OR OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF THE LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. 
+
+IN NO EVENT WILL THE LICENSOR’S TOTAL LIABILITY TO YOU FOR ALL DAMAGES EXCEED THE AMOUNT ACTUALLY PAID BY YOU FOR THE SOFTWARE UNDER THIS AGREEMENT. BECAUSE SOME STATES/JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION OF LIABILITY FOR CONSEQUENTIAL OR INCIDENTAL DAMAGES, THE ABOVE LIMITATION MAY NOT APPLY TO YOU.
+
+### 9. INDEMNIFICATION
+You agree to indemnify, defend, and hold harmless Ivy Apps Ltd and its officers, directors, and employees from and against any claims, damages, liabilities, losses, and expenses (including reasonable attorneys' fees) arising out of or related to your use of the Software, your violation of this Agreement, or your violation of any rights of a third party.
+
+### 10. THIRD-PARTY COMPONENTS
+The Software may include third-party components subject to their own open-source licenses. By using the Software, you also agree to comply with the terms and conditions of those third-party licenses.
+
+### 11. TERMINATION
+This Agreement is effective until terminated. Your rights under this Agreement will terminate automatically without notice from the Licensor if you fail to comply with any term(s) of this Agreement. Upon termination, you must cease all use of the Software and destroy all copies, full or partial, of the Software.
+
+### 12. GENERAL AND GOVERNING LAW
+This Agreement constitutes the entire agreement between the parties concerning the subject matter hereof. If any provision of this Agreement is held to be invalid or unenforceable, the remaining provisions shall remain in full force and effect. 
+
+This Agreement shall be governed by and construed in accordance with the laws of Bulgaria, without regard to its conflict of laws rules. Any disputes arising under or in connection with this Agreement shall be subject to the exclusive jurisdiction of the courts located in Sofia, Bulgaria.
