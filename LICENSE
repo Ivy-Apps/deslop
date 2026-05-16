@@ -23,7 +23,7 @@ To run, execute, or integrate the Software within an Automated Environment, you 
 ### 5. COMMERCIAL LICENSES AND USAGE LIMITS
 If you operate the Software under a Commercial License, your usage is governed by the parameters of your specific subscription tier.
 1. **Dynamic Quotas and Features:** Specific pricing, usage limits (e.g., a maximum number of monthly CLI executions), and feature access are maintained on the Licensor's official website and authorized billing providers. These terms are incorporated by reference and may be updated by the Licensor.
-2. **Overage:** Exceeding your allotted usage limits may result in the Software returning warnings, delaying execution, or halting processes entirely until the quota resets or the subscription is upgraded.
+2. **Overage:** Exceeding your allotted usage limits will result in the Software immediately halting execution and returning an error code until the quota resets or the subscription is upgraded.
 3. **Metric Manipulation:** Attempting to bypass, spoof, or manipulate usage metrics, counters, or environment variables to artificially deflate your recorded usage is a material breach of this Agreement.
 
 ### 6. TECHNICAL ENFORCEMENT AND PROHIBITED ACTIONS
@@ -42,21 +42,28 @@ The Software may transmit basic telemetry, environment data, run counts, or lice
 ### 8. DISCLAIMER OF WARRANTIES
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. THE LICENSOR DOES NOT WARRANT THAT THE SOFTWARE IS FREE OF DEFECTS, ERRORS, OR SECURITY VULNERABILITIES, OR THAT IT WILL OPERATE WITHOUT INTERRUPTION. THE ENTIRE RISK ARISING OUT OF THE USE OR PERFORMANCE OF THE SOFTWARE REMAINS WITH YOU.
 
-### 9. LIMITATION OF LIABILITY
+### 9. SPECIFIC DISCLAIMERS FOR CI/CD AND CODE MODIFICATION
+Due to the nature of automated integration and code modification tools, you expressly acknowledge and agree to the following risks, for which the Licensor bears no liability:
+1. **Quota Exhaustion and Pipeline Halts:** If your usage exceeds your purchased quota, the Software will halt execution and return a failing exit code. Licensor is not liable for delayed deployments, broken CI/CD pipelines, or resulting financial losses. It is your responsibility to monitor your usage.
+2. **Compute Costs and Infinite Loops:** The Software may contain bugs, including defects that cause infinite loops or excessive execution times. Licensor is not liable for wasted CI/CD runner minutes, compute costs, or unexpected cloud provider billing. **You are strongly advised to configure strict execution timeouts for the Software within your automated environments.**
+3. **False Positives:** The Software may produce false-positive linter results. Licensor is not liable for blocked pipelines or delayed releases caused by erroneous validation failures.
+4. **Fix Mode and Data Loss:** The Software includes functionality to automatically modify your source code. Licensor is not liable for undesirable code modifications, corrupted files, or data loss. **You are strongly advised to commit all important changes to a version control system (e.g., Git) prior to executing the Software in any automated fix mode.**
+
+### 10. LIMITATION OF LIABILITY
 IN NO EVENT SHALL IVY APPS LTD, ITS DIRECTORS, EMPLOYEES, OR ITS SUPPLIERS BE LIABLE FOR ANY DAMAGES WHATSOEVER (INCLUDING, WITHOUT LIMITATION, INCIDENTAL, DIRECT, INDIRECT, SPECIAL, OR CONSEQUENTIAL DAMAGES, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, COMPUTING COSTS, DATA LOSS, OR OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF THE LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. 
 
 IN NO EVENT WILL THE LICENSOR’S TOTAL LIABILITY TO YOU FOR ALL DAMAGES EXCEED THE AMOUNT ACTUALLY PAID BY YOU FOR THE SOFTWARE UNDER THIS AGREEMENT. BECAUSE SOME STATES/JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION OF LIABILITY FOR CONSEQUENTIAL OR INCIDENTAL DAMAGES, THE ABOVE LIMITATION MAY NOT APPLY TO YOU.
 
-### 10. INDEMNIFICATION
+### 11. INDEMNIFICATION
 You agree to indemnify, defend, and hold harmless Ivy Apps Ltd and its officers, directors, and employees from and against any claims, damages, liabilities, losses, and expenses (including reasonable attorneys' fees) arising out of or related to your use of the Software, your violation of this Agreement, or your violation of any rights of a third party.
 
-### 11. THIRD-PARTY COMPONENTS
+### 12. THIRD-PARTY COMPONENTS
 The Software may include third-party components subject to their own open-source licenses. By using the Software, you also agree to comply with the terms and conditions of those third-party licenses.
 
-### 12. TERMINATION
+### 13. TERMINATION
 This Agreement is effective until terminated. Your rights under this Agreement will terminate automatically without notice from the Licensor if you fail to comply with any term(s) of this Agreement. Upon termination, you must cease all use of the Software and destroy all copies, full or partial, of the Software.
 
-### 13. GENERAL AND GOVERNING LAW
+### 14. GENERAL AND GOVERNING LAW
 This Agreement constitutes the entire agreement between the parties concerning the subject matter hereof. If any provision of this Agreement is held to be invalid or unenforceable, the remaining provisions shall remain in full force and effect. 
 
 This Agreement shall be governed by and construed in accordance with the laws of Bulgaria, without regard to its conflict of laws rules. Any disputes arising under or in connection with this Agreement shall be subject to the exclusive jurisdiction of the courts located in Sofia, Bulgaria.
