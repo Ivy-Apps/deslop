@@ -1,4 +1,5 @@
 module Monetization.CIDetection (
+    DetectedEnv (..),
     detectEnv,
 ) where
 

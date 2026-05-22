@@ -138,10 +138,12 @@ test-suite deslop-test
     Deslop.RulebookSpec
     Deslop.RuleEnforcerSpec
     Doubles.FileSystem
+    Doubles.System
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
     Effects.ReportProblemSpec
+    Monetization.CIDetectionSpec
     ParamsSpec
     SecretsSpec
     TestUtils
