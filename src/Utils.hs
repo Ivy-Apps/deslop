@@ -7,6 +7,7 @@ module Utils (
     headErr,
     headOrThrow,
     dropCommonPre,
+    firstJustM,
 ) where
 
 import Data.Text qualified as T
@@ -40,3 +41,7 @@ dropCommonPre :: (Text, Text) -> (Text, Text)
 dropCommonPre (x, y) = case T.commonPrefixes x y of
     Just (_, x', y') -> (x', y')
     Nothing -> (x, y)
+
+firstJustM :: (Monad m) => (a -> m (Maybe b)) -> [a] -> m (Maybe b)
+firstJustM _ [] = pure Nothing
+firstJustM action (x : xs) = action x >>= maybe (firstJustM action xs) (pure . Just)
