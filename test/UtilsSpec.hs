@@ -25,7 +25,7 @@ spec = describe "Utils" $ do
             readIORef ref `shouldReturn` 1
 
         it "returns Just for a singleton list with a matching action" $ do
-            firstJustM (\x -> pure $ Just x) [42 :: Int]
+            firstJustM (pure . Just) [42 :: Int]
                 `shouldReturn` Just 42
 
         it "returns Nothing for a singleton list with a non-matching action" $ do

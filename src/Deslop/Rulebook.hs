@@ -77,7 +77,7 @@ data ForbidsClause
         }
     deriving stock (Show, Eq)
 
-data AllowsClause
+newtype AllowsClause
     = AllowsImport
     { target :: CompiledClausePattern
     }
@@ -144,7 +144,7 @@ instance FromJSON ForbidsDto where
         (ForbidsImportDto <$> v .: "import" <*> v .:? "transitive")
             <|> (ForbidsFunctionCallDto <$> v .: "functional-call")
 
-data AllowsDto
+newtype AllowsDto
     = AllowsImportDto
     { target :: GlobDto
     }
