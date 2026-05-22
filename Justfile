@@ -23,6 +23,7 @@ check:
 # Update Dependencies versions by updating the Nix flake input
 @update-deps:
     nix flake update
+    cabal update
     cabal freeze
     echo "Done! Dependencies updated and securely locked in 'cabal.freeze' ❄️"
 

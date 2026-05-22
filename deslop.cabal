@@ -66,6 +66,8 @@ library
     Effects.Git
     Effects.Licensing
     Effects.ReportProblem
+    Effects.System
+    Monetization.CIDetection
     Params
     Prelude
     Secrets
@@ -109,6 +111,7 @@ library
     , template-haskell
     , text
     , time
+    , unix
     , unordered-containers
     , yaml
 
@@ -135,10 +138,12 @@ test-suite deslop-test
     Deslop.RulebookSpec
     Deslop.RuleEnforcerSpec
     Doubles.FileSystem
+    Doubles.System
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
     Effects.ReportProblemSpec
+    Monetization.CIDetectionSpec
     ParamsSpec
     SecretsSpec
     TestUtils
@@ -148,6 +153,7 @@ test-suite deslop-test
     TypeScript.ModuleResolverSpec
     TypeScript.ParserSpec
     TypeScript.RenderableSpec
+    UtilsSpec
 
   build-depends:
     , aeson
