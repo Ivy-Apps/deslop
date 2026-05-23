@@ -68,6 +68,7 @@ library
     Effects.Random
     Effects.ReportProblem
     Effects.System
+    Monetization.Captcha
     Monetization.CIDetection
     Params
     Prelude
@@ -140,12 +141,14 @@ test-suite deslop-test
     Deslop.RulebookSpec
     Deslop.RuleEnforcerSpec
     Doubles.FileSystem
+    Doubles.Random
     Doubles.System
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
     Effects.RandomSpec
     Effects.ReportProblemSpec
+    Monetization.CaptchaSpec
     Monetization.CIDetectionSpec
     ParamsSpec
     SecretsSpec
