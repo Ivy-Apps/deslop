@@ -1,0 +1,44 @@
+module Doubles.CLI (
+  MockCLI (..),
+  TestLogs (..),
+  runMockCLI,
+  defaultMockCLI,
+) where
+
+import Effects.CLI (CLI (..))
+import Effectful (Eff, IOE, (:>))
+import Effectful.Dispatch.Dynamic (reinterpret)
+import Effectful.State.Static.Local qualified as State
+import UI (problemsLogText)
+
+data MockCLI = MockCLI
+    { readLines :: [Text]
+    , problemsRef :: Maybe (IORef (Maybe TestLogs))
+    }
+
+defaultMockCLI :: MockCLI
+defaultMockCLI = 
+    MockCLI {
+      readLines = [],
+      problemsRef = Nothing
+    }
+
+newtype TestLogs = TestLogs
+    { problems :: Text
+    }
+    deriving (Show, Eq)
+
+runMockCLI :: (IOE :> es) => MockCLI -> Eff (CLI : es) a -> Eff es a
+runMockCLI mock = reinterpret (State.evalState mock.readLines) $ \_ -> \case 
+    ReadLine -> pure ""
+    LogTitle _ -> pure ()
+    LogModification _ -> pure ()
+    LogFixSummary -> pure ()
+    LogProblems ps -> case mock.problemsRef of
+        Just pRef -> liftIO $ writeIORef pRef (Just . TestLogs . problemsLogText $ ps)
+        Nothing -> pure ()
+    LogNoProblemsFound -> pure ()
+    LogBaselineSaved _ -> pure ()
+    LogError _ -> pure ()
+    LogText _ -> pure ()
+    LogWarning _ -> pure ()

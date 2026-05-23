@@ -140,6 +140,7 @@ test-suite deslop-test
     Deslop.RelativeImportSpec
     Deslop.RulebookSpec
     Deslop.RuleEnforcerSpec
+    Doubles.CLI
     Doubles.FileSystem
     Doubles.Random
     Doubles.System
