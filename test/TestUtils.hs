@@ -1,6 +1,6 @@
 module TestUtils (
     snapshot,
-    runCLILogTest,
+    runCLITest,
     runGitTest,
     runAITest,
     runAIAlwaysFail,
@@ -45,7 +45,7 @@ import Deslop.Rulebook (AllowsDto (AllowsImportDto), ExistsDto (ExistsModuleDto)
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
-import Effects.CLILog
+import Effects.CLI
 import Effects.FileSystem (AbsPath (osPath), RelativePath, absPathUnsafe, encodeOsPath, encodeOsPathString, fsMkAbsolute, relativePathUnsafe, runFileSystemIO)
 import Effects.Git
 import Hedgehog (PropertyT)
@@ -69,8 +69,8 @@ newtype TestLogs = TestLogs
     }
     deriving (Show, Eq)
 
-runCLILogTest :: (IOE :> es) => IORef (Maybe TestLogs) -> Eff (CLILog : es) a -> Eff es a
-runCLILogTest ref = interpret $ \_ -> \case
+runCLITest :: (IOE :> es) => IORef (Maybe TestLogs) -> Eff (CLI : es) a -> Eff es a
+runCLITest ref = interpret $ \_ -> \case
     LogTitle _ -> pure ()
     LogModification _ -> pure ()
     LogFixSummary -> pure ()

@@ -61,7 +61,7 @@ library
     Deslop.RuleEnforcer
     Deslop.RuleExplainer
     Effects.AI
-    Effects.CLILog
+    Effects.CLI
     Effects.FileSystem
     Effects.Git
     Effects.Licensing

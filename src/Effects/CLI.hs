@@ -1,5 +1,5 @@
-module Effects.CLILog (
-    CLILog (..),
+module Effects.CLI (
+    CLI (..),
     logTitle,
     logModification,
     logFixSummary,
@@ -10,7 +10,7 @@ module Effects.CLILog (
     logWarning,
     logText,
     cliReadLine,
-    runCLILog,
+    runCLI,
 ) where
 
 import Control.Concurrent.STM (atomically, modifyTVar', newTVarIO)
@@ -25,52 +25,52 @@ import Params (Command (..), Params (..))
 import System.Console.ANSI
 import UI (ProblemsLog (..), printDivider, printDividerStderr, printErr, printSuccess, printTitle, printWarning, putStderrLn)
 
-data CLILog :: Effect where
-    LogTitle :: Params -> CLILog m ()
-    LogModification :: AbsPath -> CLILog m ()
-    LogFixSummary :: CLILog m ()
-    LogProblems :: [Problem] -> CLILog m ()
-    LogNoProblemsFound :: CLILog m ()
-    LogBaselineSaved :: Int -> CLILog m ()
-    LogError :: String -> CLILog m ()
-    LogWarning :: Text -> CLILog m ()
-    LogText :: Text -> CLILog m ()
-    ReadLine :: CLILog m Text
+data CLI :: Effect where
+    LogTitle :: Params -> CLI m ()
+    LogModification :: AbsPath -> CLI m ()
+    LogFixSummary :: CLI m ()
+    LogProblems :: [Problem] -> CLI m ()
+    LogNoProblemsFound :: CLI m ()
+    LogBaselineSaved :: Int -> CLI m ()
+    LogError :: String -> CLI m ()
+    LogWarning :: Text -> CLI m ()
+    LogText :: Text -> CLI m ()
+    ReadLine :: CLI m Text
 
-type instance DispatchOf CLILog = 'Dynamic
+type instance DispatchOf CLI = 'Dynamic
 
-logTitle :: (CLILog :> es) => Params -> Eff es ()
+logTitle :: (CLI :> es) => Params -> Eff es ()
 logTitle = send . LogTitle
 
-logModification :: (CLILog :> es) => AbsPath -> Eff es ()
+logModification :: (CLI :> es) => AbsPath -> Eff es ()
 logModification = send . LogModification
 
-logFixSummary :: (CLILog :> es) => Eff es ()
+logFixSummary :: (CLI :> es) => Eff es ()
 logFixSummary = send LogFixSummary
 
-logProblems :: (CLILog :> es) => [Problem] -> Eff es ()
+logProblems :: (CLI :> es) => [Problem] -> Eff es ()
 logProblems = send . LogProblems
 
-logNoProblemsFound :: (CLILog :> es) => Eff es ()
+logNoProblemsFound :: (CLI :> es) => Eff es ()
 logNoProblemsFound = send LogNoProblemsFound
 
-logBaselineSaved :: (CLILog :> es) => Int -> Eff es ()
+logBaselineSaved :: (CLI :> es) => Int -> Eff es ()
 logBaselineSaved = send . LogBaselineSaved
 
-logError :: (CLILog :> es) => String -> Eff es ()
+logError :: (CLI :> es) => String -> Eff es ()
 logError = send . LogError
 
-logWarning :: (CLILog :> es) => Text -> Eff es ()
+logWarning :: (CLI :> es) => Text -> Eff es ()
 logWarning = send . LogWarning
 
-logText :: (CLILog :> es) => Text -> Eff es ()
+logText :: (CLI :> es) => Text -> Eff es ()
 logText = send . LogText
 
-cliReadLine :: (CLILog :> es) => Eff es Text
+cliReadLine :: (CLI :> es) => Eff es Text
 cliReadLine = send ReadLine
 
-runCLILog :: (IOE :> es) => Eff (CLILog : es) a -> Eff es a
-runCLILog action = do
+runCLI :: (IOE :> es) => Eff (CLI : es) a -> Eff es a
+runCLI action = do
     counterVar <- liftIO $ newTVarIO (0 :: Int)
 
     action

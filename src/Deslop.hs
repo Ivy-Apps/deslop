@@ -20,7 +20,7 @@ import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Reader.Static (Reader, asks, runReader)
 import Effects.AI (AI, runAI)
-import Effects.CLILog (CLILog, logBaselineSaved, logError, logFixSummary, logModification, logNoProblemsFound, logProblems, logTitle, runCLILog)
+import Effects.CLI (CLI, logBaselineSaved, logError, logFixSummary, logModification, logNoProblemsFound, logProblems, logTitle, runCLI)
 import Effects.FileSystem (
     AbsPath (osPath),
     RoFileSystem,
@@ -58,7 +58,7 @@ runDeslop paramsDto = do
         res <-
             runEff
                 . runFileSystemIO
-                . runCLILog
+                . runCLI
                 . runGit
                 . runAI secrets
                 . runConcurrent
@@ -81,7 +81,7 @@ doWork ::
     ( WrFileSystem :> es
     , RoFileSystem :> es
     , Git :> es
-    , CLILog :> es
+    , CLI :> es
     , IOE :> es
     , AI :> es
     , Concurrent :> es
@@ -118,7 +118,7 @@ deslopProject ::
     , RoFileSystem :> es
     , Git :> es
     , Error DeslopError :> es
-    , CLILog :> es
+    , CLI :> es
     , ReportProblem :> es
     , Concurrent :> es
     ) =>
@@ -156,7 +156,7 @@ deslopFile ::
     , Reader TsConfig :> es
     , Reader Params :> es
     , Reader Baseline :> es
-    , CLILog :> es
+    , CLI :> es
     , ReportProblem :> es
     ) =>
     AbsPath ->

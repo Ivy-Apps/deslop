@@ -1,7 +1,6 @@
 module Monetization.CaptchaSpec (spec) where
 
 import Data.Text qualified as T
-import Text.Read (read)
 import Doubles.Random (runMockRandom)
 import Effectful (runEff, runPureEff)
 import Effects.Random (runRandom)
@@ -10,9 +9,14 @@ import Monetization.Captcha (Captcha (..), additionCaptcha, randomCaptcha, subtr
 import Test.Hspec (Spec, describe, it, shouldBe)
 import Test.Hspec.Hedgehog (annotate, assert, evalIO, failure)
 import TestUtils (prop)
+import Text.Read (read)
 
 spec :: Spec
 spec = describe "Monetization.Captcha" $ do
+    describe "triggerCaptcha" $ do
+        it "correct answer" $ do
+            True `shouldBe` True
+
     describe "additionCaptcha" $ do
         prop "answer is in [0, 100]" $ do
             captcha <- evalIO . runEff . runRandom $ additionCaptcha

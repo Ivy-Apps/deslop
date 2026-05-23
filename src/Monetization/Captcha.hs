@@ -9,7 +9,7 @@ module Monetization.Captcha (
 import Data.List ((!!))
 import Effectful
 import Effectful.Error.Static (Error, throwError)
-import Effects.CLILog (CLILog, cliReadLine, logText)
+import Effects.CLI (CLI, cliReadLine, logText)
 import Effects.Random (Random, rGenRandomInt)
 import Types (DeslopError (CaptchaError))
 
@@ -21,7 +21,7 @@ data Captcha = Captcha
 
 triggerCaptcha ::
     ( Random :> es
-    , CLILog :> es
+    , CLI :> es
     , Error DeslopError :> es
     ) =>
     Eff es ()

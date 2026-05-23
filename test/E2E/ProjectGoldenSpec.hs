@@ -13,7 +13,7 @@ import Params (Command (..), Params (..))
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesPath, pathSafeGolden, requireJust, runAIAlwaysFail, runCLILogTest, runGitTest, snapshot, testSecrets)
+import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesPath, pathSafeGolden, requireJust, runAIAlwaysFail, runCLITest, runGitTest, snapshot, testSecrets)
 import Types (DeslopError (CheckModeFoundProblems))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -83,7 +83,7 @@ spec = describe "E2E.ProjectGolden" $ do
                 . runMockWrFileSystem filesRef
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
-                . runCLILogTest logsRef
+                . runCLITest logsRef
                 . runGitTest []
                 . runReportProblem
                 . runAIAlwaysFail
@@ -113,7 +113,7 @@ spec = describe "E2E.ProjectGolden" $ do
                 . runMockWrFileSystem filesRef
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
-                . runCLILogTest logsRef
+                . runCLITest logsRef
                 . runGitTest []
                 . runReportProblem
                 . runAIAlwaysFail
@@ -139,7 +139,7 @@ spec = describe "E2E.ProjectGolden" $ do
                 runEff
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
-                    . runCLILogTest logsRef
+                    . runCLITest logsRef
                     . runGitTest []
                     . runReportProblem
                     . runConcurrent
