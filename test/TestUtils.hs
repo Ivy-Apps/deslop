@@ -30,6 +30,7 @@ module TestUtils (
     mkExistsModuleDto,
     rulebookDto,
     ruleDto,
+    prop,
 ) where
 
 import Control.Exception (throwIO)
@@ -47,13 +48,15 @@ import Effects.AI
 import Effects.CLILog
 import Effects.FileSystem (AbsPath (osPath), RelativePath, absPathUnsafe, encodeOsPath, encodeOsPathString, fsMkAbsolute, relativePathUnsafe, runFileSystemIO)
 import Effects.Git
+import Hedgehog (PropertyT)
 import Params
 import Secrets (GeminiApiKey (..), Secrets (..))
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeExtension, (</>))
-import Test.Hspec (expectationFailure)
+import Test.Hspec (Spec, expectationFailure, it)
 import Test.Hspec.Golden (Golden, defaultGolden)
+import Test.Hspec.Hedgehog (hedgehog)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (Renderable (render))
@@ -233,3 +236,6 @@ ruleDto =
         , fix = ""
         , example = Nothing
         }
+
+prop :: String -> PropertyT IO () -> Spec
+prop desc = it desc . hedgehog
