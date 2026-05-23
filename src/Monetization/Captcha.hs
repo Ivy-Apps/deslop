@@ -43,7 +43,7 @@ randomCaptcha = do
 additionCaptcha :: (Random :> es) => Eff es Captcha
 additionCaptcha = do
     a <- rGenRandomInt (0, 99)
-    b <- rGenRandomInt (0, (100 - a))
+    b <- rGenRandomInt (0, 100 - a)
     pure
         Captcha
             { challenge = show a <> "+" <> show b <> "=?"

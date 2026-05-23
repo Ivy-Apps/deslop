@@ -110,5 +110,5 @@ runCLI action = do
                 LogError e -> liftIO . printErr . T.pack $ e
                 LogWarning t -> liftIO . printWarning . T.unpack $ t
                 LogText t -> liftIO . putStrLn . T.unpack $ t
-                ReadLine -> liftIO $ getLine
+                ReadLine -> liftIO getLine
             )
