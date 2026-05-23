@@ -1,21 +1,39 @@
 module Monetization.CaptchaSpec (spec) where
 
 import Data.Text qualified as T
+import Doubles.CLI (MockCLI (readLines), defaultMockCLI, runMockCLI)
 import Doubles.Random (runMockRandom)
 import Effectful (runEff, runPureEff)
+import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.Random (runRandom)
 import Hedgehog ((===))
-import Monetization.Captcha (Captcha (..), additionCaptcha, randomCaptcha, subtractionCaptcha)
+import Monetization.Captcha (Captcha (..), additionCaptcha, randomCaptcha, subtractionCaptcha, triggerCaptcha)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import Test.Hspec.Hedgehog (annotate, assert, evalIO, failure)
 import TestUtils (prop)
 import Text.Read (read)
+import Types (DeslopError (CaptchaError))
 
 spec :: Spec
 spec = describe "Monetization.Captcha" $ do
     describe "triggerCaptcha" $ do
         it "correct answer" $ do
-            True `shouldBe` True
+            res <-
+                runEff
+                    . runMockRandom [0, 2, 2]
+                    . runMockCLI defaultMockCLI {readLines = ["4"]}
+                    . runErrorNoCallStack @DeslopError
+                    $ triggerCaptcha
+            res `shouldBe` Right ()
+
+        it "incorrect answer" $ do
+            res <-
+                runEff
+                    . runMockRandom [0, 2, 2]
+                    . runMockCLI defaultMockCLI {readLines = ["7"]}
+                    . runErrorNoCallStack @DeslopError
+                    $ triggerCaptcha
+            res `shouldBe` Left CaptchaError
 
     describe "additionCaptcha" $ do
         prop "answer is in [0, 100]" $ do

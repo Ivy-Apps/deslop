@@ -1,14 +1,14 @@
 module Doubles.CLI (
-  MockCLI (..),
-  TestLogs (..),
-  runMockCLI,
-  defaultMockCLI,
+    MockCLI (..),
+    TestLogs (..),
+    runMockCLI,
+    defaultMockCLI,
 ) where
 
-import Effects.CLI (CLI (..))
 import Effectful (Eff, IOE, (:>))
 import Effectful.Dispatch.Dynamic (reinterpret)
 import Effectful.State.Static.Local qualified as State
+import Effects.CLI (CLI (..))
 import UI (problemsLogText)
 
 data MockCLI = MockCLI
@@ -17,11 +17,11 @@ data MockCLI = MockCLI
     }
 
 defaultMockCLI :: MockCLI
-defaultMockCLI = 
-    MockCLI {
-      readLines = [],
-      problemsRef = Nothing
-    }
+defaultMockCLI =
+    MockCLI
+        { readLines = []
+        , problemsRef = Nothing
+        }
 
 newtype TestLogs = TestLogs
     { problems :: Text
@@ -29,8 +29,15 @@ newtype TestLogs = TestLogs
     deriving (Show, Eq)
 
 runMockCLI :: (IOE :> es) => MockCLI -> Eff (CLI : es) a -> Eff es a
-runMockCLI mock = reinterpret (State.evalState mock.readLines) $ \_ -> \case 
-    ReadLine -> pure ""
+runMockCLI mock = reinterpret (State.evalState mock.readLines) $ \_ -> \case
+    ReadLine -> do
+        remaining <- State.get @[Text]
+        case remaining of
+            [] ->
+                error "runMockCLI: no more mocked readLine values were provided"
+            (x : xs) -> do
+                State.put @[Text] xs
+                pure x
     LogTitle _ -> pure ()
     LogModification _ -> pure ()
     LogFixSummary -> pure ()
