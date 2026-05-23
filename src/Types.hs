@@ -17,4 +17,5 @@ data DeslopError
     | CheckModeFoundProblems
     | RulebookErorr Text
     | InvalidRuleConfig Text
+    | CaptchaError
     deriving (Show, Eq)

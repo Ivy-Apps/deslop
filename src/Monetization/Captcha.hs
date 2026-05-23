@@ -3,17 +3,36 @@ module Monetization.Captcha (
     additionCaptcha,
     subtractionCaptcha,
     randomCaptcha,
+    triggerCaptcha,
 ) where
 
 import Data.List ((!!))
 import Effectful
+import Effectful.Error.Static (Error, throwError)
+import Effects.CLILog (CLILog, cliReadLine, logText)
 import Effects.Random (Random, rGenRandomInt)
+import Types (DeslopError (CaptchaError))
 
 data Captcha = Captcha
     { challenge :: Text
     , answer :: Text
     }
     deriving stock (Show, Eq)
+
+triggerCaptcha ::
+    ( Random :> es
+    , CLILog :> es
+    , Error DeslopError :> es
+    ) =>
+    Eff es ()
+triggerCaptcha = do
+    captcha <- randomCaptcha
+    logText $ "[CAPTCHA] Solve: " <> captcha.challenge
+    logText "Type answer:"
+    answer <- cliReadLine
+    if answer /= captcha.answer
+        then throwError CaptchaError
+        else logText "Correct."
 
 randomCaptcha :: (Random :> es) => Eff es Captcha
 randomCaptcha = do

@@ -7,6 +7,9 @@ module Effects.CLILog (
     logNoProblemsFound,
     logBaselineSaved,
     logError,
+    logWarning,
+    logText,
+    cliReadLine,
     runCLILog,
 ) where
 
@@ -20,7 +23,7 @@ import Effects.FileSystem (AbsPath (..), decodeOsPath)
 import Fmt (fmt, pretty, (+|), (|+))
 import Params (Command (..), Params (..))
 import System.Console.ANSI
-import UI (ProblemsLog (..), printDivider, printDividerStderr, printErr, printSuccess, printTitle, putStderrLn)
+import UI (ProblemsLog (..), printDivider, printDividerStderr, printErr, printSuccess, printTitle, printWarning, putStderrLn)
 
 data CLILog :: Effect where
     LogTitle :: Params -> CLILog m ()
@@ -30,6 +33,9 @@ data CLILog :: Effect where
     LogNoProblemsFound :: CLILog m ()
     LogBaselineSaved :: Int -> CLILog m ()
     LogError :: String -> CLILog m ()
+    LogWarning :: Text -> CLILog m ()
+    LogText :: Text -> CLILog m ()
+    ReadLine :: CLILog m Text
 
 type instance DispatchOf CLILog = 'Dynamic
 
@@ -53,6 +59,15 @@ logBaselineSaved = send . LogBaselineSaved
 
 logError :: (CLILog :> es) => String -> Eff es ()
 logError = send . LogError
+
+logWarning :: (CLILog :> es) => Text -> Eff es ()
+logWarning = send . LogWarning
+
+logText :: (CLILog :> es) => Text -> Eff es ()
+logText = send . LogText
+
+cliReadLine :: (CLILog :> es) => Eff es Text
+cliReadLine = send ReadLine
 
 runCLILog :: (IOE :> es) => Eff (CLILog : es) a -> Eff es a
 runCLILog action = do
@@ -93,4 +108,7 @@ runCLILog action = do
                     liftIO . printSuccess $
                         "Baseline generated with " <> T.pack (show n) <> " problem(s)."
                 LogError e -> liftIO . printErr . T.pack $ e
+                LogWarning t -> liftIO . printWarning . T.unpack $ t
+                LogText t -> liftIO . putStrLn . T.unpack $ t
+                ReadLine -> liftIO $ getLine
             )
