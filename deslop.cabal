@@ -64,7 +64,7 @@ library
     Effects.CLI
     Effects.FileSystem
     Effects.Git
-    Effects.Licensing
+    Effects.Polar
     Effects.Random
     Effects.ReportProblem
     Effects.System
@@ -147,6 +147,7 @@ test-suite deslop-test
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
+    Effects.PolarSpec
     Effects.RandomSpec
     Effects.ReportProblemSpec
     Monetization.CaptchaSpec

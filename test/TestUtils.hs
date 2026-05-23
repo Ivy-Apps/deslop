@@ -29,6 +29,7 @@ module TestUtils (
     rulebookDto,
     ruleDto,
     prop,
+    requireEnvVar,
 ) where
 
 import Control.Exception (throwIO)
@@ -219,3 +220,8 @@ ruleDto =
 
 prop :: String -> PropertyT IO () -> Spec
 prop desc = it desc . hedgehog
+
+requireEnvVar :: String -> IO Text
+requireEnvVar key =
+    lookupEnv key
+        >>= fmap T.pack . requireJust ("Test setup: Missing '" <> key <> "' env var.")
