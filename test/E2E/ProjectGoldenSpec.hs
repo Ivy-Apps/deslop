@@ -3,6 +3,7 @@ module E2E.ProjectGoldenSpec (spec) where
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Deslop (doWork)
+import Doubles.CLI (MockCLI (problemsRef), TestLogs (..), defaultMockCLI, runMockCLI)
 import Doubles.FileSystem (runMockWrFileSystem)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
@@ -13,7 +14,7 @@ import Params (Command (..), Params (..))
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (TestLogs (..), copyDir, defaultParams, fixturesPath, pathSafeGolden, requireJust, runAIAlwaysFail, runCLILogTest, runGitTest, snapshot, testSecrets)
+import TestUtils (copyDir, defaultParams, fixturesPath, pathSafeGolden, requireJust, runAIAlwaysFail, runGitTest, snapshot, testSecrets)
 import Types (DeslopError (CheckModeFoundProblems))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -83,7 +84,7 @@ spec = describe "E2E.ProjectGolden" $ do
                 . runMockWrFileSystem filesRef
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
-                . runCLILogTest logsRef
+                . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
                 . runGitTest []
                 . runReportProblem
                 . runAIAlwaysFail
@@ -113,7 +114,7 @@ spec = describe "E2E.ProjectGolden" $ do
                 . runMockWrFileSystem filesRef
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
-                . runCLILogTest logsRef
+                . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
                 . runGitTest []
                 . runReportProblem
                 . runAIAlwaysFail
@@ -139,7 +140,7 @@ spec = describe "E2E.ProjectGolden" $ do
                 runEff
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
-                    . runCLILogTest logsRef
+                    . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
                     . runGitTest []
                     . runReportProblem
                     . runConcurrent

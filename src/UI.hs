@@ -100,3 +100,5 @@ humanReadable (RulebookErorr msg) =
     "Could not load Rulebook: " <> msg
 humanReadable (InvalidRuleConfig msg) =
     "Invalid rule configuration: " <> msg
+humanReadable CaptchaError =
+    "Incorrect answer. Purchase a Deslop license at https://deslop.dev"

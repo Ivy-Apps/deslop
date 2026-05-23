@@ -1,6 +1,5 @@
 module TestUtils (
     snapshot,
-    runCLILogTest,
     runGitTest,
     runAITest,
     runAIAlwaysFail,
@@ -10,7 +9,6 @@ module TestUtils (
     listFixtures,
     fixturesPath,
     renderGolden,
-    TestLogs (..),
     testSecrets,
     defaultTsConfig,
     emptyTsConfig,
@@ -30,6 +28,7 @@ module TestUtils (
     mkExistsModuleDto,
     rulebookDto,
     ruleDto,
+    prop,
 ) where
 
 import Control.Exception (throwIO)
@@ -44,38 +43,22 @@ import Deslop.Rulebook (AllowsDto (AllowsImportDto), ExistsDto (ExistsModuleDto)
 import Effectful
 import Effectful.Dispatch.Dynamic
 import Effects.AI
-import Effects.CLILog
 import Effects.FileSystem (AbsPath (osPath), RelativePath, absPathUnsafe, encodeOsPath, encodeOsPathString, fsMkAbsolute, relativePathUnsafe, runFileSystemIO)
 import Effects.Git
+import Hedgehog (PropertyT)
 import Params
 import Secrets (GeminiApiKey (..), Secrets (..))
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeExtension, (</>))
-import Test.Hspec (expectationFailure)
+import Test.Hspec (Spec, expectationFailure, it)
 import Test.Hspec.Golden (Golden, defaultGolden)
+import Test.Hspec.Hedgehog (hedgehog)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (Renderable (render))
-import UI (problemsLogText)
 
 type ModifiedFiles = [OsPath]
-
-newtype TestLogs = TestLogs
-    { problems :: Text
-    }
-    deriving (Show, Eq)
-
-runCLILogTest :: (IOE :> es) => IORef (Maybe TestLogs) -> Eff (CLILog : es) a -> Eff es a
-runCLILogTest ref = interpret $ \_ -> \case
-    LogTitle _ -> pure ()
-    LogModification _ -> pure ()
-    LogFixSummary -> pure ()
-    LogProblems ps ->
-        liftIO $ writeIORef ref (Just . TestLogs . problemsLogText $ ps)
-    LogNoProblemsFound -> pure ()
-    LogBaselineSaved _ -> pure ()
-    LogError _ -> pure ()
 
 defaultParams :: OsPath -> IO Params
 defaultParams projPath = do
@@ -233,3 +216,6 @@ ruleDto =
         , fix = ""
         , example = Nothing
         }
+
+prop :: String -> PropertyT IO () -> Spec
+prop desc = it desc . hedgehog

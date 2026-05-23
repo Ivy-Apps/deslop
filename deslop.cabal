@@ -61,12 +61,14 @@ library
     Deslop.RuleEnforcer
     Deslop.RuleExplainer
     Effects.AI
-    Effects.CLILog
+    Effects.CLI
     Effects.FileSystem
     Effects.Git
     Effects.Licensing
+    Effects.Random
     Effects.ReportProblem
     Effects.System
+    Monetization.Captcha
     Monetization.CIDetection
     Params
     Prelude
@@ -105,6 +107,7 @@ library
     , ordered-containers
     , os-string
     , process
+    , random
     , regex-tdfa
     , req
     , stm
@@ -137,12 +140,16 @@ test-suite deslop-test
     Deslop.RelativeImportSpec
     Deslop.RulebookSpec
     Deslop.RuleEnforcerSpec
+    Doubles.CLI
     Doubles.FileSystem
+    Doubles.Random
     Doubles.System
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
+    Effects.RandomSpec
     Effects.ReportProblemSpec
+    Monetization.CaptchaSpec
     Monetization.CIDetectionSpec
     ParamsSpec
     SecretsSpec
