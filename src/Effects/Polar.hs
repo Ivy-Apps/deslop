@@ -11,7 +11,7 @@ import Control.Exception (try)
 import Data.Aeson (ToJSON)
 import Effectful (Dispatch (..), DispatchOf, Eff, Effect, IOE, (:>))
 import Effectful.Dispatch.Dynamic (interpret, send)
-import Network.HTTP.Req (HttpException (..), POST (POST), ReqBodyJson (ReqBodyJson), Scheme (Https), Url, defaultHttpConfig, https, ignoreResponse, isStatusCodeException, req, runReq, (/:))
+import Network.HTTP.Req (HttpConfig (..), HttpException (..), POST (POST), ReqBodyJson (ReqBodyJson), Scheme (Https), Url, defaultHttpConfig, https, ignoreResponse, req, responseStatusCode, runReq, (/:))
 
 ivyAppsOrgId :: PolarOrgId
 ivyAppsOrgId = PolarOrgId "6eef59dc-00eb-4cf9-ba5d-1668063772d7"
@@ -59,14 +59,14 @@ sendCheckLincenseReq (LicenseKey key) = do
                 , organization_id = orgId
                 , increment_usage = 1
                 }
+    let customConfig = defaultHttpConfig {httpConfigCheckResponse = \_ _ _ -> Nothing}
     res <-
-        try @HttpException . runReq defaultHttpConfig $
+        try @HttpException . runReq customConfig $
             req POST url (ReqBodyJson body) ignoreResponse mempty
     case res of
-        Right _ -> pure $ Right ()
-        Left e ->
-            pure . Left $ case isStatusCodeException e of
-                Just 404 -> InvalidKeyError
-                Just 400 -> UsageExceededError
-                _ -> GenericError
+        Right response -> pure $ case responseStatusCode response of
+            200 -> Right ()
+            404 -> Left InvalidKeyError
+            400 -> Left UsageExceededError
+            _ -> Left GenericError
         Left _ -> pure $ Left GenericError
