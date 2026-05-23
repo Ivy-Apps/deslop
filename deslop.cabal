@@ -64,7 +64,7 @@ library
     Effects.CLI
     Effects.FileSystem
     Effects.Git
-    Effects.Licensing
+    Effects.Polar
     Effects.Random
     Effects.ReportProblem
     Effects.System
