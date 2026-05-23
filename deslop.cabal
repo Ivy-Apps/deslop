@@ -147,6 +147,7 @@ test-suite deslop-test
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
+    Effects.PolarSpec
     Effects.RandomSpec
     Effects.ReportProblemSpec
     Monetization.CaptchaSpec

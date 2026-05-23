@@ -22,8 +22,9 @@ baseUrl = https "api.polar.sh" /: "v1"
 newtype LicenseKey = LicenseKey Text deriving stock (Show, Eq)
 newtype PolarOrgId = PolarOrgId Text deriving stock (Show, Eq)
 data LicenseError
-    = InvalidKeyError
+    = InvalidLicenseError
     | UsageExceededError
+    | RateLimitError
     | GenericError
     deriving stock (Show, Eq)
 
@@ -66,7 +67,8 @@ sendCheckLincenseReq (LicenseKey key) = do
     case res of
         Right response -> pure $ case responseStatusCode response of
             200 -> Right ()
-            404 -> Left InvalidKeyError
+            404 -> Left InvalidLicenseError
             400 -> Left UsageExceededError
+            429 -> Left RateLimitError
             _ -> Left GenericError
         Left _ -> pure $ Left GenericError
