@@ -91,7 +91,7 @@ spec = describe "E2E.Project" $ do
                             }
                     . runMockPolar
                         defaultMockPolar
-                            { checkLicense = \case
+                            { mockCheckLicense = \case
                                 LicenseKey "valid" -> Right ()
                                 _ -> error "Invalid Polar test input"
                             }
@@ -112,7 +112,7 @@ spec = describe "E2E.Project" $ do
                             }
                     . runMockPolar
                         defaultMockPolar
-                            { checkLicense = \case
+                            { mockCheckLicense = \case
                                 LicenseKey "invalid" -> Left Polar.InvalidLicenseError
                                 _ -> error "Invalid Polar test input"
                             }
@@ -133,7 +133,7 @@ spec = describe "E2E.Project" $ do
                             }
                     . runMockPolar
                         MockPolar
-                            { checkLicense = \case
+                            { mockCheckLicense = \case
                                 LicenseKey "valid" -> Right ()
                                 _ -> error "Invalid Polar test input"
                             }
@@ -154,7 +154,7 @@ spec = describe "E2E.Project" $ do
                             }
                     . runMockPolar
                         MockPolar
-                            { checkLicense = \case
+                            { mockCheckLicense = \case
                                 LicenseKey "invalid" -> Left Polar.InvalidLicenseError
                                 _ -> error "Invalid Polar test input"
                             }
@@ -175,7 +175,7 @@ spec = describe "E2E.Project" $ do
                             }
                     . runMockPolar
                         MockPolar
-                            { checkLicense = \case
+                            { mockCheckLicense = \case
                                 LicenseKey "invalid" -> Left Polar.InvalidLicenseError
                                 _ -> error "Invalid Polar test input"
                             }
