@@ -9,7 +9,7 @@ import Effectful.Dispatch.Dynamic (interpret)
 import Effects.System (System (..))
 
 data MockSystem es = MockSystem
-    { mockLookupEnv :: String -> Eff es (Maybe String)
+    { mockLookupEnv :: Text -> Eff es (Maybe Text)
     , mockIsTerminal :: Eff es Bool
     }
 
