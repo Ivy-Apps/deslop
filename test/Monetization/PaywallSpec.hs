@@ -1,7 +1,7 @@
 module Monetization.PaywallSpec (spec) where
 
 import Doubles.CLI (MockCLI (..), defaultMockCLI, runMockCLI)
-import Doubles.Polar (MockPolar (..), runMockPolar)
+import Doubles.Polar (MockPolar (..), defaultMockPolar, runMockPolar)
 import Doubles.Random (runMockRandom)
 import Doubles.System (MockSystem (..), defaultMockSystem, runMockSystem)
 import Effectful (runEff)
@@ -19,7 +19,7 @@ spec = describe "Monetization.Paywall" $ do
             res <-
                 runEff
                     . runMockSystem defaultMockSystem {mockIsTerminal = True}
-                    . runMockPolar MockPolar {checkLicense = error "Polar must not be called"}
+                    . runMockPolar defaultMockPolar
                     . runMockCLI defaultMockCLI
                     . runErrorNoCallStack @DeslopError
                     . runMockRandom []
@@ -36,7 +36,7 @@ spec = describe "Monetization.Paywall" $ do
                                 "DESLOP_LICENSE_KEY" -> Just "license"
                                 _ -> Nothing
                             }
-                    . runMockPolar MockPolar {checkLicense = error "Polar must not be called"}
+                    . runMockPolar defaultMockPolar
                     . runMockCLI defaultMockCLI
                     . runErrorNoCallStack @DeslopError
                     . runMockRandom []
@@ -55,7 +55,7 @@ spec = describe "Monetization.Paywall" $ do
                                 "CI" -> Just "true" -- Detect CI
                                 _ -> Nothing
                             }
-                    . runMockPolar MockPolar {checkLicense = error "Polar must not be called"}
+                    . runMockPolar defaultMockPolar
                     . runMockCLI defaultMockCLI
                     . runErrorNoCallStack @DeslopError
                     . runMockRandom []
@@ -74,8 +74,8 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 LicenseKey "valid" -> Right ()
                                 _ -> Left InvalidLicenseError
                             }
@@ -97,8 +97,8 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 LicenseKey "invalid" -> Left InvalidLicenseError
                                 _ -> error "unexpected polar input"
                             }
@@ -120,8 +120,8 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 _ -> Left RateLimitError
                             }
                     . runMockCLI defaultMockCLI
@@ -142,8 +142,8 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 _ -> Left UsageExceededError
                             }
                     . runMockCLI defaultMockCLI
@@ -164,8 +164,8 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 _ -> Left GenericError
                             }
                     . runMockCLI defaultMockCLI
@@ -185,9 +185,8 @@ spec = describe "Monetization.Paywall" $ do
                                 "DESLOP_LICENSE_KEY" -> Nothing
                                 _ -> Nothing
                             }
-                    . runMockPolar
-                        MockPolar {checkLicense = error "Polar must not be called"}
-                    . runMockCLI defaultMockCLI {readLines = ["incorrect"]}
+                    . runMockPolar defaultMockPolar
+                    . runMockCLI defaultMockCLI {mockReadLines = ["incorrect"]}
                     . runErrorNoCallStack @DeslopError
                     . runMockRandom [0, 2, 2]
                     $ paywallCheck
@@ -204,12 +203,12 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 LicenseKey "valid" -> Right ()
                                 _ -> Left InvalidLicenseError
                             }
-                    . runMockCLI defaultMockCLI {readLines = ["incorrect"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["incorrect"]}
                     . runErrorNoCallStack @DeslopError
                     . runMockRandom [0, 2, 2]
                     $ paywallCheck
@@ -226,12 +225,12 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 LicenseKey "invalid" -> Left InvalidLicenseError
                                 _ -> error "Unexpected Polar test input"
                             }
-                    . runMockCLI defaultMockCLI {readLines = ["incorrect"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["incorrect"]}
                     . runErrorNoCallStack @DeslopError
                     . runMockRandom [0, 2, 2]
                     $ paywallCheck
@@ -248,12 +247,12 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 LicenseKey "license" -> Left RateLimitError
                                 _ -> error "Unexpected Polar test input"
                             }
-                    . runMockCLI defaultMockCLI {readLines = ["incorrect"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["incorrect"]}
                     . runErrorNoCallStack @DeslopError
                     . runMockRandom [0, 2, 2]
                     $ paywallCheck
@@ -270,12 +269,12 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 LicenseKey "license" -> Left UsageExceededError
                                 _ -> error "Unexpected Polar test input"
                             }
-                    . runMockCLI defaultMockCLI {readLines = ["incorrect"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["incorrect"]}
                     . runErrorNoCallStack @DeslopError
                     . runMockRandom [0, 2, 2]
                     $ paywallCheck
@@ -292,12 +291,12 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 LicenseKey "license" -> Left GenericError
                                 _ -> error "Unexpected Polar test input"
                             }
-                    . runMockCLI defaultMockCLI {readLines = ["incorrect"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["incorrect"]}
                     . runErrorNoCallStack @DeslopError
                     . runMockRandom [0, 2, 2]
                     $ paywallCheck
@@ -314,11 +313,11 @@ spec = describe "Monetization.Paywall" $ do
                                 _ -> Nothing
                             }
                     . runMockPolar
-                        MockPolar
-                            { checkLicense = \case
+                        defaultMockPolar
+                            { mockCheckLicense = \case
                                 _ -> error "Polar must not be called"
                             }
-                    . runMockCLI defaultMockCLI {readLines = ["4"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["4"]}
                     . runErrorNoCallStack @DeslopError
                     . runMockRandom [0, 2, 2]
                     $ paywallCheck

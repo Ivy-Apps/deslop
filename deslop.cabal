@@ -60,10 +60,8 @@ library
     Deslop.Rulebook
     Deslop.RuleEnforcer
     Deslop.RuleExplainer
-    Effects.AI
     Effects.CLI
     Effects.FileSystem
-    Effects.Git
     Effects.Polar
     Effects.Random
     Effects.ReportProblem
@@ -73,7 +71,6 @@ library
     Monetization.Paywall
     Params
     Prelude
-    Secrets
     Types
     TypeScript.Config
     TypeScript.CST
@@ -156,7 +153,6 @@ test-suite deslop-test
     Monetization.CIDetectionSpec
     Monetization.PaywallSpec
     ParamsSpec
-    SecretsSpec
     TestUtils
     TypeScript.ConfigSpec
     TypeScript.IteratorSpec

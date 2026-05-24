@@ -22,7 +22,7 @@ import Params (Command (..), Params (..))
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (copyDir, defaultParams, fixturesPath, pathSafeGolden, requireJust, runAIAlwaysFail, runGitTest, snapshot, testSecrets)
+import TestUtils (copyDir, defaultParams, fixturesPath, pathSafeGolden, requireJust, snapshot)
 import Types (DeslopError (..))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -91,7 +91,7 @@ spec = describe "E2E.Project" $ do
                             }
                     . runMockPolar
                         defaultMockPolar
-                            { checkLicense = \case
+                            { mockCheckLicense = \case
                                 LicenseKey "valid" -> Right ()
                                 _ -> error "Invalid Polar test input"
                             }
@@ -112,7 +112,7 @@ spec = describe "E2E.Project" $ do
                             }
                     . runMockPolar
                         defaultMockPolar
-                            { checkLicense = \case
+                            { mockCheckLicense = \case
                                 LicenseKey "invalid" -> Left Polar.InvalidLicenseError
                                 _ -> error "Invalid Polar test input"
                             }
@@ -133,7 +133,7 @@ spec = describe "E2E.Project" $ do
                             }
                     . runMockPolar
                         MockPolar
-                            { checkLicense = \case
+                            { mockCheckLicense = \case
                                 LicenseKey "valid" -> Right ()
                                 _ -> error "Invalid Polar test input"
                             }
@@ -154,12 +154,12 @@ spec = describe "E2E.Project" $ do
                             }
                     . runMockPolar
                         MockPolar
-                            { checkLicense = \case
+                            { mockCheckLicense = \case
                                 LicenseKey "invalid" -> Left Polar.InvalidLicenseError
                                 _ -> error "Invalid Polar test input"
                             }
                     . runMockRandom [0, 2, 2]
-                    . runMockCLI defaultMockCLI {readLines = ["incorrect"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["incorrect"]}
                     $ runPaywallCheckMode
             res `shouldBe` Left CaptchaError
 
@@ -175,12 +175,12 @@ spec = describe "E2E.Project" $ do
                             }
                     . runMockPolar
                         MockPolar
-                            { checkLicense = \case
+                            { mockCheckLicense = \case
                                 LicenseKey "invalid" -> Left Polar.InvalidLicenseError
                                 _ -> error "Invalid Polar test input"
                             }
                     . runMockRandom [0, 2, 2]
-                    . runMockCLI defaultMockCLI {readLines = ["4"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["4"]}
                     $ runPaywallCheckMode
             res `shouldBe` Left CheckModeFoundProblems
   where
@@ -199,14 +199,12 @@ spec = describe "E2E.Project" $ do
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
                 . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
-                . runGitTest []
                 . runReportProblem
-                . runAIAlwaysFail
                 . runConcurrent
                 . runMockSystem defaultMockSystem {mockIsTerminal = True}
                 . runRandom
                 . runMockPolar defaultMockPolar
-                $ doWork params testSecrets
+                $ doWork params
 
         -- Then
         res `shouldBe` Left CheckModeFoundProblems
@@ -232,14 +230,12 @@ spec = describe "E2E.Project" $ do
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
                 . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
-                . runGitTest []
                 . runReportProblem
-                . runAIAlwaysFail
                 . runConcurrent
                 . runMockSystem defaultMockSystem {mockIsTerminal = True}
                 . runRandom
                 . runPolar
-                $ doWork params testSecrets
+                $ doWork params
 
         -- Then
         res `shouldBe` Right ()
@@ -261,14 +257,12 @@ spec = describe "E2E.Project" $ do
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
                     . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
-                    . runGitTest []
                     . runReportProblem
                     . runConcurrent
-                    . runAIAlwaysFail
                     . runMockSystem defaultMockSystem {mockIsTerminal = True}
                     . runRandom
                     . runPolar
-                    $ doWork params testSecrets
+                    $ doWork params
 
             -- Then
             res `shouldBe` Right ()
@@ -296,8 +290,6 @@ spec = describe "E2E.Project" $ do
         runMockWrFileSystem filesRef
             . runRoFileSystemIO
             . runErrorNoCallStack @DeslopError
-            . runGitTest []
             . runReportProblem
-            . runAIAlwaysFail
             . runConcurrent
-            $ doWork params testSecrets
+            $ doWork params

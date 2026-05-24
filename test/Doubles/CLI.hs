@@ -12,14 +12,14 @@ import Effects.CLI (CLI (..))
 import UI (problemsLogText)
 
 data MockCLI = MockCLI
-    { readLines :: [Text]
+    { mockReadLines :: [Text]
     , problemsRef :: Maybe (IORef (Maybe TestLogs))
     }
 
 defaultMockCLI :: MockCLI
 defaultMockCLI =
     MockCLI
-        { readLines = []
+        { mockReadLines = []
         , problemsRef = Nothing
         }
 
@@ -29,7 +29,7 @@ newtype TestLogs = TestLogs
     deriving (Show, Eq)
 
 runMockCLI :: (IOE :> es) => MockCLI -> Eff (CLI : es) a -> Eff es a
-runMockCLI mock = reinterpret (State.evalState mock.readLines) $ \_ -> \case
+runMockCLI mock = reinterpret (State.evalState mock.mockReadLines) $ \_ -> \case
     ReadLine -> do
         remaining <- State.get @[Text]
         case remaining of
