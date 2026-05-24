@@ -1,7 +1,7 @@
 module Monetization.CaptchaSpec (spec) where
 
 import Data.Text qualified as T
-import Doubles.CLI (MockCLI (readLines), defaultMockCLI, runMockCLI)
+import Doubles.CLI (MockCLI (..), defaultMockCLI, runMockCLI)
 import Doubles.Random (runMockRandom)
 import Effectful (runEff, runPureEff)
 import Effectful.Error.Static (runErrorNoCallStack)
@@ -21,7 +21,7 @@ spec = describe "Monetization.Captcha" $ do
             res <-
                 runEff
                     . runMockRandom [0, 2, 2]
-                    . runMockCLI defaultMockCLI {readLines = ["4"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["4"]}
                     . runErrorNoCallStack @DeslopError
                     $ triggerCaptcha
             res `shouldBe` Right ()
@@ -30,7 +30,7 @@ spec = describe "Monetization.Captcha" $ do
             res <-
                 runEff
                     . runMockRandom [0, 2, 2]
-                    . runMockCLI defaultMockCLI {readLines = ["7"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["7"]}
                     . runErrorNoCallStack @DeslopError
                     $ triggerCaptcha
             res `shouldBe` Left CaptchaError

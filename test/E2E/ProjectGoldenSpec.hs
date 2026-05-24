@@ -159,7 +159,7 @@ spec = describe "E2E.Project" $ do
                                 _ -> error "Invalid Polar test input"
                             }
                     . runMockRandom [0, 2, 2]
-                    . runMockCLI defaultMockCLI {readLines = ["incorrect"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["incorrect"]}
                     $ runPaywallCheckMode
             res `shouldBe` Left CaptchaError
 
@@ -180,7 +180,7 @@ spec = describe "E2E.Project" $ do
                                 _ -> error "Invalid Polar test input"
                             }
                     . runMockRandom [0, 2, 2]
-                    . runMockCLI defaultMockCLI {readLines = ["4"]}
+                    . runMockCLI defaultMockCLI {mockReadLines = ["4"]}
                     $ runPaywallCheckMode
             res `shouldBe` Left CheckModeFoundProblems
   where
