@@ -42,7 +42,7 @@ detectEnv = fromMaybe MaybeCI <$> firstJustM id heuristics
         isTerminal <- sIsTerminal
         if isTerminal then pure $ Just Terminal else pure Nothing
 
-ciVars :: [String]
+ciVars :: [Text]
 ciVars =
     [ "CI"
     , "GITHUB_ACTIONS"

@@ -3,23 +3,31 @@ module E2E.ProjectGoldenSpec (spec) where
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Deslop (doWork)
-import Doubles.CLI (MockCLI (problemsRef), TestLogs (..), defaultMockCLI, runMockCLI)
+import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, runMockCLI)
 import Doubles.FileSystem (runMockWrFileSystem)
-import Effectful (runEff)
+import Doubles.Polar (MockPolar (..), defaultMockPolar, runMockPolar)
+import Doubles.Random (runMockRandom)
+import Doubles.System (MockSystem (mockIsTerminal, mockLookupEnv), defaultMockSystem, runMockSystem)
+import Effectful (Eff, IOE, runEff, (:>))
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
+import Effects.CLI (CLI)
 import Effects.FileSystem (encodeOsPathString, runFileSystemIO, runRoFileSystemIO)
+import Effects.Polar (LicenseKey (..), Polar, runPolar)
+import Effects.Polar qualified as Polar
+import Effects.Random (Random, runRandom)
 import Effects.ReportProblem (runReportProblem)
+import Effects.System (System)
 import Params (Command (..), Params (..))
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (copyDir, defaultParams, fixturesPath, pathSafeGolden, requireJust, runAIAlwaysFail, runGitTest, snapshot, testSecrets)
-import Types (DeslopError (CheckModeFoundProblems))
+import Types (DeslopError (..))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
-spec = describe "E2E.ProjectGolden" $ do
+spec = describe "E2E.Project" $ do
     itChecks "ts-project-1"
     itChecks "ixartz-next-js-boilerplate"
     itChecks "melzar-nextjs-clean-architecture"
@@ -69,6 +77,112 @@ spec = describe "E2E.ProjectGolden" $ do
         , "src/middleware.ts"
         , "src/app/page.tsx"
         ]
+
+    describe "test paywall" $ do
+        it "on CI with valid license should allow" $ do
+            res <-
+                runEff
+                    . runMockSystem
+                        defaultMockSystem
+                            { mockLookupEnv = \case
+                                "CI" -> Just "true"
+                                "DESLOP_LICENSE_KEY" -> Just "valid"
+                                _ -> Nothing
+                            }
+                    . runMockPolar
+                        defaultMockPolar
+                            { checkLicense = \case
+                                LicenseKey "valid" -> Right ()
+                                _ -> error "Invalid Polar test input"
+                            }
+                    . runMockRandom []
+                    . runMockCLI defaultMockCLI
+                    $ runPaywallCheckMode
+            res `shouldBe` Left CheckModeFoundProblems
+
+        it "on CI with invalid license should block" $ do
+            res <-
+                runEff
+                    . runMockSystem
+                        defaultMockSystem
+                            { mockLookupEnv = \case
+                                "CI" -> Just "true"
+                                "DESLOP_LICENSE_KEY" -> Just "invalid"
+                                _ -> Nothing
+                            }
+                    . runMockPolar
+                        defaultMockPolar
+                            { checkLicense = \case
+                                LicenseKey "invalid" -> Left Polar.InvalidLicenseError
+                                _ -> error "Invalid Polar test input"
+                            }
+                    . runMockRandom []
+                    . runMockCLI defaultMockCLI
+                    $ runPaywallCheckMode
+            res `shouldBe` Left InvalidLicenseError
+
+        it "on MaybeCI with valid license should allow" $ do
+            res <-
+                runEff
+                    . runMockSystem
+                        defaultMockSystem
+                            { mockIsTerminal = False
+                            , mockLookupEnv = \case
+                                "DESLOP_LICENSE_KEY" -> Just "valid"
+                                _ -> Nothing
+                            }
+                    . runMockPolar
+                        MockPolar
+                            { checkLicense = \case
+                                LicenseKey "valid" -> Right ()
+                                _ -> error "Invalid Polar test input"
+                            }
+                    . runMockRandom []
+                    . runMockCLI defaultMockCLI
+                    $ runPaywallCheckMode
+            res `shouldBe` Left CheckModeFoundProblems
+
+        it "on MaybeCI with invalid license should captcha and fail" $ do
+            res <-
+                runEff
+                    . runMockSystem
+                        defaultMockSystem
+                            { mockIsTerminal = False
+                            , mockLookupEnv = \case
+                                "DESLOP_LICENSE_KEY" -> Just "invalid"
+                                _ -> Nothing
+                            }
+                    . runMockPolar
+                        MockPolar
+                            { checkLicense = \case
+                                LicenseKey "invalid" -> Left Polar.InvalidLicenseError
+                                _ -> error "Invalid Polar test input"
+                            }
+                    . runMockRandom [0, 2, 2]
+                    . runMockCLI defaultMockCLI {readLines = ["incorrect"]}
+                    $ runPaywallCheckMode
+            res `shouldBe` Left CaptchaError
+
+        it "on MaybeCI with invalid license should captcha and succeed" $ do
+            res <-
+                runEff
+                    . runMockSystem
+                        defaultMockSystem
+                            { mockIsTerminal = False
+                            , mockLookupEnv = \case
+                                "DESLOP_LICENSE_KEY" -> Just "invalid"
+                                _ -> Nothing
+                            }
+                    . runMockPolar
+                        MockPolar
+                            { checkLicense = \case
+                                LicenseKey "invalid" -> Left Polar.InvalidLicenseError
+                                _ -> error "Invalid Polar test input"
+                            }
+                    . runMockRandom [0, 2, 2]
+                    . runMockCLI defaultMockCLI {readLines = ["4"]}
+                    $ runPaywallCheckMode
+            res `shouldBe` Left CheckModeFoundProblems
   where
     itChecks project = it ("checks " <> project) $ do
         -- Given
@@ -89,6 +203,9 @@ spec = describe "E2E.ProjectGolden" $ do
                 . runReportProblem
                 . runAIAlwaysFail
                 . runConcurrent
+                . runMockSystem defaultMockSystem {mockIsTerminal = True}
+                . runRandom
+                . runMockPolar defaultMockPolar
                 $ doWork params testSecrets
 
         -- Then
@@ -119,6 +236,9 @@ spec = describe "E2E.ProjectGolden" $ do
                 . runReportProblem
                 . runAIAlwaysFail
                 . runConcurrent
+                . runMockSystem defaultMockSystem {mockIsTerminal = True}
+                . runRandom
+                . runPolar
                 $ doWork params testSecrets
 
         -- Then
@@ -145,6 +265,9 @@ spec = describe "E2E.ProjectGolden" $ do
                     . runReportProblem
                     . runConcurrent
                     . runAIAlwaysFail
+                    . runMockSystem defaultMockSystem {mockIsTerminal = True}
+                    . runRandom
+                    . runPolar
                     $ doWork params testSecrets
 
             -- Then
@@ -153,3 +276,28 @@ spec = describe "E2E.ProjectGolden" $ do
             logs `shouldBe` Nothing
             fullSnapshot <- snapshot tmpDir filesToCheck
             return $ defaultGolden ("fix-" <> project) fullSnapshot
+
+    runPaywallCheckMode ::
+        ( IOE :> es
+        , System :> es
+        , Random :> es
+        , Polar :> es
+        , CLI :> es
+        ) =>
+        Eff es (Either DeslopError ())
+    runPaywallCheckMode = do
+        -- Given
+        let projectPath = fixturesPath </> encodeOsPathString "ts-project-1"
+        filesRef <- liftIO $ newIORef Nothing
+        defParams <- liftIO $ defaultParams projectPath
+        let params = defParams {command = CheckC}
+
+        -- When
+        runMockWrFileSystem filesRef
+            . runRoFileSystemIO
+            . runErrorNoCallStack @DeslopError
+            . runGitTest []
+            . runReportProblem
+            . runAIAlwaysFail
+            . runConcurrent
+            $ doWork params testSecrets
