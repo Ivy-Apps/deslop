@@ -8,7 +8,7 @@ import Effectful (Eff)
 import Effectful.Dispatch.Dynamic (interpret)
 import Effects.Polar (LicenseError, LicenseKey, Polar (..))
 
-data MockPolar = MockPolar
+newtype MockPolar = MockPolar
     { mockCheckLicense :: LicenseKey -> Either LicenseError ()
     }
 

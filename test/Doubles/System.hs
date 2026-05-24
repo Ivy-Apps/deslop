@@ -23,4 +23,4 @@ defaultMockSystem =
 runMockSystem :: MockSystem es -> Eff (System : es) a -> Eff es a
 runMockSystem mocks = interpret $ \_env -> \case
     LookupEnv key -> pure $ mocks.mockLookupEnv key
-    IsTerminal -> pure $ mocks.mockIsTerminal
+    IsTerminal -> pure mocks.mockIsTerminal
