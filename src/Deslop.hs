@@ -19,7 +19,6 @@ import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Reader.Static (Reader, asks, runReader)
-import Effects.AI (AI, runAI)
 import Effects.CLI (CLI, logBaselineSaved, logError, logFixSummary, logModification, logNoProblemsFound, logProblems, logTitle, runCLI)
 import Effects.FileSystem (
     AbsPath (osPath),
@@ -31,14 +30,12 @@ import Effects.FileSystem (
     runFileSystemIO,
     withAbsBaseUnsafe,
  )
-import Effects.Git
 import Effects.Polar (Polar, runPolar)
 import Effects.Random (Random, runRandom)
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import Effects.System (System, runSystem)
 import Monetization.Paywall (paywallCheck)
 import Params
-import Secrets (Secrets (..), defaultSecrets, readSecrets)
 import System.OsPath (osp)
 import TypeScript.CST
 import TypeScript.Config (TsConfig, readTsConfig)
@@ -49,48 +46,36 @@ import UI
 
 runDeslop :: ParamsDto -> IO ()
 runDeslop paramsDto = do
-    secretsRes <- runEff . runFileSystemIO $ readSecrets
-    case secretsRes of
-        Right secrets -> do
-            run secrets
-        Left _ -> do
-            run defaultSecrets
-  where
-    run secrets = do
-        start <- getCurrentTime
+    start <- getCurrentTime
 
-        res <-
-            runEff
-                . runFileSystemIO
-                . runCLI
-                . runGit
-                . runAI secrets
-                . runConcurrent
-                . runReportProblem
-                . runErrorNoCallStack @DeslopError
-                . runSystem
-                . runPolar
-                . runRandom
-                $ do
-                    params <- paramsFromDto paramsDto
-                    doWork params secrets
+    res <-
+        runEff
+            . runFileSystemIO
+            . runCLI
+            . runConcurrent
+            . runReportProblem
+            . runErrorNoCallStack @DeslopError
+            . runSystem
+            . runPolar
+            . runRandom
+            $ do
+                params <- paramsFromDto paramsDto
+                doWork params
 
-        end <- liftIO getCurrentTime
-        let diff = diffUTCTime end start
-        let seconds = realToFrac diff :: Double
-        case res of
-            Left err -> do
-                liftIO $ printErr (humanReadable err)
-                exitFailure
-            Right _ -> printTime seconds
+    end <- liftIO getCurrentTime
+    let diff = diffUTCTime end start
+    let seconds = realToFrac diff :: Double
+    case res of
+        Left err -> do
+            liftIO $ printErr (humanReadable err)
+            exitFailure
+        Right _ -> printTime seconds
 
 doWork ::
     ( WrFileSystem :> es
     , RoFileSystem :> es
-    , Git :> es
     , CLI :> es
     , IOE :> es
-    , AI :> es
     , Concurrent :> es
     , ReportProblem :> es
     , Error DeslopError :> es
@@ -99,9 +84,8 @@ doWork ::
     , Random :> es
     ) =>
     Params ->
-    Secrets ->
     Eff es ()
-doWork params _ = do
+doWork params = do
     _ <- paywallCheck
     logTitle params
     case params.command of
@@ -127,7 +111,6 @@ doWork params _ = do
 deslopProject ::
     ( WrFileSystem :> es
     , RoFileSystem :> es
-    , Git :> es
     , Error DeslopError :> es
     , CLI :> es
     , ReportProblem :> es

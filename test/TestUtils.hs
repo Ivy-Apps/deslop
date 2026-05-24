@@ -1,15 +1,11 @@
 module TestUtils (
     snapshot,
-    runGitTest,
-    runAITest,
-    runAIAlwaysFail,
     defaultParams,
     projectFixturePath,
     copyDir,
     listFixtures,
     fixturesPath,
     renderGolden,
-    testSecrets,
     defaultTsConfig,
     emptyTsConfig,
     mkMapping,
@@ -42,13 +38,9 @@ import Deslop.Baseline (Baseline (..))
 import Deslop.Problem (ProblemId (..))
 import Deslop.Rulebook (AllowsDto (AllowsImportDto), ExistsDto (ExistsModuleDto), ForbidsDto (..), GlobDto (GlobDto), RuleDto (..), RuleId (..), RulebookDto (..), UsesDto (UsesImportDto))
 import Effectful
-import Effectful.Dispatch.Dynamic
-import Effects.AI
 import Effects.FileSystem (AbsPath (osPath), RelativePath, absPathUnsafe, encodeOsPath, encodeOsPathString, fsMkAbsolute, relativePathUnsafe, runFileSystemIO)
-import Effects.Git
 import Hedgehog (PropertyT)
 import Params
-import Secrets (GeminiApiKey (..), Secrets (..))
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeExtension, (</>))
@@ -59,8 +51,6 @@ import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsCon
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (Renderable (render))
 
-type ModifiedFiles = [OsPath]
-
 defaultParams :: OsPath -> IO Params
 defaultParams projPath = do
     absProjPath <- mkAbsolute projPath
@@ -69,18 +59,6 @@ defaultParams projPath = do
             { projectPath = absProjPath
             , command = FixC
             }
-
-runGitTest :: ModifiedFiles -> Eff (Git : es) a -> Eff es a
-runGitTest ms = interpret $ \_ -> \case
-    ModifiedFiles -> pure ms
-
-runAITest :: Eff (AI : es) a -> Eff es a
-runAITest = interpret $ \_ -> \case
-    PromptLLM _ p -> pure . Right $ p
-
-runAIAlwaysFail :: Eff (AI : es) a -> Eff es a
-runAIAlwaysFail = interpret $ \_ -> \case
-    PromptLLM _ _ -> pure . Left . GenericError $ "Mocked to fail"
 
 projectFixturePath :: OsPath
 projectFixturePath = [osp|test/fixtures/ts-project-1|]
@@ -126,12 +104,6 @@ pathSafeGolden name content = do
     baseAbsPath <- T.replace "\"" "" . T.pack . show . (.osPath) <$> mkAbsolute [osp|.|]
     let cleanContent = T.replace baseAbsPath "~" (T.pack content)
     pure $ defaultGolden name (T.unpack cleanContent)
-
-testSecrets :: Secrets
-testSecrets =
-    Secrets
-        { geminiApiKey = Just $ GeminiApiKey "testKey"
-        }
 
 defaultTsConfig :: TsConfig
 defaultTsConfig =
