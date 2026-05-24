@@ -143,6 +143,7 @@ test-suite deslop-test
     Deslop.RuleEnforcerSpec
     Doubles.CLI
     Doubles.FileSystem
+    Doubles.Polar
     Doubles.Random
     Doubles.System
     E2E.FileGoldenSpec
@@ -153,6 +154,7 @@ test-suite deslop-test
     Effects.ReportProblemSpec
     Monetization.CaptchaSpec
     Monetization.CIDetectionSpec
+    Monetization.PaywallSpec
     ParamsSpec
     SecretsSpec
     TestUtils

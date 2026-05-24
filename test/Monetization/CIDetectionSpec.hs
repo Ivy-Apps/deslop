@@ -12,8 +12,8 @@ spec = describe "Monetization.CIDetection" $ do
             let mocks =
                     defaultMockSystem
                         { mockLookupEnv = \case
-                            "CI" -> pure $ Just "true"
-                            _ -> pure Nothing
+                            "CI" -> Just "true"
+                            _ -> Nothing
                         }
             let result = runPureEff . runMockSystem mocks $ detectEnv
             result `shouldBe` CI
@@ -22,8 +22,8 @@ spec = describe "Monetization.CIDetection" $ do
             let mocks =
                     defaultMockSystem
                         { mockLookupEnv = \case
-                            "GITHUB_ACTIONS" -> pure $ Just "true"
-                            _ -> pure Nothing
+                            "GITHUB_ACTIONS" -> Just "true"
+                            _ -> Nothing
                         }
             let result = runPureEff . runMockSystem mocks $ detectEnv
             result `shouldBe` CI
@@ -32,8 +32,8 @@ spec = describe "Monetization.CIDetection" $ do
             let mocks =
                     defaultMockSystem
                         { mockLookupEnv = \case
-                            "TERM" -> pure $ Just "dumb"
-                            _ -> pure Nothing
+                            "TERM" -> Just "dumb"
+                            _ -> Nothing
                         }
             let result = runPureEff . runMockSystem mocks $ detectEnv
             result `shouldBe` CI
@@ -41,7 +41,7 @@ spec = describe "Monetization.CIDetection" $ do
         it "returns Terminal when isTerminal is True and no CI signals" $ do
             let mocks =
                     defaultMockSystem
-                        { mockIsTerminal = pure True
+                        { mockIsTerminal = True
                         }
             let result = runPureEff . runMockSystem mocks $ detectEnv
             result `shouldBe` Terminal
@@ -54,9 +54,9 @@ spec = describe "Monetization.CIDetection" $ do
             let mocks =
                     defaultMockSystem
                         { mockLookupEnv = \case
-                            "CI" -> pure $ Just "true"
-                            _ -> pure Nothing
-                        , mockIsTerminal = pure True
+                            "CI" -> Just "true"
+                            _ -> Nothing
+                        , mockIsTerminal = True
                         }
             let result = runPureEff . runMockSystem mocks $ detectEnv
             result `shouldBe` CI
@@ -65,9 +65,9 @@ spec = describe "Monetization.CIDetection" $ do
             let mocks =
                     defaultMockSystem
                         { mockLookupEnv = \case
-                            "TERM" -> pure $ Just "dumb"
-                            _ -> pure Nothing
-                        , mockIsTerminal = pure True
+                            "TERM" -> Just "dumb"
+                            _ -> Nothing
+                        , mockIsTerminal = True
                         }
             let result = runPureEff . runMockSystem mocks $ detectEnv
             result `shouldBe` CI
