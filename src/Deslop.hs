@@ -32,7 +32,11 @@ import Effects.FileSystem (
     withAbsBaseUnsafe,
  )
 import Effects.Git
+import Effects.Polar (Polar, runPolar)
+import Effects.Random (Random, runRandom)
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
+import Effects.System (System, runSystem)
+import Monetization.Paywall (paywallCheck)
 import Params
 import Secrets (Secrets (..), defaultSecrets, readSecrets)
 import System.OsPath (osp)
@@ -64,6 +68,9 @@ runDeslop paramsDto = do
                 . runConcurrent
                 . runReportProblem
                 . runErrorNoCallStack @DeslopError
+                . runSystem
+                . runPolar
+                . runRandom
                 $ do
                     params <- paramsFromDto paramsDto
                     doWork params secrets
@@ -87,11 +94,15 @@ doWork ::
     , Concurrent :> es
     , ReportProblem :> es
     , Error DeslopError :> es
+    , Polar :> es
+    , System :> es
+    , Random :> es
     ) =>
     Params ->
     Secrets ->
     Eff es ()
 doWork params _ = do
+    _ <- paywallCheck
     logTitle params
     case params.command of
         FixC -> do

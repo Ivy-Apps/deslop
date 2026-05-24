@@ -21,7 +21,7 @@ tsFixturesPath = [osp|test/fixtures/typescript|]
 
 spec :: Spec
 spec = do
-    describe "E2E.FileGolden" $
+    describe "E2E.File" $
         runIO (listFixtures tsFixturesPath ".ts") >>= mapM_ tsGoldenTest
   where
     tsGoldenTest :: OsPath -> Spec
