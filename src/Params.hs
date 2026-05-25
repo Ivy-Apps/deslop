@@ -80,7 +80,10 @@ paramsParser =
         (helper <*> versionOption <*> pParams)
         ( fullDesc
             <> header "Deslop - A Haskell-powered code cleaner ✨"
-            <> progDesc "Removes slop from TypeScript projects. Commands: check, fix, baseline"
+            <> progDesc
+                ( "Removes slop from TypeScript projects. Commands: check, fix, baseline."
+                    <> " Use implies agreement to deslop.dev/terms & /privacy. Provided AS-IS & WITH ALL FAULTS (No Support/SLA)."
+                )
         )
 
 parserPrefs :: ParserPrefs
