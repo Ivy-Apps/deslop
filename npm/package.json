@@ -2,7 +2,7 @@
   "name": "@ivy-apps/deslop",
   "version": "0.0.0",
   "description": "Deslop - remove slop from TypeScript projects.",
-  "license": "BSD-3-Clause",
+  "license": "SEE LICENSE IN LICENSE.md",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ivy-Apps/deslop.git"
@@ -24,7 +24,8 @@
     "deslop": "./wrapper.js"
   },
   "files": [
-    "wrapper.js"
+    "wrapper.js",
+    "LICENSE.md"
   ],
   "optionalDependencies": {
     "@ivy-apps/deslop-darwin-arm64": "0.0.0",

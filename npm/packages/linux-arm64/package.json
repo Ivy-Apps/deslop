@@ -2,10 +2,10 @@
   "name": "@ivy-apps/deslop-linux-arm64",
   "version": "0.0.0",
   "description": "deslop binary for linux arm64",
-  "license": "BSD-3-Clause",
+  "license": "SEE LICENSE IN LICENSE.md",
   "os": ["linux"],
   "cpu": ["arm64"],
-  "files": ["bin"],
+  "files": ["bin", "LICENSE.md"],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ivy-Apps/deslop.git"
