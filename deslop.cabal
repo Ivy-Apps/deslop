@@ -62,13 +62,9 @@ library
     Deslop.RuleExplainer
     Effects.CLI
     Effects.FileSystem
-    Effects.Polar
     Effects.Random
     Effects.ReportProblem
     Effects.System
-    Monetization.Captcha
-    Monetization.CIDetection
-    Monetization.Paywall
     Params
     Prelude
     Types
@@ -140,18 +136,13 @@ test-suite deslop-test
     Deslop.RuleEnforcerSpec
     Doubles.CLI
     Doubles.FileSystem
-    Doubles.Polar
     Doubles.Random
     Doubles.System
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
-    Effects.PolarSpec
     Effects.RandomSpec
     Effects.ReportProblemSpec
-    Monetization.CaptchaSpec
-    Monetization.CIDetectionSpec
-    Monetization.PaywallSpec
     ParamsSpec
     TestUtils
     TypeScript.ConfigSpec
