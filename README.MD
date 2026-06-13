@@ -1,85 +1,143 @@
 # Deslop
 
-> [!WARNING]
-> The project is under heavy development and unstable. Use at your own risk!
-> It's recommended to use with git so you can revert any undesired changes.
+[![npm](https://img.shields.io/npm/v/%40ivy-apps%2Fdeslop)](https://www.npmjs.com/package/@ivy-apps/deslop)
+[![npm downloads](https://img.shields.io/npm/dw/%40ivy-apps%2Fdeslop)](https://www.npmjs.com/package/@ivy-apps/deslop)
+[![Haskell](https://img.shields.io/badge/Haskell-5e5086?logo=haskell&logoColor=white)](https://www.haskell.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![GitHub Stars](https://img.shields.io/github/stars/Ivy-Apps/deslop?style=social)](https://github.com/Ivy-Apps/deslop)
 
-Clean TypeScript slop **automatically** in milliseconds.
+Deterministic architecture and quality guardrails for TypeScript, defined in YAML.
 
-![deslop-demo](assets/deslop-demo.png)
+Deslop is a static import graph analyzer for TypeScript. You define rules in YAML — what modules can import, what they must import, and what companion files must exist (e.g. unit tests, Storybook stories). It enforces them on every run and reports violations with plain-language fix instructions. It replaces what you'd otherwise cobble together with Dependency Cruiser + custom ESLint rules — in a single, readable declarative DSL.
 
-**Currently supports:**
-- Replacing relative imports with absolute alias (e.g. `@`) ones. ✅
-- Removing AI comments like (`// 1. Do x, y, z; // Step 2`, etc) 🚧
-
-
-## Installation
-
-The easiest way to install Deslop on macOS or Linux is via Homebrew.
+Learn the full Rules YAML DSL at **[deslop-docs](https://github.com/Ivy-Apps/deslop-docs)** or check **[deslop.dev](https://deslop.dev)** for an overview.
 
 > [!NOTE]
-> Currently only works on **MacOS ARM**. 
-> For Linux it's not tested but you can attempt manual installation from source.
+> Deslop is not a replacement for ESLint, Biome, or other linters — it's a complementary tool. Use it alongside your existing setup. Where Deslop replaces something is architecture enforcement: the import boundary rules and companion-file checks you'd otherwise spread across Dependency Cruiser configs and custom ESLint rules.
+
+---
+
+## Key Capabilities
+
+- **Forbid imports** `forbids` — direct and transitive, catching violations through any import chain
+- **Require imports** `uses` — enforce mandatory dependencies at the module level
+- **Require file existence** `exists` — assert that test files, Storybook stories, or any companion module exist alongside a given module
+- **Glob+ patterns** — casing variables like `{{FileName}}` and `{{TARGET_DIR}}` make rules relative and reusable
+- **Plain-language `fix` messages** — every violation tells your team (and your AI agents) exactly what to do
+
+---
+
+## Quick Start
 
 ```bash
-brew tap ivy-apps/tap
-brew install deslop
-deslop --help
+npm install --save-dev @ivy-apps/deslop
 ```
 
-> [!IMPORTANT]
-> Because Deslop uses Gemini to add missing next-intl translation strings, a Gemini API key is currently required to use the tool. An invalid key works, too! Just the translations feature won't work.
-> Add `~/.deslop/secrets.json`:
+> Or run without installing: `npx @ivy-apps/deslop check .`
 
-**~/.deslop/secrets.json**
+**Recommended `package.json` scripts:**
+
 ```json
 {
-  "geminiApiKey": "invalid or a real one to enable next-intl translations"
+  "scripts": {
+    "deslop": "deslop check .",
+    "deslop:fix": "deslop fix . && npm run lint:fix",
+    "deslop:baseline": "deslop baseline ."
+  }
 }
 ```
 
-**To update**
-```bash
-brew update
-brew upgrade deslop
+### Commands
+
+| Command | What it does |
+|---------|-------------|
+| `deslop check <project>` | Report all rule violations |
+| `deslop fix <project>` | Auto-fix violations where possible |
+| `deslop baseline <project>` | Write `deslop/baseline.yaml` to silence current violations |
+
+> [!TIP]
+> Use `baseline` for known violations you're not fixing right now. For false positives, narrow the rule's `target` with `exclude` instead.
+
+---
+
+## Example Rule
+
+Drop your rules in `deslop/rules/`. Here's one that applies to every TypeScript project:
+
+```yaml
+id: project-quality
+name: Project Quality
+description: Baseline quality rules for any TypeScript project.
+rules:
+  - id: no-tests-in-prod
+    description: Production code must never import test utilities, even transitively.
+    target: "**/*"
+    exclude:
+      - "**/*.spec"
+      - "**/*.stories"
+      - "@test/**"
+      - "**/vitest.*"
+    forbids:
+      - import: "@test/**/*"
+        transitive: true
+      - import: "**/*.spec"
+        transitive: true
+    fix: Remove the import. If the utility is needed in production, extract it to a non-test module.
 ```
 
-## Develop with Nix
+`transitive: true` means Deslop walks the full import graph — if a production helper imports a test utility, that's caught too, not just direct imports.
 
-```shell
-make install_nix
+For the full DSL — `forbids`, `allows`, `uses`, `exists`, Glob+ variables, and more — see **[deslop-docs](https://github.com/Ivy-Apps/deslop-docs)**.
+
+---
+
+## Installation
+
+```bash
+npm install --save-dev @ivy-apps/deslop
+```
+
+Deslop is free. No license key, no account required.
+
+---
+
+## Development Setup
+
+The project uses [Nix](https://nixos.org/) for a reproducible dev environment.
+
+**Recommended — [direnv](https://direnv.net/):**
+
+```bash
+direnv allow
+```
+
+This automatically enters the Nix dev shell whenever you `cd` into the project.
+
+**Alternative — manual:**
+
+```bash
 nix develop
 ```
 
-## NVIM setup
-```shell
-brew install --cask iterm2
-brew install --cask font-jetbrains-mono-nerd-font
-```
-**iTerm2 Settings:**
-1. Open iTerm
-2. Settings > Profiles > Text.
-3. Check "Use a different font for non-ASCII text".
-4. Select the `JetBrainsMono Nerd Font`.
+### Commands
 
-## GitHub Actions Secrets
-
-- `NPM_TOKEN`: The NPM_TOKEN for releasing Deslop in NPM
-
-## Devevelop Manually
-
-1. Install [GHCUP](https://www.haskell.org/ghcup/)
-2. Install GHC, Cabal and HLS.
 ```bash
-ghcup install ghc 9.6.7
-ghcup set ghc 9.6.7
-ghcup install cabal recommended
-ghcup set cabal recommended
-ghcup install hls recommended
-ghcup set hls recommended
+nix run .#build   # build
+nix run .#test    # run all tests
+nix run .#lint    # lint
 ```
-3. Install hgold for Golden tests
+
+Run tests for a specific module:
+
 ```bash
-cabal install hspec-golden
-hgold # to update golden tests
+nix run .#test -- Lexer
+nix run .#test -- Parser
 ```
+
+---
+
+## Contributing
+
+PRs are welcome. There is no obligation to review or merge — decisions are subjective.
+
+**AI-generated PRs will not be considered.** Write real code.

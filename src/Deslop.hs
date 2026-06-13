@@ -30,11 +30,7 @@ import Effects.FileSystem (
     runFileSystemIO,
     withAbsBaseUnsafe,
  )
-import Effects.Polar (Polar, runPolar)
-import Effects.Random (Random, runRandom)
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
-import Effects.System (System, runSystem)
-import Monetization.Paywall (paywallCheck)
 import Params
 import System.OsPath (osp)
 import TypeScript.CST
@@ -55,9 +51,6 @@ runDeslop paramsDto = do
             . runConcurrent
             . runReportProblem
             . runErrorNoCallStack @DeslopError
-            . runSystem
-            . runPolar
-            . runRandom
             $ do
                 params <- paramsFromDto paramsDto
                 doWork params
@@ -79,15 +72,11 @@ doWork ::
     , Concurrent :> es
     , ReportProblem :> es
     , Error DeslopError :> es
-    , Polar :> es
-    , System :> es
-    , Random :> es
     ) =>
     Params ->
     Eff es ()
 doWork params = do
     logText "[deslop] Use implies agreement to deslop.dev/terms & /privacy. Provided AS-IS & WITH ALL FAULTS (No Support/SLA)."
-    _ <- paywallCheck
     logTitle params
     case params.command of
         FixC -> do

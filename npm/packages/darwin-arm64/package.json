@@ -2,10 +2,10 @@
   "name": "@ivy-apps/deslop-darwin-arm64",
   "version": "0.0.0",
   "description": "deslop binary for darwin arm64",
-  "license": "SEE LICENSE IN LICENSE.md",
+  "license": "MIT",
   "os": ["darwin"],
   "cpu": ["arm64"],
-  "files": ["bin", "LICENSE.md"],
+  "files": ["bin"],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ivy-Apps/deslop.git"
