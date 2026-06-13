@@ -62,9 +62,7 @@ library
     Deslop.RuleExplainer
     Effects.CLI
     Effects.FileSystem
-    Effects.Random
     Effects.ReportProblem
-    Effects.System
     Params
     Prelude
     Types
@@ -136,12 +134,9 @@ test-suite deslop-test
     Deslop.RuleEnforcerSpec
     Doubles.CLI
     Doubles.FileSystem
-    Doubles.Random
-    Doubles.System
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
-    Effects.RandomSpec
     Effects.ReportProblemSpec
     ParamsSpec
     TestUtils

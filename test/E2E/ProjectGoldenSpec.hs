@@ -5,12 +5,10 @@ import Data.Text.Encoding qualified as TE
 import Deslop (doWork)
 import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, runMockCLI)
 import Doubles.FileSystem (runMockWrFileSystem)
-import Doubles.System (defaultMockSystem, runMockSystem)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (encodeOsPathString, runFileSystemIO, runRoFileSystemIO)
-import Effects.Random (runRandom)
 import Effects.ReportProblem (runReportProblem)
 import Params (Command (..), Params (..))
 import System.OsPath ((</>))
@@ -89,8 +87,6 @@ spec = describe "E2E.Project" $ do
                 . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
                 . runReportProblem
                 . runConcurrent
-                . runMockSystem defaultMockSystem
-                . runRandom
                 $ doWork params
 
         -- Then
@@ -119,8 +115,6 @@ spec = describe "E2E.Project" $ do
                 . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
                 . runReportProblem
                 . runConcurrent
-                . runMockSystem defaultMockSystem
-                . runRandom
                 $ doWork params
 
         -- Then
@@ -145,8 +139,6 @@ spec = describe "E2E.Project" $ do
                     . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
                     . runReportProblem
                     . runConcurrent
-                    . runMockSystem defaultMockSystem
-                    . runRandom
                     $ doWork params
 
             -- Then

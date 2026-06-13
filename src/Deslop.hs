@@ -30,9 +30,7 @@ import Effects.FileSystem (
     runFileSystemIO,
     withAbsBaseUnsafe,
  )
-import Effects.Random (Random, runRandom)
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
-import Effects.System (System, runSystem)
 import Params
 import System.OsPath (osp)
 import TypeScript.CST
@@ -53,8 +51,6 @@ runDeslop paramsDto = do
             . runConcurrent
             . runReportProblem
             . runErrorNoCallStack @DeslopError
-            . runSystem
-            . runRandom
             $ do
                 params <- paramsFromDto paramsDto
                 doWork params
@@ -76,8 +72,6 @@ doWork ::
     , Concurrent :> es
     , ReportProblem :> es
     , Error DeslopError :> es
-    , System :> es
-    , Random :> es
     ) =>
     Params ->
     Eff es ()
