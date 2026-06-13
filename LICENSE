@@ -1,69 +1,9 @@
-# DESLOP END USER LICENSE AGREEMENT (EULA)
+MIT License
 
-This End User License Agreement ("Agreement") is a legal agreement between you (either an individual or a single legal entity) ("Licensee") and Ivy Apps Ltd ("Licensor"). 
+Copyright (c) 2026 Ivy Apps Ltd
 
-By downloading, installing, or using the Deslop software ("Software"), you agree to be bound by the terms of this Agreement. If you do not agree to the terms of this Agreement, do not install or use the Software.
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-### 1. DEFINITIONS
-* **"Software"** refers to the Deslop command-line interface (CLI) tool, including its executable binaries, associated scripts, documentation, and any updates provided by the Licensor.
-* **"Local Development Environment"** means a personal physical or virtual workstation where a human operator is directly and physically interacting with the Software via a standard terminal emulator.
-* **"Automated Environment"** means any headless, unattended, or script-driven environment. This includes, but is not limited to, Continuous Integration (CI) systems, Continuous Deployment (CD) pipelines (e.g., GitHub Actions, GitLab CI, Jenkins, CircleCI), automated testing servers, or any environment where standard inputs and outputs are piped, mocked, or automated.
-* **"Commercial License"** means a paid subscription or license key legitimately obtained from the Licensor. A Commercial License grants rights beyond the Free Tier, subject to the specific usage quotas, features, and billing terms associated with the subscription tier purchased, as detailed on the Licensor's official website.
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-### 2. GRANT OF LICENSE (FREE TIER)
-Subject to your continuous compliance with this Agreement, the Licensor grants you a limited, personal, non-exclusive, non-transferable, and revocable license to use the Software free of charge **strictly within a Local Development Environment**. 
-
-### 3. OWNERSHIP AND INTELLECTUAL PROPERTY
-The Software is licensed, not sold. Ivy Apps Ltd retains all rights, title, and interest in and to the Software, including all copyrights, patents, trade secrets, trademarks, and other intellectual property rights therein. This Agreement does not grant you any rights to trademarks or service marks of Ivy Apps Ltd. All rights not expressly granted to you in this Agreement are reserved by the Licensor.
-
-### 4. RESTRICTIONS ON FREE TIER USE (CI/CD PAYWALL)
-You may **not** use the Free Tier of the Software in any Automated Environment. 
-To run, execute, or integrate the Software within an Automated Environment, you must purchase and maintain a valid Commercial License.
-
-### 5. COMMERCIAL LICENSES AND USAGE LIMITS
-If you operate the Software under a Commercial License, your usage is governed by the parameters of your specific subscription tier.
-1. **Dynamic Quotas and Features:** Specific pricing, usage limits (e.g., a maximum number of monthly CLI executions), and feature access are maintained on the Licensor's official website and authorized billing providers. These terms are incorporated by reference and may be updated by the Licensor.
-2. **Overage:** Exceeding your allotted usage limits will result in the Software immediately halting execution and returning an error code until the quota resets or the subscription is upgraded.
-3. **Metric Manipulation:** Attempting to bypass, spoof, or manipulate usage metrics, counters, or environment variables to artificially deflate your recorded usage is a material breach of this Agreement.
-
-### 6. TECHNICAL ENFORCEMENT AND PROHIBITED ACTIONS
-The Software contains technical mechanisms designed to detect Prohibited Uses and enforce quotas (e.g., detecting Automated Environments and prompting for human verification). 
-
-You expressly agree that you will not:
-1. Attempt to bypass, disable, spoof, or circumvent any technical enforcement, environment variable checks, or human-verification prompts (CAPTCHAs) built into the Software.
-2. Use wrappers, pseudo-terminals (PTYs), or automated scripts to simulate a Local Development Environment in an attempt to evade the Commercial License requirement.
-3. Reverse-engineer, decompile, disassemble, or modify the compiled binary of the Software.
-
-Any attempt to bypass these mechanisms constitutes a material breach of this Agreement and terminates your license immediately. The Licensor reserves the right to implement functionality that delays, halts, or restricts execution if an unverified Automated Environment is detected.
-
-### 7. TELEMETRY AND LICENSE VALIDATION
-The Software may transmit basic telemetry, environment data, run counts, or license keys to Licensor's servers strictly for the purpose of license validation, usage tracking, and enforcing the terms of this Agreement. You acknowledge and agree to this data transmission. The Licensor disclaims any liability for the accidental exposure of sensitive data or secrets resulting from attempts to bypass, intercept, or manipulate the Software's environment checks.
-
-### 8. DISCLAIMER OF WARRANTIES
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. THE LICENSOR DOES NOT WARRANT THAT THE SOFTWARE IS FREE OF DEFECTS, ERRORS, OR SECURITY VULNERABILITIES, OR THAT IT WILL OPERATE WITHOUT INTERRUPTION. THE ENTIRE RISK ARISING OUT OF THE USE OR PERFORMANCE OF THE SOFTWARE REMAINS WITH YOU.
-
-### 9. SPECIFIC DISCLAIMERS FOR CI/CD AND CODE MODIFICATION
-Due to the nature of automated integration and code modification tools, you expressly acknowledge and agree to the following risks, for which the Licensor bears no liability:
-1. **Quota Exhaustion and Pipeline Halts:** If your usage exceeds your purchased quota, the Software will halt execution and return a failing exit code. Licensor is not liable for delayed deployments, broken CI/CD pipelines, or resulting financial losses. It is your responsibility to monitor your usage.
-2. **Compute Costs and Infinite Loops:** The Software may contain bugs, including defects that cause infinite loops or excessive execution times. Licensor is not liable for wasted CI/CD runner minutes, compute costs, or unexpected cloud provider billing. **You are strongly advised to configure strict execution timeouts for the Software within your automated environments.**
-3. **False Positives:** The Software may produce false-positive linter results. Licensor is not liable for blocked pipelines or delayed releases caused by erroneous validation failures.
-4. **Fix Mode and Data Loss:** The Software includes functionality to automatically modify your source code. Licensor is not liable for undesirable code modifications, corrupted files, or data loss. **You are strongly advised to commit all important changes to a version control system (e.g., Git) prior to executing the Software in any automated fix mode.**
-
-### 10. LIMITATION OF LIABILITY
-IN NO EVENT SHALL IVY APPS LTD, ITS DIRECTORS, EMPLOYEES, OR ITS SUPPLIERS BE LIABLE FOR ANY DAMAGES WHATSOEVER (INCLUDING, WITHOUT LIMITATION, INCIDENTAL, DIRECT, INDIRECT, SPECIAL, OR CONSEQUENTIAL DAMAGES, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, COMPUTING COSTS, DATA LOSS, OR OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF THE LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. 
-
-IN NO EVENT WILL THE LICENSOR’S TOTAL LIABILITY TO YOU FOR ALL DAMAGES EXCEED THE AMOUNT ACTUALLY PAID BY YOU FOR THE SOFTWARE UNDER THIS AGREEMENT. BECAUSE SOME STATES/JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION OF LIABILITY FOR CONSEQUENTIAL OR INCIDENTAL DAMAGES, THE ABOVE LIMITATION MAY NOT APPLY TO YOU.
-
-### 11. INDEMNIFICATION
-You agree to indemnify, defend, and hold harmless Ivy Apps Ltd and its officers, directors, and employees from and against any claims, damages, liabilities, losses, and expenses (including reasonable attorneys' fees) arising out of or related to your use of the Software, your violation of this Agreement, or your violation of any rights of a third party.
-
-### 12. THIRD-PARTY COMPONENTS
-The Software may include third-party components subject to their own open-source licenses. By using the Software, you also agree to comply with the terms and conditions of those third-party licenses.
-
-### 13. TERMINATION
-This Agreement is effective until terminated. Your rights under this Agreement will terminate automatically without notice from the Licensor if you fail to comply with any term(s) of this Agreement. Upon termination, you must cease all use of the Software and destroy all copies, full or partial, of the Software.
-
-### 14. GENERAL AND GOVERNING LAW
-This Agreement constitutes the entire agreement between the parties concerning the subject matter hereof. If any provision of this Agreement is held to be invalid or unenforceable, the remaining provisions shall remain in full force and effect. 
-
-This Agreement shall be governed by and construed in accordance with the laws of Bulgaria, without regard to its conflict of laws rules. Any disputes arising under or in connection with this Agreement shall be subject to the exclusive jurisdiction of the courts located in Sofia, Bulgaria.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
