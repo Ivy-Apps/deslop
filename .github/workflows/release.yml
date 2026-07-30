@@ -153,7 +153,12 @@ jobs:
           for PLATFORM in darwin-arm64 linux-arm64 linux-x64; do
             PKG_DIR="npm/packages/$PLATFORM"
             mkdir -p "$PKG_DIR/bin"
-            cp -r "dist/bin-$PLATFORM/." "$PKG_DIR/bin/"
+            BINARY_PATH=$(find "dist/bin-$PLATFORM" -type f -name deslop -print -quit)
+            if [ -z "$BINARY_PATH" ]; then
+              echo "No deslop binary found for $PLATFORM in dist/bin-$PLATFORM"
+              exit 1
+            fi
+            cp "$BINARY_PATH" "$PKG_DIR/bin/deslop"
             chmod +x "$PKG_DIR/bin/deslop"
             cd "$PKG_DIR"
             npm version "$VERSION" --no-git-tag-version --allow-same-version
