@@ -130,9 +130,15 @@ spec = describe "TypeScript.Iterator" $ do
                 [(root, [nextDir]), (nextDir, [ap "/project/.next/server.ts"])]
                 >>= (`shouldBe` [])
 
-        it "skips .next-env.d.ts" $ do
-            let nextTypes = ap "/project/.next-env.d.ts"
+        it "skips next-env.d.ts" $ do
+            let nextTypes = ap "/project/next-env.d.ts"
             run [(root, [nextTypes])] >>= (`shouldBe` [])
+
+        it "skips .direnv" $ do
+            let direnvDir = ap "/project/.direnv"
+            run
+                [(root, [direnvDir]), (direnvDir, [ap "/project/.direnv/flake-inputs/src/api.ts"])]
+                >>= (`shouldBe` [])
 
         it "skips all ignored dirs simultaneously while collecting from valid ones" $ do
             let nodeModules = ap "/project/node_modules"
