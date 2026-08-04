@@ -42,6 +42,31 @@ which makes `nix run .#lint` cheap for agents as a side effect.
 The flake's `build`/`test`/`lint` apps remain as the documented agent-facing
 entry points. They are convenience wrappers, not the definition of a check.
 
+Each CI step spells out `nix develop .#ci --accept-flake-config -c just <recipe>`
+in full, matching `haskell-template`'s `ci.yaml`.
+
+## Rejected: entering the dev shell once
+
+Repeating `nix develop` per step is not free — measured on the runner, each
+entry cost ~2.5s of re-evaluation (inflated by the `callCabal2nix` IFD), about
+12s across the five steps. Two ways to avoid it were tried and dropped:
+
+- **`defaults.run.shell`** at the job level. Removes the repetition but still
+  runs `nix develop` per step, so it saves nothing.
+- **`nix print-dev-env .#ci > "$BASH_ENV"`** in a setup step, letting bash
+  source the dev environment for every later step. This works — the dump ends
+  with `eval "$shellHook"` and a fresh `mktemp -d` for `TMPDIR`, so it is
+  equivalent to `nix develop`, and it cut per-step entry from ~1.45s to ~0.015s
+  locally. It was still rejected: it is an unusual pattern that needs a
+  footnote to read, `print-dev-env` output has a history of shell-compatibility
+  bugs (NixOS/nix#10263, #8309 — its `;&` case fallthrough breaks bash 3.2),
+  and 12s is a rounding error next to the ~75s toolchain realisation and the
+  compile.
+
+If the per-step cost ever becomes material, the maintained
+`nicknovitski/nix-develop` action does the same job through `$GITHUB_ENV` and
+`$GITHUB_PATH`, which also reaches steps that `use:` third-party actions.
+
 ## Consequences
 
 - `just check` locally and the Quality workflow cannot drift: editing a recipe
