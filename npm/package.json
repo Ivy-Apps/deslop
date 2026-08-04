@@ -1,7 +1,7 @@
 {
   "name": "@ivy-apps/deslop",
   "version": "0.0.0",
-  "description": "Deslop - remove slop from TypeScript projects.",
+  "description": "Static import-graph analyzer for TypeScript. Architecture rules in YAML, enforced on every run.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -10,12 +10,22 @@
   "bugs": {
     "url": "https://github.com/Ivy-Apps/deslop/issues"
   },
-  "homepage": "https://github.com/Ivy-Apps/deslop#readme",
+  "homepage": "https://deslop.dev",
   "keywords": [
     "typescript",
     "cli",
     "code-quality",
-    "deslop"
+    "deslop",
+    "architecture",
+    "import-graph",
+    "static-analysis",
+    "dependency-graph",
+    "architecture-testing",
+    "lint",
+    "boundaries",
+    "yaml",
+    "eslint",
+    "dependency-cruiser"
   ],
   "engines": {
     "node": ">=18"

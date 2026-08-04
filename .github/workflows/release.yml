@@ -5,6 +5,12 @@ on:
     tags:
       - 'v*'
 
+# The repo-wide default is write. The build jobs do not need it, and one of them
+# pipes a remote installer straight into a shell, so default to read-only here.
+# publish-npm and github-release opt back in to exactly what they need.
+permissions:
+  contents: read
+
 jobs:
   # Cheap guard that runs before the slow builds: a tag whose version does not
   # match deslop.cabal would ship a package whose `deslop --version` lies.
@@ -12,12 +18,18 @@ jobs:
     name: Verify version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Check deslop.cabal matches the tag
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
+
+          # Compared in full, on purpose. Cabal versions are dot-separated
+          # numbers, so any prerelease-shaped tag (v1.0.0-rc.1) can never match
+          # and is rejected here. That is the policy: this project does not ship
+          # prereleases, and it also stops a typo'd tag like v0.8.1-oops from
+          # burning a version number that npm will not let you reuse.
           CABAL_VERSION=$(sed -n 's/^version:[[:space:]]*//p' deslop.cabal | head -1 | tr -d '[:space:]')
           if [ "$CABAL_VERSION" != "$VERSION" ]; then
             echo "::error::Tag $TAG implies version $VERSION, but deslop.cabal declares $CABAL_VERSION"
@@ -37,10 +49,10 @@ jobs:
             npm-platform: linux-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Cache GHC and Cabal
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.ghcup
@@ -100,7 +112,7 @@ jobs:
           mkdir -p dist/${{ matrix.npm-platform }}
           mv dist/deslop dist/${{ matrix.npm-platform }}/deslop
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bin-${{ matrix.npm-platform }}
           path: dist/${{ matrix.npm-platform }}
@@ -110,7 +122,7 @@ jobs:
     needs: [verify-version]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: haskell-actions/setup@v2
         with:
@@ -118,7 +130,7 @@ jobs:
           cabal-version: '3.16.0.0'
 
       - name: Cache cabal store
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cabal/store
           key: cabal-darwin-arm64-${{ hashFiles('cabal.project.freeze') }}
@@ -141,7 +153,7 @@ jobs:
           cp $(cabal list-bin exe:deslop) dist/darwin-arm64/deslop
           strip -x dist/darwin-arm64/deslop
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bin-darwin-arm64
           path: dist/darwin-arm64
@@ -154,24 +166,41 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           scope: '@ivy-apps'
+          # setup-node auto-caches when it finds a package.json with a
+          # packageManager field. There is none at the repo root today, but a
+          # release is the wrong place to discover that someone added one.
+          package-manager-cache: false
 
       - run: npm install -g npm@latest
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
 
       - name: Prepare version
         run: |
           TAG=${{ github.ref_name }}
-          echo "VERSION=${TAG#v}" >> $GITHUB_ENV
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          # Belt and braces. verify-version already rejects prerelease-shaped
+          # tags, so this is always `latest` today. It exists because npm never
+          # infers a dist-tag from a semver prerelease suffix: if that guard is
+          # ever relaxed, a bare `npm publish` would silently make an RC the
+          # default install for everyone.
+          case "$VERSION" in
+            *-*) NPM_TAG=next ;;
+            *)   NPM_TAG=latest ;;
+          esac
+          echo "NPM_TAG=$NPM_TAG" >> $GITHUB_ENV
+          echo "Publishing $VERSION under dist-tag $NPM_TAG"
 
       - name: Publish platform packages
         run: |
@@ -187,7 +216,7 @@ jobs:
             chmod +x "$PKG_DIR/bin/deslop"
             cd "$PKG_DIR"
             npm version "$VERSION" --no-git-tag-version --allow-same-version
-            npm publish --access public
+            npm publish --access public --tag "$NPM_TAG"
             cd "$GITHUB_WORKSPACE"
           done
 
@@ -201,7 +230,7 @@ jobs:
           npm pkg set optionalDependencies.@ivy-apps/deslop-linux-arm64="$VERSION"
           npm pkg set optionalDependencies.@ivy-apps/deslop-linux-x64="$VERSION"
 
-          npm publish --access public
+          npm publish --access public --tag "$NPM_TAG"
 
   github-release:
     name: GitHub Release
@@ -210,12 +239,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # `git describe` needs the full tag history to find the previous tag
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
 
