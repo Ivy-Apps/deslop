@@ -1,0 +1,107 @@
+id: clean-architecture
+name: Clean Architecture
+description: >-
+  Enforces Uncle Bob's Clean Architecture dependency rule: dependencies point
+  inward only. Inner layers know nothing of the outside world; outer layers
+  depend on inner abstractions, never the reverse.
+
+  Layer hierarchy (inner → outer):
+    @/domain/**         — Entities, value objects, domain events, repository interfaces
+    @/application/**    — Use cases, application services
+    @/infrastructure/** — Repository implementations, HTTP clients, DB adapters
+    @/presentation/**   — React components, pages, view models
+
+  Alternative naming conventions used in the wild:
+    @/core/**      ≈ domain + application combined
+    @/data/**      ≈ infrastructure
+    @/ui/**        ≈ presentation
+    @/entities/**  ≈ domain entities only
+    @/use-cases/** ≈ application use cases only
+
+rules:
+
+  # ── LAYER 1: Domain ──────────────────────────────────────────────────────
+  # Whitelist: domain modules may only import other domain modules.
+  # Zero npm dependencies, zero knowledge of outer layers.
+  - id: domain-is-pure
+    description: >-
+      The domain is the innermost layer. Domain modules may only import
+      other domain modules — no application logic, no infrastructure,
+      no UI, and no external frameworks.
+    target: "@/domain/**"
+    forbids:
+      - import: "**"
+    allows:
+      - import: "@/domain/**"
+    fix: >-
+      Remove the import. Domain logic must be pure TypeScript with no
+      external dependencies. Move framework-specific code to infrastructure.
+
+  # ── LAYER 2: Application ─────────────────────────────────────────────────
+  # Whitelist: application use cases may only orchestrate domain logic.
+  # No infrastructure details, no UI, no external npm packages.
+  - id: application-only-uses-domain
+    description: >-
+      Application use cases orchestrate domain logic and nothing else.
+      They must not depend on infrastructure, UI, or external frameworks —
+      only on domain abstractions.
+    target: "@/application/**"
+    forbids:
+      - import: "**"
+    allows:
+      - import: "@/domain/**"
+      - import: "@/application/**"
+    fix: >-
+      Replace the import with a domain abstraction. If you need an
+      external library, wrap it behind a domain interface and implement
+      the wrapper in @/infrastructure.
+
+  # ── LAYER 3: Infrastructure ───────────────────────────────────────────────
+  # Must connect to domain (implements its interfaces) and must not leak into UI.
+  - id: infrastructure-implements-domain
+    description: >-
+      Infrastructure exists to implement domain abstractions. Every
+      infrastructure module must be grounded in the domain, and must
+      not depend on the presentation layer.
+    target: "@/infrastructure/**"
+    uses:
+      - import: "@/domain/**"
+        transitive: true
+    forbids:
+      - import: "@/presentation/**"
+    fix: >-
+      Ensure the module implements or uses a domain interface from @/domain.
+      If it depends on presentation, the dependency is inverted — move
+      that logic into a use case or a domain service.
+
+  # ── LAYER 4: Presentation ─────────────────────────────────────────────────
+  # Must go through application use cases. Direct infrastructure calls are a violation.
+  - id: presentation-goes-through-application
+    description: >-
+      Presentation components must call application use cases, not
+      infrastructure directly. Bypassing the application layer couples
+      the UI to implementation details.
+    target: "@/presentation/**"
+    uses:
+      - import: "@/application/**"
+        transitive: true
+    forbids:
+      - import: "@/infrastructure/**"
+    fix: >-
+      Replace the direct infrastructure call with an @/application use case.
+      The presentation layer should only know about use case inputs and outputs.
+
+  # ── Quality ───────────────────────────────────────────────────────────────
+  - id: use-case-has-spec
+    description: Every use case must have a unit test.
+    target: "@/application/**/*UseCase"
+    exists:
+      - module: "{{TARGET_DIR}}/{{FileName}}UseCase.spec"
+    fix: Add a spec file next to the use case.
+
+  - id: repository-has-spec
+    description: Every infrastructure repository must have a test.
+    target: "@/infrastructure/**/*Repository"
+    exists:
+      - module: "{{TARGET_DIR}}/{{FileName}}Repository.spec"
+    fix: Add a spec file next to the repository.

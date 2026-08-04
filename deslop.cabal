@@ -6,7 +6,7 @@ license-file:    LICENSE
 author:          Ivy Apps LTD
 maintainer:      iliyan@ivy-apps.com
 build-type:      Simple
-extra-doc-files: CHANGELOG.md
+extra-doc-files: README.md
 
 common shared-properties
   default-language:   GHC2024

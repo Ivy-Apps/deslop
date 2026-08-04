@@ -1,0 +1,111 @@
+id: feature-sliced-design
+name: Feature Sliced Design
+description: >-
+  Enforces the Feature Sliced Design (FSD) methodology layer hierarchy.
+  Each layer may only import from layers below it:
+
+    app → pages → widgets → features → entities → shared
+
+  Note: In Next.js projects @/app is also used for App Router routing.
+  Each rulebook in this directory is an independent example — see README.md.
+
+rules:
+
+  # ── Pages ─────────────────────────────────────────────────────────────────
+  # Whitelist: pages compose from widgets downward, never from app layer.
+  - id: pages-layer-boundary
+    description: >-
+      Pages compose the UI from widgets, features, entities, and shared.
+      They must not import from the app layer, which configures the application.
+    target: "@/pages/**"
+    forbids:
+      - import: "**"
+    allows:
+      - import: "@/pages/**"
+      - import: "@/widgets/**"
+      - import: "@/features/**"
+      - import: "@/entities/**"
+      - import: "@/shared/**"
+    fix: The app layer configures the application. Pages must not depend on it.
+
+  # ── Widgets ───────────────────────────────────────────────────────────────
+  # Whitelist: widgets compose features, entities, and shared only.
+  - id: widgets-layer-boundary
+    description: >-
+      Widgets are composite UI blocks. They may only import from features,
+      entities, and shared — never from pages or the app layer above them.
+    target: "@/widgets/**"
+    forbids:
+      - import: "**"
+    allows:
+      - import: "@/widgets/**"
+      - import: "@/features/**"
+      - import: "@/entities/**"
+      - import: "@/shared/**"
+    fix: >-
+      Widgets must not import from layers above them (app, pages).
+      Restructure so the higher layer composes the widget instead.
+
+  # ── Features ──────────────────────────────────────────────────────────────
+  # Whitelist: features implement isolated business interactions using entities and shared.
+  - id: features-layer-boundary
+    description: >-
+      Features implement isolated business interactions. They may only import
+      from entities and shared — never from widgets, pages, or the app layer.
+    target: "@/features/**"
+    forbids:
+      - import: "**"
+    allows:
+      - import: "@/features/**"
+      - import: "@/entities/**"
+      - import: "@/shared/**"
+    fix: >-
+      Features must not import from layers above them (app, pages, widgets).
+      Extract shared logic to @/entities or @/shared instead.
+
+  # ── Entities ──────────────────────────────────────────────────────────────
+  # Whitelist: entities are pure business objects — only shared is allowed.
+  - id: entities-layer-boundary
+    description: >-
+      Entities are reusable business objects with no feature-specific logic.
+      They may only import from shared.
+    target: "@/entities/**"
+    forbids:
+      - import: "**"
+    allows:
+      - import: "@/entities/**"
+      - import: "@/shared/**"
+    fix: >-
+      Remove imports from layers above shared (features, widgets, pages, app).
+      Entities must be generic enough to be used by any feature.
+
+  # ── Shared ────────────────────────────────────────────────────────────────
+  # Whitelist: shared is the foundation — it imports nothing from above layers.
+  - id: shared-is-foundation
+    description: >-
+      Shared contains generic utilities, UI kit, and helpers used by all layers.
+      It must not import from any FSD layer above it.
+    target: "@/shared/**"
+    forbids:
+      - import: "**"
+    allows:
+      - import: "@/shared/**"
+    fix: >-
+      Remove imports from feature-specific layers.
+      Shared must only contain code that is layer-agnostic.
+
+  # ── Cross-slice isolation ─────────────────────────────────────────────────
+  # Features must not import from sibling features (slices).
+  # Use entities or shared for cross-cutting concerns.
+  - id: no-cross-slice-imports
+    description: >-
+      Slices within the features layer must not import from each other directly.
+      Cross-slice dependencies create tight coupling between business domains.
+    target: "@/features/**/*"
+    forbids:
+      - import: "@/features/**"
+    allows:
+      - import: "{{TARGET_DIR}}/**"
+    fix: >-
+      Extract the shared logic to @/entities or @/shared.
+      If two features must communicate, use shared events or a higher-level widget.

@@ -21,7 +21,7 @@ import Effects.FileSystem (decodeOsPath)
 import Fmt
 import System.Console.ANSI
 import System.IO (hPutStr)
-import Types (DeslopError (..), deslopLicenseEnv)
+import Types (DeslopError (..))
 
 -- | ANSI SGR: red foreground
 redCode :: String
@@ -100,21 +100,3 @@ humanReadable (RulebookErorr msg) =
     "Could not load Rulebook: " <> msg
 humanReadable (InvalidRuleConfig msg) =
     "Invalid rule configuration: " <> msg
-humanReadable CaptchaError =
-    "Incorrect answer. Purchase a Deslop license at https://deslop.dev"
-humanReadable NoLicenseError =
-    "Using Deslop on CI requires a license. Purchase a license at https://deslop.dev"
-        <> " and set the '"
-        <> deslopLicenseEnv
-        <> "' environment variable."
-humanReadable InvalidLicenseError =
-    "Invalid license key. Purchase a license at https://deslop.dev"
-        <> " and set the '"
-        <> deslopLicenseEnv
-        <> "' environment variable."
-humanReadable UsageExceededError =
-    "Usage limit reached. Check your usage and upgrade your plan"
-        <> " at https://polar.sh/ivy-apps/portal"
-humanReadable LicenseGenericError =
-    "Deslop verifies your license key with polar.sh servers."
-        <> " This requires internet connectivity."
