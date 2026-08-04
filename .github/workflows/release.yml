@@ -78,7 +78,11 @@ jobs:
               ghcup set cabal 3.16.0.0 &&
               
               cabal update &&
+              # --flags=static turns on the deslop.cabal stanza that adds
+              # -optl-static -optl-pthread to exe:deslop. It is opt-in because
+              # it only links against musl, which is what this Alpine image has.
               cabal build exe:deslop \
+                --flags=static \
                 --enable-executable-static \
                 --disable-executable-dynamic \
                 --ghc-options=\"-fexternal-interpreter -fPIC -O2 -threaded -rtsopts -with-rtsopts=-N\" &&
