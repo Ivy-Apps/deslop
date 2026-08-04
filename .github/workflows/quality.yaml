@@ -1,0 +1,43 @@
+name: Quality
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+# Rapid pushes to a PR cancel the stale run. Pushes to main are never
+# cancelled, so a green main always means that exact commit passed.
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      # Realises the `ci` dev shell and fetches the Hackage index that
+      # `cabal.project`'s pinned index-state requires. Every later step reuses
+      # both, so this is where the one-off setup cost is visible.
+      - name: ❄️ Toolchain
+        run: nix develop .#ci --accept-flake-config -c cabal update
+
+      - name: 🔍 Lint
+        run: nix develop .#ci --accept-flake-config -c just lint
+
+      - name: 🏗️ Build
+        run: nix develop .#ci --accept-flake-config -c just build
+
+      - name: 🧪 Test
+        run: nix develop .#ci --accept-flake-config -c just test
+
+      - name: 🏖️ Integration
+        run: nix develop .#ci --accept-flake-config -c just integration

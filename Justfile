@@ -2,11 +2,27 @@
 default:
     @just --list
 
-# Run HLint then tests (use from nix develop); fails on lint or test errors
+# Run the full quality suite (use from nix develop); mirrors the Quality CI
 check:
-    hlint . 
-    cabal test all 
-    cabal build
+    just lint
+    just build
+    just test
+    just integration
+
+# Haskell lint (hlint)
+lint:
+    hlint .
+
+# Compile everything, including the test suite
+build:
+    cabal build all
+
+# Run the test suite
+test:
+    cabal test all
+
+# End-to-end run of the CLI against a freshly generated sandbox project
+integration:
     just sandbox
     cabal run deslop -- fix sandbox/
     just sandbox
