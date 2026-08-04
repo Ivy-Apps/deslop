@@ -8,6 +8,11 @@ maintainer:      iliyan@ivy-apps.com
 build-type:      Simple
 extra-doc-files: README.md
 
+flag static
+  description: Statically link the executable. musl only; used by the release CD.
+  default:     False
+  manual:      True
+
 common shared-properties
   default-language:   GHC2024
   ghc-options:        -Wall -Werror
@@ -42,7 +47,10 @@ executable deslop
 
   hs-source-dirs:  app
 
-  if os(linux)
+  -- Fully static linking only works against musl, which is what the release
+  -- workflow builds in. A glibc Linux build (Nix CI, contributors on Ubuntu)
+  -- cannot statically link dlopen/getauxval/pthread_*, so this is opt-in.
+  if os(linux) && flag(static)
     ghc-options: -optl-static -optl-pthread
 
 library

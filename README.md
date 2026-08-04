@@ -6,11 +6,11 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![GitHub Stars](https://img.shields.io/github/stars/Ivy-Apps/deslop?style=social)](https://github.com/Ivy-Apps/deslop)
 
-**Deterministic architecture guardrails for TypeScript in the AI era.**
+**Static import-graph analyzer for TypeScript. You write architecture rules in YAML; Deslop checks them on every run.**
 
-Deslop is a static import-graph analyzer. You define your architecture once in YAML — what modules may import, what they must import, and what companion files must exist (unit tests, Storybook stories) — and Deslop enforces it on every run. When a rule breaks, it reports exactly what broke and how to fix it, in plain language that both your team and your AI agents can act on.
+You define your architecture once — what modules may import, what they must import, and what companion files must exist (unit tests, Storybook stories). When a rule breaks, Deslop reports exactly what broke and how to fix it, in plain language that both your team and your AI agents can act on.
 
-No AI inside, no heuristics: the same codebase produces the same output every time.
+No AI and no heuristics: it walks the import graph, so the same code always produces the same result.
 
 > [!NOTE]
 > Deslop is not a replacement for ESLint or Biome — it's complementary. Where it *does* replace something is architecture enforcement: the import-boundary rules and companion-file checks you'd otherwise spread across Dependency Cruiser configs and hand-written ESLint plugins.

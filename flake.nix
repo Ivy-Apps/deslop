@@ -72,7 +72,7 @@
             name = "ai-lint";
             runtimeInputs = [ pkgs.nix ];
             text = ''
-              nix develop ".#default" --no-warn-dirty --quiet -c hlint .
+              nix develop ".#ci" --no-warn-dirty --quiet -c hlint .
             '';
           };
 
@@ -92,6 +92,10 @@
               nativeBuildInputs = [
                 pkgs.pkg-config
                 pkgs.cabal-install
+                # Needed by CI, which drives the quality checks through this
+                # lean shell instead of the HLS-heavy `default` one.
+                pkgs.just
+                pkgs.hlint
               ];
 
               buildInputs = sysLibs;

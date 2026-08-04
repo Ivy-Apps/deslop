@@ -6,8 +6,28 @@ on:
       - 'v*'
 
 jobs:
+  # Cheap guard that runs before the slow builds: a tag whose version does not
+  # match deslop.cabal would ship a package whose `deslop --version` lies.
+  verify-version:
+    name: Verify version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check deslop.cabal matches the tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          CABAL_VERSION=$(sed -n 's/^version:[[:space:]]*//p' deslop.cabal | head -1 | tr -d '[:space:]')
+          if [ "$CABAL_VERSION" != "$VERSION" ]; then
+            echo "::error::Tag $TAG implies version $VERSION, but deslop.cabal declares $CABAL_VERSION"
+            exit 1
+          fi
+          echo "✅ deslop.cabal version $CABAL_VERSION matches tag $TAG"
+
   build-linux:
     name: Build (${{ matrix.npm-platform }})
+    needs: [verify-version]
     strategy:
       matrix:
         include:
@@ -58,7 +78,11 @@ jobs:
               ghcup set cabal 3.16.0.0 &&
               
               cabal update &&
+              # --flags=static turns on the deslop.cabal stanza that adds
+              # -optl-static -optl-pthread to exe:deslop. It is opt-in because
+              # it only links against musl, which is what this Alpine image has.
               cabal build exe:deslop \
+                --flags=static \
                 --enable-executable-static \
                 --disable-executable-dynamic \
                 --ghc-options=\"-fexternal-interpreter -fPIC -O2 -threaded -rtsopts -with-rtsopts=-N\" &&
@@ -83,6 +107,7 @@ jobs:
 
   build-macos:
     name: Build (darwin-arm64)
+    needs: [verify-version]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
@@ -177,3 +202,76 @@ jobs:
           npm pkg set optionalDependencies.@ivy-apps/deslop-linux-x64="$VERSION"
 
           npm publish --access public
+
+  github-release:
+    name: GitHub Release
+    needs: [publish-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # `git describe` needs the full tag history to find the previous tag
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Package binaries
+        run: |
+          mkdir -p release
+          for PLATFORM in darwin-arm64 linux-arm64 linux-x64; do
+            BINARY_PATH=$(find "dist/bin-$PLATFORM" -type f -name deslop -print -quit)
+            if [ -z "$BINARY_PATH" ]; then
+              echo "::error::No deslop binary found for $PLATFORM in dist/bin-$PLATFORM"
+              exit 1
+            fi
+            # tar preserves the executable bit; a bare GitHub asset does not
+            chmod +x "$BINARY_PATH"
+            tar -czf "release/deslop-$PLATFORM.tar.gz" -C "$(dirname "$BINARY_PATH")" deslop
+          done
+          cd release
+          sha256sum ./*.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Re-run of an already-released tag: refresh the assets, keep the notes
+            echo "Release $TAG already exists, updating assets"
+            gh release upload "$TAG" release/deslop-*.tar.gz release/checksums.txt --clobber
+            exit 0
+          fi
+
+          NOTES=$(printf '%s\n' \
+            '## 📦 Install' \
+            '' \
+            '```bash' \
+            "npm i -g @ivy-apps/deslop@$VERSION" \
+            '```' \
+            '' \
+            "NPM: https://www.npmjs.com/package/@ivy-apps/deslop/v/$VERSION" \
+            '')
+
+          ARGS=(--title "$TAG" --notes "$NOTES" --generate-notes)
+
+          # --generate-notes otherwise starts from the previous *release*, which
+          # can be many versions behind the previous *tag*
+          PREV=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
+          if [ -n "$PREV" ]; then
+            ARGS+=(--notes-start-tag "$PREV")
+          fi
+
+          # v1.0.0-rc1 and friends are prereleases
+          case "$TAG" in
+            *-*) ARGS+=(--prerelease) ;;
+          esac
+
+          gh release create "$TAG" "${ARGS[@]}" release/deslop-*.tar.gz release/checksums.txt
