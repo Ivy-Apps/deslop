@@ -1,0 +1,98 @@
+id: mvi
+name: MVI Architecture
+description: >-
+  Enforces the Model-View-Intent pattern: Containers wire View and ViewModel,
+  Views are pure rendering components, ViewModels hold logic without UI
+  dependencies, and features stay isolated from each other.
+rules:
+  # uses: require specific direct imports
+  - id: container-wires-view-and-viewmodel
+    description: The Container wires the View with its ViewModel.
+    target: "@/features/**/{{FileName}}Container"
+    uses:
+      - import: "{{TARGET_DIR}}/{{FileName}}View"
+      - import: "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+    fix: >-
+      Create a consistently named View and useViewModel hook for the feature
+      and wire them in the Container.
+
+  # forbids (direct): containers must not bypass the ViewModel
+  - id: container-no-repository
+    description: >-
+      Containers must not import repositories directly.
+      All data access must go through the ViewModel.
+    target: "@/features/**/{{FileName}}Container"
+    forbids:
+      - import: "**/*.repository"
+    fix: Move the repository call into use{{FileName}}ViewModel.
+
+  # exists: require companion files
+  - id: view-has-storybook
+    description: Each View must have a Storybook story.
+    target: "@/features/**/{{FileName}}View"
+    exists:
+      - module: "{{TARGET_DIR}}/{{FileName}}View.stories"
+    fix: Add a Storybook story at the same directory for the view.
+
+  - id: viewmodel-has-spec
+    description: Each ViewModel must have a unit test.
+    target: "@/features/**/use{{FileName}}ViewModel"
+    exists:
+      - module: "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
+    fix: Add a spec file in the same directory.
+
+  - id: viewmodel-state-event-exists
+    description: >-
+      Each ViewModel must have a corresponding StateEvent file that
+      defines the UI state shape and user event types.
+    target: "@/features/**/use{{FileName}}ViewModel"
+    exists:
+      - module: "{{TARGET_DIR}}/{{FileName}}StateEvent"
+    fix: >-
+      Create {{TARGET_DIR}}/{{FileName}}StateEvent.ts defining
+      the FeatureUiState and FeatureUiEvent types for this ViewModel.
+
+  # forbids (direct): views are pure rendering
+  - id: view-no-data-layer
+    description: Views are pure rendering components. They must not import repositories or call the HTTP client.
+    target: "@/features/**/*View"
+    forbids:
+      - import: "**/*.repository"
+      - import: "@/lib/api/client"
+    fix: Pass data through props from the ViewModel instead.
+
+  # forbids (transitive): enforce deep ViewModel isolation
+  - id: viewmodel-abstracted-from-ui
+    description: ViewModels must not depend on Views or UI components, even transitively.
+    target: "@/features/**/use*ViewModel"
+    forbids:
+      - import: "**/*View"
+        transitive: true
+      - import: "@/components/**"
+        transitive: true
+    fix: Remove UI dependencies from the ViewModel.
+
+  # forbids + allows: broad prohibition with an explicit exception
+  - id: feature-isolation
+    description: >-
+      Features must not import from other features directly.
+      Use @/features/shared for any cross-cutting concerns.
+    target: "@/features/**/*"
+    forbids:
+      - import: "@/features/**"
+    allows:
+      - import: "{{TARGET_DIR}}/**"      # own feature is always fine
+      - import: "@/features/shared/**"   # shared feature is the sanctioned exception
+    fix: Move shared logic to @/features/shared, or pass data via props and events.
+
+  # forbids + uses: ban one import and require its canonical replacement
+  - id: stories-use-nextjs-vite
+    description: >-
+      Stories must import Meta and StoryObj from @storybook/nextjs-vite,
+      not @storybook/react, which breaks CI under pnpm.
+    target: "**/*.stories"
+    forbids:
+      - import: "@storybook/react"
+    uses:
+      - import: "@storybook/nextjs-vite"
+    fix: Replace `from '@storybook/react'` with `from '@storybook/nextjs-vite'`.

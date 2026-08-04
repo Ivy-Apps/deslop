@@ -1,0 +1,57 @@
+id: global
+name: Global Coding Rules
+description: >-
+  Universal rules that apply to every TypeScript module regardless of
+  architecture. Safe to combine with any other rulebook.
+rules:
+  - id: no-tests-in-prod
+    description: Production code must not import test code, even transitively.
+    target: "**/*"
+    exclude:
+      - "**/*.spec"
+      - "**/*.test"
+      - "**/*.stories"
+      - "@test/**"
+      - "**/vitest.*"
+    forbids:
+      - import: "@test/**/*"
+        transitive: true
+      - import: "**/*.spec"
+        transitive: true
+    fix: >-
+      Remove the import. If the functionality is needed in production,
+      move it to the appropriate non-test module.
+
+  - id: tests-use-the-mut
+    description: >-
+      A test file must import the module it is named after.
+      Prevents empty or misnamed test files.
+    target: "**/{{fileName}}.spec"
+    exclude:
+      - "@test/e2e/**"
+    uses:
+      - import: "{{TARGET_DIR}}/{{fileName}}"
+    fix: Make sure the test imports and exercises the module it is named after.
+
+  - id: shared-no-feature-imports
+    description: >-
+      Shared utilities must not import from features. Shared code is
+      generic by definition — feature-specific logic does not belong here.
+    target: "@/shared/**"
+    forbids:
+      - import: "@/features/**"
+    fix: >-
+      Remove the feature import. Extract the shared logic into a
+      generic utility or invert the dependency so the feature imports from shared.
+
+  - id: lib-no-feature-imports
+    description: >-
+      Lib utilities must remain pure and framework-agnostic. They must
+      not depend on features or UI components.
+    target: "@/lib/**"
+    forbids:
+      - import: "@/features/**"
+      - import: "@/components/**"
+    fix: >-
+      Remove feature and component imports.
+      Lib modules must only contain generic, reusable logic.

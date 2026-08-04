@@ -19,7 +19,7 @@ import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Reader.Static (Reader, asks, runReader)
-import Effects.CLI (CLI, logBaselineSaved, logError, logFixSummary, logModification, logNoProblemsFound, logProblems, logText, logTitle, runCLI)
+import Effects.CLI (CLI, logBaselineSaved, logError, logFixSummary, logModification, logNoProblemsFound, logProblems, logTitle, runCLI)
 import Effects.FileSystem (
     AbsPath (osPath),
     RoFileSystem,
@@ -76,7 +76,6 @@ doWork ::
     Params ->
     Eff es ()
 doWork params = do
-    logText "[deslop] Use implies agreement to deslop.dev/terms & /privacy. Provided AS-IS & WITH ALL FAULTS (No Support/SLA)."
     logTitle params
     case params.command of
         FixC -> do

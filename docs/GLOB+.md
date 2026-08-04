@@ -107,13 +107,14 @@ This means a TargetPattern that captures via `{{FileName}}` automatically makes 
 
 In a `.yaml` rulebook, Glob+ patterns appear in:
 
-| Field             | Pattern Type   | Description                                              |
-|-------------------|----------------|----------------------------------------------------------|
-| `target:`         | TargetPattern  | Which files the rule applies to; captures variables      |
-| `uses:`           | ClausePattern    | Imports that must be present                             |
-| `uses-optional:`  | ClausePattern    | Imports that are allowed but not required                |
-| `exists:`         | ClausePattern    | Files that must exist (e.g. test or Storybook)           |
-| `forbidden.import:` | ClausePattern  | Imports that must not be present                         |
+| Field              | Pattern Type  | Description                                         |
+|--------------------|---------------|-----------------------------------------------------|
+| `target:`          | TargetPattern | Which files the rule applies to; captures variables |
+| `exclude:`         | TargetPattern | Files removed from the effective target             |
+| `uses.import:`     | ClausePattern | Imports that must be present                        |
+| `exists.module:`   | ClausePattern | Files that must exist (e.g. test or Storybook)      |
+| `forbids.import:`  | ClausePattern | Imports that must not be present                    |
+| `allows.import:`   | ClausePattern | Exceptions carved out of a `forbids` clause         |
 
 ### Example
 
@@ -121,19 +122,19 @@ In a `.yaml` rulebook, Glob+ patterns appear in:
 - id: page-container-wires-view-and-viewmodel
   target: "@/features/**/{{FileName}}Container"
   uses:
-    - "{{TARGET_DIR}}/{{FileName}}StateEvent"
-    - "{{TARGET_DIR}}/use{{FileName}}ViewModel"
-    - "{{TARGET_DIR}}/{{FileName}}View"
+    - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"
+    - import: "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+    - import: "{{TARGET_DIR}}/{{FileName}}View"
 ```
 
-For a file `@/features/home/HomeContainer`:
-- `{{FileName}}` = `HomeContainer`, `{{fileName}}` = `homeContainer`, etc.
+For a file `@/features/home/HomeContainer`, the `{{FileName}}` capture group matches only the portion of the segment before the literal `Container` suffix:
+- `{{FileName}}` = `Home`, `{{fileName}}` = `home`, `{{file-name}}` = `home`, `{{FILE_NAME}}` = `HOME`
 - `{{TARGET_DIR}}` = `@/features/home`
 
 The `uses:` patterns expand to:
-- `@/features/home/HomeContainerStateEvent`
-- `@/features/home/useHomeContainerViewModel`
-- `@/features/home/HomeContainerView`
+- `@/features/home/HomeStateEvent`
+- `@/features/home/useHomeViewModel`
+- `@/features/home/HomeView`
 
 ---
 

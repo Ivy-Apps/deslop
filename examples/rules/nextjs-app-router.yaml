@@ -1,0 +1,112 @@
+id: nextjs-app-router
+name: Next.js App Router
+description: >-
+  Enforces boundaries specific to the Next.js App Router architecture.
+  Prevents the most common violations caught by tools like Dependency Cruiser:
+  API routes importing React, pages bypassing feature modules, server modules
+  importing client-only APIs, and server actions containing UI logic.
+
+rules:
+
+  # ── Route Handlers ────────────────────────────────────────────────────────
+  # API routes return JSON/Response. They must never render React.
+  - id: route-handler-no-react
+    description: >-
+      API route handlers are pure server logic. They must not import
+      React or UI components — they return data, not markup.
+    target: "@/app/**/route"
+    forbids:
+      - import: "react"
+        transitive: true
+      - import: "@/components/**"
+      - import: "@/features/**/*View"
+    fix: >-
+      Route handlers return JSON or Response objects, not JSX.
+      Move any rendering logic into a page or component.
+
+  # ── Pages ─────────────────────────────────────────────────────────────────
+  # Pages are thin wiring layers — they must delegate to feature modules.
+  - id: page-uses-feature
+    description: >-
+      Pages must delegate to a feature module rather than contain
+      business logic or data fetching directly.
+    target: "@/app/**/page"
+    uses:
+      - import: "@/features/**"
+        transitive: true
+    forbids:
+      - import: "@/infrastructure/**"
+      - import: "**/*.repository"
+    fix: >-
+      Import and render a feature Container or server component.
+      Keep the page file minimal — routing metadata and layout only.
+
+  # ── Layouts ───────────────────────────────────────────────────────────────
+  # Layouts provide shell UI only — no direct data layer access.
+  - id: layout-no-data-layer
+    description: >-
+      Layouts provide the page shell (nav, footer, providers).
+      They must not reach into repositories or infrastructure directly.
+    target: "@/app/**/layout"
+    forbids:
+      - import: "@/infrastructure/**"
+      - import: "**/*.repository"
+    fix: >-
+      Move data fetching into a dedicated server component or feature module
+      and import it from the layout.
+
+  # ── Server Actions ────────────────────────────────────────────────────────
+  # Server actions are pure server logic — no React, no client-side UI.
+  - id: actions-no-ui
+    description: >-
+      Server actions are pure server-side mutation handlers.
+      They must not import React components or client-side UI modules.
+    target: "@/app/**/actions"
+    forbids:
+      - import: "react"
+      - import: "@/components/**"
+    fix: >-
+      Server actions return data or redirect — they never render.
+      Remove UI imports and pass results back to the Client Component.
+
+  # ── Middleware ────────────────────────────────────────────────────────────
+  # Middleware runs at the edge — must be lightweight with no React or UI.
+  - id: middleware-no-react
+    description: >-
+      Next.js middleware runs at the edge before every request.
+      It must not import React or any UI components.
+    target: "@/middleware"
+    forbids:
+      - import: "react"
+        transitive: true
+      - import: "@/components/**"
+        transitive: true
+    fix: >-
+      Middleware handles routing and auth logic only.
+      Move any UI code into pages or components.
+
+  # ── Server/Client Boundary ────────────────────────────────────────────────
+  # Server-only modules must not import client-only APIs.
+  - id: server-no-client-navigation
+    description: >-
+      Server-side modules must not import next/navigation hooks
+      (useRouter, usePathname, useSearchParams). These are client-only.
+    target: "**/*.server"
+    forbids:
+      - import: "next/navigation"
+    fix: >-
+      Use redirect() or permanentRedirect() from 'next/navigation' in
+      Server Components without the use* hooks. Move hook-based navigation
+      into a Client Component.
+
+  - id: server-no-client-only
+    description: >-
+      Modules marked as server-only must not transitively depend on
+      any package that declares itself client-only.
+    target: "**/*.server"
+    forbids:
+      - import: "client-only"
+        transitive: true
+    fix: >-
+      Split the module so client-only code lives in a separate *.client.ts
+      file and is not imported from server modules.

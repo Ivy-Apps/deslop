@@ -1,0 +1,74 @@
+id: quality
+name: Quality Standards
+description: >-
+  Enforces testing and Storybook conventions across the codebase.
+  Every hook, repository, and utility must have a spec file;
+  every UI component and feature View must have a Storybook story.
+
+rules:
+
+  # ── Test Coverage ─────────────────────────────────────────────────────────
+  - id: hooks-have-spec
+    description: Every custom hook must have a unit test.
+    target: "@/features/**/use{{FileName}}"
+    exclude:
+      - "**/*.spec"
+    exists:
+      - module: "{{TARGET_DIR}}/use{{FileName}}.spec"
+    fix: Add a spec file next to the hook.
+
+  - id: repositories-have-spec
+    description: Every repository must have a test.
+    target: "**/{{file-name}}.repository"
+    exists:
+      - module: "{{TARGET_DIR}}/{{file-name}}.repository.spec"
+    fix: Add a spec file next to the repository.
+
+  - id: utils-have-spec
+    description: Every lib utility module must have a unit test.
+    target: "@/lib/**/{{fileName}}"
+    exclude:
+      - "**/*.spec"
+      - "**/*.test"
+    exists:
+      - module: "{{TARGET_DIR}}/{{fileName}}.spec"
+    fix: Add a spec file next to the utility.
+
+  # ── Storybook ─────────────────────────────────────────────────────────────
+  - id: components-have-stories
+    description: Every shared UI component must have a Storybook story.
+    target: "@/components/**/{{FileName}}"
+    exclude:
+      - "**/*.stories"
+      - "**/*.spec"
+      - "**/index"
+    exists:
+      - module: "{{TARGET_DIR}}/{{FileName}}.stories"
+    fix: Add a Storybook story at the same directory for the component.
+
+  - id: feature-views-have-stories
+    description: Every feature View must have a Storybook story.
+    target: "@/features/**/{{FileName}}View"
+    exists:
+      - module: "{{TARGET_DIR}}/{{FileName}}View.stories"
+    fix: Add a Storybook story at the same directory for the view.
+
+  - id: stories-no-server-deps
+    description: Storybook stories must not import server-side code.
+    target: "**/*.stories"
+    forbids:
+      - import: "next/server"
+      - import: "**/*.server"
+    fix: Remove server-side imports. Stories run in the browser via Storybook.
+
+  # forbids + uses: ban the wrong import and require the right one
+  - id: stories-use-nextjs-vite
+    description: >-
+      Stories must import Meta and StoryObj from @storybook/nextjs-vite,
+      not @storybook/react, which breaks CI under pnpm.
+    target: "**/*.stories"
+    forbids:
+      - import: "@storybook/react"
+    uses:
+      - import: "@storybook/nextjs-vite"
+    fix: Replace `from '@storybook/react'` with `from '@storybook/nextjs-vite'`.
