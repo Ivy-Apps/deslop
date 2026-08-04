@@ -5,6 +5,7 @@
 [![Haskell](https://img.shields.io/badge/Haskell-5e5086?logo=haskell&logoColor=white)](https://www.haskell.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![GitHub Stars](https://img.shields.io/github/stars/Ivy-Apps/deslop?style=social)](https://github.com/Ivy-Apps/deslop)
+[![Quality](https://github.com/Ivy-Apps/deslop/actions/workflows/quality.yaml/badge.svg?branch=main)](https://github.com/Ivy-Apps/deslop/actions/workflows/quality.yaml)
 
 **Static import-graph analyzer for TypeScript. You write architecture rules in YAML; Deslop checks them on every run.**
 
