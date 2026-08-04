@@ -3,9 +3,15 @@
   "version": "0.0.0",
   "description": "deslop binary for linux arm64",
   "license": "MIT",
-  "os": ["linux"],
-  "cpu": ["arm64"],
-  "files": ["bin"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "bin"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Ivy-Apps/deslop.git"
@@ -13,5 +19,9 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "homepage": "https://deslop.dev",
+  "bugs": {
+    "url": "https://github.com/Ivy-Apps/deslop/issues"
   }
 }
