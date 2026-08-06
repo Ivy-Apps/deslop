@@ -2,7 +2,9 @@
 
 PRs are welcome. There is no obligation to review or merge — decisions are subjective.
 
-**AI-generated PRs will not be considered.** Write real code.
+**AI-generated PRs will not be considered.** With AI, code is cheap to generate and expensive to review, and I'm not willing to pay that cost for someone else.
+
+This isn't a rule against using AI. I use it here myself, but only on top of technical design, testing and review that I do personally. I can't guarantee every contributor will invest that same effort, so the blanket rule stands.
 
 ---
 
