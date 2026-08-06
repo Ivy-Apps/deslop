@@ -433,9 +433,7 @@ Production-ready rulebooks you can copy into your own `deslop/rules/` live in [`
 
 PRs are welcome. There is no obligation to review or merge — decisions are subjective.
 
-**AI-generated PRs will not be considered.** Write real code.
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for the development setup and build/test commands.
+**AI-generated PRs will not be considered** because AI code is cheap to generate and expensive to review, and I'm not paying that cost for someone else - see [CONTRIBUTING.md](./CONTRIBUTING.md) for the full reasoning, along with the development setup and build/test commands.
 
 ## License
 
