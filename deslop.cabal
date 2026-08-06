@@ -74,6 +74,7 @@ library
     Effects.CLI
     Effects.FileSystem
     Effects.ReportProblem
+    Git.Ignore
     Params
     Prelude
     Types
