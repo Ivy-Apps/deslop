@@ -3,7 +3,7 @@ name: Release to NPM
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 # The repo-wide default is write. The build jobs do not need it, and one of them
 # pipes a remote installer straight into a shell, so default to read-only here.
@@ -126,8 +126,8 @@ jobs:
 
       - uses: haskell-actions/setup@v2
         with:
-          ghc-version: '9.10.3'
-          cabal-version: '3.16.0.0'
+          ghc-version: "9.10.3"
+          cabal-version: "3.16.0.0"
 
       - name: Cache cabal store
         uses: actions/cache@v6
@@ -170,9 +170,9 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
-          scope: '@ivy-apps'
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          scope: "@ivy-apps"
           # setup-node auto-caches when it finds a package.json with a
           # packageManager field. There is none at the repo root today, but a
           # release is the wrong place to discover that someone added one.
@@ -283,7 +283,7 @@ jobs:
             '## 📦 Install' \
             '' \
             '```bash' \
-            "npm i -g @ivy-apps/deslop@$VERSION" \
+            "npm install --save-dev @ivy-apps/deslop@$VERSION" \
             '```' \
             '' \
             "NPM: https://www.npmjs.com/package/@ivy-apps/deslop/v/$VERSION" \
