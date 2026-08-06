@@ -33,3 +33,4 @@ nix run .#lint
 
 - **Custom Prelude:** The project uses `relude` as a custom prelude and `Text` (Data.Text) is available without importing.
 - **Extensions:** Assume `OverloadedRecordDot` is enabled.
+- **Function composition:** Prefer `f . g $ a` over `f $ g a`.
