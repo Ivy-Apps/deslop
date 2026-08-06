@@ -3,21 +3,24 @@
 module Deslop.CodeGraph (
     ModuleNode (..),
     ModuleGraph (..),
+    ModuleCycle (..),
     buildModuleGraph,
     hasPath,
     moduleExists,
     reachableFrom,
     findKnownPath,
+    findCycles,
 ) where
 
 import Data.Array ((!))
-import Data.Graph (Graph, Vertex, graphFromEdges, path, reachable)
+import Data.Graph (Graph, Vertex, graphFromEdges, path, reachable, scc)
 import Data.IntSet (Key)
 import Data.IntSet qualified as IntSet
 import Data.List.NonEmpty qualified as NE
 import Data.Sequence (Seq (..), (|>))
 import Data.Sequence qualified as Seq
 import Data.Set qualified as Set
+import Data.Tree (Tree, flatten)
 import Deslop.AST (AstModule (..), AstNode (..))
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
@@ -40,6 +43,15 @@ data ModuleGraph = ModuleGraph
     , nodeFromV :: Vertex -> (ModuleNode, ModuleId, [ModuleId])
     , vertexFromId :: ModuleId -> Maybe Vertex
     }
+
+{- | A circular import chain, listed in walk order and starting at the cycle's
+canonical start. Every module appears exactly once - the closing edge from the
+last module back to the start is implicit.
+-}
+newtype ModuleCycle = ModuleCycle
+    { modules :: NonEmpty AstModule
+    }
+    deriving stock (Show, Eq)
 
 -- | Constructs the ModuleGraph from a list of parsed AST modules.
 buildModuleGraph :: [AstModule] -> ModuleGraph
@@ -118,3 +130,54 @@ findKnownPath from to = do
              in
                 bfs (IntSet.singleton vFrom) (Seq.singleton (vFrom, []))
         _ -> error "Invariant violated: ModuleIds do not exist in graph."
+
+{- | Finds every circular import chain in the graph, one per strongly connected
+component. A component with more than one module is always cyclic; a lone module
+is cyclic only when it imports itself.
+-}
+findCycles :: (Reader ModuleGraph :> es) => Eff es [ModuleCycle]
+findCycles = do
+    mg <- ask @ModuleGraph
+    pure . mapMaybe (cycleOf mg) . scc $ mg.graph
+
+{- | Reduces a strongly connected component to the shortest cycle through its
+canonical start. External modules cannot occur here - they are built without
+outgoing edges - so a component holding one is not a cycle.
+-}
+cycleOf :: ModuleGraph -> Tree Vertex -> Maybe ModuleCycle
+cycleOf mg component = do
+    vertices <- nonEmpty . flatten $ component
+    loop <- shortestLoop mg (IntSet.fromList . toList $ vertices) (canonicalStart vertices)
+    ModuleCycle <$> traverse (astModuleOf mg) loop
+  where
+    canonicalStart :: NonEmpty Vertex -> Vertex
+    canonicalStart = NE.head . NE.sortWith (moduleIdOf mg)
+
+{- | Breadth-first search for the shortest walk leading from @start@ back to
+itself within @component@. Neighbours are visited in ModuleId order so that ties
+between equally short cycles resolve deterministically.
+-}
+shortestLoop :: ModuleGraph -> IntSet -> Vertex -> Maybe (NonEmpty Vertex)
+shortestLoop mg component start = bfs (IntSet.singleton start) (Seq.singleton (start, start :| []))
+  where
+    bfs :: IntSet -> Seq (Vertex, NonEmpty Vertex) -> Maybe (NonEmpty Vertex)
+    bfs _ Seq.Empty = Nothing
+    bfs visited ((v, walk) :<| queue)
+        | start `elem` neighbors = Just . NE.reverse $ walk
+        | otherwise = bfs visited' queue'
+      where
+        neighbors =
+            sortOn (moduleIdOf mg)
+                . filter (`IntSet.member` component)
+                $ mg.graph ! v
+        unseen = filter (`IntSet.notMember` visited) neighbors
+        visited' = foldr IntSet.insert visited unseen
+        queue' = foldl' (\q n -> q |> (n, n NE.<| walk)) queue unseen
+
+astModuleOf :: ModuleGraph -> Vertex -> Maybe AstModule
+astModuleOf mg v = case mg.nodeFromV v of
+    (InternalModule m, _, _) -> Just m
+    (ExternalModule _, _, _) -> Nothing
+
+moduleIdOf :: ModuleGraph -> Vertex -> ModuleId
+moduleIdOf mg v = let (_, mid, _) = mg.nodeFromV v in mid

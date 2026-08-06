@@ -1,6 +1,5 @@
-module Deslop.RelativeImports (
+module Deslop.Lint.RelativeImports (
     importAliases,
-    fixTarget,
 ) where
 
 import Deslop.Baseline (Baseline, inBaseline)
@@ -39,7 +38,7 @@ importAliases prog = do
     pure prog {cst = cst'}
   where
     fixImport old@(Import _ t _) = do
-        t' <- (.text) <$> fixTarget prog.path t
+        t' <- (.text) <$> reverseResolveImport prog.path (moduleIdUnsafe t)
         if t /= t'
             then do
                 let new = old {target = t'}
@@ -53,10 +52,3 @@ importAliases prog = do
             else pure old
     fixImport x = pure x
 
-fixTarget ::
-    ( Reader TsConfig :> es
-    , RoFileSystem :> es
-    ) =>
-    AbsPath -> Text -> Eff es ModuleId
-fixTarget progPath t = do
-    reverseResolveImport progPath (moduleIdUnsafe t)

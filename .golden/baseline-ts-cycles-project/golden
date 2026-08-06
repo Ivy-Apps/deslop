@@ -1,0 +1,2 @@
+- no-import-cycles#src/a.ts
+- no-import-cycles#src/x.ts

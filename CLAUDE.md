@@ -33,4 +33,4 @@ nix run .#lint
 
 - **Custom Prelude:** The project uses `relude` as a custom prelude and `Text` (Data.Text) is available without importing.
 - **Extensions:** Assume `OverloadedRecordDot` is enabled.
-- **Function composition:** Prefer `f . g $ a` over `f $ g a`.
+- **Function composition:** Prefer the `.` composition operator when idiomatic. For example: Prefer `f . g $ a` over `f $ g a`, prefer `traverse (const . Gen.subsequence $ xs) xs` over `traverse (const (Gen.subsequence names)) names`.

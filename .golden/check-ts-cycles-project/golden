@@ -1,0 +1,6 @@
+# no-import-cycles#src/a.ts
+Circular dependency: @/a → @/b → @/c → @/a
+```ts
+import { b } from '@/b';
+```
+FIX: Import cycles are not allowed. Break the loop by removing one of its imports - usually by extracting the shared code into a module that both sides can depend on.

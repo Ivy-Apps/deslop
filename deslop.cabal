@@ -9,7 +9,9 @@ build-type:      Simple
 extra-doc-files: README.md
 
 flag static
-  description: Statically link the executable. musl only; used by the release CD.
+  description:
+    Statically link the executable. musl only; used by the release CD.
+
   default:     False
   manual:      True
 
@@ -50,7 +52,7 @@ executable deslop
   -- Fully static linking only works against musl, which is what the release
   -- workflow builds in. A glibc Linux build (Nix CI, contributors on Ubuntu)
   -- cannot statically link dlopen/getauxval/pthread_*, so this is opt-in.
-  if os(linux) && flag(static)
+  if (os(linux) && flag(static))
     ghc-options: -optl-static -optl-pthread
 
 library
@@ -61,10 +63,11 @@ library
     Deslop.Baseline
     Deslop.CodeGraph
     Deslop.GlobPlus
+    Deslop.Lint.CycleDetection
+    Deslop.Lint.RelativeImports
     Deslop.MCP
     Deslop.Problem
     Deslop.ProblemFormatter
-    Deslop.RelativeImports
     Deslop.Rulebook
     Deslop.RuleEnforcer
     Deslop.RuleExplainer
@@ -135,9 +138,10 @@ test-suite deslop-test
     Deslop.BaselineSpec
     Deslop.CodeGraphSpec
     Deslop.GlobPlusSpec
+    Deslop.Lint.CycleDetectionSpec
+    Deslop.Lint.RelativeImportsSpec
     Deslop.ProblemFormatterSpec
     Deslop.ProblemSpec
-    Deslop.RelativeImportSpec
     Deslop.RulebookSpec
     Deslop.RuleEnforcerSpec
     Doubles.CLI

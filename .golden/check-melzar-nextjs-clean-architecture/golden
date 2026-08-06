@@ -1,3 +1,11 @@
+# no-import-cycles#src/ioc/Application/authentication.module.ts
+Circular dependency: ioc/Application/authentication.module → ioc/common/utils/ioc.utils → ioc/application.container → ioc/Application/authentication.module
+```ts
+import { applyDependencies } from 'ioc/common/utils/ioc.utils';
+```
+FIX: Import cycles are not allowed. Break the loop by removing one of its imports - usually by extracting the shared code into a module that both sides can depend on.
+---------
+
 [AUTO-FIXABLE] # no-relative-imports#.storybook/preview.tsx
 Relative imports are not allowed. Use aliased ones.
 ```ts
