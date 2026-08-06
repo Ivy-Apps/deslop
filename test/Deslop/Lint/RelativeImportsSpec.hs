@@ -1,7 +1,7 @@
 module Deslop.Lint.RelativeImportsSpec (spec) where
 
+import Deslop.Lint.RelativeImports (noRelativeImports)
 import Deslop.Problem (LintRuleId (..), Problem (..))
-import Deslop.Lint.RelativeImports (importAliases)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
@@ -21,7 +21,7 @@ spec = describe "Deslop.Lint.RelativeImports" $ do
                 . runReader cfg
                 . runReader baseline
                 $ do
-                    result <- importAliases prog
+                    result <- noRelativeImports prog
                     problems <- getProblems
                     pure (result, problems)
 
@@ -30,7 +30,7 @@ spec = describe "Deslop.Lint.RelativeImports" $ do
     let mkProg fp = TsModule (absPathUnsafe fp)
     let mkImport t = Import {prefix = "import * from '", target = t, suffix = "';\n"}
 
-    describe "importAliases" $ do
+    describe "noRelativeImports" $ do
         it "converts an up-dir relative import to an alias" $ do
             let prog =
                     mkProg
@@ -129,7 +129,7 @@ spec = describe "Deslop.Lint.RelativeImports" $ do
                     n2 `shouldBe` Source {raw = "export default x;\n"}
                 _ -> expectationFailure "expected at least 3 nodes"
 
-    describe "importAliases with baseline" $ do
+    describe "noRelativeImports with baseline" $ do
         it "baselined import is reported as problem but kept as-is (not fixed)" $ do
             -- problemId for LintProblem = lintRuleId <> "#" <> filePath
             -- file is relative to projectPath (baseUrl), so:
