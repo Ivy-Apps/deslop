@@ -26,6 +26,7 @@ Learn more at **[deslop.dev](https://deslop.dev)**.
 - **Carve out exceptions** — `allows` whitelists specific imports against a broad `forbids`
 - **Require imports** — `uses` enforces mandatory dependencies at the module level
 - **Require companion files** — `exists` asserts that a test, story, or sibling module is there
+- **Detect import cycles** — circular dependencies are found automatically across your whole module graph, with the exact loop printed
 - **Glob+ patterns** — casing variables like `{{FileName}}` and `{{TARGET_DIR}}` make rules relative and reusable
 - **Plain-language `fix` messages** — every violation tells your team (and your agents) exactly what to do
 
@@ -112,6 +113,22 @@ Deslop works with **module IDs** — the aliased import paths your code already 
 
 > [!TIP]
 > Make sure your project has a `@/` path alias configured in `tsconfig.json` so Deslop can resolve all modules.
+
+### Built-in Checks
+
+Two checks are always on and need no rulebook:
+
+| Rule | What it catches | Auto-fixed by `deslop fix` |
+|------|-----------------|----------------------------|
+| `no-relative-imports` | `./util` or `../../lib/util` where an alias like `@/lib/util` exists | Yes |
+| `no-import-cycles` | Circular imports — `@/a` → `@/b` → `@/c` → `@/a` | No |
+
+They report through the same pipeline as rulebook violations, so `deslop baseline` silences them like anything else. Their baseline keys use the lint format, `{rule-id}#{relative-file-path}`:
+
+```yaml
+- "no-import-cycles#src/a.ts"
+- "no-relative-imports#src/lib/util.ts"
+```
 
 ---
 
@@ -415,6 +432,7 @@ Production-ready rulebooks you can copy into your own `deslop/rules/` live in [`
 | Allow exceptions | `allows` | Yes | `allowed` |
 | Require a dependency | `uses` | No | `required` |
 | Require companion files | `exists` | No | No |
+| Circular dependency detection | Built in, always on | `import/no-cycle` plugin rule | `no-circular` rule |
 | Transitive checks | `transitive: true` on any rule | Possible via typescript-eslint, at severe IDE/CI performance cost | `reachable` attribute, complex regex config |
 | Transitive *require* | `uses` + `transitive: true` | No | No |
 | Named path variables | `{{FileName}}`, `{{TARGET_DIR}}` | No | No |

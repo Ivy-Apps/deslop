@@ -1,7 +1,7 @@
-module Deslop.RelativeImportSpec (spec) where
+module Deslop.Lint.RelativeImportsSpec (spec) where
 
 import Deslop.Problem (LintRuleId (..), Problem (..))
-import Deslop.RelativeImports (importAliases)
+import Deslop.Lint.RelativeImports (importAliases)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
@@ -13,7 +13,7 @@ import TestUtils (baselineOf, defaultTsConfig)
 import TypeScript.CST (TsNode (..), TsProgram (..))
 
 spec :: Spec
-spec = describe "Deslop.RelativeImport" $ do
+spec = describe "Deslop.Lint.RelativeImports" $ do
     let runTest cfg baseline existingFiles prog =
             runEff
                 . runMockRoFileSystem (mockFiles existingFiles)

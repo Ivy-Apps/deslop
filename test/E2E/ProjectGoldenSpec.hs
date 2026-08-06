@@ -23,10 +23,12 @@ spec = describe "E2E.Project" $ do
     itChecks "ts-project-1"
     itChecks "ixartz-next-js-boilerplate"
     itChecks "melzar-nextjs-clean-architecture"
+    itChecks "ts-cycles-project"
 
     itBaselines "ts-project-1"
     itBaselines "ixartz-next-js-boilerplate"
     itBaselines "melzar-nextjs-clean-architecture"
+    itBaselines "ts-cycles-project"
 
     itFixes
         "ts-project-1"

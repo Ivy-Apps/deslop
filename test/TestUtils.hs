@@ -16,6 +16,7 @@ module TestUtils (
     ap,
     rp,
     baselineOf,
+    mkModule,
     mkImportNode,
     failBeatiful,
     mkUsesImportDto,
@@ -33,7 +34,7 @@ import Control.Exception.Base (AssertionFailed (..))
 import Data.HashSet qualified as HS
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
-import Deslop.AST (AstNode (..))
+import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.Baseline (Baseline (..))
 import Deslop.Problem (ProblemId (..))
 import Deslop.Rulebook (AllowsDto (AllowsImportDto), ExistsDto (ExistsModuleDto), ForbidsDto (..), GlobDto (GlobDto), RuleDto (..), RuleId (..), RulebookDto (..), UsesDto (UsesImportDto))
@@ -144,6 +145,17 @@ rp = relativePathUnsafe . encodeOsPath
 
 baselineOf :: [Text] -> Baseline
 baselineOf = Baseline . HS.fromList . fmap ProblemId
+
+{- | Constructs an AstModule from its id and import targets, giving it a source
+file under 'defaultTsConfig's baseUrl so that reported locations are predictable.
+-}
+mkModule :: Text -> [Text] -> AstModule
+mkModule mid deps =
+    AstModule
+        { id = moduleIdUnsafe mid
+        , path = ap ("/home/repo/" <> mid <> ".ts")
+        , nodes = map mkImportNode deps
+        }
 
 -- | Constructs an ImportNode with a realistic raw import statement.
 mkImportNode :: Text -> AstNode

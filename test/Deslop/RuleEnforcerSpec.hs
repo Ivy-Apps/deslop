@@ -11,16 +11,9 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
-import TestUtils (mkAllowsImportDto, mkExistsModuleDto, mkForbidsImportDto, mkImportNode, mkUsesImportDto, requireRight, ruleDto, rulebookDto)
+import TestUtils (mkAllowsImportDto, mkExistsModuleDto, mkForbidsImportDto, mkModule, mkUsesImportDto, requireRight, ruleDto, rulebookDto)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (DeslopError (..))
-
-mkModule :: Text -> [Text] -> AstModule
-mkModule mid deps =
-    AstModule
-        { id = moduleIdUnsafe mid
-        , nodes = map mkImportNode deps
-        }
 
 testRulebook :: Rulebook
 testRulebook =
@@ -164,20 +157,12 @@ spec :: Spec
 spec = describe "Deslop.RuleEnforcer" $ do
     describe "forbids imports" $ do
         it "no violations" $ do
-            let m =
-                    AstModule
-                        { id = moduleIdUnsafe "@/components/Button"
-                        , nodes = [mkImportNode "react"]
-                        }
+            let m = mkModule "@/components/Button" ["react"]
             problems <- runTest m
             problems `shouldBe` []
 
         it "direct import violation" $ do
-            let m =
-                    AstModule
-                        { id = moduleIdUnsafe "@/components/Button"
-                        , nodes = [mkImportNode "@/forbids/module"]
-                        }
+            let m = mkModule "@/components/Button" ["@/forbids/module"]
             problems <- runTest m
             problems
                 `shouldBe` [ RuleViolation

@@ -11,7 +11,8 @@ import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.AST (AstModule, parseAst)
 import Deslop.Baseline (Baseline, applyBaseline, emptyBaseline, loadBaseline, saveBaseline)
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
-import Deslop.RelativeImports (importAliases)
+import Deslop.Lint.CycleDetection (noImportCycles)
+import Deslop.Lint.RelativeImports (importAliases)
 import Deslop.RuleEnforcer (enforceRulebooks)
 import Deslop.Rulebook (Rulebook, loadRuleBook)
 import Effectful (Eff, IOE, runEff, type (:>))
@@ -125,13 +126,15 @@ deslopProject params baseline = do
     traverse_ logError lintErrors
     when
         (params.command /= FixC)
-        ( do
+        $ do
             let mg = buildModuleGraph asts
-            runReader @[Rulebook] rulebook
+            runReader @TsConfig cfg
                 . runReader @ModuleGraph mg
-                . traverse_ enforceRulebooks
-                $ asts
-        )
+                $ do
+                    noImportCycles
+                    runReader @[Rulebook] rulebook
+                        . traverse_ enforceRulebooks
+                        $ asts
 
 deslopFile ::
     ( RoFileSystem :> es
