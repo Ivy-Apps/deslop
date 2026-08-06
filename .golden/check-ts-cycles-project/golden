@@ -1,5 +1,5 @@
 # no-import-cycles#src/a.ts
-Circular dependency: @/a → @/b → @/c → @/a
+Circular dependency (import cycle) detected: @/a → @/b → @/c → @/a
 ```ts
 import { b } from '@/b';
 ```

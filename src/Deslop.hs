@@ -12,7 +12,7 @@ import Deslop.AST (AstModule, parseAst)
 import Deslop.Baseline (Baseline, applyBaseline, emptyBaseline, loadBaseline, saveBaseline)
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
 import Deslop.Lint.CycleDetection (noImportCycles)
-import Deslop.Lint.RelativeImports (importAliases)
+import Deslop.Lint.RelativeImports (noRelativeImports)
 import Deslop.RuleEnforcer (enforceRulebooks)
 import Deslop.Rulebook (Rulebook, loadRuleBook)
 import Effectful (Eff, IOE, runEff, type (:>))
@@ -113,7 +113,7 @@ deslopProject params baseline = do
     rulebookRes <- loadRuleBook params.projectPath
     rulebook <- case rulebookRes of
         Right rb -> pure rb
-        Left e -> throwError . RulebookErorr $ e
+        Left e -> throwError . RulebookError $ e
 
     cfg <- tsConfig params.projectPath
     files <- getTsFiles params.projectPath
@@ -172,7 +172,7 @@ lintFile p c =
     traverse deslop . parseTs $
         TsFile {path = p, content = TE.decodeUtf8 c}
   where
-    deslop = foldr (>=>) pure [importAliases]
+    deslop = foldr (>=>) pure [noRelativeImports]
 
 tsConfig ::
     ( RoFileSystem :> es

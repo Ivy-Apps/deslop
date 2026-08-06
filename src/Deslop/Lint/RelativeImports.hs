@@ -1,5 +1,5 @@
 module Deslop.Lint.RelativeImports (
-    importAliases,
+    noRelativeImports,
 ) where
 
 import Deslop.Baseline (Baseline, inBaseline)
@@ -16,8 +16,8 @@ import TypeScript.Config (TsConfig (..))
 import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe, reverseResolveImport)
 import Types (Renderable (render))
 
-noRelativeImports :: (TsNode, TsNode) -> AbsPath -> AbsPath -> Problem
-noRelativeImports (old, new) projectPath modulePath =
+relativeImport :: (TsNode, TsNode) -> AbsPath -> AbsPath -> Problem
+relativeImport (old, new) projectPath modulePath =
     LintProblem
         { lintRule = LintRuleId "no-relative-imports"
         , location = Location {file = relativePathTo projectPath modulePath, code = render old}
@@ -26,14 +26,14 @@ noRelativeImports (old, new) projectPath modulePath =
         , autoFixable = True
         }
 
-importAliases ::
+noRelativeImports ::
     ( Reader TsConfig :> es
     , Reader Baseline :> es
     , ReportProblem :> es
     , RoFileSystem :> es
     ) =>
     TsProgram -> Eff es TsProgram
-importAliases prog = do
+noRelativeImports prog = do
     cst' <- traverse fixImport prog.cst
     pure prog {cst = cst'}
   where
@@ -43,7 +43,7 @@ importAliases prog = do
             then do
                 let new = old {target = t'}
                 projPath <- asks @TsConfig (.baseUrl)
-                let problem = noRelativeImports (old, new) projPath prog.path
+                let problem = relativeImport (old, new) projPath prog.path
                 report problem
                 baseline <- ask @Baseline
                 if inBaseline baseline problem
@@ -51,4 +51,3 @@ importAliases prog = do
                     else pure new
             else pure old
     fixImport x = pure x
-

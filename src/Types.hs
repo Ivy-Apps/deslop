@@ -15,6 +15,6 @@ data DeslopError
     = TsConfigNotFoundError OsPath
     | TsConfigParseError Text
     | CheckModeFoundProblems
-    | RulebookErorr Text
+    | RulebookError Text
     | InvalidRuleConfig Text
     deriving (Show, Eq)

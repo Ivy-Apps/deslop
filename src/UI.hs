@@ -96,7 +96,7 @@ humanReadable (TsConfigParseError path) =
     "Could not parse TS config, check: '" <> path <> "'"
 humanReadable CheckModeFoundProblems =
     "Problems found. Run `deslop fix` to apply fixes."
-humanReadable (RulebookErorr msg) =
+humanReadable (RulebookError msg) =
     "Could not load Rulebook: " <> msg
 humanReadable (InvalidRuleConfig msg) =
     "Invalid rule configuration: " <> msg

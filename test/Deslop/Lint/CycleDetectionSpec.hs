@@ -40,7 +40,7 @@ spec = describe "Deslop.Lint.CycleDetection" $ do
                                     { file = rp "a.ts"
                                     , code = "import { ... } from 'b'"
                                     }
-                            , description = "Circular dependency: a → b → a"
+                            , description = "Circular dependency (import cycle) detected: a → b → a"
                             , fix = cycleFix
                             , autoFixable = False
                             }
@@ -59,7 +59,7 @@ spec = describe "Deslop.Lint.CycleDetection" $ do
                                     { file = rp "a.ts"
                                     , code = "import { ... } from 'b'"
                                     }
-                            , description = "Circular dependency: a → b → c → a"
+                            , description = "Circular dependency (import cycle) detected: a → b → c → a"
                             , fix = cycleFix
                             , autoFixable = False
                             }
@@ -76,7 +76,7 @@ spec = describe "Deslop.Lint.CycleDetection" $ do
                                     { file = rp "a.ts"
                                     , code = "import { ... } from 'a'"
                                     }
-                            , description = "Circular dependency: a → a"
+                            , description = "Circular dependency (import cycle) detected: a → a"
                             , fix = cycleFix
                             , autoFixable = False
                             }
