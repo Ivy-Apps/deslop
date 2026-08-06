@@ -113,7 +113,7 @@ deslopProject params baseline = do
     rulebookRes <- loadRuleBook params.projectPath
     rulebook <- case rulebookRes of
         Right rb -> pure rb
-        Left e -> throwError . RulebookErorr $ e
+        Left e -> throwError . RulebookError $ e
 
     cfg <- tsConfig params.projectPath
     files <- getTsFiles params.projectPath
