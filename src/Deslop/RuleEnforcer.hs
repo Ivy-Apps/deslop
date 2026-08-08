@@ -12,6 +12,7 @@ import Effectful.Reader.Static (Reader, ask, asks, runReader)
 import Effects.ReportProblem (ReportProblem, report)
 import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe)
 import Types (DeslopError (..))
+import UI (pluralise)
 import Utils (todo)
 
 ruleViolation ::
@@ -133,7 +134,8 @@ enforceForbids m env (ForbidsImport target transitive)
             allowed <- inAllows reachableModuleId
             unless allowed $ do
                 p <- findKnownPath m.id reachableModuleId
-                let via = " via: " <> T.intercalate " → " (map (.text) (toList p))
+                let hops = " (" <> pluralise (length p - 1) "hop" <> ")"
+                    via = " via: " <> T.intercalate " → " (map (.text) (toList p))
                     firstHop = listToMaybe (drop 1 (toList p))
                     importRaw hop = T.strip . (.rawStatement) <$> find (\n -> n.target == hop) m.nodes
                     stmtSuffix = maybe "" (\raw -> "\n```ts\n" <> raw <> "\n```") (firstHop >>= importRaw)
@@ -143,6 +145,7 @@ enforceForbids m env (ForbidsImport target transitive)
                             <> "' transitively imports '"
                             <> reachableModuleId.text
                             <> "'"
+                            <> hops
                             <> via
                             <> "."
                             <> stmtSuffix

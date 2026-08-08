@@ -1,4 +1,9 @@
-# no-import-cycles#src/ioc/Application/authentication.module.ts
+[Title] 🚀 Checking project: ~/test/fixtures/melzar-nextjs-clean-architecture
+[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
+Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
+[Error] Found 6 problems:
+[Error] ─────────────────────────────────────────
+[Error] # no-import-cycles#src/ioc/Application/authentication.module.ts
 Circular dependency (import cycle) detected: ioc/Application/authentication.module → ioc/common/utils/ioc.utils → ioc/application.container → ioc/Application/authentication.module
 ```ts
 import { applyDependencies } from 'ioc/common/utils/ioc.utils';
@@ -44,3 +49,7 @@ Relative imports are not allowed. Use aliased ones.
 import styles from './topNavigation.module.scss';
 ```
 FIX: Use ```import styles from 'ui/common/components/layout/TopNavigation/topNavigation.module.scss';``` instead.
+[Error] ─────────────────────────────────────────
+[exit] Found 6 problems, 5 of them auto-fixable.
+   Run `deslop fix` to fix the 5 auto-fixable problems.
+   Run `deslop baseline` to silence all 6 problems.

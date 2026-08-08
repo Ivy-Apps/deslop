@@ -1,4 +1,8 @@
-[AUTO-FIXABLE] # no-relative-imports#src/app/[locale]/login/page.tsx
+[Title] 🚀 Checking project: ~/test/fixtures/ts-project-1
+[Plain] 📚 Loaded 2 rulebooks, 8 rules
+[Error] Found 30 problems:
+[Error] ─────────────────────────────────────────
+[Error] [AUTO-FIXABLE] # no-relative-imports#src/app/[locale]/login/page.tsx
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { capitalize } from '../../../lib/util';
@@ -209,7 +213,7 @@ FIX: Remove the direct React import from this library module. Extract any React-
 # architecture#no-react-transitively-in-data#@/features/home/data/bad-repository
 Data layer modules in @/features/**/data must not transitively depend on React. Repositories and data access code must stay framework-agnostic so they can be reused in server-side and non-React contexts without pulling in the entire React runtime.
 
-Module '@/features/home/data/bad-repository' transitively imports 'react' via: @/features/home/data/bad-repository → @/features/home/home-screen → react.
+Module '@/features/home/data/bad-repository' transitively imports 'react' (2 hops) via: @/features/home/data/bad-repository → @/features/home/home-screen → react.
 ```ts
 import { HomeScreen } from "@/features/home/home-screen";
 ```
@@ -219,7 +223,7 @@ FIX: Remove any imports that transitively pull in React. Data layer modules must
 # architecture#no-react-transitively-in-data#@/features/profile/data/profile-repository
 Data layer modules in @/features/**/data must not transitively depend on React. Repositories and data access code must stay framework-agnostic so they can be reused in server-side and non-React contexts without pulling in the entire React runtime.
 
-Module '@/features/profile/data/profile-repository' transitively imports 'react' via: @/features/profile/data/profile-repository → @/features/home/home-screen → react.
+Module '@/features/profile/data/profile-repository' transitively imports 'react' (2 hops) via: @/features/profile/data/profile-repository → @/features/home/home-screen → react.
 ```ts
 import { HomeScreen } from "@/features/home/home-screen";
 ```
@@ -258,3 +262,7 @@ Module '@/domain/order/OrderService' directly imports '@/infrastructure/HttpClie
 import { httpGet } from "@/infrastructure/HttpClient";
 ```
 FIX: Move the dependency out of the domain layer. Infrastructure concerns (HTTP, DB) belong in @/infrastructure. UI concerns belong in @/features or @/components. Shared pure utilities belong in @/shared.
+[Error] ─────────────────────────────────────────
+[exit] Found 30 problems, 17 of them auto-fixable.
+   Run `deslop fix` to fix the 17 auto-fixable problems.
+   Run `deslop baseline` to silence all 30 problems.

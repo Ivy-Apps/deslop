@@ -3,28 +3,30 @@ module Doubles.CLI (
     TestLogs (..),
     runMockCLI,
     defaultMockCLI,
+    renderTranscript,
 ) where
 
+import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Effectful.Dispatch.Dynamic (reinterpret)
 import Effectful.State.Static.Local qualified as State
-import Effects.CLI (CLI (..))
-import UI (problemsLogText)
+import Effects.CLI (CLI (..), LogStyle)
 
 data MockCLI = MockCLI
     { mockReadLines :: [Text]
-    , problemsRef :: Maybe (IORef (Maybe TestLogs))
+    , logsRef :: Maybe (IORef TestLogs)
     }
 
 defaultMockCLI :: MockCLI
 defaultMockCLI =
     MockCLI
         { mockReadLines = []
-        , problemsRef = Nothing
+        , logsRef = Nothing
         }
 
+-- | Every message the run logged, in the order it was logged.
 newtype TestLogs = TestLogs
-    { problems :: Text
+    { transcript :: [(LogStyle, Text)]
     }
     deriving (Show, Eq)
 
@@ -38,14 +40,16 @@ runMockCLI mock = reinterpret (State.evalState mock.mockReadLines) $ \_ -> \case
             (x : xs) -> do
                 State.put @[Text] xs
                 pure x
-    LogTitle _ -> pure ()
-    LogModification _ -> pure ()
-    LogFixSummary -> pure ()
-    LogProblems ps -> case mock.problemsRef of
-        Just pRef -> liftIO $ writeIORef pRef (Just . TestLogs . problemsLogText $ ps)
+    Log style msg -> case mock.logsRef of
         Nothing -> pure ()
-    LogNoProblemsFound -> pure ()
-    LogBaselineSaved _ -> pure ()
-    LogError _ -> pure ()
-    LogText _ -> pure ()
-    LogWarning _ -> pure ()
+        Just ref ->
+            liftIO . modifyIORef' ref $
+                TestLogs . (<> [(style, msg)]) . (.transcript)
+
+{- | Renders a transcript for goldens, tagging each message with its style so a
+regression in styling is as visible as one in wording.
+-}
+renderTranscript :: TestLogs -> Text
+renderTranscript logs = T.unlines $ renderEntry <$> logs.transcript
+  where
+    renderEntry (style, msg) = "[" <> show style <> "] " <> msg

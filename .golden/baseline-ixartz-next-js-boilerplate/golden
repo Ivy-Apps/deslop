@@ -1,3 +1,9 @@
+[Title] 🚀 Baselining project: ~/test/fixtures/ixartz-next-js-boilerplate
+[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
+Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
+[Success] ✅ Success: Baseline generated with 11 problems.
+
+>>> baseline.yaml
 - no-relative-imports#.storybook/preview.ts
 - no-relative-imports#next.config.ts
 - no-relative-imports#src/components/Hello.tsx

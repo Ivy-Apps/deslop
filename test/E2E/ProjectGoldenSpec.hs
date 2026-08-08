@@ -3,7 +3,7 @@ module E2E.ProjectGoldenSpec (spec) where
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Deslop (doWork)
-import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, runMockCLI)
+import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, renderTranscript, runMockCLI)
 import Doubles.FileSystem (runMockWrFileSystem)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
@@ -18,6 +18,7 @@ import Test.Hspec.Golden (defaultGolden)
 import TestUtils (copyDir, defaultParams, fixturesPath, mkAbsolute, pathSafeGolden, requireJust, snapshot)
 import TypeScript.Iterator (getTsFiles)
 import Types (DeslopError (..))
+import UI (humanReadable)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
@@ -78,6 +79,13 @@ spec = describe "E2E.Project" $ do
         , "src/app/page.tsx"
         ]
   where
+    -- The check summary is rendered by runDeslop, outside doWork, so the
+    -- transcript alone would not cover it. Appending it goldens the wording
+    -- together with the counts that produced it.
+    renderResult :: Either DeslopError () -> Text
+    renderResult (Right ()) = ""
+    renderResult (Left err) = "[exit] " <> humanReadable err <> "\n"
+
     -- Goldens exactly which files the iteration produced. Unlike the check and
     -- baseline goldens, which can only show a skipped file as an absence, this
     -- states the outcome positively: a regression makes a named path appear.
@@ -99,7 +107,7 @@ spec = describe "E2E.Project" $ do
         -- Given
         let projectPath = fixturesPath </> encodeOsPathString project
         filesRef <- newIORef Nothing
-        logsRef <- newIORef Nothing
+        logsRef <- newIORef (TestLogs [])
         defParams <- defaultParams projectPath
         let params = defParams {command = CheckC}
 
@@ -109,25 +117,23 @@ spec = describe "E2E.Project" $ do
                 . runMockWrFileSystem filesRef
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
-                . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
+                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
                 . runReportProblem
                 . runConcurrent
                 $ doWork params
 
         -- Then
-        res `shouldBe` Left CheckModeFoundProblems
         written <- readIORef filesRef
         written `shouldBe` Nothing
-        maybeLogs <- readIORef logsRef
-
-        logs <- requireJust "Expected problems to be logged when check mode finds problems" maybeLogs
-        pathSafeGolden ("check-" <> project) (T.unpack logs.problems)
+        logs <- readIORef logsRef
+        pathSafeGolden ("check-" <> project) . T.unpack $
+            renderTranscript logs <> renderResult res
 
     itBaselines project = it ("baselines " <> project) $ do
         -- Given
         let projectPath = fixturesPath </> encodeOsPathString project
         filesRef <- newIORef Nothing
-        logsRef <- newIORef Nothing
+        logsRef <- newIORef (TestLogs [])
         defParams <- defaultParams projectPath
         let params = defParams {command = BaselineC}
 
@@ -137,7 +143,7 @@ spec = describe "E2E.Project" $ do
                 . runMockWrFileSystem filesRef
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
-                . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
+                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
                 . runReportProblem
                 . runConcurrent
                 $ doWork params
@@ -145,7 +151,11 @@ spec = describe "E2E.Project" $ do
         -- Then
         res `shouldBe` Right ()
         content <- requireJust "Expected baseline.yaml to be written" =<< readIORef filesRef
-        pathSafeGolden ("baseline-" <> project) (T.unpack . TE.decodeUtf8 $ content)
+        logs <- readIORef logsRef
+        pathSafeGolden ("baseline-" <> project) . T.unpack $
+            renderTranscript logs
+                <> "\n>>> baseline.yaml\n"
+                <> TE.decodeUtf8 content
 
     itFixes project filesToCheck = it ("fixes " <> project) $ do
         withSystemTempDirectory "deslop-test" $ \tmpFp -> do
@@ -153,7 +163,6 @@ spec = describe "E2E.Project" $ do
             -- Given
             let projectPath = fixturesPath </> encodeOsPathString project
             copyDir projectPath tmpDir
-            logsRef <- newIORef Nothing
             params <- defaultParams tmpDir
 
             -- When
@@ -161,14 +170,12 @@ spec = describe "E2E.Project" $ do
                 runEff
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
-                    . runMockCLI defaultMockCLI {problemsRef = Just logsRef}
+                    . runMockCLI defaultMockCLI
                     . runReportProblem
                     . runConcurrent
                     $ doWork params
 
             -- Then
             res `shouldBe` Right ()
-            logs <- readIORef logsRef
-            logs `shouldBe` Nothing
             fullSnapshot <- snapshot tmpDir filesToCheck
             return $ defaultGolden ("fix-" <> project) fullSnapshot

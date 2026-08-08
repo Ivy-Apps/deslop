@@ -2,6 +2,7 @@ module Deslop.Problem (
     Problem (..),
     ProblemId (..),
     problemId,
+    isAutoFixable,
     Location (..),
     LintRuleId (..),
 ) where
@@ -41,6 +42,13 @@ data Location = Location
 
 newtype LintRuleId = LintRuleId Text
     deriving stock (Eq, Show, Ord)
+
+{- | Whether @deslop fix@ can resolve this Problem unattended.
+A Rule Violation never is: rulebooks describe architecture, not rewrites.
+-}
+isAutoFixable :: Problem -> Bool
+isAutoFixable LintProblem {autoFixable} = autoFixable
+isAutoFixable RuleViolation {} = False
 
 problemId :: Problem -> ProblemId
 problemId
