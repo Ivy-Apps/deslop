@@ -74,6 +74,8 @@ library
     Effects.CLI
     Effects.FileSystem
     Effects.ReportProblem
+    FileSystem.Iterator
+    Git.Ignore
     Params
     Prelude
     Types
@@ -150,6 +152,8 @@ test-suite deslop-test
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
     Effects.ReportProblemSpec
+    FileSystem.IteratorSpec
+    Git.IgnoreSpec
     ParamsSpec
     TestUtils
     TypeScript.ConfigSpec
@@ -178,6 +182,7 @@ test-suite deslop-test
     , optparse-applicative
     , os-string
     , pretty-show
+    , process
     , template-haskell
     , text
     , unliftio

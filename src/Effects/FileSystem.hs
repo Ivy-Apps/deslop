@@ -16,6 +16,7 @@ module Effects.FileSystem (
     fsWriteFile,
     fsMkDirP,
     fsDirectoryExists,
+    fsIsSymlink,
     fsListDirectory,
     fsGetHomeDirectory,
     fsMkAbsolute,
@@ -74,6 +75,7 @@ data RoFileSystem :: Effect where
     ReadFile :: AbsPath -> RoFileSystem m ByteString
     FileExists :: AbsPath -> RoFileSystem m Bool
     DirectoryExists :: AbsPath -> RoFileSystem m Bool
+    IsSymlink :: AbsPath -> RoFileSystem m Bool
     ListDirectory :: AbsPath -> RoFileSystem m [AbsPath]
     GetHomeDirectory :: RoFileSystem m AbsPath
     MkAbsolute :: OsPath -> RoFileSystem m AbsPath
@@ -93,6 +95,16 @@ fsFileExists = send . FileExists
 
 fsDirectoryExists :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
 fsDirectoryExists = send . DirectoryExists
+
+{- | Whether the path is a symbolic link, without following it.
+
+Directory walks use this to refuse to descend into symlinked directories,
+which is what git itself does and what makes those walks structurally
+terminating: a symlink loop yields ever-longer distinct paths, so a
+visited-set over raw paths would never detect it.
+-}
+fsIsSymlink :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
+fsIsSymlink = send . IsSymlink
 
 fsListDirectory :: (RoFileSystem :> es) => AbsPath -> Eff es [AbsPath]
 fsListDirectory = send . ListDirectory
@@ -117,6 +129,7 @@ runRoFileSystemIO = interpret $ \_env -> \case
     ReadFile (AbsPath path) -> liftIO $ SFO.readFile' path
     FileExists (AbsPath path) -> liftIO $ SDO.doesFileExist path
     DirectoryExists (AbsPath path) -> liftIO $ SDO.doesDirectoryExist path
+    IsSymlink (AbsPath path) -> liftIO $ SDO.pathIsSymbolicLink path
     ListDirectory absP@(AbsPath p) ->
         liftIO
             . fmap (fmap (withAbsBaseUnsafe absP))

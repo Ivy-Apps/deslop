@@ -1,0 +1,11 @@
+# Anchored and directory-only: only <root>/generated, and only as a directory.
+/generated/
+
+# Basename match at any depth.
+*.gen.ts
+
+# Basename match at any depth, hitting a directory here.
+vendor
+
+# Later line wins within the same file: this one is linted after all.
+!src/keep.gen.ts

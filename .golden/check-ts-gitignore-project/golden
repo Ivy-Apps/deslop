@@ -1,0 +1,30 @@
+[AUTO-FIXABLE] # no-relative-imports#src/bad.ts
+Relative imports are not allowed. Use aliased ones.
+```ts
+import { app } from './app';
+```
+FIX: Use ```import { app } from '@/app';``` instead.
+---------
+
+[AUTO-FIXABLE] # no-relative-imports#src/features/sub/scratch.ts
+Relative imports are not allowed. Use aliased ones.
+```ts
+import { app } from '../../app';
+```
+FIX: Use ```import { app } from '@/app';``` instead.
+---------
+
+[AUTO-FIXABLE] # no-relative-imports#src/keep.gen.ts
+Relative imports are not allowed. Use aliased ones.
+```ts
+import { app } from './app';
+```
+FIX: Use ```import { app } from '@/app';``` instead.
+---------
+
+[AUTO-FIXABLE] # no-relative-imports#src/other.gen.ts
+Relative imports are not allowed. Use aliased ones.
+```ts
+import { app } from './app';
+```
+FIX: Use ```import { app } from '@/app';``` instead.

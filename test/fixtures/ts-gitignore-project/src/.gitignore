@@ -1,0 +1,5 @@
+# Directory-only, relative to src/ rather than to the project root.
+debug/
+
+# A deeper .gitignore overrides a shallower one: this beats the root's *.gen.ts.
+!other.gen.ts
