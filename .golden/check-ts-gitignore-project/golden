@@ -1,4 +1,9 @@
-[AUTO-FIXABLE] # no-relative-imports#src/bad.ts
+[Title] 🚀 Checking project: ~/test/fixtures/ts-gitignore-project
+[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
+Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
+[Error] Found 4 problems:
+[Error] ─────────────────────────────────────────
+[Error] [AUTO-FIXABLE] # no-relative-imports#src/bad.ts
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { app } from './app';
@@ -28,3 +33,7 @@ Relative imports are not allowed. Use aliased ones.
 import { app } from './app';
 ```
 FIX: Use ```import { app } from '@/app';``` instead.
+[Error] ─────────────────────────────────────────
+[exit] Found 4 problems, 4 of them auto-fixable.
+   Run `deslop fix` to fix the 4 auto-fixable problems.
+   Run `deslop baseline` to silence all 4 problems.

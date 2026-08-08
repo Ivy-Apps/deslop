@@ -55,6 +55,17 @@ Something Deslop reports — either a Lint Problem (from a built-in check like
 The set of Problem IDs in `deslop/baseline.yaml` that a project has accepted, so
 they are suppressed from future checks.
 
+**Auto-Fixable**:
+A Problem that `deslop fix` can resolve without human input. Only some Lint
+Problems are; a Rule Violation never is, because a Rulebook Rule describes
+architecture rather than a rewrite.
+_Avoid_: Fixable (every Problem has a suggested fix; only some are automatic)
+
+**Hop**:
+One edge of the shortest import path from a module to a module it reaches
+transitively. A direct import is 1 hop.
+_Avoid_: Step, level, depth, degree
+
 ### Overloaded terms
 
 **Pattern** is deliberately never used unqualified. Three distinct things carry

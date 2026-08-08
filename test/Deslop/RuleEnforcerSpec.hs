@@ -190,7 +190,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/store' via: @/components/Button → @/forbids/store.\n```ts\nimport { ... } from '@/forbids/store'\n```"
+                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/store' (1 hop) via: @/components/Button → @/forbids/store.\n```ts\nimport { ... } from '@/forbids/store'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -205,7 +205,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/store' via: @/components/Button → @/lib/util → @/forbids/store.\n```ts\nimport { ... } from '@/lib/util'\n```"
+                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/store' (2 hops) via: @/components/Button → @/lib/util → @/forbids/store.\n```ts\nimport { ... } from '@/lib/util'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -222,14 +222,14 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/storeA' via: @/components/Button → @/lib/util → @/forbids/storeA.\n```ts\nimport { ... } from '@/lib/util'\n```"
+                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/storeA' (2 hops) via: @/components/Button → @/lib/util → @/forbids/storeA.\n```ts\nimport { ... } from '@/lib/util'\n```"
                                 , fix = "Remove the import"
                                 }
                            , RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
                                 , badModule = moduleIdUnsafe "@/components/Button"
-                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/storeB' via: @/components/Button → @/lib/helpers → @/forbids/storeB.\n```ts\nimport { ... } from '@/lib/helpers'\n```"
+                                , description = "Forbids modules must not be transitively imported.\n\nModule '@/components/Button' transitively imports '@/forbids/storeB' (2 hops) via: @/components/Button → @/lib/helpers → @/forbids/storeB.\n```ts\nimport { ... } from '@/lib/helpers'\n```"
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -245,7 +245,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 { rulebook = RulebookId "domain-rules"
                                 , rule = RuleId "no-react-in-domain"
                                 , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
-                                , description = "Domain layer must not depend on React.\n\nModule '@/domain/LoginUseCase' transitively imports 'react' via: @/domain/LoginUseCase → @/domain/UserRepository → @/infrastructure/HttpClient → react.\n```ts\nimport { ... } from '@/domain/UserRepository'\n```"
+                                , description = "Domain layer must not depend on React.\n\nModule '@/domain/LoginUseCase' transitively imports 'react' (3 hops) via: @/domain/LoginUseCase → @/domain/UserRepository → @/infrastructure/HttpClient → react.\n```ts\nimport { ... } from '@/domain/UserRepository'\n```"
                                 , fix = "Move React dependencies out of the domain layer."
                                 }
                            ]
@@ -699,7 +699,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "no-transitive-store"
                                     , badModule = moduleIdUnsafe "@/components/Button"
-                                    , description = "Components must not transitively import store modules.\n\nModule '@/components/Button' transitively imports '@/store/app-store' via: @/components/Button → @/lib/hooks → @/store/app-store.\n```ts\nimport { ... } from '@/lib/hooks'\n```"
+                                    , description = "Components must not transitively import store modules.\n\nModule '@/components/Button' transitively imports '@/store/app-store' (2 hops) via: @/components/Button → @/lib/hooks → @/store/app-store.\n```ts\nimport { ... } from '@/lib/hooks'\n```"
                                     , fix = "Remove the transitive store import."
                                     }
                                ]
@@ -721,7 +721,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "domain-purity-transitive"
                                     , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
-                                    , description = "Domain must not transitively reach non-domain/shared modules.\n\nModule '@/domain/LoginUseCase' transitively imports '@/infrastructure/HttpClient' via: @/domain/LoginUseCase → @/domain/AuthService → @/infrastructure/HttpClient.\n```ts\nimport { ... } from '@/domain/AuthService'\n```"
+                                    , description = "Domain must not transitively reach non-domain/shared modules.\n\nModule '@/domain/LoginUseCase' transitively imports '@/infrastructure/HttpClient' (2 hops) via: @/domain/LoginUseCase → @/domain/AuthService → @/infrastructure/HttpClient.\n```ts\nimport { ... } from '@/domain/AuthService'\n```"
                                     , fix = "Keep domain pure."
                                     }
                                ]

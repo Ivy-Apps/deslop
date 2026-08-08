@@ -1,6 +1,14 @@
-# no-import-cycles#src/a.ts
+[Title] 🚀 Checking project: ~/test/fixtures/ts-cycles-project
+[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
+Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
+[Error] Found 1 problem:
+[Error] ─────────────────────────────────────────
+[Error] # no-import-cycles#src/a.ts
 Circular dependency (import cycle) detected: @/a → @/b → @/c → @/a
 ```ts
 import { b } from '@/b';
 ```
 FIX: Import cycles are not allowed. Break the loop by removing one of its imports - usually by extracting the shared code into a module that both sides can depend on.
+[Error] ─────────────────────────────────────────
+[exit] Found 1 problem, none auto-fixable.
+   Run `deslop baseline` to silence all 1 problem.

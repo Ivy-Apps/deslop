@@ -6,6 +6,7 @@ module Deslop (
     runDeslop,
 ) where
 
+import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.AST (AstModule, parseAst)
@@ -13,18 +14,20 @@ import Deslop.Baseline (Baseline, applyBaseline, emptyBaseline, loadBaseline, sa
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
 import Deslop.Lint.CycleDetection (noImportCycles)
 import Deslop.Lint.RelativeImports (noRelativeImports)
+import Deslop.Problem (Problem, isAutoFixable)
 import Deslop.RuleEnforcer (enforceRulebooks)
-import Deslop.Rulebook (Rulebook, loadRuleBook)
+import Deslop.Rulebook (Rulebook (..), loadRuleBook)
 import Effectful (Eff, IOE, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Reader.Static (Reader, asks, runReader)
-import Effects.CLI (CLI, logBaselineSaved, logError, logFixSummary, logModification, logNoProblemsFound, logProblems, logTitle, runCLI)
+import Effects.CLI (CLI, LogStyle (..), cliLog, runCLI)
 import Effects.FileSystem (
     AbsPath (osPath),
     RoFileSystem,
     WrFileSystem,
+    decodeOsPath,
     fsFileExists,
     fsReadFile,
     fsWriteFile,
@@ -40,31 +43,26 @@ import TypeScript.Config (TsConfig, readTsConfig)
 import TypeScript.Iterator (getTsFiles)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types
-import UI
+import UI (divider, elapsed, humanReadable, pluralise, problemsLogText)
 
 runDeslop :: ParamsDto -> IO ()
-runDeslop paramsDto = do
-    start <- getCurrentTime
-
-    res <-
-        runEff
-            . runFileSystemIO
-            . runCLI
-            . runConcurrent
-            . runReportProblem
-            . runErrorNoCallStack @DeslopError
-            $ do
-                params <- paramsFromDto paramsDto
-                doWork params
-
-    end <- liftIO getCurrentTime
-    let diff = diffUTCTime end start
-    let seconds = realToFrac diff :: Double
-    case res of
-        Left err -> do
-            liftIO $ printErr (humanReadable err)
-            exitFailure
-        Right _ -> printTime seconds
+runDeslop paramsDto =
+    runEff
+        . runFileSystemIO
+        . runCLI
+        . runConcurrent
+        . runReportProblem
+        $ do
+            start <- liftIO getCurrentTime
+            res <-
+                runErrorNoCallStack @DeslopError $
+                    paramsFromDto paramsDto >>= doWork
+            end <- liftIO getCurrentTime
+            case res of
+                Left err -> do
+                    cliLog Error $ "❌ Error: " <> humanReadable err
+                    liftIO exitFailure
+                Right () -> cliLog Plain . elapsed $ diffUTCTime end start
 
 doWork ::
     ( WrFileSystem :> es
@@ -83,21 +81,61 @@ doWork params = do
         FixC -> do
             baseline <- loadBaseline params.projectPath
             deslopProject params baseline
-            logFixSummary
+            ps <- applyBaseline baseline <$> getProblems
+            logFixSummary . length . filter isAutoFixable $ ps
         CheckC -> do
             baseline <- loadBaseline params.projectPath
             deslopProject params baseline
             ps <- applyBaseline baseline <$> getProblems
-            if null ps
-                then logNoProblemsFound
-                else do
+            case ps of
+                [] -> cliLog Success "✅ Success: No problems found."
+                _ -> do
                     logProblems ps
-                    throwError CheckModeFoundProblems
+                    throwError
+                        CheckModeFoundProblems
+                            { total = length ps
+                            , autoFixable = length . filter isAutoFixable $ ps
+                            }
         BaselineC -> do
             deslopProject params emptyBaseline
             ps <- getProblems
             saveBaseline params.projectPath ps
-            logBaselineSaved (length ps)
+            cliLog Success $
+                "✅ Success: Baseline generated with "
+                    <> pluralise (length ps) "problem"
+                    <> "."
+
+logTitle :: (CLI :> es) => Params -> Eff es ()
+logTitle params = do
+    cliLog Title $
+        "🚀 "
+            <> commandTitle params.command
+            <> " project: "
+            <> decodeOsPath params.projectPath.osPath
+    case params.command of
+        FixC -> cliLog Plain "Changelog:"
+        _ -> pure ()
+
+commandTitle :: Command -> Text
+commandTitle CheckC = "Checking"
+commandTitle FixC = "Fixing"
+commandTitle BaselineC = "Baselining"
+
+logProblems :: (CLI :> es) => [Problem] -> Eff es ()
+logProblems ps = do
+    cliLog Error $ "Found " <> pluralise (length ps) "problem" <> ":"
+    cliLog Error divider
+    cliLog Error . problemsLogText $ ps
+    cliLog Error divider
+
+-- | Reports how many auto-fixable Problems @deslop fix@ resolved.
+logFixSummary :: (CLI :> es) => Int -> Eff es ()
+logFixSummary fixed = do
+    cliLog Plain divider
+    cliLog Success $ case fixed of
+        0 -> "✨ The project is already clean!"
+        n -> "✨ Fixed " <> pluralise n "problem" <> "!"
+    cliLog Plain divider
 
 deslopProject ::
     ( WrFileSystem :> es
@@ -115,6 +153,7 @@ deslopProject params baseline = do
     rulebook <- case rulebookRes of
         Right rb -> pure rb
         Left e -> throwError . RulebookError $ e
+    logRulebooks params.command rulebook
 
     cfg <- tsConfig params.projectPath
     gitIgnore <- loadGitIgnore params.projectPath
@@ -125,7 +164,7 @@ deslopProject params baseline = do
             . runReader @Params params
             . runReader @Baseline baseline
             $ pooledMapConcurrentlyN 32 deslopFile files
-    traverse_ logError lintErrors
+    traverse_ (cliLog Error . ("❌ Error: " <>) . T.pack) lintErrors
     when
         (params.command /= FixC)
         $ do
@@ -137,6 +176,29 @@ deslopProject params baseline = do
                     runReader @[Rulebook] rulebook
                         . traverse_ enforceRulebooks
                         $ asts
+
+{- | Reports what the Rulebooks contribute. Silent for @fix@, which never
+enforces Rulebook Rules.
+-}
+logRulebooks :: (CLI :> es) => Command -> [Rulebook] -> Eff es ()
+logRulebooks FixC _ = pure ()
+logRulebooks _ rulebooks = do
+    case rulebooks of
+        [] -> pure ()
+        _ -> cliLog Plain summary
+    case totalRules of
+        0 -> cliLog Warning noRulesWarning
+        _ -> pure ()
+  where
+    totalRules = sum $ length . (.rules) <$> rulebooks
+    summary =
+        "📚 Loaded "
+            <> pluralise (length rulebooks) "rulebook"
+            <> ", "
+            <> pluralise totalRules "rule"
+    noRulesWarning =
+        "WARNING: No architecture rules loaded. Deslop is only running its built-in checks.\n"
+            <> "Define your own rules in deslop/rules/*.yaml - see https://deslop.dev"
 
 deslopFile ::
     ( RoFileSystem :> es
@@ -156,7 +218,7 @@ deslopFile src = do
     cmd <- asks @Params (.command)
     when (c /= c' && cmd == FixC) $ do
         fsWriteFile src c'
-        logModification src
+        cliLog Change $ "  modified  " <> decodeOsPath src.osPath
     traverse parseAst cstRes
   where
     renderProgram = TE.encodeUtf8 . render . (.cst)

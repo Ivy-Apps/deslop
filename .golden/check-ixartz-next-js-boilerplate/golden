@@ -1,4 +1,9 @@
-[AUTO-FIXABLE] # no-relative-imports#.storybook/preview.ts
+[Title] 🚀 Checking project: ~/test/fixtures/ixartz-next-js-boilerplate
+[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
+Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
+[Error] Found 11 problems:
+[Error] ─────────────────────────────────────────
+[Error] [AUTO-FIXABLE] # no-relative-imports#.storybook/preview.ts
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import '../src/styles/global.css';
@@ -84,3 +89,7 @@ Relative imports are not allowed. Use aliased ones.
 import { getI18nPath } from './Helpers';
 ```
 FIX: Use ```import { getI18nPath } from '@/utils/Helpers';``` instead.
+[Error] ─────────────────────────────────────────
+[exit] Found 11 problems, 11 of them auto-fixable.
+   Run `deslop fix` to fix the 11 auto-fixable problems.
+   Run `deslop baseline` to silence all 11 problems.

@@ -15,6 +15,9 @@ data DeslopError
     = TsConfigNotFoundError OsPath
     | TsConfigParseError Text
     | CheckModeFoundProblems
+        { total :: Int
+        , autoFixable :: Int
+        }
     | RulebookError Text
     | InvalidRuleConfig Text
     deriving (Show, Eq)
