@@ -29,6 +29,16 @@ nix run .#test -- Parser
 nix run .#lint
 ```
 
+### Test fixtures
+
+`test/fixtures/ts-gitignore-project/` contains real `.gitignore` files, which
+this repository's own git honours too. Anything they ignore must be force-added
+once, or it will silently never be committed:
+
+```bash
+git add -f test/fixtures/ts-gitignore-project/<path>
+```
+
 ## Coding Conventions
 
 - **Custom Prelude:** The project uses `relude` as a custom prelude and `Text` (Data.Text) is available without importing.

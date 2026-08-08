@@ -96,6 +96,9 @@
                 # lean shell instead of the HLS-heavy `default` one.
                 pkgs.just
                 pkgs.hlint
+                # The Git.Ignore property tests use `git check-ignore` as an
+                # oracle, so the test suite needs a git binary on PATH.
+                pkgs.git
               ];
 
               buildInputs = sysLibs;
@@ -112,6 +115,8 @@
                 pkgs.pkg-config
                 pkgs.just
                 pkgs.hlint
+                # See the `ci` shell: `git check-ignore` is a test oracle.
+                pkgs.git
                 hgold
               ];
 

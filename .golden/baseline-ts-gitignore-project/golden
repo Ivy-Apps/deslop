@@ -1,0 +1,4 @@
+- no-relative-imports#src/bad.ts
+- no-relative-imports#src/features/sub/scratch.ts
+- no-relative-imports#src/keep.gen.ts
+- no-relative-imports#src/other.gen.ts

@@ -1,0 +1,5 @@
+# Known/accepted violations that are excluded from the deslop check.
+# Add a problem ID here to suppress it from future reports.
+# Format for lint problems:    {rule-id}#{relative-file-path}
+# Format for rulebook rules:   {rulebook-id}#{rule-id}#{module-id}
+[]

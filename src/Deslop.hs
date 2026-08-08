@@ -32,6 +32,7 @@ import Effects.FileSystem (
     withAbsBaseUnsafe,
  )
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
+import Git.Ignore (loadGitIgnore)
 import Params
 import System.OsPath (osp)
 import TypeScript.CST
@@ -116,7 +117,8 @@ deslopProject params baseline = do
         Left e -> throwError . RulebookError $ e
 
     cfg <- tsConfig params.projectPath
-    files <- getTsFiles params.projectPath
+    gitIgnore <- loadGitIgnore params.projectPath
+    files <- getTsFiles gitIgnore params.projectPath
     (lintErrors, asts) <-
         fmap partitionEithers
             . runReader @TsConfig cfg

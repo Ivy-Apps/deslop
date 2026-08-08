@@ -8,13 +8,15 @@ import Doubles.FileSystem (runMockWrFileSystem)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effects.FileSystem (encodeOsPathString, runFileSystemIO, runRoFileSystemIO)
+import Effects.FileSystem (RelativePath (osPath), decodeOsPath, encodeOsPathString, relativePathTo, runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
+import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
 import System.OsPath ((</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (copyDir, defaultParams, fixturesPath, pathSafeGolden, requireJust, snapshot)
+import TestUtils (copyDir, defaultParams, fixturesPath, mkAbsolute, pathSafeGolden, requireJust, snapshot)
+import TypeScript.Iterator (getTsFiles)
 import Types (DeslopError (..))
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -24,11 +26,15 @@ spec = describe "E2E.Project" $ do
     itChecks "ixartz-next-js-boilerplate"
     itChecks "melzar-nextjs-clean-architecture"
     itChecks "ts-cycles-project"
+    itChecks "ts-gitignore-project"
 
     itBaselines "ts-project-1"
     itBaselines "ixartz-next-js-boilerplate"
     itBaselines "melzar-nextjs-clean-architecture"
     itBaselines "ts-cycles-project"
+    itBaselines "ts-gitignore-project"
+
+    itIterates "ts-gitignore-project"
 
     itFixes
         "ts-project-1"
@@ -72,6 +78,23 @@ spec = describe "E2E.Project" $ do
         , "src/app/page.tsx"
         ]
   where
+    -- Goldens exactly which files the iteration produced. Unlike the check and
+    -- baseline goldens, which can only show a skipped file as an absence, this
+    -- states the outcome positively: a regression makes a named path appear.
+    itIterates project = it ("iterates " <> project) $ do
+        -- Given
+        let projectPath = fixturesPath </> encodeOsPathString project
+        absProjectPath <- mkAbsolute projectPath
+
+        -- When
+        files <-
+            runEff . runRoFileSystemIO $
+                loadGitIgnore absProjectPath >>= (`getTsFiles` absProjectPath)
+
+        -- Then
+        pure . defaultGolden ("iterated-" <> project) . T.unpack . T.unlines . sort $
+            fmap (decodeOsPath . (.osPath) . relativePathTo absProjectPath) files
+
     itChecks project = it ("checks " <> project) $ do
         -- Given
         let projectPath = fixturesPath </> encodeOsPathString project

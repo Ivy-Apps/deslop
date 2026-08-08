@@ -3,6 +3,7 @@ module TypeScript.IteratorSpec (spec) where
 import Doubles.FileSystem (mockDirs, runMockRoFileSystem)
 import Effectful (runEff)
 import Effects.FileSystem (AbsPath)
+import Git.Ignore (GitIgnore (..), IgnoreScope (..), emptyGitIgnore, parseIgnoreFile)
 import Test.Hspec
 import TestUtils (ap)
 import TypeScript.Iterator (getTsFiles)
@@ -12,7 +13,15 @@ root = ap "/project"
 
 -- | Run getTsFiles against a mock filesystem rooted at '/project'.
 run :: [(AbsPath, [AbsPath])] -> IO [AbsPath]
-run dirs = runEff . runMockRoFileSystem (mockDirs dirs) $ getTsFiles root
+run = runWith (emptyGitIgnore root)
+
+runWith :: GitIgnore -> [(AbsPath, [AbsPath])] -> IO [AbsPath]
+runWith gitIgnore dirs = runEff . runMockRoFileSystem (mockDirs dirs) $ getTsFiles gitIgnore root
+
+-- | A GitIgnore holding a single root .gitignore with the given contents.
+rootGitIgnore :: Text -> GitIgnore
+rootGitIgnore content =
+    GitIgnore {root, scopes = [IgnoreScope {base = root, rules = parseIgnoreFile content}]}
 
 spec :: Spec
 spec = describe "TypeScript.Iterator" $ do
@@ -170,3 +179,34 @@ spec = describe "TypeScript.Iterator" $ do
                 , (pagesDir, pageFiles)
                 ]
                 >>= (`shouldBe` (srcFiles <> pageFiles))
+
+    describe "gitignored paths" $ do
+        it "skips a gitignored file" $ do
+            let keep = ap "/project/keep.ts"
+            runWith
+                (rootGitIgnore "generated.ts")
+                [(root, [keep, ap "/project/generated.ts"])]
+                >>= (`shouldBe` [keep])
+
+        it "skips a gitignored directory without descending into it" $ do
+            let vendorDir = ap "/project/vendor"
+            let keep = ap "/project/keep.ts"
+            runWith
+                (rootGitIgnore "vendor/")
+                [(root, [vendorDir, keep]), (vendorDir, [ap "/project/vendor/legacy.ts"])]
+                >>= (`shouldBe` [keep])
+
+        it "keeps a file re-included by a later negation" $ do
+            let keep = ap "/project/keep.gen.ts"
+            runWith
+                (rootGitIgnore "*.gen.ts\n!keep.gen.ts")
+                [(root, [keep, ap "/project/other.gen.ts"])]
+                >>= (`shouldBe` [keep])
+
+        it "still skips the hardcoded list even when a rule un-ignores it" $ do
+            let nodeModules = ap "/project/node_modules"
+            let keep = ap "/project/keep.ts"
+            runWith
+                (rootGitIgnore "!node_modules")
+                [(root, [nodeModules, keep]), (nodeModules, [ap "/project/node_modules/dep.ts"])]
+                >>= (`shouldBe` [keep])

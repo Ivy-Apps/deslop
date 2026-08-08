@@ -5,6 +5,7 @@ module Doubles.FileSystem (
     runMockWrFileSystem,
     mockFiles,
     mockDirs,
+    mockDirsWithSymlinks,
     mockFileAt,
 ) where
 
@@ -38,6 +39,7 @@ data MockRoFileSystem es = MockRoFileSystem
     { mockReadFile :: AbsPath -> Eff es ByteString
     , mockFileExists :: AbsPath -> Eff es Bool
     , mockDirectoryExists :: AbsPath -> Eff es Bool
+    , mockIsSymlink :: AbsPath -> Eff es Bool
     , mockListDirectory :: AbsPath -> Eff es [AbsPath]
     , mockGetHomeDirectory :: Eff es AbsPath
     , mockMkAbsolute :: OsPath -> Eff es AbsPath
@@ -50,6 +52,7 @@ defaultMockRoFileSystem =
         { mockReadFile = const $ pure mempty
         , mockFileExists = const $ pure False
         , mockDirectoryExists = const $ pure False
+        , mockIsSymlink = const $ pure False
         , mockListDirectory = const $ pure []
         , mockGetHomeDirectory = pure . absPathUnsafe $ encodeOsPath "~/"
         , mockMkAbsolute = \p ->
@@ -81,6 +84,7 @@ runMockRoFileSystem mocks = interpret $ \_env -> \case
     ReadFile p -> mocks.mockReadFile p
     FileExists p -> mocks.mockFileExists p
     DirectoryExists p -> mocks.mockDirectoryExists p
+    IsSymlink p -> mocks.mockIsSymlink p
     ListDirectory p -> mocks.mockListDirectory p
     GetHomeDirectory -> mocks.mockGetHomeDirectory
     MkAbsolute p -> mocks.mockMkAbsolute p
@@ -105,3 +109,8 @@ mockDirs dirs =
         { mockDirectoryExists = \p -> pure . any ((== p) . fst) $ dirs
         , mockListDirectory = \p -> pure $ maybe [] snd (find ((== p) . fst) dirs)
         }
+
+-- | As 'mockDirs', but with some of those directories reported as symlinks.
+mockDirsWithSymlinks :: [(AbsPath, [AbsPath])] -> [AbsPath] -> MockRoFileSystem es
+mockDirsWithSymlinks dirs symlinks =
+    (mockDirs dirs) {mockIsSymlink = \p -> pure $ p `elem` symlinks}
