@@ -14,7 +14,7 @@ You define your architecture once — what modules may import, what they must im
 No AI and no heuristics: it walks the import graph, so the same code always produces the same result.
 
 > [!NOTE]
-> Deslop is not a replacement for ESLint or Biome — it's complementary. Where it *does* replace something is architecture enforcement: the import-boundary rules and companion-file checks you'd otherwise spread across Dependency Cruiser configs and hand-written ESLint plugins.
+> Deslop is not a replacement for ESLint or Biome — it's complementary. What Deslop replaces is the architecture enforcement part: the import-boundary rules and companion-file checks you'd otherwise spread across Dependency Cruiser configs and hand-written ESLint plugins.
 
 Learn more at **[deslop.dev](https://deslop.dev)**.
 
@@ -22,6 +22,7 @@ Learn more at **[deslop.dev](https://deslop.dev)**.
 
 ## Key Capabilities
 
+- **Flexible targeting** - `target` TS modules minus optional `exclude` using Glob+ patterns 
 - **Forbid imports** — `forbids`, direct or transitive, catching violations through any import chain
 - **Carve out exceptions** — `allows` whitelists specific imports against a broad `forbids`
 - **Require imports** — `uses` enforces mandatory dependencies at the module level
@@ -45,6 +46,7 @@ npm install --save-dev @ivy-apps/deslop
 ```json
 {
   "scripts": {
+    "lint:fix": "your favorite linter",
     "deslop": "deslop check .",
     "deslop:fix": "deslop fix . && npm run lint:fix",
     "deslop:baseline": "deslop baseline ."
@@ -62,12 +64,7 @@ Then write your first rulebook in `deslop/rules/` — see [Writing Rules](#writi
 | `deslop fix <project>` | Auto-fix violations where possible |
 | `deslop baseline <project>` | Write `deslop/baseline.yaml` to silence current violations |
 
-> [!TIP]
-> Use `baseline` for known true positives you're not fixing right now. For false positives, narrow the rule's `target` with `exclude` instead.
-
 ### CI with GitHub Actions
-
-Deslop is free and open source. No license key, no account required — in CI or anywhere else.
 
 <details>
 <summary>Example GitHub Actions workflow</summary>
@@ -88,7 +85,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       # Assumes Deslop is in devDependencies
@@ -146,8 +143,8 @@ rules:
     target: "@/features/**" # all TS modules in features
     forbids:
       - import: "@/features/**" # can't import anything from features
-    allows: # except:
-      - import: "{{TARGET_DIR}}/**" # own feature is always fine
+    allows: # forbids exception
+      - import: "{{TARGET_DIR}}/**" # from own feature dir is fine
     fix: >-
       Promote shared logic to @/components, @/hooks, @/lib or an appropriate shared folder.
 
@@ -335,13 +332,14 @@ Whitelists imports that would otherwise be caught by a `forbids` clause. Use `al
 **Example — a feature may only import from one other feature:**
 
 ```yaml
-- id: checkout-cross-feature-imports
-  description: Checkout must not depend on other features, except auth.
-  target: "@/features/checkout/**"
+- id: no-cross-feature-imports
+  description: Features must not depend on other features, except auth.
+  target: "@/features/**"
   forbids:
     - import: "@/features/**"   # no cross-feature imports
   allows:
     - import: "@/features/auth/**"   # except: checkout needs the auth session
+    - import: "{{TARGET_DIR}}/**"    # from own feature folder is fine
   fix: Remove the cross-feature import. Only @/features/auth is allowed.
 ```
 
@@ -355,7 +353,7 @@ Requires the target module to import something.
 uses:
   - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"   # must directly import
   - import: "{{TARGET_DIR}}/{{FileName}}View"
-    transitive: true                                   # must be in the import chain
+    transitive: true                                  # must be in the import chain
 ```
 
 `transitive: true` passes if the import appears anywhere in the reachable graph, not just as a direct import.
