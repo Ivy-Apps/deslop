@@ -22,6 +22,7 @@ Learn more at **[deslop.dev](https://deslop.dev)**.
 
 ## Key Capabilities
 
+- **Flexible targeting** - `target` TS modules minus optional `exclude` using Glob+ patterns 
 - **Forbid imports** — `forbids`, direct or transitive, catching violations through any import chain
 - **Carve out exceptions** — `allows` whitelists specific imports against a broad `forbids`
 - **Require imports** — `uses` enforces mandatory dependencies at the module level
@@ -88,7 +89,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       # Assumes Deslop is in devDependencies
@@ -146,8 +147,8 @@ rules:
     target: "@/features/**" # all TS modules in features
     forbids:
       - import: "@/features/**" # can't import anything from features
-    allows: # except:
-      - import: "{{TARGET_DIR}}/**" # own feature is always fine
+    allows: # forbids exception
+      - import: "{{TARGET_DIR}}/**" # from own feature dir is fine
     fix: >-
       Promote shared logic to @/components, @/hooks, @/lib or an appropriate shared folder.
 
