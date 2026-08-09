@@ -14,7 +14,7 @@ You define your architecture once — what modules may import, what they must im
 No AI and no heuristics: it walks the import graph, so the same code always produces the same result.
 
 > [!NOTE]
-> Deslop is not a replacement for ESLint or Biome — it's complementary. Where it *does* replace something is architecture enforcement: the import-boundary rules and companion-file checks you'd otherwise spread across Dependency Cruiser configs and hand-written ESLint plugins.
+> Deslop is not a replacement for ESLint or Biome — it's complementary. What Deslop replaces is the architecture enforcement part: the import-boundary rules and companion-file checks you'd otherwise spread across Dependency Cruiser configs and hand-written ESLint plugins.
 
 Learn more at **[deslop.dev](https://deslop.dev)**.
 
