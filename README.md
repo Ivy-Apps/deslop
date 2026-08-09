@@ -46,6 +46,7 @@ npm install --save-dev @ivy-apps/deslop
 ```json
 {
   "scripts": {
+    "lint:fix": "your favorite linter",
     "deslop": "deslop check .",
     "deslop:fix": "deslop fix . && npm run lint:fix",
     "deslop:baseline": "deslop baseline ."
@@ -63,12 +64,7 @@ Then write your first rulebook in `deslop/rules/` — see [Writing Rules](#writi
 | `deslop fix <project>` | Auto-fix violations where possible |
 | `deslop baseline <project>` | Write `deslop/baseline.yaml` to silence current violations |
 
-> [!TIP]
-> Use `baseline` for known true positives you're not fixing right now. For false positives, narrow the rule's `target` with `exclude` instead.
-
 ### CI with GitHub Actions
-
-Deslop is free and open source. No license key, no account required — in CI or anywhere else.
 
 <details>
 <summary>Example GitHub Actions workflow</summary>
@@ -336,13 +332,14 @@ Whitelists imports that would otherwise be caught by a `forbids` clause. Use `al
 **Example — a feature may only import from one other feature:**
 
 ```yaml
-- id: checkout-cross-feature-imports
-  description: Checkout must not depend on other features, except auth.
-  target: "@/features/checkout/**"
+- id: no-cross-feature-imports
+  description: Features must not depend on other features, except auth.
+  target: "@/features/**"
   forbids:
     - import: "@/features/**"   # no cross-feature imports
   allows:
     - import: "@/features/auth/**"   # except: checkout needs the auth session
+    - import: "{{TARGET_DIR}}/**"    # from own feature folder is fine
   fix: Remove the cross-feature import. Only @/features/auth is allowed.
 ```
 
@@ -356,7 +353,7 @@ Requires the target module to import something.
 uses:
   - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"   # must directly import
   - import: "{{TARGET_DIR}}/{{FileName}}View"
-    transitive: true                                   # must be in the import chain
+    transitive: true                                  # must be in the import chain
 ```
 
 `transitive: true` passes if the import appears anywhere in the reachable graph, not just as a direct import.
