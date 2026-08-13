@@ -1,0 +1,43 @@
+[Title] 🚀 Checking project: ~/test/fixtures/ts-globplus-project
+[Plain] 📚 Loaded 1 rulebook, 4 rules
+[Error] Found 5 problems:
+[Error] ─────────────────────────────────────────
+[Error] # provider-services#providers-are-isolated#@/components/paypal/payment/RefundView
+One provider's components must never import another provider's components. Anything shared between providers belongs outside @/components.
+
+Module '@/components/paypal/payment/RefundView' directly imports '@/components/stripe-connect/payment/CheckoutView'.
+```ts
+import { CheckoutView } from '@/components/stripe-connect/payment/CheckoutView';
+```
+FIX: Import only from within @/components/{{provider-name}}, or promote the shared code out of the provider folders.
+---------
+
+# provider-services#view-has-a-storybook#@/components/paypal/payment/RefundView
+Every service View must be documented in Storybook.
+
+Module '@/components/paypal/payment/RefundView' requires '@/components/paypal/payment/RefundView.stories' to exist.
+FIX: Add a {{FileName}}View.stories.tsx file next to the View.
+---------
+
+# provider-services#view-has-a-storybook#@/components/stripe-connect/payout/TransferView
+Every service View must be documented in Storybook.
+
+Module '@/components/stripe-connect/payout/TransferView' requires '@/components/stripe-connect/payout/TransferView.stories' to exist.
+FIX: Add a {{FileName}}View.stories.tsx file next to the View.
+---------
+
+# provider-services#view-model-calls-its-own-provider-service#@/components/stripe-connect/payout/useTransferViewModel
+A ViewModel may only talk to the service module of the provider and service type it belongs to. The service module name is derived from all three variables, so a ViewModel cannot reach into another provider's service.
+
+Module '@/components/stripe-connect/payout/useTransferViewModel' must import '@/services/stripe-connect/payout-transfer'.
+FIX: Import @/services/{{provider-name}}/{{service-type}}-{{file-name}} rather than another provider's service module.
+---------
+
+# provider-services#view-wires-own-view-model#@/components/paypal/payment/RefundView
+A service View is pure UI. It must delegate its state and behaviour to the ViewModel hook that sits next to it in the same provider/service folder.
+
+Module '@/components/paypal/payment/RefundView' must import '@/components/paypal/payment/useRefundViewModel'.
+FIX: Import use{{FileName}}ViewModel from the same directory and drive the View from the state it returns.
+[Error] ─────────────────────────────────────────
+[exit] Found 5 problems, none auto-fixable.
+   Run `deslop baseline` to silence all 5 problems.

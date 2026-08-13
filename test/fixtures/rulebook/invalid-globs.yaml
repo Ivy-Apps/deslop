@@ -1,0 +1,13 @@
+id: invalid-globs
+name: Invalid Glob+ Rulebook
+description: >-
+  The target captures provider-name, service-type and file-name, but the clause
+  misspells one of them. Loading must fail with a message that names the rule,
+  the clause and the variables actually in scope.
+rules:
+  - id: provider-service-view
+    description: A provider's service view wires its own view model
+    target: "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+    uses:
+      - import: "{{TARGET_DIR}}/{{provider-nam}}Service"
+    fix: Correct the variable name to one bound by the target pattern.

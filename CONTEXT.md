@@ -66,13 +66,55 @@ One edge of the shortest import path from a module to a module it reaches
 transitively. A direct import is 1 hop.
 _Avoid_: Step, level, depth, degree
 
+### Glob+
+
+**Glob+ Variable**:
+A named part of a path that a Rulebook Rule captures from its target and reuses
+in its clauses. Written `{{provider-name}}`.
+_Avoid_: Casing variable (the casing is how it is written, not what it is),
+placeholder, token
+
+**Variable Name**:
+The identity of a Glob+ Variable, as kebab-case words. One name has four
+spellings - `{{ProviderName}}`, `{{providerName}}`, `{{provider-name}}`,
+`{{PROVIDER_NAME}}` - and all four are the same variable.
+_Avoid_: Key, label
+
+**Casing**:
+Which of the four spellings a Glob+ Variable is written in at one occurrence.
+Inferred from the spelling itself; never declared separately.
+_Avoid_: Case style, format
+
+**Binding**:
+A Variable Name together with its captured value in all four Casings. A Rulebook
+Rule's bindings are produced by matching its Target Pattern and consumed by its
+Clause Patterns.
+_Avoid_: Binding value, capture (a capture is one regex group; a binding may
+come from several)
+
+**Target Pattern**:
+The Glob+ pattern in a Rule's `target`. The only pattern that *captures*
+variables, and the one that decides which variables its clauses may use. Cannot
+contain `{{TARGET_DIR}}`, which is derived from what it matches.
+
+**Clause Pattern**:
+A Glob+ pattern in `forbids` / `allows` / `uses` / `exists`. *Substitutes*
+variables rather than capturing them, and may use `{{TARGET_DIR}}`. May only
+name variables bound by its own Rule's Target Pattern.
+
+**Exclude Pattern**:
+A Glob+ pattern in a Rule's `exclude`. A plain glob: it filters the target and
+binds nothing, so it may not contain variables at all.
+
 ### Overloaded terms
 
 **Pattern** is deliberately never used unqualified. Three distinct things carry
 the word, and each has its own syntax and matching rules:
 
-- **Rulebook Pattern** (`Deslop.GlobPlus.Pattern`) — a glob over module ids,
-  supporting `{{FileName}}` casing variables. Used by Rulebook Rules.
+- **Glob+ Pattern** (`Deslop.GlobPlus`) - a glob over module ids, supporting
+  named variables. Used by Rulebook Rules. Itself three kinds, which differ in
+  what they may contain: Target Pattern, Clause Pattern and Exclude Pattern
+  (see Glob+ above).
 - **TsConfig Pattern** (`TypeScript.Config.Pattern`) — a `tsconfig.json` path
   mapping, either `Exact` or a single-`*` `Wildcard`.
 - **Ignore Pattern** (`Git.Ignore.IgnorePattern`) — a `.gitignore` glob, per

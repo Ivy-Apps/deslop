@@ -1,0 +1,6 @@
+[Title] 🚀 Checking project: ~/test/fixtures/ts-invalid-rulebook-project
+[exit] Could not load Rulebook: rule 'provider-components-are-isolated', target: "@/components/{{provider}}/**"
+  {{provider}} is ambiguous: a single-word name reads as both camelCase and kebab-case.
+    Give the variable a name of at least two words, for example:
+      {{providerName}}
+      {{provider-name}}

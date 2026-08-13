@@ -28,7 +28,7 @@ Learn more at **[deslop.dev](https://deslop.dev)**.
 - **Require imports** — `uses` enforces mandatory dependencies at the module level
 - **Require companion files** — `exists` asserts that a test, story, or sibling module is there
 - **Detect import cycles** — circular dependencies are found automatically across your whole module graph, with the exact loop printed
-- **Glob+ patterns** — casing variables like `{{FileName}}` and `{{TARGET_DIR}}` make rules relative and reusable
+- **Glob+ patterns** - named variables like `{{provider-name}}`, `{{FileName}}` and `{{TARGET_DIR}}` capture parts of a path and reuse them, in any casing, across a rule
 - **Plain-language `fix` messages** — every violation tells your team (and your agents) exactly what to do
 
 ---
@@ -284,7 +284,7 @@ When `target` contains a casing variable, all four casings are derived automatic
 - Captured name: `Home`
 - In clause patterns: `{{FileName}}` → `Home`, `{{fileName}}` → `home`, `{{file-name}}` → `home`, `{{FILE_NAME}}` → `HOME`
 
-Variables are available in `target`, `exclude`, and all clause patterns.
+Variables are available in `target` and in all clause patterns. `exclude` is a plain glob - it filters the target and captures nothing, so variables are not allowed there.
 
 #### `{{TARGET_DIR}}`
 
@@ -377,6 +377,9 @@ exists:
 
 ---
 
+
+---
+
 ### Metadata
 
 #### `fix`
@@ -398,6 +401,128 @@ example: |
   import { HomeStateEvent } from "@/features/home/HomeStateEvent";
   export function HomeContainer() { ... }
 ```
+
+---
+
+## Advanced Rules (multi-variable)
+
+Everything above uses one variable: the file name. A rule can capture as many as
+the path has meaningful parts.
+
+### Variables are named
+
+`{{FileName}}` is not a special token. It is a variable **named** `file-name`,
+written in PascalCase - which is why `{{file-name}}` refers to the same value.
+Any name works the same way:
+
+```
+{{ProviderName}}   {{providerName}}   {{provider-name}}   {{PROVIDER_NAME}}
+```
+
+All four are one variable. Capture it in one casing, use it in any other.
+
+### Capturing several parts of a path
+
+Suppose components are organised by provider and service type:
+
+```
+src/components/stripe-connect/payment/CheckoutView.tsx
+src/components/stripe-connect/payout/TransferView.tsx
+src/components/paypal/payment/RefundView.tsx
+```
+
+One target pattern captures all three parts:
+
+```yaml
+target: "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+```
+
+For `@/components/stripe-connect/payment/CheckoutView` that binds:
+
+| Variable | kebab-case | PascalCase | camelCase | CONSTANT_CASE |
+|---|---|---|---|---|
+| `provider-name` | `stripe-connect` | `StripeConnect` | `stripeConnect` | `STRIPE_CONNECT` |
+| `service-type` | `payment` | `Payment` | `payment` | `PAYMENT` |
+| `file-name` | `checkout` | `Checkout` | `checkout` | `CHECKOUT` |
+
+Each variable is enriched independently, so every clause can pick the casing it
+needs:
+
+```yaml
+- id: view-model-calls-its-own-provider-service
+  description: A ViewModel may only talk to its own provider's service module
+  target: "@/components/{{provider-name}}/{{service-type}}/use{{FileName}}ViewModel"
+  uses:
+    - import: "@/services/{{provider-name}}/{{service-type}}-{{file-name}}"
+  fix: Import your own provider's service module.
+```
+
+`@/components/stripe-connect/payout/useTransferViewModel` must import
+`@/services/stripe-connect/payout-transfer`. Because the expected module name is
+derived from all three variables, no other provider's service satisfies it.
+
+Variables work in `allows` too - this isolates providers from each other without
+naming any of them:
+
+```yaml
+- id: providers-are-isolated
+  target: "@/components/{{provider-name}}/**"
+  forbids:
+    - import: "@/components/**"          # no cross-component imports
+  allows:
+    - import: "@/components/{{provider-name}}/**"   # except within your own provider
+  fix: Promote shared code out of the provider folders.
+```
+
+### Naming rules
+
+The casing of a variable is inferred from how you spell it, so the name has to
+be unambiguous. Deslop refuses to load a rulebook it cannot read with certainty.
+
+| Token | Result |
+|---|---|
+| `{{ProviderName}}` `{{provider-name}}` `{{PROVIDER_NAME}}` | ✅ one variable, three casings |
+| `{{Provider}}` | ✅ a lone capitalised word is PascalCase only |
+| `{{provider}}` | ❌ reads as camelCase **and** kebab-case |
+| `{{PROVIDER}}` | ❌ reads as PascalCase **and** CONSTANT_CASE |
+| `{{Provider-Name}}` `{{provider_name}}` | ❌ not a recognised casing |
+| `{{HTTPClient}}` | ❌ consecutive capitals have no word boundary |
+
+Use two or more words and every case resolves. The fix is always in the message:
+
+```
+Could not load Rulebook: rule 'providers-are-isolated', target: "@/components/{{provider}}/**"
+  {{provider}} is ambiguous: a single-word name reads as both camelCase and kebab-case.
+    Give the variable a name of at least two words, for example:
+      {{providerName}}
+      {{provider-name}}
+```
+
+A clause may only use variables its own rule's `target` captures. A typo is
+caught at load time rather than silently widening the rule:
+
+```
+rule 'view-wires-view-model', uses.import: "{{TARGET_DIR}}/{{provider-nam}}Service"
+  unknown variable {{provider-nam}}.
+    Variables bound by this rule's target: file-name, provider-name, service-type
+    Did you mean {{provider-name}}?
+```
+
+### Repeating a variable
+
+The same variable may appear twice, which constrains both places to the same
+value - useful when a directory and a file name share a name in different cases:
+
+```yaml
+target: "@/components/{{provider-name}}/{{ProviderName}}View"
+```
+
+```
+@/components/stripe-connect/StripeConnectView   ✅ both say "stripe connect"
+@/components/stripe-connect/PaypalView          ❌ they disagree, rule does not apply
+```
+
+> For the full pattern-matching semantics, boundary rules and error reference, see [`docs/GLOB+.md`](./docs/GLOB+.md).
 
 ---
 

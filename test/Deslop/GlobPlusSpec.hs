@@ -1,10 +1,15 @@
 module Deslop.GlobPlusSpec (spec) where
 
 import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
+import Data.Text qualified as T
+import Hedgehog (Gen, assert, failure, forAll, (/==), (===))
+import Hedgehog.Gen qualified as Gen
+import Hedgehog.Range qualified as Range
 import Test.Hspec
 
 import Deslop.GlobPlus
-import TestUtils (requireJust)
+import TestUtils (prop, requireJust)
 
 spec :: Spec
 spec = describe "Deslop.GlobPLus" $ do
@@ -32,10 +37,10 @@ spec = describe "Deslop.GlobPLus" $ do
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/UserSettingsView"
 
             env.targetDir `shouldBe` "@/features"
-            Map.lookup PascalCase env.casings `shouldBe` Just "UserSettings"
-            Map.lookup CamelCase env.casings `shouldBe` Just "userSettings"
-            Map.lookup KebabCase env.casings `shouldBe` Just "user-settings"
-            Map.lookup ConstantCase env.casings `shouldBe` Just "USER_SETTINGS"
+            casingOf PascalCase env `shouldBe` Just "UserSettings"
+            casingOf CamelCase env `shouldBe` Just "userSettings"
+            casingOf KebabCase env `shouldBe` Just "user-settings"
+            casingOf ConstantCase env `shouldBe` Just "USER_SETTINGS"
 
         it "rejects a path whose casing does not match the variable token" $ do
             let target = unsafeCompileTarget "@/features/{{FileName}}View"
@@ -46,27 +51,27 @@ spec = describe "Deslop.GlobPLus" $ do
             let target = unsafeCompileTarget "@/features/{{fileName}}Controller"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/userProfileController"
 
-            Map.lookup CamelCase env.casings `shouldBe` Just "userProfile"
-            Map.lookup PascalCase env.casings `shouldBe` Just "UserProfile"
-            Map.lookup KebabCase env.casings `shouldBe` Just "user-profile"
-            Map.lookup ConstantCase env.casings `shouldBe` Just "USER_PROFILE"
+            casingOf CamelCase env `shouldBe` Just "userProfile"
+            casingOf PascalCase env `shouldBe` Just "UserProfile"
+            casingOf KebabCase env `shouldBe` Just "user-profile"
+            casingOf ConstantCase env `shouldBe` Just "USER_PROFILE"
 
         it "extracts {{file-name}} (kebab-case) and enriches all other casings" $ do
             let target = unsafeCompileTarget "@/features/{{file-name}}-repository"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/user-settings-repository"
 
-            Map.lookup KebabCase env.casings `shouldBe` Just "user-settings"
-            Map.lookup PascalCase env.casings `shouldBe` Just "UserSettings"
-            Map.lookup CamelCase env.casings `shouldBe` Just "userSettings"
-            Map.lookup ConstantCase env.casings `shouldBe` Just "USER_SETTINGS"
+            casingOf KebabCase env `shouldBe` Just "user-settings"
+            casingOf PascalCase env `shouldBe` Just "UserSettings"
+            casingOf CamelCase env `shouldBe` Just "userSettings"
+            casingOf ConstantCase env `shouldBe` Just "USER_SETTINGS"
 
         it "extracts {{FileName}} preceded by a literal prefix (use{{FileName}}ViewModel)" $ do
             let target = unsafeCompileTarget "@/features/**/use{{FileName}}ViewModel"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/auth/useUserAuthViewModel"
 
             env.targetDir `shouldBe` "@/features/auth"
-            Map.lookup PascalCase env.casings `shouldBe` Just "UserAuth"
-            Map.lookup KebabCase env.casings `shouldBe` Just "user-auth"
+            casingOf PascalCase env `shouldBe` Just "UserAuth"
+            casingOf KebabCase env `shouldBe` Just "user-auth"
 
         it "does not match when the literal prefix differs from the pattern" $ do
             let target = unsafeCompileTarget "@/features/**/use{{FileName}}ViewModel"
@@ -77,33 +82,33 @@ spec = describe "Deslop.GlobPLus" $ do
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/auth/useUserAuthViewModel.spec"
 
             env.targetDir `shouldBe` "@/features/auth"
-            Map.lookup PascalCase env.casings `shouldBe` Just "UserAuth"
+            casingOf PascalCase env `shouldBe` Just "UserAuth"
 
         it "derives all casings correctly for a single-word name" $ do
             let target = unsafeCompileTarget "@/features/{{FileName}}View"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/HomeView"
 
-            Map.lookup PascalCase env.casings `shouldBe` Just "Home"
-            Map.lookup CamelCase env.casings `shouldBe` Just "home"
-            Map.lookup KebabCase env.casings `shouldBe` Just "home"
-            Map.lookup ConstantCase env.casings `shouldBe` Just "HOME"
+            casingOf PascalCase env `shouldBe` Just "Home"
+            casingOf CamelCase env `shouldBe` Just "home"
+            casingOf KebabCase env `shouldBe` Just "home"
+            casingOf ConstantCase env `shouldBe` Just "HOME"
 
         it "derives all casings correctly for a three-word compound name" $ do
             let target = unsafeCompileTarget "@/features/**/{{FileName}}Container"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/admin/UserProfileSettingsContainer"
 
             env.targetDir `shouldBe` "@/features/admin"
-            Map.lookup PascalCase env.casings `shouldBe` Just "UserProfileSettings"
-            Map.lookup CamelCase env.casings `shouldBe` Just "userProfileSettings"
-            Map.lookup KebabCase env.casings `shouldBe` Just "user-profile-settings"
-            Map.lookup ConstantCase env.casings `shouldBe` Just "USER_PROFILE_SETTINGS"
+            casingOf PascalCase env `shouldBe` Just "UserProfileSettings"
+            casingOf CamelCase env `shouldBe` Just "userProfileSettings"
+            casingOf KebabCase env `shouldBe` Just "user-profile-settings"
+            casingOf ConstantCase env `shouldBe` Just "USER_PROFILE_SETTINGS"
 
         it "derives TARGET_DIR correctly for deeply nested paths" $ do
             let target = unsafeCompileTarget "@/features/**/{{FileName}}Container"
             env <- requireJust "matchTarget returned Nothing" $ matchTarget target "@/features/auth/oauth/google/GoogleAuthContainer"
 
             env.targetDir `shouldBe` "@/features/auth/oauth/google"
-            Map.lookup PascalCase env.casings `shouldBe` Just "GoogleAuth"
+            casingOf PascalCase env `shouldBe` Just "GoogleAuth"
 
         it "/**/* matches zero dirs which includes /*" $ do
             let target = unsafeCompileTarget "@/lib/**/*"
@@ -189,11 +194,11 @@ spec = describe "Deslop.GlobPLus" $ do
             envZero <-
                 requireJust "zero-subdir match failed" $
                     matchTarget target "@/features/HomeContainer"
-            Map.lookup PascalCase envZero.casings `shouldBe` Just "Home"
+            casingOf PascalCase envZero `shouldBe` Just "Home"
             envOne <-
                 requireJust "one-subdir match failed" $
                     matchTarget target "@/features/auth/HomeContainer"
-            Map.lookup PascalCase envOne.casings `shouldBe` Just "Home"
+            casingOf PascalCase envOne `shouldBe` Just "Home"
 
         it "* and ** are distinct: * stops at a slash, ** crosses slashes" $ do
             let star = unsafeCompileTarget "@/lib/*"
@@ -207,10 +212,10 @@ spec = describe "Deslop.GlobPLus" $ do
                 requireJust "matchTarget returned Nothing" $
                     matchTarget target "src/constants/MAX_RETRY_COUNT"
             env.targetDir `shouldBe` "src/constants"
-            Map.lookup ConstantCase env.casings `shouldBe` Just "MAX_RETRY_COUNT"
-            Map.lookup PascalCase env.casings `shouldBe` Just "MaxRetryCount"
-            Map.lookup CamelCase env.casings `shouldBe` Just "maxRetryCount"
-            Map.lookup KebabCase env.casings `shouldBe` Just "max-retry-count"
+            casingOf ConstantCase env `shouldBe` Just "MAX_RETRY_COUNT"
+            casingOf PascalCase env `shouldBe` Just "MaxRetryCount"
+            casingOf CamelCase env `shouldBe` Just "maxRetryCount"
+            casingOf KebabCase env `shouldBe` Just "max-retry-count"
 
         it "rejects a path whose casing does not satisfy {{FILE_NAME}} (requires [A-Z0-9_]+)" $ do
             let target = unsafeCompileTarget "src/constants/{{FILE_NAME}}"
@@ -223,21 +228,21 @@ spec = describe "Deslop.GlobPLus" $ do
                 requireJust "matchTarget returned Nothing" $
                     matchTarget target "@/services/HTTPClient"
             -- Original PascalCase capture is preserved by Map.union
-            Map.lookup PascalCase env.casings `shouldBe` Just "HTTP"
+            casingOf PascalCase env `shouldBe` Just "HTTP"
             -- Derived casings treat "HTTP" as one word
-            Map.lookup KebabCase env.casings `shouldBe` Just "http"
-            Map.lookup CamelCase env.casings `shouldBe` Just "http"
-            Map.lookup ConstantCase env.casings `shouldBe` Just "HTTP"
+            casingOf KebabCase env `shouldBe` Just "http"
+            casingOf CamelCase env `shouldBe` Just "http"
+            casingOf ConstantCase env `shouldBe` Just "HTTP"
 
         it "extracts {{FileName}} with an embedded digit (OAuth2Service)" $ do
             let target = unsafeCompileTarget "@/services/{{FileName}}Service"
             env <-
                 requireJust "matchTarget returned Nothing" $
                     matchTarget target "@/services/OAuth2Service"
-            Map.lookup PascalCase env.casings `shouldBe` Just "OAuth2"
-            Map.lookup CamelCase env.casings `shouldBe` Just "oAuth2"
-            Map.lookup KebabCase env.casings `shouldBe` Just "o-auth2"
-            Map.lookup ConstantCase env.casings `shouldBe` Just "O_AUTH2"
+            casingOf PascalCase env `shouldBe` Just "OAuth2"
+            casingOf CamelCase env `shouldBe` Just "oAuth2"
+            casingOf KebabCase env `shouldBe` Just "o-auth2"
+            casingOf ConstantCase env `shouldBe` Just "O_AUTH2"
 
         it "extracts {{file-name}} combined with ** at zero subdirs" $ do
             let target = unsafeCompileTarget "@/features/**/{{file-name}}-service"
@@ -245,13 +250,13 @@ spec = describe "Deslop.GlobPLus" $ do
                 requireJust "zero-subdir failed" $
                     matchTarget target "@/features/user-auth-service"
             envZero.targetDir `shouldBe` "@/features"
-            Map.lookup KebabCase envZero.casings `shouldBe` Just "user-auth"
-            Map.lookup PascalCase envZero.casings `shouldBe` Just "UserAuth"
+            casingOf KebabCase envZero `shouldBe` Just "user-auth"
+            casingOf PascalCase envZero `shouldBe` Just "UserAuth"
             envOne <-
                 requireJust "one-subdir failed" $
                     matchTarget target "@/features/auth/user-auth-service"
             envOne.targetDir `shouldBe` "@/features/auth"
-            Map.lookup KebabCase envOne.casings `shouldBe` Just "user-auth"
+            casingOf KebabCase envOne `shouldBe` Just "user-auth"
 
         it "escapes dots in literal path segments of a target pattern" $ do
             let target = unsafeCompileTarget "src/utils.lib/{{FileName}}"
@@ -265,7 +270,7 @@ spec = describe "Deslop.GlobPLus" $ do
                 requireJust "matchTarget returned Nothing" $
                     matchTarget target "HomeView"
             env.targetDir `shouldBe` ""
-            Map.lookup PascalCase env.casings `shouldBe` Just "HomeView"
+            casingOf PascalCase env `shouldBe` Just "HomeView"
 
         -- TypeScript cross-casing: KebabCase ↔ PascalCase ↔ CamelCase
         it "derives all casings correctly for a three-word kebab-case name" $ do
@@ -274,10 +279,10 @@ spec = describe "Deslop.GlobPLus" $ do
             env <-
                 requireJust "matchTarget returned Nothing" $
                     matchTarget target "@/components/user-profile-card"
-            Map.lookup KebabCase env.casings `shouldBe` Just "user-profile-card"
-            Map.lookup PascalCase env.casings `shouldBe` Just "UserProfileCard"
-            Map.lookup CamelCase env.casings `shouldBe` Just "userProfileCard"
-            Map.lookup ConstantCase env.casings `shouldBe` Just "USER_PROFILE_CARD"
+            casingOf KebabCase env `shouldBe` Just "user-profile-card"
+            casingOf PascalCase env `shouldBe` Just "UserProfileCard"
+            casingOf CamelCase env `shouldBe` Just "userProfileCard"
+            casingOf ConstantCase env `shouldBe` Just "USER_PROFILE_CARD"
 
         it "derives all casings correctly for a three-word camelCase name" $ do
             -- Typical TypeScript: service/hook named userProfileCardService
@@ -285,34 +290,14 @@ spec = describe "Deslop.GlobPLus" $ do
             env <-
                 requireJust "matchTarget returned Nothing" $
                     matchTarget target "@/services/userProfileCardService"
-            Map.lookup CamelCase env.casings `shouldBe` Just "userProfileCard"
-            Map.lookup PascalCase env.casings `shouldBe` Just "UserProfileCard"
-            Map.lookup KebabCase env.casings `shouldBe` Just "user-profile-card"
-            Map.lookup ConstantCase env.casings `shouldBe` Just "USER_PROFILE_CARD"
+            casingOf CamelCase env `shouldBe` Just "userProfileCard"
+            casingOf PascalCase env `shouldBe` Just "UserProfileCard"
+            casingOf KebabCase env `shouldBe` Just "user-profile-card"
+            casingOf ConstantCase env `shouldBe` Just "USER_PROFILE_CARD"
 
     describe "matchClause" $ do
-        let sampleEnv =
-                MatchEnv
-                    { targetDir = "@/features/user"
-                    , casings =
-                        Map.fromList
-                            [ (PascalCase, "UserSettings")
-                            , (KebabCase, "user-settings")
-                            ]
-                    }
-
-        -- Full environment with all four casings (as produced by matchTarget + enrichCasings)
-        let richEnv =
-                MatchEnv
-                    { targetDir = "@/features/home"
-                    , casings =
-                        Map.fromList
-                            [ (PascalCase, "HomeProfile")
-                            , (CamelCase, "homeProfile")
-                            , (KebabCase, "home-profile")
-                            , (ConstantCase, "HOME_PROFILE")
-                            ]
-                    }
+        let sampleEnv = envFor "@/features/user/{{FileName}}" "@/features/user/UserSettings"
+        let richEnv = envFor "@/features/home/{{FileName}}" "@/features/home/HomeProfile"
 
         it "interpolates {{TARGET_DIR}} and static strings successfully" $ do
             let rule = unsafeCompileClause "{{TARGET_DIR}}/data/repository"
@@ -364,13 +349,12 @@ spec = describe "Deslop.GlobPLus" $ do
             matchClause rule richEnv "@/features/home/HomeProfileView.stories" `shouldBe` True
             matchClause rule richEnv "@/features/home/HomeProfileView.spec" `shouldBe` False
 
-        it "falls back to .* when a casing key is absent from the environment" $ do
-            let sparseEnv = MatchEnv {targetDir = "@/features/x", casings = Map.empty}
+        it "fails closed when a variable is absent from the environment" $ do
+            -- Compilation rejects unbound variables, so this state is unreachable
+            -- in practice. It must never widen a rule into matching everything.
             let rule = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
-            -- Missing casing → .* matches any value in that slot
-            matchClause rule sparseEnv "@/features/x/AnythingView" `shouldBe` True
-            matchClause rule sparseEnv "@/features/x/SomethingElseView" `shouldBe` True
-            -- TARGET_DIR is still exact
+            matchClause rule sparseEnv "@/features/x/AnythingView" `shouldBe` False
+            matchClause rule sparseEnv "@/features/x/SomethingElseView" `shouldBe` False
             matchClause rule sparseEnv "@/features/other/AnythingView" `shouldBe` False
 
         -- \* in rules
@@ -414,27 +398,13 @@ spec = describe "Deslop.GlobPLus" $ do
             matchClause rule richEnv "@/features/other/HomeProfile.spec" `shouldBe` False
 
         it "escapes regex metacharacters in TARGET_DIR (dot must not match arbitrary chars)" $ do
-            let env =
-                    MatchEnv
-                        { targetDir = "src/v1.0/features"
-                        , casings = Map.fromList [(PascalCase, "Home")]
-                        }
+            let env = envFor "src/v1.0/features/{{FileName}}" "src/v1.0/features/Home"
             let rule = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
             matchClause rule env "src/v1.0/features/HomeView" `shouldBe` True
             matchClause rule env "src/v1X0/features/HomeView" `shouldBe` False
 
     describe "moduleFromGlob" $ do
-        let env =
-                MatchEnv
-                    { targetDir = "@/features/auth"
-                    , casings =
-                        Map.fromList
-                            [ (PascalCase, "UserAuth")
-                            , (CamelCase, "userAuth")
-                            , (KebabCase, "user-auth")
-                            , (ConstantCase, "USER_AUTH")
-                            ]
-                    }
+        let env = envFor "@/features/auth/{{FileName}}" "@/features/auth/UserAuth"
 
         it "expands TARGET_DIR and FileName into a concrete spec path" $ do
             let pat = unsafeCompileClause "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
@@ -468,24 +438,13 @@ spec = describe "Deslop.GlobPLus" $ do
             let pat = unsafeCompileClause "**"
             moduleFromGlob env pat `shouldBe` Nothing
 
-        it "returns Just with an empty segment when a casing key is absent from the env" $ do
-            -- fromMaybe "" means missing keys silently expand to empty string, not Nothing
-            let sparseEnv = MatchEnv {targetDir = "@/features/x", casings = Map.empty}
+        it "returns Nothing when a variable is absent from the env" $ do
+            -- No concrete module can be named, so none is claimed to exist.
             let pat = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
-            moduleFromGlob sparseEnv pat `shouldBe` Just "@/features/x/View"
+            moduleFromGlob sparseEnv pat `shouldBe` Nothing
 
     describe "renderClausePattern" $ do
-        let env =
-                MatchEnv
-                    { targetDir = "@/features/auth"
-                    , casings =
-                        Map.fromList
-                            [ (PascalCase, "UserAuth")
-                            , (CamelCase, "userAuth")
-                            , (KebabCase, "user-auth")
-                            , (ConstantCase, "USER_AUTH")
-                            ]
-                    }
+        let env = envFor "@/features/auth/{{FileName}}" "@/features/auth/UserAuth"
 
         it "substitutes TARGET_DIR and FileName into a concrete path" $ do
             let pat = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}StateEvent"
@@ -515,8 +474,7 @@ spec = describe "Deslop.GlobPLus" $ do
             let pat = unsafeCompileClause "{{TARGET_DIR}}/index"
             renderClausePattern env pat `shouldBe` "@/features/auth/index"
 
-        it "falls back to the variable placeholder when a casing key is absent" $ do
-            let sparseEnv = MatchEnv {targetDir = "@/features/x", casings = Map.empty}
+        it "falls back to the variable name when it is absent from the env" $ do
             let pat = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
             renderClausePattern sparseEnv pat `shouldBe` "@/features/x/{{FileName}}View"
 
@@ -651,14 +609,335 @@ spec = describe "Deslop.GlobPLus" $ do
             -- PascalCase spec file name is wrong
             matchClause cSpec env "@/services/UserProfileService.spec" `shouldBe` False
 
+    multiVariableSpec
+    compilationErrorSpec
+    globPlusProps
+
+--------------------------------------------------------------------------------
+-- Multiple variables
+--------------------------------------------------------------------------------
+
+multiVariableSpec :: Spec
+multiVariableSpec = describe "multiple variables" $ do
+    let providerTarget = unsafeCompileTarget "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+    let providerScope = boundVars providerTarget
+
+    it "captures every variable in a target pattern" $ do
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget providerTarget "@/components/stripe-connect/payment/CheckoutView"
+
+        env.targetDir `shouldBe` "@/components/stripe-connect/payment"
+        varOf "provider-name" KebabCase env `shouldBe` Just "stripe-connect"
+        varOf "service-type" KebabCase env `shouldBe` Just "payment"
+        varOf "file-name" PascalCase env `shouldBe` Just "Checkout"
+
+    it "enriches each variable independently into all four casings" $ do
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget providerTarget "@/components/stripe-connect/payment/CheckoutView"
+
+        varOf "provider-name" PascalCase env `shouldBe` Just "StripeConnect"
+        varOf "provider-name" CamelCase env `shouldBe` Just "stripeConnect"
+        varOf "provider-name" ConstantCase env `shouldBe` Just "STRIPE_CONNECT"
+        varOf "service-type" PascalCase env `shouldBe` Just "Payment"
+        varOf "file-name" KebabCase env `shouldBe` Just "checkout"
+
+    it "matches a clause that mixes several variables in different casings" $ do
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget providerTarget "@/components/stripe-connect/payment/CheckoutView"
+        let clause = unsafeCompileClauseIn providerScope "@/services/{{provider-name}}/{{ServiceType}}{{FileName}}Client"
+
+        matchClause clause env "@/services/stripe-connect/PaymentCheckoutClient" `shouldBe` True
+        matchClause clause env "@/services/paypal/PaymentCheckoutClient" `shouldBe` False
+        matchClause clause env "@/services/stripe-connect/PayoutCheckoutClient" `shouldBe` False
+
+    it "expands several variables into a concrete module path" $ do
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget providerTarget "@/components/stripe-connect/payment/CheckoutView"
+        let clause = unsafeCompileClauseIn providerScope "{{TARGET_DIR}}/{{provider-name}}-{{service-type}}-{{file-name}}"
+
+        moduleFromGlob env clause
+            `shouldBe` Just "@/components/stripe-connect/payment/stripe-connect-payment-checkout"
+
+    it "renders unbound variables by name rather than as {{FileName}}" $ do
+        let clause = unsafeCompileClauseIn providerScope "{{TARGET_DIR}}/{{provider-name}}/{{ServiceType}}"
+        renderClausePattern sparseEnv clause
+            `shouldBe` "@/features/x/{{provider-name}}/{{ServiceType}}"
+
+    it "does not match when a variable's casing is violated" $ do
+        matchTarget providerTarget "@/components/StripeConnect/payment/CheckoutView" `shouldBe` Nothing
+        matchTarget providerTarget "@/components/stripe-connect/payment/checkoutView" `shouldBe` Nothing
+
+    describe "a repeated variable" $ do
+        let repeated = unsafeCompileTarget "@/components/{{provider-name}}/{{ProviderName}}View"
+
+        it "binds once when every occurrence agrees" $ do
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget repeated "@/components/stripe-connect/StripeConnectView"
+
+            varOf "provider-name" KebabCase env `shouldBe` Just "stripe-connect"
+            varOf "provider-name" PascalCase env `shouldBe` Just "StripeConnect"
+            boundVars repeated `shouldBe` Set.singleton (VarName "provider-name")
+
+        it "does not match when the occurrences disagree" $ do
+            matchTarget repeated "@/components/stripe-connect/PaypalView" `shouldBe` Nothing
+
+        it "constrains two segments to the same value in one casing" $ do
+            let sameTwice = unsafeCompileTarget "@/{{provider-name}}/{{provider-name}}-service"
+            matchTarget sameTwice "@/stripe/stripe-service" `shouldSatisfy` isJust
+            matchTarget sameTwice "@/stripe/paypal-service" `shouldBe` Nothing
+
+    it "binds the leftmost variable greedily when a separator is consumable" $ do
+        -- Both variables are kebab-case and '-' is a kebab character, so the
+        -- boundary is ambiguous. POSIX longest-match settles it: documented,
+        -- not accidental.
+        let greedy = unsafeCompileTarget "@/x/{{provider-name}}-{{service-type}}"
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget greedy "@/x/stripe-connect-payment-service"
+
+        varOf "provider-name" KebabCase env `shouldBe` Just "stripe-connect-payment"
+        varOf "service-type" KebabCase env `shouldBe` Just "service"
+
+--------------------------------------------------------------------------------
+-- Compilation errors
+--------------------------------------------------------------------------------
+
+compilationErrorSpec :: Spec
+compilationErrorSpec = describe "compilation errors" $ do
+    let fileName = Set.singleton (VarName "file-name")
+
+    it "rejects a single-word name that reads as camelCase or kebab-case" $
+        errorOf (compileTargetPattern "@/x/{{provider}}")
+            `shouldBe` Just (AmbiguousCasing "provider" (CamelCase :| [KebabCase]))
+
+    it "rejects a single-word name that reads as PascalCase or CONSTANT_CASE" $
+        errorOf (compileTargetPattern "@/x/{{PROVIDER}}")
+            `shouldBe` Just (AmbiguousCasing "PROVIDER" (PascalCase :| [ConstantCase]))
+
+    it "accepts a single capitalised word, which is PascalCase only" $
+        errorOf (compileTargetPattern "@/x/{{Provider}}") `shouldBe` Nothing
+
+    it "rejects a name that is not written in any recognised casing" $ do
+        errorOf (compileTargetPattern "@/x/{{Provider-Name}}") `shouldBe` Just (UnrecognisedCasing "Provider-Name")
+        errorOf (compileTargetPattern "@/x/{{provider_name}}") `shouldBe` Just (UnrecognisedCasing "provider_name")
+
+    it "rejects consecutive capitals, whose word boundaries are ambiguous" $ do
+        errorOf (compileTargetPattern "@/x/{{HTTPClient}}") `shouldBe` Just (ConsecutiveCapitals "HTTPClient")
+        errorOf (compileTargetPattern "@/x/{{httpAPIClient}}") `shouldBe` Just (ConsecutiveCapitals "httpAPIClient")
+
+    it "accepts an acronym written as one word" $ do
+        errorOf (compileTargetPattern "@/x/{{HttpClient}}") `shouldBe` Nothing
+        errorOf (compileTargetPattern "@/x/{{http-client}}") `shouldBe` Nothing
+
+    it "treats all four spellings of a name as one variable" $ do
+        let bound spelling = boundVars <$> compileTargetPattern ("@/x/" <> spelling)
+        bound "{{HttpClient}}" `shouldBe` bound "{{httpClient}}"
+        bound "{{HttpClient}}" `shouldBe` bound "{{http-client}}"
+        bound "{{HttpClient}}" `shouldBe` bound "{{HTTP_CLIENT}}"
+
+    it "reserves TARGET_DIR under every casing of its name" $ do
+        errorOf (compileClausePattern mempty "{{target-dir}}/x") `shouldBe` Just (ReservedTargetDir "target-dir")
+        errorOf (compileClausePattern mempty "{{targetDir}}/x") `shouldBe` Just (ReservedTargetDir "targetDir")
+        errorOf (compileClausePattern mempty "{{TargetDir}}/x") `shouldBe` Just (ReservedTargetDir "TargetDir")
+        errorOf (compileClausePattern mempty "{{TARGET_DIR}}/x") `shouldBe` Nothing
+
+    it "rejects TARGET_DIR in a target pattern, where it cannot be captured" $ do
+        errorOf (compileTargetPattern "{{TARGET_DIR}}/x") `shouldBe` Just (TargetDirInTargetPattern "TARGET_DIR")
+        errorOf (compileTargetPattern "{{target-dir}}/x") `shouldBe` Just (TargetDirInTargetPattern "target-dir")
+
+    it "rejects any variable in an exclude pattern, which binds nothing" $ do
+        errorOf (compileExcludePattern "@/x/{{FileName}}") `shouldBe` Just (VariableInExcludePattern "FileName")
+        errorOf (compileExcludePattern "@/x/{{TARGET_DIR}}") `shouldBe` Just (VariableInExcludePattern "TARGET_DIR")
+        errorOf (compileExcludePattern "@/x/**/*.spec") `shouldBe` Nothing
+
+    it "rejects two adjacent variables in a target pattern" $
+        errorOf (compileTargetPattern "@/x/{{FileName}}{{ServiceType}}")
+            `shouldBe` Just (AdjacentVariables "FileName" "ServiceType")
+
+    it "allows adjacent variables in a clause, where they are substituted" $
+        errorOf (compileClausePattern (Set.fromList [VarName "file-name", VarName "service-type"]) "@/x/{{FileName}}{{ServiceType}}")
+            `shouldBe` Nothing
+
+    it "rejects a clause variable the target never captures" $
+        errorOf (compileClausePattern fileName "{{TARGET_DIR}}/{{provider-name}}")
+            `shouldBe` Just (UnboundVariable (VarName "provider-name") fileName)
+
+    it "reports malformed patterns as a syntax error" $
+        errorOf (compileTargetPattern "@/x/{{unclosed") `shouldSatisfy` isMalformed
+
+    describe "rendered messages" $ do
+        it "names the ambiguity and suggests both readings" $ do
+            let message = renderError (compileTargetPattern "@/x/{{provider}}")
+            message `shouldSatisfy` T.isInfixOf "camelCase and kebab-case"
+            message `shouldSatisfy` T.isInfixOf "{{providerName}}"
+            message `shouldSatisfy` T.isInfixOf "{{provider-name}}"
+
+        it "lists the bound variables and suggests the nearest match" $ do
+            let scope = Set.fromList [VarName "provider-name", VarName "file-name"]
+            let message = renderError (compileClausePattern scope "{{TARGET_DIR}}/{{provider-nam}}")
+            message `shouldSatisfy` T.isInfixOf "file-name, provider-name"
+            message `shouldSatisfy` T.isInfixOf "Did you mean {{provider-name}}?"
+
+        it "points at the only accepted spelling of TARGET_DIR" $
+            renderError (compileClausePattern mempty "{{target-dir}}/x")
+                `shouldSatisfy` T.isInfixOf "{{TARGET_DIR}}"
+
+--------------------------------------------------------------------------------
+-- Properties
+--------------------------------------------------------------------------------
+
+globPlusProps :: Spec
+globPlusProps = describe "glob+ variable laws" $ do
+    prop "a variable captured in one casing is matchable in every casing" $ do
+        vars <- forAll genVars
+        values <- forAll (traverse (const genValue) vars)
+        let target = unsafeCompileTarget (segments [braced (spell casing name) | (name, casing) <- vars])
+        let path = segments [spell casing value | ((_, casing), value) <- zip vars values]
+
+        env <- maybe failure pure (matchTarget target path)
+        for_ (zip vars values) $ \((name, _), value) ->
+            for_ allCasings $ \casing -> do
+                let clause = unsafeCompileClauseIn (boundVars target) (segments [braced (spell casing name)])
+                (clause, casing, matchClause clause env (segments [spell casing value]))
+                    === (clause, casing, True)
+
+    prop "all four spellings of a name denote the same variable" $ do
+        name <- forAll genName
+        let boundBy casing = boundVars (unsafeCompileTarget (segments [braced (spell casing name)]))
+        for_ allCasings $ \casing -> boundBy casing === boundBy PascalCase
+
+    prop "compiling any {{token}} yields a pattern or a rendered error" $ do
+        token <- forAll genToken
+        let outcome = compileTargetPattern (segments [braced token])
+        assert $ either (not . T.null . renderGlobPlusError) (const True) outcome
+
+    prop "moduleFromGlob produces a path that matchClause accepts" $ do
+        vars <- forAll genVars
+        values <- forAll (traverse (const genValue) vars)
+        let target = unsafeCompileTarget (segments [braced (spell casing name) | (name, casing) <- vars])
+        let path = segments [spell casing value | ((_, casing), value) <- zip vars values]
+        clauseCasings <- forAll (traverse (const (Gen.element allCasings)) vars)
+        let clause =
+                unsafeCompileClauseIn (boundVars target) . segments $
+                    braced "TARGET_DIR"
+                        : [braced (spell casing name) | ((name, _), casing) <- zip vars clauseCasings]
+
+        env <- maybe failure pure (matchTarget target path)
+        expanded <- maybe failure pure (moduleFromGlob env clause)
+        matchClause clause env expanded === True
+        renderClausePattern env clause === expanded
+
+    prop "a repeated variable matches only when its occurrences agree" $ do
+        name <- forAll genName
+        value <- forAll genValue
+        other <- forAll genValue
+        let target =
+                unsafeCompileTarget . segments $
+                    [braced (spell KebabCase name), braced (spell PascalCase name)]
+        let pathFor a b = segments [spell KebabCase a, spell PascalCase b]
+
+        matchTarget target (pathFor value value) /== Nothing
+        when (other /= value) $
+            matchTarget target (pathFor value other) === Nothing
+
+--------------------------------------------------------------------------------
+-- Generators
+--------------------------------------------------------------------------------
+
+-- | 1-3 variables with distinct multi-word names, each in a random casing.
+genVars :: Gen [([Text], Casing)]
+genVars = do
+    count <- Gen.int (Range.linear 1 3)
+    forM (take count ["alpha", "beta", "gamma"]) $ \suffix -> do
+        stem <- genWord
+        casing <- Gen.element allCasings
+        pure ([stem, suffix], casing)
+
+-- | A variable name of 2-3 words, so that its casing is never ambiguous.
+genName :: Gen [Text]
+genName = Gen.list (Range.linear 2 3) genWord
+
+-- | A captured value of 1-3 words; unlike a name, one word is fine.
+genValue :: Gen [Text]
+genValue = Gen.list (Range.linear 1 3) genWord
+
+genWord :: Gen Text
+genWord = Gen.text (Range.linear 2 6) Gen.lower
+
+-- | Arbitrary variable-token content, valid or not.
+genToken :: Gen Text
+genToken = Gen.text (Range.linear 1 8) (Gen.element ['a', 'b', 'X', 'Y', '-', '_', '0', '9'])
+
 -- Helpers
 
-unsafeCompileTarget :: Text -> CompiledTargetPattern
-unsafeCompileTarget t = case parseTargetPattern t of
-    Right ast -> compileTargetPattern ast
-    Left err -> error $ "Failed to parse target pattern: " <> show err
+-- | Spells a name, independently of the production implementation.
+spell :: Casing -> [Text] -> Text
+spell PascalCase = T.concat . fmap capitalise
+spell CamelCase = \case
+    [] -> ""
+    (head' : rest) -> head' <> T.concat (capitalise <$> rest)
+spell KebabCase = T.intercalate "-"
+spell ConstantCase = T.intercalate "_" . fmap T.toUpper
 
+capitalise :: Text -> Text
+capitalise t = T.toUpper (T.take 1 t) <> T.drop 1 t
+
+-- | Each variable gets its own path segment, so no boundary is ambiguous.
+segments :: [Text] -> Text
+segments = ("@/probe/" <>) . T.intercalate "/"
+
+braced :: Text -> Text
+braced t = "{{" <> t <> "}}"
+
+allCasings :: [Casing]
+allCasings = [minBound .. maxBound]
+
+{- | Compiled patterns hold a 'Regex', which has no Eq instance, so assertions
+compare the error side only.
+-}
+errorOf :: Either GlobPlusError a -> Maybe GlobPlusError
+errorOf = leftToMaybe
+
+renderError :: Either GlobPlusError a -> Text
+renderError = maybe "" renderGlobPlusError . errorOf
+
+isMalformed :: Maybe GlobPlusError -> Bool
+isMalformed (Just (MalformedPattern _ _)) = True
+isMalformed _ = False
+
+unsafeCompileTarget :: Text -> CompiledTargetPattern
+unsafeCompileTarget t = case compileTargetPattern t of
+    Right compiled -> compiled
+    Left err -> error $ "Failed to compile target pattern: " <> renderGlobPlusError err
+
+{- | Compiles a clause in the legacy single-variable scope. Every rule in the
+original suite binds only @file-name@, so this keeps those cases untouched.
+-}
 unsafeCompileClause :: Text -> CompiledClausePattern
-unsafeCompileClause t = case parseClausePattern t of
-    Right ast -> compileClausePattern ast
-    Left err -> error $ "Failed to parse rule pattern: " <> show err
+unsafeCompileClause = unsafeCompileClauseIn (Set.singleton (VarName "file-name"))
+
+unsafeCompileClauseIn :: Set VarName -> Text -> CompiledClausePattern
+unsafeCompileClauseIn bound t = case compileClausePattern bound t of
+    Right compiled -> compiled
+    Left err -> error $ "Failed to compile clause pattern: " <> renderGlobPlusError err
+
+-- | Builds a match environment the way production does: by matching a target.
+envFor :: Text -> Text -> MatchEnv
+envFor pat path =
+    fromMaybe (error $ "target " <> pat <> " did not match " <> path) $
+        matchTarget (unsafeCompileTarget pat) path
+
+-- | An environment binding nothing, for the defensive unbound-variable paths.
+sparseEnv :: MatchEnv
+sparseEnv = MatchEnv {targetDir = "@/features/x", variables = Map.empty}
+
+casingOf :: Casing -> MatchEnv -> Maybe Text
+casingOf = varOf "file-name"
+
+varOf :: Text -> Casing -> MatchEnv -> Maybe Text
+varOf name casing env = casedAs casing <$> Map.lookup (VarName name) env.variables

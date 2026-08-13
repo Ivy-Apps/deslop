@@ -1,0 +1,49 @@
+id: provider-services
+name: Provider Services
+description: >-
+  Components are organised as @/components/{provider}/{service}/{Name}View.
+  These rules capture all three parts of that path as separate Glob+ variables
+  and reuse them, in different casings, across the clauses.
+rules:
+  - id: view-wires-own-view-model
+    description: >-
+      A service View is pure UI. It must delegate its state and behaviour to the
+      ViewModel hook that sits next to it in the same provider/service folder.
+    target: "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+    uses:
+      - import: "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+    fix: >-
+      Import use{{FileName}}ViewModel from the same directory and drive the View
+      from the state it returns.
+
+  - id: view-model-calls-its-own-provider-service
+    description: >-
+      A ViewModel may only talk to the service module of the provider and service
+      type it belongs to. The service module name is derived from all three
+      variables, so a ViewModel cannot reach into another provider's service.
+    target: "@/components/{{provider-name}}/{{service-type}}/use{{FileName}}ViewModel"
+    uses:
+      - import: "@/services/{{provider-name}}/{{service-type}}-{{file-name}}"
+    fix: >-
+      Import @/services/{{provider-name}}/{{service-type}}-{{file-name}} rather
+      than another provider's service module.
+
+  - id: view-has-a-storybook
+    description: Every service View must be documented in Storybook.
+    target: "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+    exists:
+      - module: "{{TARGET_DIR}}/{{FileName}}View.stories"
+    fix: Add a {{FileName}}View.stories.tsx file next to the View.
+
+  - id: providers-are-isolated
+    description: >-
+      One provider's components must never import another provider's components.
+      Anything shared between providers belongs outside @/components.
+    target: "@/components/{{provider-name}}/**"
+    forbids:
+      - import: "@/components/**"
+    allows:
+      - import: "@/components/{{provider-name}}/**"
+    fix: >-
+      Import only from within @/components/{{provider-name}}, or promote the
+      shared code out of the provider folders.
