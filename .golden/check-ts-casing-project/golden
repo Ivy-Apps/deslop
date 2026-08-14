@@ -1,0 +1,56 @@
+[Title] 🚀 Checking project: ~/test/fixtures/ts-casing-project
+[Plain] 📚 Loaded 1 rulebook, 5 rules
+[Error] Found 6 problems:
+[Error] ─────────────────────────────────────────
+[Error] # casing#gateway-keeps-out-of-internal-transitively#@/gateways/http-client
+A gateway must not reach @/internal even through another module. The transitive path hydrates its clause the same way the direct one does, so a forbidding clause has to widen over every spelling there too.
+
+Module '@/gateways/http-client' transitively imports '@/internal/HTTPClient/deep' (2 hops) via: @/gateways/http-client → @/lib/relay → @/internal/HTTPClient/deep.
+```ts
+import { relay } from '@/lib/relay';
+```
+FIX: Stop depending, at any depth, on another module's @/internal folder.
+---------
+
+# casing#service-may-only-open-its-own-internal#@/services/db-connection
+A service may reach into the @/internal folder named after it, and no other. The exemption names the variable in PascalCase, which has more than one spelling - and an allows clause accepts only the canonical one, because exempting more than was written silences real violations. This is the opposite direction from a forbids clause, deliberately.
+
+Module '@/services/db-connection' directly imports '@/internal/DBConnection/secret'.
+```ts
+import { secret } from '@/internal/DBConnection/secret';
+```
+FIX: Reach only into @/internal/{{FileName}}, spelled as the canonical PascalCase of your own name.
+---------
+
+# casing#view-is-named-after-its-provider#@/components/db-pool/DBPoolView
+A provider's View carries the provider's name. The same variable occurs as the kebab-case folder and as the PascalCase file, so it binds only where some one name spells both - which is what makes HTTPClient and http-client the same provider, and Paypal and stripe-connect not.
+
+Module '@/components/db-pool/DBPoolView' must import '@/config/db-pool'.
+FIX: Import @/config/{{provider-name}}, the config of the provider you sit under.
+---------
+
+# casing#widget-uses-its-config#@/widgets/AWSS3Widget
+A Widget's config is named after it. The name is captured in PascalCase only, so kebab-case has to be derived, and a run of capitals is read as a single word.
+
+Module '@/widgets/AWSS3Widget' must import '@/config/awss3'.
+FIX: Import @/config/{{file-name}}.
+---------
+
+# casing#widget-uses-its-config#@/widgets/ArchiveDBOrderWidget
+A Widget's config is named after it. The name is captured in PascalCase only, so kebab-case has to be derived, and a run of capitals is read as a single word.
+
+Module '@/widgets/ArchiveDBOrderWidget' must import '@/config/archive-db-order'.
+FIX: Import @/config/{{file-name}}.
+---------
+
+# casing#widgets-keep-out-of-internal#@/widgets/db-connection
+A kebab-case widget must not reach into its own @/internal folder. The clause names the variable in PascalCase, which has more than one spelling; a forbidding clause accepts them all, because an import that slips past this rule is worse than one reported twice.
+
+Module '@/widgets/db-connection' directly imports '@/internal/DBConnection/secret'.
+```ts
+import { secret } from '@/internal/DBConnection/secret';
+```
+FIX: Move what you need out of @/internal, or expose it through @/config.
+[Error] ─────────────────────────────────────────
+[exit] Found 6 problems, none auto-fixable.
+   Run `deslop baseline` to silence all 6 problems.

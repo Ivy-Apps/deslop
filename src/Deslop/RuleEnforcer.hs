@@ -3,7 +3,7 @@ module Deslop.RuleEnforcer (enforceRulebooks) where
 import Data.Text qualified as T
 import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
-import Deslop.GlobPlus (CompiledTargetPattern, MatchEnv, matchClause, matchTarget, moduleFromGlob, renderClausePattern)
+import Deslop.GlobPlus (MatchEnv, matchClause, matchExclude, matchTarget, moduleFromGlob, renderClausePattern)
 import Deslop.Problem (Problem (..))
 import Deslop.Rulebook (AllowsClause (..), ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Effectful (Eff, (:>))
@@ -86,18 +86,10 @@ enforceRule m rule = case isTarget m.id rule of
 
 isTarget :: ModuleId -> Rule -> Maybe MatchEnv
 isTarget moduleId rule = case matchTarget rule.target moduleId.text of
-    Just env ->
-        if isExcluded (toList <$> rule.exclude)
-            then Nothing
-            else Just env
-    Nothing -> Nothing
+    Just env | not isExcluded -> Just env
+    _ -> Nothing
   where
-    isExcluded :: Maybe [CompiledTargetPattern] -> Bool
-    isExcluded Nothing = False
-    isExcluded (Just []) = False
-    isExcluded (Just (x : xs)) = case matchTarget x moduleId.text of
-        Just _ -> True
-        Nothing -> isExcluded (Just xs)
+    isExcluded = any (`matchExclude` moduleId.text) (foldMap toList rule.exclude)
 
 enforceForbids ::
     ( Reader ModuleGraph :> es

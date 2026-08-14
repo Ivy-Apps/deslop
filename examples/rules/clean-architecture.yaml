@@ -94,14 +94,14 @@ rules:
   # ── Quality ───────────────────────────────────────────────────────────────
   - id: use-case-has-spec
     description: Every use case must have a unit test.
-    target: "@/application/**/*UseCase"
+    target: "@/application/**/{{UseCaseName}}UseCase"
     exists:
-      - module: "{{TARGET_DIR}}/{{FileName}}UseCase.spec"
+      - module: "{{TARGET_DIR}}/{{UseCaseName}}UseCase.spec"
     fix: Add a spec file next to the use case.
 
   - id: repository-has-spec
     description: Every infrastructure repository must have a test.
-    target: "@/infrastructure/**/*Repository"
+    target: "@/infrastructure/**/{{RepositoryName}}Repository"
     exists:
-      - module: "{{TARGET_DIR}}/{{FileName}}Repository.spec"
+      - module: "{{TARGET_DIR}}/{{RepositoryName}}Repository.spec"
     fix: Add a spec file next to the repository.

@@ -28,12 +28,18 @@ spec = describe "E2E.Project" $ do
     itChecks "melzar-nextjs-clean-architecture"
     itChecks "ts-cycles-project"
     itChecks "ts-gitignore-project"
+    itChecks "ts-globplus-project"
+    itChecks "ts-casing-project"
+
+    itFailsToLoadRulebook "ts-invalid-rulebook-project"
 
     itBaselines "ts-project-1"
     itBaselines "ixartz-next-js-boilerplate"
     itBaselines "melzar-nextjs-clean-architecture"
     itBaselines "ts-cycles-project"
     itBaselines "ts-gitignore-project"
+    itBaselines "ts-globplus-project"
+    itBaselines "ts-casing-project"
 
     itIterates "ts-gitignore-project"
 
@@ -102,6 +108,36 @@ spec = describe "E2E.Project" $ do
         -- Then
         pure . defaultGolden ("iterated-" <> project) . T.unpack . T.unlines . sort $
             fmap (decodeOsPath . (.osPath) . relativePathTo absProjectPath) files
+
+    -- A rulebook that does not compile must abort the run before any file is
+    -- checked, with a message the author can act on. Goldening the transcript
+    -- pins the whole path from ruleBookFromDto through to the exit line.
+    itFailsToLoadRulebook project = it ("refuses to run " <> project) $ do
+        -- Given
+        let projectPath = fixturesPath </> encodeOsPathString project
+        filesRef <- newIORef Nothing
+        logsRef <- newIORef (TestLogs [])
+        defParams <- defaultParams projectPath
+        let params = defParams {command = CheckC}
+
+        -- When
+        res <-
+            runEff
+                . runMockWrFileSystem filesRef
+                . runRoFileSystemIO
+                . runErrorNoCallStack @DeslopError
+                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
+                . runReportProblem
+                . runConcurrent
+                $ doWork params
+
+        -- Then
+        res `shouldSatisfy` isLeft
+        written <- readIORef filesRef
+        written `shouldBe` Nothing
+        logs <- readIORef logsRef
+        pathSafeGolden ("rulebook-error-" <> project) . T.unpack $
+            renderTranscript logs <> renderResult res
 
     itChecks project = it ("checks " <> project) $ do
         -- Given

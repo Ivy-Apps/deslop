@@ -1,0 +1,65 @@
+id: casing
+name: Casing
+description: >-
+  A codebase spells one name several ways: a kebab-case folder, a PascalCase
+  file, an acronym written out in capitals. These rules pin what Glob+ does
+  with each, including the two readings it cannot recover and reports instead.
+rules:
+  - id: view-is-named-after-its-provider
+    description: >-
+      A provider's View carries the provider's name. The same variable occurs
+      as the kebab-case folder and as the PascalCase file, so it binds only
+      where some one name spells both - which is what makes HTTPClient and
+      http-client the same provider, and Paypal and stripe-connect not.
+    target: "@/components/{{provider-name}}/{{ProviderName}}View"
+    uses:
+      - import: "@/config/{{provider-name}}"
+    fix: Import @/config/{{provider-name}}, the config of the provider you sit under.
+
+  - id: widget-uses-its-config
+    description: >-
+      A Widget's config is named after it. The name is captured in PascalCase
+      only, so kebab-case has to be derived, and a run of capitals is read as a
+      single word.
+    target: "@/widgets/{{FileName}}Widget"
+    uses:
+      - import: "@/config/{{file-name}}"
+    fix: Import @/config/{{file-name}}.
+
+  - id: widgets-keep-out-of-internal
+    description: >-
+      A kebab-case widget must not reach into its own @/internal folder. The
+      clause names the variable in PascalCase, which has more than one
+      spelling; a forbidding clause accepts them all, because an import that
+      slips past this rule is worse than one reported twice.
+    target: "@/widgets/{{file-name}}"
+    forbids:
+      - import: "@/internal/{{FileName}}/**"
+    fix: Move what you need out of @/internal, or expose it through @/config.
+
+  - id: service-may-only-open-its-own-internal
+    description: >-
+      A service may reach into the @/internal folder named after it, and no
+      other. The exemption names the variable in PascalCase, which has more
+      than one spelling - and an allows clause accepts only the canonical one,
+      because exempting more than was written silences real violations. This is
+      the opposite direction from a forbids clause, deliberately.
+    target: "@/services/{{file-name}}"
+    forbids:
+      - import: "@/internal/**"
+    allows:
+      - import: "@/internal/{{FileName}}/**"
+    fix: >-
+      Reach only into @/internal/{{FileName}}, spelled as the canonical
+      PascalCase of your own name.
+
+  - id: gateway-keeps-out-of-internal-transitively
+    description: >-
+      A gateway must not reach @/internal even through another module. The
+      transitive path hydrates its clause the same way the direct one does, so
+      a forbidding clause has to widen over every spelling there too.
+    target: "@/gateways/{{file-name}}"
+    forbids:
+      - import: "@/internal/{{FileName}}/**"
+        transitive: true
+    fix: Stop depending, at any depth, on another module's @/internal folder.

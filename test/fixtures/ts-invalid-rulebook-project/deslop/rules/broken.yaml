@@ -1,0 +1,12 @@
+id: broken
+name: Broken Rulebook
+description: >-
+  {{provider}} is a single word, so it reads as both camelCase and kebab-case.
+  Deslop must refuse to run rather than guess which one was meant.
+rules:
+  - id: provider-components-are-isolated
+    description: A provider's components must not import another provider's code
+    target: "@/components/{{provider}}/**"
+    forbids:
+      - import: "@/components/**"
+    fix: Import only from within your own provider folder.

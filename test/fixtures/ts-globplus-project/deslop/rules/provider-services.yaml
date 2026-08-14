@@ -1,0 +1,93 @@
+id: provider-services
+name: Provider Services
+description: >-
+  Components are organised as @/components/{provider}/{service}/{Name}View.
+  These rules capture all three parts of that path as separate Glob+ variables
+  and reuse them, in different casings, across the clauses.
+rules:
+  - id: view-wires-own-view-model
+    description: >-
+      A service View is pure UI. It must delegate its state and behaviour to the
+      ViewModel hook that sits next to it in the same provider/service folder.
+    target: "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+    uses:
+      - import: "{{TARGET_DIR}}/use{{FileName}}ViewModel"
+    fix: >-
+      Import use{{FileName}}ViewModel from the same directory and drive the View
+      from the state it returns.
+
+  - id: view-model-calls-its-own-provider-service
+    description: >-
+      A ViewModel may only talk to the service module of the provider and service
+      type it belongs to. The service module name is derived from all three
+      variables, so a ViewModel cannot reach into another provider's service.
+    target: "@/components/{{provider-name}}/{{service-type}}/use{{FileName}}ViewModel"
+    uses:
+      - import: "@/services/{{provider-name}}/{{service-type}}-{{file-name}}"
+    fix: >-
+      Import @/services/{{provider-name}}/{{service-type}}-{{file-name}} rather
+      than another provider's service module.
+
+  - id: view-has-a-storybook
+    description: Every service View must be documented in Storybook.
+    target: "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+    exists:
+      - module: "{{TARGET_DIR}}/{{FileName}}View.stories"
+    fix: Add a {{FileName}}View.stories.tsx file next to the View.
+
+  - id: providers-are-isolated
+    description: >-
+      One provider's components must never import another provider's components.
+      Anything shared between providers belongs outside @/components.
+    target: "@/components/{{provider-name}}/**"
+    forbids:
+      - import: "@/components/**"
+    allows:
+      - import: "@/components/{{provider-name}}/**"
+    fix: >-
+      Import only from within @/components/{{provider-name}}, or promote the
+      shared code out of the provider folders.
+
+  - id: nested-view-uses-its-provider-config
+    description: >-
+      A View at any depth under a provider folder must import that provider's
+      config. The provider variable sits before the **, so the group that
+      captures it is numbered after the globstar's own - the arrangement in
+      which reading captures by position binds the provider to the globstar.
+    target: "@/components/{{provider-name}}/**/{{FileName}}View"
+    uses:
+      - import: "@/config/{{provider-name}}"
+    fix: >-
+      Import @/config/{{provider-name}} rather than another provider's config.
+
+  - id: provider-entry-is-named-after-its-folder
+    description: >-
+      A provider's entry point carries its provider's name. The same variable
+      occurs on both sides of the **, so the rule applies only where the folder
+      and the file agree - and never applied at all while the globstar's text
+      was being read as the provider.
+    target: "@/components/{{provider-name}}/**/{{ProviderName}}Entry"
+    exists:
+      - module: "@/config/{{provider-name}}"
+    fix: Name the entry point after the provider folder it sits under.
+
+  - id: view-model-drives-its-use-case
+    description: >-
+      A use case's ViewModel drives that use case and no other. The variable is
+      three words long and occurs three times - as the kebab-case folder, and
+      in PascalCase inside two different affixed segments - so every word of it
+      has to survive being written out in two casings.
+    target: "@/application/{{use-case-name}}/use{{UseCaseName}}ViewModel"
+    uses:
+      - import: "{{TARGET_DIR}}/{{UseCaseName}}UseCase"
+    fix: >-
+      Import {{TARGET_DIR}}/{{UseCaseName}}UseCase rather than another use case.
+
+  - id: use-case-has-a-view-model
+    description: >-
+      Every use case is driven by a ViewModel named after it, in camelCase this
+      time - the same three words spelled a third way.
+    target: "@/application/{{use-case-name}}/{{UseCaseName}}UseCase"
+    exists:
+      - module: "{{TARGET_DIR}}/use{{UseCaseName}}ViewModel"
+    fix: Add a use{{UseCaseName}}ViewModel next to the use case.

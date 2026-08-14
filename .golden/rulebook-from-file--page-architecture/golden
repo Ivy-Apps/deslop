@@ -8,9 +8,7 @@ Right
             { id = RuleId "next-js-page-on-server"
             , description =
                 "Add a page in /src/app/[locale]/{route} to connect it with the NextJS router.  It should be executed on the server.  Use the page to SSR data and pass it as a parameter to the Container that will display the UI."
-            , target =
-                CompiledTargetPattern
-                  { regex = <regex> , vars = [] , globCaptures = 1 }
+            , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
@@ -27,9 +25,7 @@ Right
             { id = RuleId "page-container"
             , description =
                 "Each page should have a Container that's executed on the client. It connects the View (pure UI) and its viewmodel hook."
-            , target =
-                CompiledTargetPattern
-                  { regex = <regex> , vars = [] , globCaptures = 1 }
+            , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
@@ -47,6 +43,7 @@ Right
                                , Star
                                , Literal "Container"
                                ]
+                           , polarity = Requiring
                            }
                      , transitive = False
                      } :|
@@ -62,7 +59,15 @@ Right
                 "A Container is a glue code executed on the client side that connects a View with its ViewModel hook. The Container optionally accepts initial SSR data from the page and passes it to the ViewModel."
             , target =
                 CompiledTargetPattern
-                  { regex = <regex> , vars = [ PascalCase ] , globCaptures = 1 }
+                  { regex = <regex>
+                  , vars =
+                      [ CapturedVar
+                          { name = VarName { text = "file-name" }
+                          , casing = PascalCase
+                          , group = CaptureGroup { number = 2 }
+                          }
+                      ]
+                  }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
@@ -76,15 +81,16 @@ Right
                                [ StaticChunk "^"
                                , VarChunk CTargetDir
                                , StaticChunk "/"
-                               , VarChunk (CVar PascalCase)
+                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
                                , StaticChunk "StateEvent$"
                                ]
                            , rawTokens =
                                [ Var CTargetDir
                                , Literal "/"
-                               , Var (CVar PascalCase)
+                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "StateEvent"
                                ]
+                           , polarity = Requiring
                            }
                      , transitive = False
                      } :|
@@ -95,15 +101,16 @@ Right
                                    [ StaticChunk "^"
                                    , VarChunk CTargetDir
                                    , StaticChunk "/use"
-                                   , VarChunk (CVar PascalCase)
+                                   , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
                                    , StaticChunk "ViewModel$"
                                    ]
                                , rawTokens =
                                    [ Var CTargetDir
                                    , Literal "/use"
-                                   , Var (CVar PascalCase)
+                                   , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                    , Literal "ViewModel"
                                    ]
+                               , polarity = Requiring
                                }
                          , transitive = False
                          }
@@ -114,15 +121,16 @@ Right
                                    [ StaticChunk "^"
                                    , VarChunk CTargetDir
                                    , StaticChunk "/"
-                                   , VarChunk (CVar PascalCase)
+                                   , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
                                    , StaticChunk "View$"
                                    ]
                                , rawTokens =
                                    [ Var CTargetDir
                                    , Literal "/"
-                                   , Var (CVar PascalCase)
+                                   , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                    , Literal "View"
                                    ]
+                               , polarity = Requiring
                                }
                          , transitive = True
                          }
@@ -140,7 +148,15 @@ Right
                 "The ViewModel is a custom React hook that encapsulates the View's state and business logic. It must be strictly free of UI elements (JSX) and must not perform direct HTTP fetch calls. Instead, it should manage the state and delegate data fetching to the data layer (repositories)."
             , target =
                 CompiledTargetPattern
-                  { regex = <regex> , vars = [ PascalCase ] , globCaptures = 1 }
+                  { regex = <regex>
+                  , vars =
+                      [ CapturedVar
+                          { name = VarName { text = "file-name" }
+                          , casing = PascalCase
+                          , group = CaptureGroup { number = 2 }
+                          }
+                      ]
+                  }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids =
@@ -153,15 +169,16 @@ Right
                                    [ StaticChunk "^"
                                    , VarChunk CTargetDir
                                    , StaticChunk "/"
-                                   , VarChunk (CVar PascalCase)
+                                   , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
                                    , StaticChunk "View$"
                                    ]
                                , rawTokens =
                                    [ Var CTargetDir
                                    , Literal "/"
-                                   , Var (CVar PascalCase)
+                                   , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                    , Literal "View"
                                    ]
+                               , polarity = Forbidding
                                }
                          , transitive = False
                          }
@@ -177,6 +194,7 @@ Right
                                    , Literal "/"
                                    , Star
                                    ]
+                               , polarity = Forbidding
                                }
                          , transitive = False
                          }
@@ -191,15 +209,16 @@ Right
                                [ StaticChunk "^"
                                , VarChunk CTargetDir
                                , StaticChunk "/"
-                               , VarChunk (CVar PascalCase)
+                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
                                , StaticChunk "StateEvent$"
                                ]
                            , rawTokens =
                                [ Var CTargetDir
                                , Literal "/"
-                               , Var (CVar PascalCase)
+                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "StateEvent"
                                ]
+                           , polarity = Requiring
                            }
                      , transitive = False
                      } :|
@@ -217,7 +236,15 @@ Right
                 "Each ViewModel must have a corresponding unit test file to verify its state transitions,  event handling, and business logic independently of the UI components."
             , target =
                 CompiledTargetPattern
-                  { regex = <regex> , vars = [ PascalCase ] , globCaptures = 1 }
+                  { regex = <regex>
+                  , vars =
+                      [ CapturedVar
+                          { name = VarName { text = "file-name" }
+                          , casing = PascalCase
+                          , group = CaptureGroup { number = 2 }
+                          }
+                      ]
+                  }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
@@ -231,15 +258,16 @@ Right
                                [ StaticChunk "^"
                                , VarChunk CTargetDir
                                , StaticChunk "/use"
-                               , VarChunk (CVar PascalCase)
+                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
                                , StaticChunk "ViewModel$"
                                ]
                            , rawTokens =
                                [ Var CTargetDir
                                , Literal "/use"
-                               , Var (CVar PascalCase)
+                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "ViewModel"
                                ]
+                           , polarity = Requiring
                            }
                      , transitive = False
                      } :|
@@ -253,15 +281,16 @@ Right
                                [ StaticChunk "^"
                                , VarChunk CTargetDir
                                , StaticChunk "/use"
-                               , VarChunk (CVar PascalCase)
+                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
                                , StaticChunk "ViewModel\\.spec$"
                                ]
                            , rawTokens =
                                [ Var CTargetDir
                                , Literal "/use"
-                               , Var (CVar PascalCase)
+                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "ViewModel.spec"
                                ]
+                           , polarity = Requiring
                            }
                      } :|
                      [])
@@ -277,7 +306,15 @@ Right
                 "Each page/feature should have a pure UI (View) that renders the UiState  and submits user interactions as UiEvents."
             , target =
                 CompiledTargetPattern
-                  { regex = <regex> , vars = [ PascalCase ] , globCaptures = 1 }
+                  { regex = <regex>
+                  , vars =
+                      [ CapturedVar
+                          { name = VarName { text = "file-name" }
+                          , casing = PascalCase
+                          , group = CaptureGroup { number = 2 }
+                          }
+                      ]
+                  }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids =
@@ -293,15 +330,16 @@ Right
                                [ StaticChunk "^"
                                , VarChunk CTargetDir
                                , StaticChunk "/"
-                               , VarChunk (CVar PascalCase)
+                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
                                , StaticChunk "StateEvent$"
                                ]
                            , rawTokens =
                                [ Var CTargetDir
                                , Literal "/"
-                               , Var (CVar PascalCase)
+                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "StateEvent"
                                ]
+                           , polarity = Requiring
                            }
                      , transitive = False
                      } :|
@@ -319,7 +357,15 @@ Right
                 "Each pure UI View should have a corresponding Storybook file to develop, test,  and document its various UI states in isolation."
             , target =
                 CompiledTargetPattern
-                  { regex = <regex> , vars = [ PascalCase ] , globCaptures = 1 }
+                  { regex = <regex>
+                  , vars =
+                      [ CapturedVar
+                          { name = VarName { text = "file-name" }
+                          , casing = PascalCase
+                          , group = CaptureGroup { number = 2 }
+                          }
+                      ]
+                  }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
@@ -334,15 +380,16 @@ Right
                                [ StaticChunk "^"
                                , VarChunk CTargetDir
                                , StaticChunk "/"
-                               , VarChunk (CVar PascalCase)
+                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
                                , StaticChunk "View\\.stories$"
                                ]
                            , rawTokens =
                                [ Var CTargetDir
                                , Literal "/"
-                               , Var (CVar PascalCase)
+                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "View.stories"
                                ]
+                           , polarity = Requiring
                            }
                      } :|
                      [])
@@ -355,9 +402,7 @@ Right
         , Rule
             { id = RuleId "features-cant-import-other-features"
             , description = "Features can't import from other features."
-            , target =
-                CompiledTargetPattern
-                  { regex = <regex> , vars = [] , globCaptures = 0 }
+            , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids =
@@ -367,6 +412,7 @@ Right
                          CompiledClausePattern
                            { chunks = [ StaticChunk "^@/features/.*$" ]
                            , rawTokens = [ Literal "@/features/" , GlobStar ]
+                           , polarity = Forbidding
                            }
                      , transitive = False
                      } :|
@@ -379,6 +425,7 @@ Right
                            { chunks =
                                [ StaticChunk "^" , VarChunk CTargetDir , StaticChunk "/.*$" ]
                            , rawTokens = [ Var CTargetDir , Literal "/" , GlobStar ]
+                           , polarity = Requiring
                            }
                      } :|
                      [])

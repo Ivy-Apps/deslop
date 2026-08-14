@@ -61,6 +61,7 @@ library
     Deslop
     Deslop.AST
     Deslop.Baseline
+    Deslop.Casing
     Deslop.CodeGraph
     Deslop.GlobPlus
     Deslop.Lint.CycleDetection
@@ -138,7 +139,9 @@ test-suite deslop-test
   other-modules:
     Deslop.ASTSpec
     Deslop.BaselineSpec
+    Deslop.CasingSpec
     Deslop.CodeGraphSpec
+    Deslop.GlobPlusModel
     Deslop.GlobPlusSpec
     Deslop.Lint.CycleDetectionSpec
     Deslop.Lint.RelativeImportsSpec
