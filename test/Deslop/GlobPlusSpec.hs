@@ -446,6 +446,65 @@ spec = describe "Deslop.GlobPLus" $ do
             let pat = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
             moduleFromGlob sparseEnv pat `shouldBe` Nothing
 
+        describe "with several variables" $ do
+            let providerTarget = "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+            let providerScope = boundVars (unsafeCompileTarget providerTarget)
+            let expand = moduleFromGlob (envFor providerTarget "@/components/stripe-connect/payment/CheckoutView")
+            let clause = unsafeCompileClauseIn providerScope
+
+            it "expands each variable in the casing the clause asked for" $
+                expand (clause "@/services/{{provider-name}}/{{ServiceType}}{{FileName}}Client")
+                    `shouldBe` Just "@/services/stripe-connect/PaymentCheckoutClient"
+
+            it "expands one variable into all four casings at once" $
+                expand (clause "@/x/{{ProviderName}}/{{providerName}}/{{provider-name}}/{{PROVIDER_NAME}}")
+                    `shouldBe` Just "@/x/StripeConnect/stripeConnect/stripe-connect/STRIPE_CONNECT"
+
+            it "combines several variables with TARGET_DIR" $
+                expand (clause "{{TARGET_DIR}}/{{ServiceType}}-{{file-name}}.spec")
+                    `shouldBe` Just "@/components/stripe-connect/payment/Payment-checkout.spec"
+
+            it "still refuses when any part of the pattern is a wildcard" $
+                expand (clause "{{TARGET_DIR}}/{{ServiceType}}/*") `shouldBe` Nothing
+
+        describe "expanding a name that was captured as an acronym" $ do
+            let widgetOf = envFor "@/widgets/{{FileName}}Widget"
+            let configOf path = moduleFromGlob (widgetOf path) (unsafeCompileClause "@/config/{{file-name}}")
+
+            it "reads a run of capitals as one word" $ do
+                configOf "@/widgets/DBConnectionWidget" `shouldBe` Just "@/config/db-connection"
+                configOf "@/widgets/HTTPClientWidget" `shouldBe` Just "@/config/http-client"
+
+            it "names a module that cannot exist for two adjacent acronyms - a documented limitation" $
+                configOf "@/widgets/AWSS3Widget" `shouldBe` Just "@/config/awss3"
+
+            it "keeps the captured spelling when the clause asks for the same casing" $ do
+                let pascalOf path = moduleFromGlob (widgetOf path) (unsafeCompileClause "@/config/{{FileName}}")
+                pascalOf "@/widgets/AWSS3Widget" `shouldBe` Just "@/config/AWSS3"
+                pascalOf "@/widgets/DBConnectionWidget" `shouldBe` Just "@/config/DBConnection"
+
+            it "is exact when the target also names the folder in kebab-case" $ do
+                let paired = "@/components/{{provider-name}}/{{ProviderName}}View"
+                let pairedScope = boundVars (unsafeCompileTarget paired)
+                let pairedEnv = envFor paired "@/components/aws-s3/AWSS3View"
+                moduleFromGlob pairedEnv (unsafeCompileClauseIn pairedScope "@/config/{{provider-name}}")
+                    `shouldBe` Just "@/config/aws-s3"
+                moduleFromGlob pairedEnv (unsafeCompileClauseIn pairedScope "@/config/{{ProviderName}}")
+                    `shouldBe` Just "@/config/AWSS3"
+
+        describe "expanding a name of three or more words" $ do
+            let useCaseTarget = "@/application/{{use-case-name}}/{{UseCaseName}}UseCase"
+            let useCaseScope = boundVars (unsafeCompileTarget useCaseTarget)
+            let expand = moduleFromGlob (envFor useCaseTarget "@/application/archive-order/ArchiveOrderUseCase")
+
+            it "expands a three-word name between a prefix and a suffix" $
+                expand (unsafeCompileClauseIn useCaseScope "{{TARGET_DIR}}/use{{UseCaseName}}ViewModel")
+                    `shouldBe` Just "@/application/archive-order/useArchiveOrderViewModel"
+
+            it "expands a three-word name into every casing" $
+                expand (unsafeCompileClauseIn useCaseScope "@/x/{{UseCaseName}}/{{useCaseName}}/{{use-case-name}}/{{USE_CASE_NAME}}")
+                    `shouldBe` Just "@/x/ArchiveOrder/archiveOrder/archive-order/ARCHIVE_ORDER"
+
     describe "renderClausePattern" $ do
         let env = envFor "@/features/auth/{{FileName}}" "@/features/auth/UserAuth"
 
@@ -992,6 +1051,52 @@ polaritySpec = describe "polarity" $ do
         let kebabClause polarity = unsafeCompileClauseAs polarity scope "@/internal/{{file-name}}/**"
         matchClause (kebabClause Forbidding) env "@/internal/db-connection/x" `shouldBe` True
         matchClause (kebabClause Forbidding) env "@/internal/dbConnection/x" `shouldBe` False
+
+    describe "several variables in one clause" $ do
+        let providerTarget = "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+        let providerScope = boundVars (unsafeCompileTarget providerTarget)
+        let clauseOf polarity = unsafeCompileClauseAs polarity providerScope "@/x/{{ProviderName}}/{{ServiceType}}/{{file-name}}"
+        let env = envFor providerTarget "@/components/stripe-connect/payment/CheckoutView"
+
+        it "requires every variable to line up, whatever the polarity" $
+            for_ [Requiring, Forbidding] $ \polarity -> do
+                matchClause (clauseOf polarity) env "@/x/StripeConnect/Payment/checkout" `shouldBe` True
+                -- one variable wrong at a time
+                matchClause (clauseOf polarity) env "@/x/Paypal/Payment/checkout" `shouldBe` False
+                matchClause (clauseOf polarity) env "@/x/StripeConnect/Payout/checkout" `shouldBe` False
+                matchClause (clauseOf polarity) env "@/x/StripeConnect/Payment/refund" `shouldBe` False
+
+        it "widens every variable independently in a forbidding clause" $ do
+            matchClause (clauseOf Forbidding) env "@/x/STRIPEConnect/Payment/checkout" `shouldBe` True
+            matchClause (clauseOf Forbidding) env "@/x/StripeConnect/PAYMENT/checkout" `shouldBe` True
+            matchClause (clauseOf Forbidding) env "@/x/STRIPECONNECT/PAYMENT/checkout" `shouldBe` True
+
+        it "narrows every variable in a requiring clause" $ do
+            matchClause (clauseOf Requiring) env "@/x/STRIPEConnect/Payment/checkout" `shouldBe` False
+            matchClause (clauseOf Requiring) env "@/x/StripeConnect/PAYMENT/checkout" `shouldBe` False
+
+        it "widens an acronym-bound variable alongside a plain one" $ do
+            let acronymEnv = envFor providerTarget "@/components/http-client/db-sync/AWSS3View"
+            let acronymClause polarity = unsafeCompileClauseAs polarity providerScope "@/x/{{ProviderName}}/{{ServiceType}}/{{file-name}}"
+
+            -- The kebab folders pin two names exactly; the Pascal file name is
+            -- read as one acronym word, which is the documented guess.
+            matchClause (acronymClause Requiring) acronymEnv "@/x/HttpClient/DbSync/awss3" `shouldBe` True
+            matchClause (acronymClause Forbidding) acronymEnv "@/x/HTTPClient/DBSync/awss3" `shouldBe` True
+            matchClause (acronymClause Requiring) acronymEnv "@/x/HTTPClient/DBSync/awss3" `shouldBe` False
+
+        it "keeps a variable adjacent to another exact under both polarities" $ do
+            let adjacent polarity = unsafeCompileClauseAs polarity providerScope "@/x/{{ServiceType}}{{FileName}}"
+            for_ [Requiring, Forbidding] $ \polarity ->
+                matchClause (adjacent polarity) env "@/x/PaymentCheckout" `shouldBe` True
+            matchClause (adjacent Forbidding) env "@/x/PAYMENTCheckout" `shouldBe` True
+            matchClause (adjacent Requiring) env "@/x/PAYMENTCheckout" `shouldBe` False
+
+        it "combines several variables with TARGET_DIR and a glob" $ do
+            let mixed polarity = unsafeCompileClauseAs polarity providerScope "{{TARGET_DIR}}/**/{{ServiceType}}-{{file-name}}.spec"
+            for_ [Requiring, Forbidding] $ \polarity -> do
+                matchClause (mixed polarity) env "@/components/stripe-connect/payment/deep/Payment-checkout.spec" `shouldBe` True
+                matchClause (mixed polarity) env "@/components/paypal/payment/Payment-checkout.spec" `shouldBe` False
 
     it "keeps the literal capture exact under both polarities" $ do
         let pascalTarget = unsafeCompileTarget "@/widgets/{{FileName}}"

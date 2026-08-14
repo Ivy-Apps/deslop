@@ -10,7 +10,7 @@ import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
-import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldSatisfy)
+import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldReturn, shouldSatisfy)
 import TestUtils (mkAllowsImportDto, mkExistsModuleDto, mkForbidsImportDto, mkModule, mkUsesImportDto, requireRight, ruleDto, rulebookDto)
 import TypeScript.ModuleResolver (moduleIdUnsafe)
 import Types (DeslopError (..))
@@ -153,8 +153,265 @@ runUsesTest allModules m =
             enforceRulebooks m
             getProblems
 
+--------------------------------------------------------------------------------
+-- Several variables at once
+--------------------------------------------------------------------------------
+
+{- | Three variables, captured from one target and spent across every kind of
+clause. Each rule has its own target segment so that a violation names the rule
+that produced it without any of the others joining in.
+-}
+multiVarRulebook :: Rulebook
+multiVarRulebook =
+    fromRight (error "multiVarRulebook: invalid fixture") $
+        ruleBookFromDto
+            rulebookDto
+                { id = "multi-var-rules"
+                , name = "Multi Variable Rules"
+                , description = "Rules that bind more than one variable."
+                , rules =
+                    [ ruleDto
+                        { id = RuleId "view-keeps-out-of-another-internal"
+                        , description = "A View may not reach an internal module of its own provider and service."
+                        , target = GlobDto "@/direct/{{provider-name}}/{{service-type}}/{{FileName}}View"
+                        , forbids = Just [mkForbidsImportDto "@/internal/{{provider-name}}/{{ServiceType}}{{FileName}}Secret" False]
+                        , fix = "Do not import that internal module."
+                        }
+                    , ruleDto
+                        { id = RuleId "view-uses-its-own-service"
+                        , description = "A View must import the service named by all three of its variables."
+                        , target = GlobDto "@/uses/{{provider-name}}/{{service-type}}/{{FileName}}View"
+                        , uses = Just [mkUsesImportDto "@/services/{{provider-name}}/{{service-type}}-{{file-name}}" False]
+                        , fix = "Import your own provider's service."
+                        }
+                    , ruleDto
+                        { id = RuleId "view-reaches-its-service-eventually"
+                        , description = "A View must reach its own service, directly or through an intermediary."
+                        , target = GlobDto "@/reaches/{{provider-name}}/{{service-type}}/{{FileName}}View"
+                        , uses = Just [mkUsesImportDto "@/services/{{provider-name}}/{{service-type}}-{{file-name}}" True]
+                        , fix = "Reach your own provider's service."
+                        }
+                    , ruleDto
+                        { id = RuleId "view-never-reaches-another-internal"
+                        , description = "A View must not reach an internal module, at any depth."
+                        , target = GlobDto "@/deep/{{provider-name}}/{{service-type}}/{{FileName}}View"
+                        , forbids = Just [mkForbidsImportDto "@/internal/{{provider-name}}/{{ServiceType}}/**" True]
+                        , fix = "Break the chain into that internal folder."
+                        }
+                    , ruleDto
+                        { id = RuleId "view-has-a-spec-named-by-all-three"
+                        , description = "A View's spec is named by its provider, its service type and its own name."
+                        , target = GlobDto "@/exists/{{provider-name}}/{{service-type}}/{{FileName}}View"
+                        , exists = Just [mkExistsModuleDto "@/specs/{{provider-name}}/{{ServiceType}}{{FileName}}View.spec"]
+                        , fix = "Add the spec."
+                        }
+                    , ruleDto
+                        { id = RuleId "widget-has-a-config"
+                        , description = "A Widget's config is its own name in kebab-case."
+                        , target = GlobDto "@/widgets/{{FileName}}Widget"
+                        , exists = Just [mkExistsModuleDto "@/config/{{file-name}}"]
+                        , fix = "Add the config."
+                        }
+                    , ruleDto
+                        { id = RuleId "provider-view-has-a-config"
+                        , description = "A View named after its folder has a config under that name."
+                        , target = GlobDto "@/pair/{{provider-name}}/{{ProviderName}}View"
+                        , exists = Just [mkExistsModuleDto "@/config/{{provider-name}}"]
+                        , fix = "Add the config."
+                        }
+                    , ruleDto
+                        { id = RuleId "use-case-has-a-view-model"
+                        , description = "A use case is driven by a ViewModel named after it."
+                        , target = GlobDto "@/app/{{use-case-name}}/{{UseCaseName}}UseCase"
+                        , exists = Just [mkExistsModuleDto "{{TARGET_DIR}}/use{{UseCaseName}}ViewModel"]
+                        , fix = "Add the ViewModel."
+                        }
+                    , ruleDto
+                        { id = RuleId "view-imports-only-its-own-service"
+                        , description = "A View may import services, but only the one all three variables name."
+                        , target = GlobDto "@/allows/{{provider-name}}/{{service-type}}/{{FileName}}View"
+                        , forbids = Just [mkForbidsImportDto "@/services/**" False]
+                        , allows = Just [mkAllowsImportDto "@/services/{{provider-name}}/{{service-type}}-{{file-name}}"]
+                        , fix = "Import only your own provider's service."
+                        }
+                    ]
+                }
+
+runMultiVarTest :: [AstModule] -> AstModule -> IO [Problem]
+runMultiVarTest = runTransitiveTestWith [multiVarRulebook]
+
+descriptionsOf :: [Problem] -> [Text]
+descriptionsOf = mapMaybe descriptionOf
+  where
+    descriptionOf RuleViolation {description = d} = Just d
+    descriptionOf _ = Nothing
+
+ruleIdsOf :: [Problem] -> [Text]
+ruleIdsOf = mapMaybe ruleIdOf
+  where
+    ruleIdOf RuleViolation {rule = RuleId r} = Just r
+    ruleIdOf _ = Nothing
+
+multiVariableSpec :: Spec
+multiVariableSpec = describe "several variables in one rule" $ do
+    describe "forbids, direct" $ do
+        it "reports when every variable lines up" $ do
+            let m = mkModule "@/direct/stripe-connect/payment/CheckoutView" ["@/internal/stripe-connect/PaymentCheckoutSecret"]
+            ruleIdsOf <$> runMultiVarTest [m] m `shouldReturn` ["view-keeps-out-of-another-internal"]
+
+        it "does not report when one variable differs" $ do
+            let m = mkModule "@/direct/stripe-connect/payment/CheckoutView" ["@/internal/paypal/PaymentCheckoutSecret"]
+            ruleIdsOf <$> runMultiVarTest [m] m `shouldReturn` []
+
+        it "reports an acronym spelling of any of the variables" $ do
+            -- Forbidding clauses widen, so no spelling of PaymentCheckout evades it.
+            let m = mkModule "@/direct/stripe-connect/payment/CheckoutView" ["@/internal/stripe-connect/PAYMENTCHECKOUTSecret"]
+            ruleIdsOf <$> runMultiVarTest [m] m `shouldReturn` ["view-keeps-out-of-another-internal"]
+
+    describe "uses, direct" $ do
+        it "is satisfied when every variable lines up" $ do
+            let m = mkModule "@/uses/stripe-connect/payment/CheckoutView" ["@/services/stripe-connect/payment-checkout"]
+            ruleIdsOf <$> runMultiVarTest [m] m `shouldReturn` []
+
+        it "reports when one variable differs" $ do
+            let m = mkModule "@/uses/stripe-connect/payment/CheckoutView" ["@/services/paypal/payment-checkout"]
+            ruleIdsOf <$> runMultiVarTest [m] m `shouldReturn` ["view-uses-its-own-service"]
+
+        it "reports when a variable is spelled a way a requiring clause does not accept" $ do
+            let m = mkModule "@/uses/stripe-connect/payment/CheckoutView" ["@/services/stripe-connect/PAYMENT-checkout"]
+            ruleIdsOf <$> runMultiVarTest [m] m `shouldReturn` ["view-uses-its-own-service"]
+
+    describe "uses, transitive" $ do
+        it "is satisfied when the service is reached through an intermediary" $ do
+            let view = mkModule "@/reaches/stripe-connect/payment/CheckoutView" ["@/lib/relay"]
+            let relay = mkModule "@/lib/relay" ["@/services/stripe-connect/payment-checkout"]
+            let service = mkModule "@/services/stripe-connect/payment-checkout" []
+            ruleIdsOf <$> runMultiVarTest [view, relay, service] view `shouldReturn` []
+
+        it "reports when the intermediary reaches another provider's service" $ do
+            let view = mkModule "@/reaches/stripe-connect/payment/CheckoutView" ["@/lib/relay"]
+            let relay = mkModule "@/lib/relay" ["@/services/paypal/payment-checkout"]
+            let service = mkModule "@/services/paypal/payment-checkout" []
+            ruleIdsOf <$> runMultiVarTest [view, relay, service] view
+                `shouldReturn` ["view-reaches-its-service-eventually"]
+
+    describe "forbids, transitive" $ do
+        it "reports an internal module reached through an intermediary" $ do
+            let view = mkModule "@/deep/stripe-connect/payment/CheckoutView" ["@/lib/relay"]
+            let relay = mkModule "@/lib/relay" ["@/internal/stripe-connect/Payment/secret"]
+            let secret = mkModule "@/internal/stripe-connect/Payment/secret" []
+            ruleIdsOf <$> runMultiVarTest [view, relay, secret] view
+                `shouldReturn` ["view-never-reaches-another-internal"]
+
+        it "does not report when the reachable internal belongs to another provider" $ do
+            let view = mkModule "@/deep/stripe-connect/payment/CheckoutView" ["@/lib/relay"]
+            let relay = mkModule "@/lib/relay" ["@/internal/paypal/Payment/secret"]
+            let secret = mkModule "@/internal/paypal/Payment/secret" []
+            ruleIdsOf <$> runMultiVarTest [view, relay, secret] view `shouldReturn` []
+
+        it "reports an acronym spelling reached through an intermediary" $ do
+            let view = mkModule "@/deep/http-client/db-sync/CheckoutView" ["@/lib/relay"]
+            let relay = mkModule "@/lib/relay" ["@/internal/http-client/DBSync/secret"]
+            let secret = mkModule "@/internal/http-client/DBSync/secret" []
+            ruleIdsOf <$> runMultiVarTest [view, relay, secret] view
+                `shouldReturn` ["view-never-reaches-another-internal"]
+
+    describe "exists" $ do
+        it "is satisfied when the module all three variables name is in the graph" $ do
+            let view = mkModule "@/exists/stripe-connect/payment/CheckoutView" []
+            let spec' = mkModule "@/specs/stripe-connect/PaymentCheckoutView.spec" []
+            ruleIdsOf <$> runMultiVarTest [view, spec'] view `shouldReturn` []
+
+        it "reports the exact module it wanted when it is missing" $ do
+            let view = mkModule "@/exists/stripe-connect/payment/CheckoutView" []
+            problems <- runMultiVarTest [view] view
+            ruleIdsOf problems `shouldBe` ["view-has-a-spec-named-by-all-three"]
+            descriptionsOf problems
+                `shouldSatisfy` any (T.isInfixOf "requires '@/specs/stripe-connect/PaymentCheckoutView.spec' to exist")
+
+        it "is not satisfied by another provider's spec" $ do
+            let view = mkModule "@/exists/stripe-connect/payment/CheckoutView" []
+            let wrong = mkModule "@/specs/paypal/PaymentCheckoutView.spec" []
+            ruleIdsOf <$> runMultiVarTest [view, wrong] view
+                `shouldReturn` ["view-has-a-spec-named-by-all-three"]
+
+        it "is not satisfied by a spec whose service type differs" $ do
+            let view = mkModule "@/exists/stripe-connect/payment/CheckoutView" []
+            let wrong = mkModule "@/specs/stripe-connect/PayoutCheckoutView.spec" []
+            ruleIdsOf <$> runMultiVarTest [view, wrong] view
+                `shouldReturn` ["view-has-a-spec-named-by-all-three"]
+
+        it "does not apply to a module the target does not match" $ do
+            let notAView = mkModule "@/exists/stripe-connect/payment/CheckoutContainer" []
+            ruleIdsOf <$> runMultiVarTest [notAView] notAView `shouldReturn` []
+
+        describe "when the name was captured as an acronym" $ do
+            it "reads a run of capitals as one word" $ do
+                let widget = mkModule "@/widgets/DBConnectionWidget" []
+                let config = mkModule "@/config/db-connection" []
+                ruleIdsOf <$> runMultiVarTest [widget, config] widget `shouldReturn` []
+
+            it "asks for a module that cannot exist for two adjacent acronyms - a documented limitation" $ do
+                let widget = mkModule "@/widgets/AWSS3Widget" []
+                let config = mkModule "@/config/aws-s3" []
+                problems <- runMultiVarTest [widget, config] widget
+                ruleIdsOf problems `shouldBe` ["widget-has-a-config"]
+                descriptionsOf problems
+                    `shouldSatisfy` any (T.isInfixOf "requires '@/config/awss3' to exist")
+
+            it "is exact when the target names the folder in kebab-case too" $ do
+                let view = mkModule "@/pair/http-client/HTTPClientView" []
+                let config = mkModule "@/config/http-client" []
+                ruleIdsOf <$> runMultiVarTest [view, config] view `shouldReturn` []
+
+            it "reports the kebab-case name when that config is missing" $ do
+                let view = mkModule "@/pair/aws-s3/AWSS3View" []
+                problems <- runMultiVarTest [view] view
+                ruleIdsOf problems `shouldBe` ["provider-view-has-a-config"]
+                descriptionsOf problems
+                    `shouldSatisfy` any (T.isInfixOf "requires '@/config/aws-s3' to exist")
+
+            it "does not apply when the folder and the file are different names" $ do
+                let view = mkModule "@/pair/stripe-connect/PaypalView" []
+                ruleIdsOf <$> runMultiVarTest [view] view `shouldReturn` []
+
+        describe "with a name of three or more words" $ do
+            it "is satisfied by the ViewModel named after the use case" $ do
+                let useCase = mkModule "@/app/archive-order/ArchiveOrderUseCase" []
+                let viewModel = mkModule "@/app/archive-order/useArchiveOrderViewModel" []
+                ruleIdsOf <$> runMultiVarTest [useCase, viewModel] useCase `shouldReturn` []
+
+            it "reports the affixed module it wanted when it is missing" $ do
+                let useCase = mkModule "@/app/archive-order/ArchiveOrderUseCase" []
+                problems <- runMultiVarTest [useCase] useCase
+                ruleIdsOf problems `shouldBe` ["use-case-has-a-view-model"]
+                descriptionsOf problems
+                    `shouldSatisfy` any (T.isInfixOf "requires '@/app/archive-order/useArchiveOrderViewModel' to exist")
+
+            it "keeps the captured acronym spelling in the module it asks for" $ do
+                let useCase = mkModule "@/app/http-client-retry/HTTPClientRetryUseCase" []
+                problems <- runMultiVarTest [useCase] useCase
+                descriptionsOf problems
+                    `shouldSatisfy` any (T.isInfixOf "requires '@/app/http-client-retry/useHTTPClientRetryViewModel' to exist")
+
+    describe "allows over a broad forbids" $ do
+        it "exempts the service all three variables name" $ do
+            let m = mkModule "@/allows/stripe-connect/payment/CheckoutView" ["@/services/stripe-connect/payment-checkout"]
+            ruleIdsOf <$> runMultiVarTest [m] m `shouldReturn` []
+
+        it "does not exempt another provider's service" $ do
+            let m = mkModule "@/allows/stripe-connect/payment/CheckoutView" ["@/services/paypal/payment-checkout"]
+            ruleIdsOf <$> runMultiVarTest [m] m `shouldReturn` ["view-imports-only-its-own-service"]
+
+        it "does not exempt a spelling the allows clause did not name" $ do
+            -- An allows clause narrows: exempting more than was written would
+            -- silence a real violation.
+            let m = mkModule "@/allows/stripe-connect/payment/CheckoutView" ["@/services/stripe-connect/PAYMENT-checkout"]
+            ruleIdsOf <$> runMultiVarTest [m] m `shouldReturn` ["view-imports-only-its-own-service"]
+
 spec :: Spec
 spec = describe "Deslop.RuleEnforcer" $ do
+    multiVariableSpec
     describe "forbids imports" $ do
         it "no violations" $ do
             let m = mkModule "@/components/Button" ["react"]
