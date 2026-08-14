@@ -1,8 +1,10 @@
 [Title] 🚀 Baselining project: ~/test/fixtures/ts-casing-project
-[Plain] 📚 Loaded 1 rulebook, 3 rules
-[Success] ✅ Success: Baseline generated with 4 problems.
+[Plain] 📚 Loaded 1 rulebook, 5 rules
+[Success] ✅ Success: Baseline generated with 6 problems.
 
 >>> baseline.yaml
+- casing#gateway-keeps-out-of-internal-transitively#@/gateways/http-client
+- casing#service-may-only-open-its-own-internal#@/services/db-connection
 - casing#view-is-named-after-its-provider#@/components/db-pool/DBPoolView
 - casing#widget-uses-its-config#@/widgets/AWSS3Widget
 - casing#widget-uses-its-config#@/widgets/ArchiveDBOrderWidget

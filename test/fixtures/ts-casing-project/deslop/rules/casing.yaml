@@ -36,3 +36,30 @@ rules:
     forbids:
       - import: "@/internal/{{FileName}}/**"
     fix: Move what you need out of @/internal, or expose it through @/config.
+
+  - id: service-may-only-open-its-own-internal
+    description: >-
+      A service may reach into the @/internal folder named after it, and no
+      other. The exemption names the variable in PascalCase, which has more
+      than one spelling - and an allows clause accepts only the canonical one,
+      because exempting more than was written silences real violations. This is
+      the opposite direction from a forbids clause, deliberately.
+    target: "@/services/{{file-name}}"
+    forbids:
+      - import: "@/internal/**"
+    allows:
+      - import: "@/internal/{{FileName}}/**"
+    fix: >-
+      Reach only into @/internal/{{FileName}}, spelled as the canonical
+      PascalCase of your own name.
+
+  - id: gateway-keeps-out-of-internal-transitively
+    description: >-
+      A gateway must not reach @/internal even through another module. The
+      transitive path hydrates its clause the same way the direct one does, so
+      a forbidding clause has to widen over every spelling there too.
+    target: "@/gateways/{{file-name}}"
+    forbids:
+      - import: "@/internal/{{FileName}}/**"
+        transitive: true
+    fix: Stop depending, at any depth, on another module's @/internal folder.
