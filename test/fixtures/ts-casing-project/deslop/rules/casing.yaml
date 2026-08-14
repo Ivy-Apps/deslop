@@ -1,0 +1,38 @@
+id: casing
+name: Casing
+description: >-
+  A codebase spells one name several ways: a kebab-case folder, a PascalCase
+  file, an acronym written out in capitals. These rules pin what Glob+ does
+  with each, including the two readings it cannot recover and reports instead.
+rules:
+  - id: view-is-named-after-its-provider
+    description: >-
+      A provider's View carries the provider's name. The same variable occurs
+      as the kebab-case folder and as the PascalCase file, so it binds only
+      where some one name spells both - which is what makes HTTPClient and
+      http-client the same provider, and Paypal and stripe-connect not.
+    target: "@/components/{{provider-name}}/{{ProviderName}}View"
+    uses:
+      - import: "@/config/{{provider-name}}"
+    fix: Import @/config/{{provider-name}}, the config of the provider you sit under.
+
+  - id: widget-uses-its-config
+    description: >-
+      A Widget's config is named after it. The name is captured in PascalCase
+      only, so kebab-case has to be derived, and a run of capitals is read as a
+      single word.
+    target: "@/widgets/{{FileName}}Widget"
+    uses:
+      - import: "@/config/{{file-name}}"
+    fix: Import @/config/{{file-name}}.
+
+  - id: widgets-keep-out-of-internal
+    description: >-
+      A kebab-case widget must not reach into its own @/internal folder. The
+      clause names the variable in PascalCase, which has more than one
+      spelling; a forbidding clause accepts them all, because an import that
+      slips past this rule is worse than one reported twice.
+    target: "@/widgets/{{file-name}}"
+    forbids:
+      - import: "@/internal/{{FileName}}/**"
+    fix: Move what you need out of @/internal, or expose it through @/config.

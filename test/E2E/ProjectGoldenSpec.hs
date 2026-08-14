@@ -29,6 +29,7 @@ spec = describe "E2E.Project" $ do
     itChecks "ts-cycles-project"
     itChecks "ts-gitignore-project"
     itChecks "ts-globplus-project"
+    itChecks "ts-casing-project"
 
     itFailsToLoadRulebook "ts-invalid-rulebook-project"
 
@@ -38,6 +39,7 @@ spec = describe "E2E.Project" $ do
     itBaselines "ts-cycles-project"
     itBaselines "ts-gitignore-project"
     itBaselines "ts-globplus-project"
+    itBaselines "ts-casing-project"
 
     itIterates "ts-gitignore-project"
 

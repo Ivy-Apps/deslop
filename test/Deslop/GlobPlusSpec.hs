@@ -8,7 +8,10 @@ import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import Test.Hspec
 
+import Deslop.Casing (render)
 import Deslop.GlobPlus
+import Deslop.GlobPlusModel qualified as Model
+import Test.Hspec.QuickCheck (modifyMaxSuccess)
 import TestUtils (prop, requireJust)
 
 spec :: Spec
@@ -610,8 +613,13 @@ spec = describe "Deslop.GlobPLus" $ do
             matchClause cSpec env "@/services/UserProfileService.spec" `shouldBe` False
 
     multiVariableSpec
+    multiWordNameSpec
+    capturePositionSpec
+    casingAgreementSpec
+    polaritySpec
     compilationErrorSpec
     globPlusProps
+    globPlusModelProps
 
 --------------------------------------------------------------------------------
 -- Multiple variables
@@ -704,6 +712,299 @@ multiVariableSpec = describe "multiple variables" $ do
         varOf "service-type" KebabCase env `shouldBe` Just "service"
 
 --------------------------------------------------------------------------------
+-- Names of three or more words
+--------------------------------------------------------------------------------
+
+{- | Two words is the smallest legal name and the one every example reaches
+for. Real rulebooks carry longer ones - @{{use-case-name}}@ has three - and a
+longer name has more word boundaries to lose and more acronym readings to
+confuse.
+-}
+multiWordNameSpec :: Spec
+multiWordNameSpec = describe "a name of three or more words" $ do
+    it "treats all four spellings as one variable" $ do
+        let bound spelling = boundVars <$> compileTargetPattern ("@/x/" <> spelling)
+        bound "{{UseCaseName}}" `shouldBe` bound "{{useCaseName}}"
+        bound "{{UseCaseName}}" `shouldBe` bound "{{use-case-name}}"
+        bound "{{UseCaseName}}" `shouldBe` bound "{{USE_CASE_NAME}}"
+        bound "{{UseCaseName}}" `shouldBe` Right (Set.singleton (VarName "use-case-name"))
+
+    it "treats all four spellings of a five-word name as one variable" $ do
+        let bound spelling = boundVars <$> compileTargetPattern ("@/x/" <> spelling)
+        bound "{{UserProfileSettingsPageTitle}}" `shouldBe` bound "{{user-profile-settings-page-title}}"
+        bound "{{UserProfileSettingsPageTitle}}" `shouldBe` bound "{{USER_PROFILE_SETTINGS_PAGE_TITLE}}"
+
+    it "captures a three-word name between a prefix and a suffix" $ do
+        let target = unsafeCompileTarget "@/application/use{{UseCaseName}}ViewModel"
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/application/useArchiveOrderViewModel"
+
+        varOf "use-case-name" PascalCase env `shouldBe` Just "ArchiveOrder"
+        varOf "use-case-name" KebabCase env `shouldBe` Just "archive-order"
+        varOf "use-case-name" CamelCase env `shouldBe` Just "archiveOrder"
+        varOf "use-case-name" ConstantCase env `shouldBe` Just "ARCHIVE_ORDER"
+
+    it "does not match when the suffix around the variable differs" $ do
+        let target = unsafeCompileTarget "@/application/use{{UseCaseName}}ViewModel"
+        matchTarget target "@/application/useArchiveOrderContainer" `shouldBe` Nothing
+        matchTarget target "@/application/getArchiveOrderViewModel" `shouldBe` Nothing
+
+    it "binds greedily when the captured value repeats the suffix" $ do
+        let target = unsafeCompileTarget "@/application/use{{UseCaseName}}ViewModel"
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/application/useArchiveViewModelViewModel"
+
+        varOf "use-case-name" PascalCase env `shouldBe` Just "ArchiveViewModel"
+
+    it "carries a three-word name across casings into a clause" $ do
+        let target = unsafeCompileTarget "@/application/{{use-case-name}}/use{{UseCaseName}}ViewModel"
+        let scope = boundVars target
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/application/archive-order/useArchiveOrderViewModel"
+        let clause = unsafeCompileClauseIn scope "{{TARGET_DIR}}/{{UseCaseName}}UseCase"
+
+        matchClause clause env "@/application/archive-order/ArchiveOrderUseCase" `shouldBe` True
+        matchClause clause env "@/application/archive-order/ArchiveUseCase" `shouldBe` False
+        moduleFromGlob env clause
+            `shouldBe` Just "@/application/archive-order/ArchiveOrderUseCase"
+
+    it "expands a three-word name into every casing at once" $ do
+        let target = unsafeCompileTarget "@/application/{{UseCaseName}}UseCase"
+        let scope = boundVars target
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/application/ArchiveOrderUseCase"
+        let everyCasing = "@/x/{{UseCaseName}}/{{useCaseName}}/{{use-case-name}}/{{USE_CASE_NAME}}"
+        let clause = unsafeCompileClauseIn scope everyCasing
+
+        moduleFromGlob env clause
+            `shouldBe` Just "@/x/ArchiveOrder/archiveOrder/archive-order/ARCHIVE_ORDER"
+
+    it "agrees across casings when a three-word name carries an acronym" $ do
+        let target = unsafeCompileTarget "@/x/{{use-case-name}}/{{UseCaseName}}UseCase"
+        matchTarget target "@/x/archive-db-order/ArchiveDBOrderUseCase" `shouldSatisfy` isJust
+        matchTarget target "@/x/http-client-pool/HTTPClientPoolUseCase" `shouldSatisfy` isJust
+        matchTarget target "@/x/archive-db-order/ArchiveOrderUseCase" `shouldBe` Nothing
+
+    it "repeats a three-word variable across a **/" $ do
+        let target = unsafeCompileTarget "@/application/{{use-case-name}}/**/{{UseCaseName}}UseCase"
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/application/archive-order/nested/ArchiveOrderUseCase"
+
+        varOf "use-case-name" KebabCase env `shouldBe` Just "archive-order"
+        varOf "use-case-name" PascalCase env `shouldBe` Just "ArchiveOrder"
+
+    it "rejects a three-word name that is not written in one casing" $ do
+        errorOf (compileTargetPattern "@/x/{{Use-Case-Name}}") `shouldBe` Just (UnrecognisedCasing "Use-Case-Name")
+        errorOf (compileTargetPattern "@/x/{{use_case_name}}") `shouldBe` Just (UnrecognisedCasing "use_case_name")
+        errorOf (compileTargetPattern "@/x/{{UseCASEName}}") `shouldBe` Just (ConsecutiveCapitals "UseCASEName")
+
+--------------------------------------------------------------------------------
+-- Capture positions
+--------------------------------------------------------------------------------
+
+{- | A target's regex numbers its groups by the position of their opening paren,
+so the @**\/@ idiom's group interleaves with the variable groups rather than
+preceding them. Every case here puts a variable /before/ a @**\/@, which is the
+arrangement the original suite never generated.
+-}
+capturePositionSpec :: Spec
+capturePositionSpec = describe "capture positions" $ do
+    describe "a variable before a **/" $ do
+        let target = unsafeCompileTarget "@/components/{{provider-name}}/**/{{FileName}}View"
+
+        it "binds the variable to its own segment, not to the globstar's text" $ do
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/components/stripe-connect/payment/CheckoutView"
+
+            varOf "provider-name" KebabCase env `shouldBe` Just "stripe-connect"
+            varOf "file-name" PascalCase env `shouldBe` Just "Checkout"
+
+        it "keeps providers distinct rather than collapsing them onto the globstar" $ do
+            paypal <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/components/paypal/payment/RefundView"
+            stripe <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/components/stripe-connect/payment/CheckoutView"
+
+            varOf "provider-name" KebabCase paypal `shouldNotBe` varOf "provider-name" KebabCase stripe
+
+        it "binds the variable when the globstar matches zero directories" $ do
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/components/stripe-connect/CheckoutView"
+
+            varOf "provider-name" KebabCase env `shouldBe` Just "stripe-connect"
+
+        it "never binds a variable to text containing a path separator" $ do
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/components/stripe-connect/payment/payout/CheckoutView"
+
+            varOf "provider-name" KebabCase env `shouldNotSatisfy` any (T.isInfixOf "/")
+
+    it "matches a repeated variable that straddles a **/" $ do
+        let target = unsafeCompileTarget "@/components/{{provider-name}}/**/{{ProviderName}}View"
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/components/stripe-connect/payment/StripeConnectView"
+
+        varOf "provider-name" KebabCase env `shouldBe` Just "stripe-connect"
+        varOf "provider-name" PascalCase env `shouldBe` Just "StripeConnect"
+
+    describe "two separate **/ idioms" $ do
+        let target = unsafeCompileTarget "@/{{provider-name}}/**/{{service-type}}/**/{{FileName}}View"
+
+        it "binds every variable when only one parse is possible" $ do
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/stripe-connect/payment/CheckoutView"
+
+            varOf "provider-name" KebabCase env `shouldBe` Just "stripe-connect"
+            varOf "service-type" KebabCase env `shouldBe` Just "payment"
+            varOf "file-name" PascalCase env `shouldBe` Just "Checkout"
+
+        it "lets the leftmost ** bind greedily when several parses are possible" $ do
+            -- 'a', 'payment' and 'b' are all valid kebab-case, so the boundary
+            -- is genuinely ambiguous. POSIX longest-match settles it in favour
+            -- of the leftmost **, exactly as it does for adjacent variables.
+            env <-
+                requireJust "matchTarget returned Nothing" $
+                    matchTarget target "@/stripe-connect/a/payment/b/CheckoutView"
+
+            varOf "provider-name" KebabCase env `shouldBe` Just "stripe-connect"
+            varOf "service-type" KebabCase env `shouldBe` Just "b"
+            varOf "file-name" PascalCase env `shouldBe` Just "Checkout"
+
+    it "binds a variable that follows a trailing **" $ do
+        -- A trailing ** is not the **/ idiom, so it introduces no extra group.
+        -- This shape worked by accident before; it must keep working.
+        let target = unsafeCompileTarget "@/components/{{provider-name}}/**"
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget target "@/components/stripe-connect/payment/CheckoutView"
+
+        varOf "provider-name" KebabCase env `shouldBe` Just "stripe-connect"
+
+--------------------------------------------------------------------------------
+-- Casing agreement between occurrences
+--------------------------------------------------------------------------------
+
+{- | Two spellings denote the same variable when some name could have produced
+both. A run of capitals carries no word boundary, so @HTTPClient@ and
+@http-client@ are the same name and must agree.
+-}
+casingAgreementSpec :: Spec
+casingAgreementSpec = describe "casing agreement" $ do
+    let repeated = unsafeCompileTarget "@/components/{{provider-name}}/{{ProviderName}}View"
+    let matchesFolder path = matchTarget repeated path `shouldSatisfy` isJust
+    let rejectsFolder path = matchTarget repeated path `shouldBe` Nothing
+
+    it "agrees when a PascalCase occurrence spells a word as an acronym" $ do
+        matchesFolder "@/components/http-client/HTTPClientView"
+        matchesFolder "@/components/db-connection/DBConnectionView"
+
+    it "agrees when both acronym words run together" $
+        matchesFolder "@/components/aws-s3/AWSS3View"
+
+    it "agrees on the control spellings that never had acronyms" $ do
+        matchesFolder "@/components/http-cache/HttpCacheView"
+        matchesFolder "@/components/stripe-connect/StripeConnectView"
+
+    it "agrees when a word contains or begins with a digit" $ do
+        matchesFolder "@/components/v2-api/V2APIView"
+        matchesFolder "@/components/api-2fa/Api2faView"
+        matchesFolder "@/components/http2-client/Http2ClientView"
+
+    it "agrees when every word is a single letter" $
+        matchesFolder "@/components/a-b/ABView"
+
+    it "still rejects occurrences that no single name could have produced" $ do
+        rejectsFolder "@/components/stripe-connect/PaypalView"
+        rejectsFolder "@/components/http-client/HttpCacheView"
+
+    it "agrees between CONSTANT_CASE and PascalCase across a digit" $ do
+        let constantTarget = unsafeCompileTarget "@/x/{{PROVIDER_NAME}}/{{ProviderName}}View"
+        matchTarget constantTarget "@/x/HTTP2_CLIENT/Http2ClientView" `shouldSatisfy` isJust
+
+    describe "expansion into a casing that was never captured" $ do
+        let widget = unsafeCompileTarget "@/widgets/{{FileName}}Widget"
+        let kebabOf path = do
+                env <- requireJust "matchTarget returned Nothing" $ matchTarget widget path
+                pure (varOf "file-name" KebabCase env)
+
+        it "reads a run of capitals as one word" $ do
+            kebabOf "@/widgets/DBConnectionWidget" >>= (`shouldBe` Just "db-connection")
+            kebabOf "@/widgets/HTTPClientWidget" >>= (`shouldBe` Just "http-client")
+
+        it "leaves a single-cased name untouched" $
+            kebabOf "@/widgets/UserProfileWidget" >>= (`shouldBe` Just "user-profile")
+
+        it "cannot split two adjacent acronym words - a documented limitation" $
+            kebabOf "@/widgets/AWSS3Widget" >>= (`shouldBe` Just "awss3")
+
+        it "reads single letters as one word - a documented limitation" $
+            kebabOf "@/widgets/ABTestWidget" >>= (`shouldBe` Just "ab-test")
+
+--------------------------------------------------------------------------------
+-- Polarity
+--------------------------------------------------------------------------------
+
+{- | Writing a name out in a casing it was not captured in is a guess. Which
+way it is safe to guess wrong depends on what a match means, so a @forbids:@
+clause accepts every spelling of the name and the rest accept only the
+canonical one.
+-}
+polaritySpec :: Spec
+polaritySpec = describe "polarity" $ do
+    let target = unsafeCompileTarget "@/widgets/{{file-name}}"
+    let scope = boundVars target
+    let forbidding = unsafeCompileClauseAs Forbidding scope "@/internal/{{FileName}}/**"
+    let requiring = unsafeCompileClauseAs Requiring scope "@/internal/{{FileName}}/**"
+    let envOf = envFor "@/widgets/{{file-name}}"
+
+    it "accepts every acronym spelling in a forbidding clause" $ do
+        let env = envOf "@/widgets/db-connection"
+        matchClause forbidding env "@/internal/DbConnection/x" `shouldBe` True
+        matchClause forbidding env "@/internal/DBConnection/x" `shouldBe` True
+
+    it "accepts only the canonical spelling in a requiring clause" $ do
+        let env = envOf "@/widgets/db-connection"
+        matchClause requiring env "@/internal/DbConnection/x" `shouldBe` True
+        matchClause requiring env "@/internal/DBConnection/x" `shouldBe` False
+
+    it "accepts every reading of an ambiguous capture in a forbidding clause" $ do
+        -- ABTest could be ["ab","test"] or ["a","b","test"]; a forbidding
+        -- clause must not let the reading it did not pick slip through.
+        let env = envFor "@/widgets/{{FileName}}" "@/widgets/ABTest"
+        let forbidsKebab = unsafeCompileClauseAs Forbidding (Set.singleton (VarName "file-name")) "@/internal/{{file-name}}/**"
+        matchClause forbidsKebab env "@/internal/ab-test/x" `shouldBe` True
+        matchClause forbidsKebab env "@/internal/a-b-test/x" `shouldBe` True
+
+    it "does not widen a casing that has only one spelling" $ do
+        let env = envOf "@/widgets/db-connection"
+        let kebabClause polarity = unsafeCompileClauseAs polarity scope "@/internal/{{file-name}}/**"
+        matchClause (kebabClause Forbidding) env "@/internal/db-connection/x" `shouldBe` True
+        matchClause (kebabClause Forbidding) env "@/internal/dbConnection/x" `shouldBe` False
+
+    it "keeps the literal capture exact under both polarities" $ do
+        let pascalTarget = unsafeCompileTarget "@/widgets/{{FileName}}"
+        let pascalScope = boundVars pascalTarget
+        let clause polarity = unsafeCompileClauseAs polarity pascalScope "@/internal/{{FileName}}/**"
+        env <-
+            requireJust "matchTarget returned Nothing" $
+                matchTarget pascalTarget "@/widgets/DBConnection"
+
+        matchClause (clause Requiring) env "@/internal/DBConnection/x" `shouldBe` True
+        matchClause (clause Forbidding) env "@/internal/DBConnection/x" `shouldBe` True
+
+--------------------------------------------------------------------------------
 -- Compilation errors
 --------------------------------------------------------------------------------
 
@@ -740,11 +1041,20 @@ compilationErrorSpec = describe "compilation errors" $ do
         bound "{{HttpClient}}" `shouldBe` bound "{{http-client}}"
         bound "{{HttpClient}}" `shouldBe` bound "{{HTTP_CLIENT}}"
 
+    it "treats all four spellings as one variable when a word carries a digit" $ do
+        -- A CONSTANT_CASE segment carrying a digit is not all-uppercase by
+        -- Data.Char, which used to split HTTP2_CLIENT letter by letter and
+        -- make it a different variable from http2-client.
+        let bound spelling = boundVars <$> compileTargetPattern ("@/x/" <> spelling)
+        bound "{{Http2Client}}" `shouldBe` bound "{{http2Client}}"
+        bound "{{Http2Client}}" `shouldBe` bound "{{http2-client}}"
+        bound "{{Http2Client}}" `shouldBe` bound "{{HTTP2_CLIENT}}"
+
     it "reserves TARGET_DIR under every casing of its name" $ do
-        errorOf (compileClausePattern mempty "{{target-dir}}/x") `shouldBe` Just (ReservedTargetDir "target-dir")
-        errorOf (compileClausePattern mempty "{{targetDir}}/x") `shouldBe` Just (ReservedTargetDir "targetDir")
-        errorOf (compileClausePattern mempty "{{TargetDir}}/x") `shouldBe` Just (ReservedTargetDir "TargetDir")
-        errorOf (compileClausePattern mempty "{{TARGET_DIR}}/x") `shouldBe` Nothing
+        errorOf (compileClausePattern Requiring mempty "{{target-dir}}/x") `shouldBe` Just (ReservedTargetDir "target-dir")
+        errorOf (compileClausePattern Requiring mempty "{{targetDir}}/x") `shouldBe` Just (ReservedTargetDir "targetDir")
+        errorOf (compileClausePattern Requiring mempty "{{TargetDir}}/x") `shouldBe` Just (ReservedTargetDir "TargetDir")
+        errorOf (compileClausePattern Requiring mempty "{{TARGET_DIR}}/x") `shouldBe` Nothing
 
     it "rejects TARGET_DIR in a target pattern, where it cannot be captured" $ do
         errorOf (compileTargetPattern "{{TARGET_DIR}}/x") `shouldBe` Just (TargetDirInTargetPattern "TARGET_DIR")
@@ -760,11 +1070,11 @@ compilationErrorSpec = describe "compilation errors" $ do
             `shouldBe` Just (AdjacentVariables "FileName" "ServiceType")
 
     it "allows adjacent variables in a clause, where they are substituted" $
-        errorOf (compileClausePattern (Set.fromList [VarName "file-name", VarName "service-type"]) "@/x/{{FileName}}{{ServiceType}}")
+        errorOf (compileClausePattern Requiring (Set.fromList [VarName "file-name", VarName "service-type"]) "@/x/{{FileName}}{{ServiceType}}")
             `shouldBe` Nothing
 
     it "rejects a clause variable the target never captures" $
-        errorOf (compileClausePattern fileName "{{TARGET_DIR}}/{{provider-name}}")
+        errorOf (compileClausePattern Requiring fileName "{{TARGET_DIR}}/{{provider-name}}")
             `shouldBe` Just (UnboundVariable (VarName "provider-name") fileName)
 
     it "reports malformed patterns as a syntax error" $
@@ -779,12 +1089,12 @@ compilationErrorSpec = describe "compilation errors" $ do
 
         it "lists the bound variables and suggests the nearest match" $ do
             let scope = Set.fromList [VarName "provider-name", VarName "file-name"]
-            let message = renderError (compileClausePattern scope "{{TARGET_DIR}}/{{provider-nam}}")
+            let message = renderError (compileClausePattern Requiring scope "{{TARGET_DIR}}/{{provider-nam}}")
             message `shouldSatisfy` T.isInfixOf "file-name, provider-name"
             message `shouldSatisfy` T.isInfixOf "Did you mean {{provider-name}}?"
 
         it "points at the only accepted spelling of TARGET_DIR" $
-            renderError (compileClausePattern mempty "{{target-dir}}/x")
+            renderError (compileClausePattern Requiring mempty "{{target-dir}}/x")
                 `shouldSatisfy` T.isInfixOf "{{TARGET_DIR}}"
 
 --------------------------------------------------------------------------------
@@ -844,6 +1154,118 @@ globPlusProps = describe "glob+ variable laws" $ do
         matchTarget target (pathFor value value) /== Nothing
         when (other /= value) $
             matchTarget target (pathFor value other) === Nothing
+
+--------------------------------------------------------------------------------
+-- Model-based properties
+--------------------------------------------------------------------------------
+
+{- | These generate a pattern and a path together, from a model written
+independently of the compiler, so a bug has to appear in both to go unnoticed.
+-}
+globPlusModelProps :: Spec
+globPlusModelProps = modifyMaxSuccess (const 1000) . describe "glob+ pattern laws" $ do
+    prop "binds every variable to the segment it was planted in" $ do
+        slots <- forAll Model.genSlots
+        planting <- forAll (Model.genPlanting slots)
+        let target = unsafeCompileTarget (Model.renderPattern slots)
+
+        env <- maybe failure pure (matchTarget target (Model.plantPath planting))
+        for_ planting.segments $ \(slot, planted) -> case slot of
+            Model.SlotVar name casing affix ->
+                (name, varOf (render KebabCase name) casing env)
+                    === (name, Model.unaffix affix =<< listToMaybe planted)
+            _ -> pure ()
+
+    prop "never binds a variable to text containing a path separator" $ do
+        slots <- forAll Model.genSlots
+        planting <- forAll (Model.genPlanting slots)
+        let target = unsafeCompileTarget (Model.renderPattern slots)
+
+        env <- maybe failure pure (matchTarget target (Model.plantPath planting))
+        for_ (Map.elems env.variables) $ \bound ->
+            for_ allCasings $ \casing ->
+                assert (not (T.isInfixOf "/" (casedAs casing bound)))
+
+    prop "matches exactly the paths the model says it should" $ do
+        slots <- forAll Model.genSlots
+        planting <- forAll (Model.genPlanting slots)
+        pathSegments <- forAll (Model.genPerturbed planting)
+        let target = unsafeCompileTarget (Model.renderPattern slots)
+
+        isJust (matchTarget target (T.intercalate "/" pathSegments))
+            === Model.matchesModel slots pathSegments
+
+    prop "any two spellings of one name agree, however its acronyms are written" $ do
+        name <- forAll Model.genName
+        value <- forAll Model.genValue
+        firstCasing <- forAll (Gen.element allCasings)
+        secondCasing <- forAll (Gen.element allCasings)
+        firstSpelling <- forAll (Model.genRendering firstCasing value)
+        secondSpelling <- forAll (Model.genRendering secondCasing value)
+        let target =
+                unsafeCompileTarget . segments $
+                    [braced (spell firstCasing name), braced (spell secondCasing name)]
+
+        matchTarget target (segments [firstSpelling, secondSpelling]) /== Nothing
+
+    prop "whatever a requiring clause accepts, a forbidding one accepts too" $ do
+        name <- forAll Model.genName
+        value <- forAll Model.genValue
+        targetCasing <- forAll (Gen.element allCasings)
+        clauseCasing <- forAll (Gen.element allCasings)
+        spelling <- forAll (Model.genRendering targetCasing value)
+        candidate <- forAll (Model.genRendering clauseCasing value)
+
+        let target = unsafeCompileTarget (segments [braced (spell targetCasing name)])
+        let scope = boundVars target
+        let clauseOf polarity = unsafeCompileClauseAs polarity scope (segments [braced (spell clauseCasing name)])
+        env <- maybe failure pure (matchTarget target (segments [spelling]))
+
+        let path = segments [candidate]
+        when (matchClause (clauseOf Requiring) env path) $
+            matchClause (clauseOf Forbidding) env path === True
+
+    prop "a name of three or more words behaves like any other" $ do
+        name <- forAll Model.genLongName
+        value <- forAll Model.genValue
+        targetCasing <- forAll (Gen.element allCasings)
+        clauseCasing <- forAll (Gen.element allCasings)
+        spelling <- forAll (Model.genRendering targetCasing value)
+
+        -- Affixed on both sides, the use{{UseCaseName}}ViewModel idiom.
+        let target = unsafeCompileTarget ("@/probe/use" <> braced (spell targetCasing name) <> "ViewModel")
+        let clause =
+                unsafeCompileClauseIn (boundVars target) $
+                    "@/probe/with" <> braced (spell clauseCasing name) <> "Container"
+
+        env <- maybe failure pure (matchTarget target ("@/probe/use" <> spelling <> "ViewModel"))
+        expanded <- maybe failure pure (moduleFromGlob env clause)
+        matchClause clause env expanded === True
+
+    prop "every word of a long name survives a round trip through all four casings" $ do
+        name <- forAll Model.genLongName
+        value <- forAll Model.genValue
+        let target =
+                unsafeCompileTarget . segments $
+                    [braced (spell casing name) | casing <- allCasings]
+        let path = segments [spell casing value | casing <- allCasings]
+
+        env <- maybe failure pure (matchTarget target path)
+        for_ allCasings $ \casing ->
+            varOf (spell KebabCase name) casing env === Just (spell casing value)
+
+    prop "a forbidding clause accepts every spelling of what it captured" $ do
+        name <- forAll Model.genName
+        value <- forAll Model.genValue
+        clauseCasing <- forAll (Gen.element allCasings)
+        spelling <- forAll (Model.genRendering KebabCase value)
+        candidate <- forAll (Model.genRendering clauseCasing value)
+
+        let target = unsafeCompileTarget (segments [braced (spell KebabCase name)])
+        let clause = unsafeCompileClauseAs Forbidding (boundVars target) (segments [braced (spell clauseCasing name)])
+        env <- maybe failure pure (matchTarget target (segments [spelling]))
+
+        matchClause clause env (segments [candidate]) === True
 
 --------------------------------------------------------------------------------
 -- Generators
@@ -922,7 +1344,10 @@ unsafeCompileClause :: Text -> CompiledClausePattern
 unsafeCompileClause = unsafeCompileClauseIn (Set.singleton (VarName "file-name"))
 
 unsafeCompileClauseIn :: Set VarName -> Text -> CompiledClausePattern
-unsafeCompileClauseIn bound t = case compileClausePattern bound t of
+unsafeCompileClauseIn = unsafeCompileClauseAs Requiring
+
+unsafeCompileClauseAs :: Polarity -> Set VarName -> Text -> CompiledClausePattern
+unsafeCompileClauseAs polarity bound t = case compileClausePattern polarity bound t of
     Right compiled -> compiled
     Left err -> error $ "Failed to compile clause pattern: " <> renderGlobPlusError err
 

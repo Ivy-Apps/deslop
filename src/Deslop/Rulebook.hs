@@ -26,7 +26,7 @@ module Deslop.Rulebook (
 import Data.Aeson (FromJSON (..), withObject, withText, (.:), (.:?))
 import Data.Text qualified as T
 import Data.Yaml (decodeEither')
-import Deslop.GlobPlus (CompiledClausePattern, CompiledExcludePattern, CompiledTargetPattern, GlobPlusError, VarName, boundVars, compileClausePattern, compileExcludePattern, compileTargetPattern, renderGlobPlusError)
+import Deslop.GlobPlus (CompiledClausePattern, CompiledExcludePattern, CompiledTargetPattern, GlobPlusError, Polarity (..), VarName, boundVars, compileClausePattern, compileExcludePattern, compileTargetPattern, renderGlobPlusError)
 import Effectful
 import Effects.FileSystem (AbsPath, RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile, withAbsBaseUnsafe)
 import System.OsPath (OsPath, osp)
@@ -250,7 +250,7 @@ compileForbidsClauses :: RuleScope -> Maybe [ForbidsDto] -> Either Text (Maybe (
 compileForbidsClauses scope = traverseOptional compileForbids
   where
     compileForbids (ForbidsImportDto glob transitive) = do
-        target <- compileClause scope "forbids.import" glob
+        target <- compileClause Forbidding scope "forbids.import" glob
         Right ForbidsImport {target = target, transitive = fromMaybe False transitive}
     compileForbids (ForbidsFunctionCallDto name) =
         Right ForbidsFunctionCall {functionName = FunctionName name}
@@ -259,20 +259,20 @@ compileAllowsClauses :: RuleScope -> Maybe [AllowsDto] -> Either Text (Maybe (No
 compileAllowsClauses scope = traverseOptional compileAllows
   where
     compileAllows (AllowsImportDto glob) =
-        AllowsImport <$> compileClause scope "allows.import" glob
+        AllowsImport <$> compileClause Requiring scope "allows.import" glob
 
 compileUsesClauses :: RuleScope -> Maybe [UsesDto] -> Either Text (Maybe (NonEmpty UsesClause))
 compileUsesClauses scope = traverseOptional compileUses
   where
     compileUses (UsesImportDto glob transitive) = do
-        target <- compileClause scope "uses.import" glob
+        target <- compileClause Requiring scope "uses.import" glob
         Right UsesImport {target = target, transitive = fromMaybe False transitive}
 
 compileExistsClauses :: RuleScope -> Maybe [ExistsDto] -> Either Text (Maybe (NonEmpty ExistsClause))
 compileExistsClauses scope = traverseOptional compileExists
   where
     compileExists (ExistsModuleDto glob) =
-        ExistsModule <$> compileClause scope "exists.module" glob
+        ExistsModule <$> compileClause Requiring scope "exists.module" glob
 
 -- | Compiles an optional list of DTOs, keeping it optional and non-empty.
 traverseOptional :: (dto -> Either Text a) -> Maybe [dto] -> Either Text (Maybe (NonEmpty a))
@@ -289,8 +289,11 @@ data RuleScope = RuleScope
     , bound :: Set VarName
     }
 
-compileClause :: RuleScope -> Text -> GlobDto -> Either Text CompiledClausePattern
-compileClause scope field = compileGlob scope field (compileClausePattern scope.bound)
+{- | Clauses compile against their polarity, which is fixed by the field they
+came from rather than chosen at the call site.
+-}
+compileClause :: Polarity -> RuleScope -> Text -> GlobDto -> Either Text CompiledClausePattern
+compileClause polarity scope field = compileGlob scope field (compileClausePattern polarity scope.bound)
 
 compileGlobs ::
     RuleScope ->

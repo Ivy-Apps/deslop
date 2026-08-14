@@ -4,7 +4,11 @@ Date: 2026-08-13
 
 ## Status
 
-Accepted
+Accepted. Refined by
+[ADR 7](0007-glob-plus-values-agree-by-spelling-compatibility.md), which changes
+how *values* are compared: this ADR's rule that all captures of one variable
+must canonicalise identically is replaced by asking whether some one name spells
+all of them.
 
 ## Context
 
@@ -134,13 +138,29 @@ bind nothing, so a variable there could never resolve.
 
 ## Consequences
 
-- Existing rulebooks are unaffected. The five project E2E goldens
-  (`check-*`, `baseline-*`) are byte-identical across this change, which is the
-  mechanical proof; only `rulebook-from-file--page-architecture` moved, and only
-  because `Rule`'s `Show` output gained the variable name.
-- One intentional break: a rule whose target captures nothing but whose clause
-  uses `{{FileName}}` used to compile to `.*` and now fails to load. No rulebook
-  in the repository or the fixtures did this.
+- The five project E2E goldens (`check-*`, `baseline-*`) are byte-identical
+  across this change; only `rulebook-from-file--page-architecture` moved, and
+  only because `Rule`'s `Show` output gained the variable name. That is evidence
+  about the fixtures, not a guarantee about rulebooks in general - **four
+  classes of previously-valid rulebook change behaviour**:
+  1. A rule whose target captures nothing but whose clause uses `{{FileName}}`
+     now fails to load. In a `uses` / `forbids` / `allows` clause it used to
+     compile to `.*` and match everything; in an `exists` clause it went through
+     `moduleFromGlob`, whose old fallback was `fromMaybe ""`, so it demanded a
+     wrongly-named file rather than matching widely. **This does hit shipped
+     content**: `examples/rules/clean-architecture.yaml` stopped loading, which
+     aborts the run of anyone who copied it, as the README invites. Fixed by
+     giving those two targets a variable to bind; a test now loads every
+     `examples/rules/*.yaml`, which is what should have caught it.
+  2. A variable in an `exclude:` pattern is now a load error. It was previously
+     accepted and silently bound nothing.
+  3. A repeated variable in a target changed meaning: the occurrences must now
+     agree, where they used to bind independently. `@/{{file-name}}/{{FileName}}View`
+     matched `@/foo/BarView` and bound `kebab = "foo"` alongside
+     `pascal = "Bar"`. The new reading is right and the old bindings were junk,
+     but the change is silent.
+  4. Adjacent variables, `{{FileName}}{{fileName}}`, are now a load error rather
+     than a pair of meaningless bindings.
 - A bad pattern aborts the whole run with a message naming the rule, the field
   and the offending token, rather than producing wrong results silently. The
   `UnboundVariable` message lists the variables actually in scope and suggests
@@ -154,4 +174,8 @@ bind nothing, so a variable there could never resolve.
   not be able to widen a rule.
 - Cross-casing conversion of *values* remains lossy for acronyms and for
   CONSTANT_CASE, unchanged by this decision. A captured `DBConnection` still
-  yields `d-b-connection`.
+  yields `d-b-connection`. **Superseded by
+  [ADR 7](0007-glob-plus-values-agree-by-spelling-compatibility.md)**, which
+  found that the same lossiness makes a repeated-variable rule silently stop
+  applying, rather than merely expanding to a wrong path. It now yields
+  `db-connection`.

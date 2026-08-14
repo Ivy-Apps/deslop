@@ -81,6 +81,13 @@ ambiguity disappears.
 determined, so it could not be recognised as the same variable as
 `{{http-client}}`. Write `{{HttpClient}}` or `{{http-client}}` instead.
 
+**A file named `HTTPClient.tsx` is fine**, and `{{ProviderName}}` captures it
+happily. Patterns are strict and values are lenient, on purpose: you choose what
+your rule says, so an ambiguous variable there is a mistake worth stopping for.
+You do not choose what the codebase is called, so an ambiguous value is read as
+generously as it can be. See
+[ADR 7](adr/0007-glob-plus-values-agree-by-spelling-compatibility.md).
+
 ### The `{{TARGET_DIR}}` keyword
 
 | Variable | Meaning |
@@ -139,8 +146,13 @@ Used in `exclude:`. A plain glob.
    - camelCase → `([a-z][a-zA-Z0-9]*)`
    - kebab-case → `([a-z0-9-]+)`
    - CONSTANT_CASE → `([A-Z0-9_]+)`
+   The `**/` idiom compiles to a capturing `(.*/)?`, because POSIX ERE has no
+   non-capturing group. Group numbers are therefore assigned in the same pass
+   that emits the regex, so a variable can sit on either side of a `**` without
+   its capture being mistaken for the globstar's.
 2. The pattern is matched against the full file path.
-3. Each capture is grouped under its variable's name, and **all four case variants** are derived for it via tokenization.
+3. Each capture is grouped under its variable's name, the occurrences are
+   reconciled (see below), and **all four case variants** are derived.
 4. A `MatchEnv` is returned containing:
    - `targetDir`: the directory of the matched path.
    - `variables`: a map from each variable name to its value in every casing.
@@ -155,7 +167,8 @@ Used in `exclude:`. A plain glob.
 
 ### Case Enrichment
 
-When a target captures `HomeContainer` via `{{FileName}}`, the tokenizer splits it into `["home", "container"]` and derives all four forms:
+When a target captures `HomeContainer` via `{{FileName}}`, it is read as the
+words `["home", "container"]` and all four forms are derived:
 
 | Casing | Value |
 |---|---|
@@ -165,7 +178,31 @@ When a target captures `HomeContainer` via `{{FileName}}`, the tokenizer splits 
 | CONSTANT_CASE | `HOME_CONTAINER` |
 
 Every variable is enriched independently from its own capture, so a rule with
-three variables gets twelve usable forms.
+three variables gets twelve usable forms. The casing a variable was *captured*
+in always keeps its literal text, so same-casing use is exact even when the
+derived forms are a guess.
+
+### Spellings
+
+kebab-case and CONSTANT_CASE mark word boundaries with a separator, so a name
+has exactly one spelling in each. PascalCase and camelCase mark boundaries with
+a capital, and any word may instead be written wholly in capitals - which is
+what an acronym is. So one name has several Pascal spellings:
+
+```
+["db", "connection"]  →  DbConnection   DbCONNECTION   DBConnection   DBCONNECTION
+```
+
+Reading a Pascal spelling back is therefore a guess, and Glob+ makes it the
+**coarsest** one: each run of capitals is one word.
+
+```
+DBConnection  →  db-connection          HTTPClient  →  http-client
+UserProfile   →  user-profile           IOStream    →  io-stream
+```
+
+Two readings cannot be recovered, and are listed under
+[Limitations](../README.md#limitations).
 
 ### A variable used more than once
 
@@ -176,12 +213,34 @@ different ones:
 @/components/{{provider-name}}/{{ProviderName}}View
 ```
 
-Each occurrence gets its own capture group. After matching, all captures of that
-variable must denote the same name, or the target does not match:
+Each occurrence gets its own capture group. After matching, **some one name must
+spell every capture**, or the target does not match. Note this is not the same
+as the captures decoding to the same words: `HTTPClient` decodes to any of
+several readings, and it is enough that `http-client` is one of them.
 
 ```
 @/components/stripe-connect/StripeConnectView   →  matches, provider-name bound
-@/components/stripe-connect/PaypalView          →  no match, the two disagree
+@/components/http-client/HTTPClientView         →  matches, provider-name = http-client
+@/components/aws-s3/AWSS3View                   →  matches, provider-name = aws-s3
+@/components/api-2fa/Api2faView                 →  matches, provider-name = api-2fa
+@/components/stripe-connect/PaypalView          →  no match, no name spells both
+```
+
+Because a kebab-case or CONSTANT_CASE occurrence has only one spelling, naming
+the folder in the target pins the name exactly, and the acronym guess above
+never comes into it. That is the reason to prefer
+`@/components/{{provider-name}}/{{ProviderName}}View` over
+`@/components/{{provider-name}}/{{FileName}}View` when the two really are one
+name.
+
+A repeated variable is a **narrower** filter, deliberately: it matches strictly
+less than two distinct variables would. To *require* the matching file rather
+than just skip the ones that do not, use `exists:`:
+
+```yaml
+target: "@/components/{{provider-name}}/{{FileName}}View"
+exists:
+  - module: "{{TARGET_DIR}}/{{ProviderName}}View"
 ```
 
 This also lets one variable constrain two parts of a path to the same value:
@@ -209,6 +268,41 @@ variable binds greedily:
 
 If that is not what you want, separate them with a character neither casing can
 contain, such as `/` or `.`.
+
+`**` is greedy for the same reason. Where several parses are possible, the
+leftmost `**` takes as much as it can:
+
+```
+@/{{provider-name}}/**/{{service-type}}/**/{{FileName}}View
+  matching @/stripe-connect/a/payment/b/CheckoutView gives
+    service-type = "b"        (the first ** absorbed "a/payment/")
+```
+
+### Polarity
+
+Writing a variable out in a casing it was not captured in is a guess, so which
+way it is safe to guess wrong depends on what a match *means*:
+
+| Clause | A match means | Spellings accepted |
+|---|---|---|
+| `forbids:` | a violation | **every** spelling of the name |
+| `uses:` | the rule is satisfied | the canonical spelling only |
+| `exists:` | the rule is satisfied | the canonical spelling only |
+| `allows:` | exempt from `forbids` | the canonical spelling only |
+
+A `forbids:` clause that failed to recognise a spelling would let a forbidden
+import through unreported, so it accepts them all:
+
+```yaml
+target: "@/widgets/{{file-name}}"
+forbids:
+  - import: "@/internal/{{FileName}}/**"
+```
+
+matching `@/widgets/db-connection` forbids imports under `@/internal/DbConnection`
+**and** `@/internal/DBConnection`. A `uses:` clause naming the same variable
+would require `DbConnection`, because a clause that is too easily satisfied
+hides a real violation.
 
 ---
 
@@ -296,4 +390,6 @@ rule 'provider-service-view', uses.import: "{{TARGET_DIR}}/{{provider-nam}}Servi
 - Regex engine: **TDFA** (`Text.Regex.TDFA`) operating directly on `Text`.
 - Adjacent static chunks in a CompiledClausePattern are merged at compile time to minimize allocations on the hot path.
 - A single `{` that is not followed by another `{` is treated as a literal character, not a variable delimiter.
-- Cross-casing conversion is lossy for acronyms and CONSTANT_CASE values: a captured `DBConnection` yields `d-b-connection`. Same-casing use is always exact, because the literal capture is preserved in its own slot.
+- Capture group numbers are assigned in the pass that builds the regex, since the `**/` idiom opens a group of its own and POSIX ERE has no non-capturing group.
+- Reading a PascalCase or camelCase capture is a guess; comparing two captures is not. Agreement asks whether some name spells both, which is exact whenever one of them is kebab-case or CONSTANT_CASE. See [ADR 7](adr/0007-glob-plus-values-agree-by-spelling-compatibility.md).
+- Same-casing use is always exact, because the literal capture is preserved in its own slot: a captured `HTTPClient` stays `HTTPClient` in a PascalCase clause.

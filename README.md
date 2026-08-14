@@ -488,6 +488,11 @@ be unambiguous. Deslop refuses to load a rulebook it cannot read with certainty.
 | `{{Provider-Name}}` `{{provider_name}}` | ❌ not a recognised casing |
 | `{{HTTPClient}}` | ❌ consecutive capitals have no word boundary |
 
+This is about the **pattern**, not your files. A file named `HTTPClient.tsx` is
+captured fine by `{{ProviderName}}` — you choose what your rule says, so an
+ambiguous variable there is worth stopping for; you do not choose what the
+codebase is called.
+
 Use two or more words and every case resolves. The fix is always in the message:
 
 ```
@@ -567,6 +572,98 @@ Production-ready rulebooks you can copy into your own `deslop/rules/` live in [`
 | Dependency graph visualization | No | No | Yes |
 | Windows support | Not yet | Yes | Yes |
 | Monorepo / multiple tsconfigs | Run per package; full support WIP | `parserOptions.project` glob array | Run per package |
+
+---
+
+## Limitations
+
+Deslop is built so that a rule is never quietly narrower than it looks: it would
+rather report something you have to baseline than let a violation through. These
+are the places where that costs you a false positive, and the places where a
+rule matches less than you might expect.
+
+### An acronym written next to another acronym cannot be split
+
+A PascalCase name marks word boundaries with a capital, so a run of capitals
+carries no boundary at all. Deslop reads a run as one word, which is right far
+more often than not:
+
+```
+DBConnection  →  db-connection      HTTPClient  →  http-client      IOStream  →  io-stream
+```
+
+Two readings it cannot recover:
+
+| Written | Read as | You probably meant |
+|---|---|---|
+| `AWSS3Client` | `awss3-client` | `aws-s3-client` |
+| `ABTest` | `ab-test` | `a-b-test` |
+
+This only bites where the name is captured **only** in PascalCase or camelCase.
+Name the folder in the target too and the reading is exact, because kebab-case
+and CONSTANT_CASE have no ambiguity:
+
+```yaml
+# guesses, and gets AWSS3Client wrong
+target: "@/widgets/{{FileName}}Widget"
+uses:
+  - import: "@/config/{{file-name}}"
+
+# exact: the kebab-case folder pins the name, and {{ProviderName}} is checked against it
+target: "@/components/{{provider-name}}/{{ProviderName}}View"
+uses:
+  - import: "@/config/{{provider-name}}"
+```
+
+When it does bite, the clause names a module that cannot exist and the rule
+reports it. Baseline it, or rename the file.
+
+### A target's casing is a filter
+
+`{{provider-name}}` matches a kebab-case segment and nothing else. A directory
+named `AWS_S3` is simply not a target of that rule, and deslop says nothing about
+it — writing a rule that fits your codebase is your job, not deslop's. If a rule
+seems to be doing nothing, check that its casings match your conventions.
+
+For the same reason, a rule that matches no module at all is not reported: it may
+be guarding a layer you have not built yet.
+
+### A repeated variable matches less, not more
+
+`@/components/{{provider-name}}/{{ProviderName}}View` applies only where the
+folder and the file are two spellings of one name. `stripe-connect/PaypalView` is
+not a target of it, and is not reported. To *require* the matching file, say so:
+
+```yaml
+target: "@/components/{{provider-name}}/{{FileName}}View"
+exists:
+  - module: "{{TARGET_DIR}}/{{ProviderName}}View"
+```
+
+### Variables bind greedily
+
+Where a boundary is genuinely ambiguous, the leftmost variable, and the leftmost
+`**`, take as much as they can:
+
+```
+@/x/{{provider-name}}-{{service-type}}      on @/x/stripe-connect-payment-service
+  →  provider-name = "stripe-connect-payment",  service-type = "service"
+```
+
+Separate them with a character no casing can contain, such as `/` or `.`.
+
+### `forbids:` accepts more spellings than `uses:`
+
+A forbidden import that slipped through unreported is worse than one reported
+twice, so a `forbids:` clause accepts **every** spelling of its variable, while
+`uses:`, `exists:` and `allows:` accept only the canonical one. See
+[Polarity](docs/GLOB+.md#polarity).
+
+### Other
+
+- **Windows is not supported yet.**
+- **Monorepos** need one run per package; full multi-tsconfig support is in progress.
+- **`exists:` patterns cannot contain wildcards**, since the path has to be exact.
 
 ---
 

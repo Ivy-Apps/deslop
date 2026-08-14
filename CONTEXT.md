@@ -92,6 +92,21 @@ Clause Patterns.
 _Avoid_: Binding value, capture (a capture is one regex group; a binding may
 come from several)
 
+**Spelling**:
+One way a name can be written in a Casing. kebab-case and CONSTANT_CASE give a
+name exactly one spelling; PascalCase and camelCase give it several, because any
+word may be written as an acronym - `db-connection` is spelled `DbConnection` and
+`DBConnection`. Two occurrences of one Glob+ Variable bind when some name spells
+both, which is a different question from what either one decodes to.
+_Avoid_: Rendering, form, variant
+
+**Polarity**:
+Whether a Clause Pattern matching means a violation (`forbids`) or means the Rule
+is satisfied (`uses`, `exists`, `allows`). It decides which way a Clause Pattern
+is allowed to be wrong about a Spelling: a forbidding clause accepts every
+spelling of its variable, a requiring one accepts only the canonical spelling.
+_Avoid_: Direction, sign, mode
+
 **Target Pattern**:
 The Glob+ pattern in a Rule's `target`. The only pattern that *captures*
 variables, and the one that decides which variables its clauses may use. Cannot

@@ -8,9 +8,7 @@ Right
             { id = RuleId "next-js-page-on-server"
             , description =
                 "Add a page in /src/app/[locale]/{route} to connect it with the NextJS router.  It should be executed on the server.  Use the page to SSR data and pass it as a parameter to the Container that will display the UI."
-            , target =
-                CompiledTargetPattern
-                  { regex = <regex> , vars = [] , globCaptures = 1 }
+            , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
@@ -27,9 +25,7 @@ Right
             { id = RuleId "page-container"
             , description =
                 "Each page should have a Container that's executed on the client. It connects the View (pure UI) and its viewmodel hook."
-            , target =
-                CompiledTargetPattern
-                  { regex = <regex> , vars = [] , globCaptures = 1 }
+            , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids = Nothing
@@ -47,6 +43,7 @@ Right
                                , Star
                                , Literal "Container"
                                ]
+                           , polarity = Requiring
                            }
                      , transitive = False
                      } :|
@@ -63,8 +60,13 @@ Right
             , target =
                 CompiledTargetPattern
                   { regex = <regex>
-                  , vars = [ ( VarName { text = "file-name" } , PascalCase ) ]
-                  , globCaptures = 1
+                  , vars =
+                      [ CapturedVar
+                          { name = VarName { text = "file-name" }
+                          , casing = PascalCase
+                          , group = CaptureGroup { number = 2 }
+                          }
+                      ]
                   }
             , exclude = Nothing
             , executionContext = Neutral
@@ -88,6 +90,7 @@ Right
                                , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "StateEvent"
                                ]
+                           , polarity = Requiring
                            }
                      , transitive = False
                      } :|
@@ -107,6 +110,7 @@ Right
                                    , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                    , Literal "ViewModel"
                                    ]
+                               , polarity = Requiring
                                }
                          , transitive = False
                          }
@@ -126,6 +130,7 @@ Right
                                    , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                    , Literal "View"
                                    ]
+                               , polarity = Requiring
                                }
                          , transitive = True
                          }
@@ -144,8 +149,13 @@ Right
             , target =
                 CompiledTargetPattern
                   { regex = <regex>
-                  , vars = [ ( VarName { text = "file-name" } , PascalCase ) ]
-                  , globCaptures = 1
+                  , vars =
+                      [ CapturedVar
+                          { name = VarName { text = "file-name" }
+                          , casing = PascalCase
+                          , group = CaptureGroup { number = 2 }
+                          }
+                      ]
                   }
             , exclude = Nothing
             , executionContext = Neutral
@@ -168,6 +178,7 @@ Right
                                    , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                    , Literal "View"
                                    ]
+                               , polarity = Forbidding
                                }
                          , transitive = False
                          }
@@ -183,6 +194,7 @@ Right
                                    , Literal "/"
                                    , Star
                                    ]
+                               , polarity = Forbidding
                                }
                          , transitive = False
                          }
@@ -206,6 +218,7 @@ Right
                                , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "StateEvent"
                                ]
+                           , polarity = Requiring
                            }
                      , transitive = False
                      } :|
@@ -224,8 +237,13 @@ Right
             , target =
                 CompiledTargetPattern
                   { regex = <regex>
-                  , vars = [ ( VarName { text = "file-name" } , PascalCase ) ]
-                  , globCaptures = 1
+                  , vars =
+                      [ CapturedVar
+                          { name = VarName { text = "file-name" }
+                          , casing = PascalCase
+                          , group = CaptureGroup { number = 2 }
+                          }
+                      ]
                   }
             , exclude = Nothing
             , executionContext = Neutral
@@ -249,6 +267,7 @@ Right
                                , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "ViewModel"
                                ]
+                           , polarity = Requiring
                            }
                      , transitive = False
                      } :|
@@ -271,6 +290,7 @@ Right
                                , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "ViewModel.spec"
                                ]
+                           , polarity = Requiring
                            }
                      } :|
                      [])
@@ -287,8 +307,13 @@ Right
             , target =
                 CompiledTargetPattern
                   { regex = <regex>
-                  , vars = [ ( VarName { text = "file-name" } , PascalCase ) ]
-                  , globCaptures = 1
+                  , vars =
+                      [ CapturedVar
+                          { name = VarName { text = "file-name" }
+                          , casing = PascalCase
+                          , group = CaptureGroup { number = 2 }
+                          }
+                      ]
                   }
             , exclude = Nothing
             , executionContext = Neutral
@@ -314,6 +339,7 @@ Right
                                , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "StateEvent"
                                ]
+                           , polarity = Requiring
                            }
                      , transitive = False
                      } :|
@@ -332,8 +358,13 @@ Right
             , target =
                 CompiledTargetPattern
                   { regex = <regex>
-                  , vars = [ ( VarName { text = "file-name" } , PascalCase ) ]
-                  , globCaptures = 1
+                  , vars =
+                      [ CapturedVar
+                          { name = VarName { text = "file-name" }
+                          , casing = PascalCase
+                          , group = CaptureGroup { number = 2 }
+                          }
+                      ]
                   }
             , exclude = Nothing
             , executionContext = Neutral
@@ -358,6 +389,7 @@ Right
                                , Var (ClauseVar VarName { text = "file-name" } PascalCase)
                                , Literal "View.stories"
                                ]
+                           , polarity = Requiring
                            }
                      } :|
                      [])
@@ -370,9 +402,7 @@ Right
         , Rule
             { id = RuleId "features-cant-import-other-features"
             , description = "Features can't import from other features."
-            , target =
-                CompiledTargetPattern
-                  { regex = <regex> , vars = [] , globCaptures = 0 }
+            , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
             , executionContext = Neutral
             , forbids =
@@ -382,6 +412,7 @@ Right
                          CompiledClausePattern
                            { chunks = [ StaticChunk "^@/features/.*$" ]
                            , rawTokens = [ Literal "@/features/" , GlobStar ]
+                           , polarity = Forbidding
                            }
                      , transitive = False
                      } :|
@@ -394,6 +425,7 @@ Right
                            { chunks =
                                [ StaticChunk "^" , VarChunk CTargetDir , StaticChunk "/.*$" ]
                            , rawTokens = [ Var CTargetDir , Literal "/" , GlobStar ]
+                           , polarity = Requiring
                            }
                      } :|
                      [])

@@ -17,6 +17,7 @@ spec :: Spec
 spec = describe "Deslop.Rulebook" $ do
     describe "rulebookFromFile" $
         runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ ruleBookFromFileTest
+    shippedExamplesSpec
     globCompilationSpec
   where
     ruleBookFromFileTest :: OsPath -> Spec
@@ -26,6 +27,28 @@ spec = describe "Deslop.Rulebook" $ do
             rbPath <- mkAbsolute (rbFixturesPath </> fpath)
             res <- runEff . runFileSystemIO $ ruleBookFromFile rbPath
             return $ defaultGolden testName (ppShow res)
+
+--------------------------------------------------------------------------------
+-- Shipped example rulebooks
+--------------------------------------------------------------------------------
+
+{- | The README advertises these as rulebooks to copy into a project, so one
+that fails to compile aborts the run of everyone who did. The directory is
+listed at run time, which covers a new example the day it is added.
+-}
+shippedExamplesSpec :: Spec
+shippedExamplesSpec =
+    describe "shipped example rulebooks" $
+        runIO (listFixtures examplesPath ".yaml") >>= mapM_ loadsTest
+  where
+    loadsTest fpath =
+        it (T.unpack ("loads " <> decodeOsPath fpath)) $ do
+            rbPath <- mkAbsolute (examplesPath </> fpath)
+            res <- runEff . runFileSystemIO $ ruleBookFromFile rbPath
+            first T.unpack res `shouldSatisfy` isRight
+
+examplesPath :: OsPath
+examplesPath = [osp|examples/rules|]
 
 --------------------------------------------------------------------------------
 -- Glob+ compilation
