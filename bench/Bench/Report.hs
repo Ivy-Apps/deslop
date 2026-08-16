@@ -2,7 +2,6 @@
 module Bench.Report (renderReport) where
 
 import Bench.Compare (
-    Entry (..),
     Factor (..),
     Group (..),
     GroupResult (..),
@@ -10,12 +9,15 @@ import Bench.Compare (
     Metric (..),
     Outcome (..),
     Regression (..),
+    Row (..),
     Run (..),
     Scope (..),
     Shift (..),
     Thresholds (..),
     asPercent,
     limits,
+    rowMeasurement,
+    rowShift,
  )
 import Bench.Fixtures (Fixture (..), commandName)
 import Bench.Measurement (Bytes (..), Measurement (..), Seconds (..))
@@ -67,25 +69,34 @@ renderGroup :: GroupResult -> [Text]
 renderGroup result =
     [groupLabel result.group]
         <> fmap renderEntry result.entries
+        <> maybe [] (\t -> [renderRow "  total (all projects)" t]) result.total
         <> [renderAggregate result.aggregate]
         <> [""]
+  where
+    renderEntry entry = renderRow ("  " <> fixtureOf entry) entry
+    fixtureOf (Referenced fixture _ _) = fixture.name
+    fixtureOf (Unreferenced fixture _) = fixture.name
 
 groupLabel :: Group -> Text
 groupLabel (CommandGroup cmd) = commandName cmd
 groupLabel DerivedTotal = "all (check + fix + baseline, derived)"
 
-renderEntry :: Entry -> Text
-renderEntry = \case
-    Referenced fixture m shift -> line fixture m (percent shift.time) (percent shift.alloc)
-    Unreferenced fixture m -> line fixture m "new" "new"
+{- | One measured line. Takes its label rather than reading it off the row, so
+that the summed row - which has no fixture to be named after - renders through
+exactly the same code as the fixtures it sums.
+-}
+renderRow :: Text -> Row a -> Text
+renderRow label entry =
+    row
+        label
+        (millis m.time)
+        ("± " <> millis m.timeStdDev)
+        (maybe "new" (percent . (.time)) shift)
+        (megabytes m.allocated)
+        (maybe "new" (percent . (.alloc)) shift)
   where
-    line fixture m timeDelta =
-        row
-            ("  " <> fixture.name)
-            (millis m.time)
-            ("± " <> millis m.timeStdDev)
-            timeDelta
-            (megabytes m.allocated)
+    m = rowMeasurement entry
+    shift = rowShift entry
 
 renderAggregate :: Maybe Shift -> Text
 renderAggregate Nothing = row "  geomean" "" "" "-" "" "-"

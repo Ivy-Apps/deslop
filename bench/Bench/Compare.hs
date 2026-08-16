@@ -11,7 +11,11 @@ module Bench.Compare (
     Run (..),
     GroupResult (..),
     Group (..),
-    Entry (..),
+    Row (..),
+    Entry,
+    Total,
+    rowMeasurement,
+    rowShift,
     Shift (..),
     Outcome (..),
     Regression (..),
@@ -44,15 +48,35 @@ data Shift = Shift
     }
     deriving stock (Show, Eq)
 
-{- | A measured fixture, with its Reference counterpart if it had one.
+{- | One row of a group: what was measured now, and what the Reference holds
+for it if it holds anything.
 
-A fixture the Reference has never seen cannot be judged, and must be kept out
+Something the Reference has never seen cannot be judged, and must be kept out
 of the geomean rather than silently folded in at a ratio of 1.
+
+The label is a parameter so that a summed row cannot be mistaken for a fixture
+row - 'aggregateOf' only accepts @Row Fixture@, which is what stops the total
+from being folded into the geomean of the things it is the total of.
 -}
-data Entry
-    = Referenced Fixture Measurement Shift
-    | Unreferenced Fixture Measurement
+data Row a
+    = -- | Measured now, and present in the Reference.
+      Referenced a Measurement Measurement
+    | -- | Measured now, absent from the Reference.
+      Unreferenced a Measurement
     deriving stock (Show, Eq)
+
+type Entry = Row Fixture
+
+-- | Every fixture in a group added together. Carries no fixture of its own.
+type Total = Row ()
+
+rowMeasurement :: Row a -> Measurement
+rowMeasurement (Referenced _ current _) = current
+rowMeasurement (Unreferenced _ current) = current
+
+rowShift :: Row a -> Maybe Shift
+rowShift (Referenced _ current reference) = Just $ shiftOf current reference
+rowShift (Unreferenced _ _) = Nothing
 
 {- | What a block of the report covers.
 
@@ -67,6 +91,10 @@ data Group
 data GroupResult = GroupResult
     { group :: Group
     , entries :: [Entry]
+    , -- | Every project in the group added up: what one Deslop run over all of
+      -- them costs in time and memory. Reported, never gated - it is the same
+      -- measurements the entries above already account for.
+      total :: Maybe Total
     , -- | Absent when no entry in the group had a Reference counterpart.
       aggregate :: Maybe Shift
     }
@@ -185,7 +213,8 @@ regressionsIn result = case result.group of
 
     fixtureBreaches cmd metric thresholds =
         [ Regression cmd metric (SingleFixture fixture) observed thresholds.perFixture
-        | Referenced fixture _ shift <- result.entries
+        | entry@(Referenced fixture _ _) <- result.entries
+        , Just shift <- [rowShift entry]
         , let observed = metricOf metric shift
         , observed > thresholds.perFixture
         ]
@@ -199,6 +228,7 @@ groupResult state measured cmd =
     GroupResult
         { group = CommandGroup cmd
         , entries = entries
+        , total = totalOf entries
         , aggregate = aggregateOf entries
         }
   where
@@ -220,15 +250,16 @@ derivedTotal state measured =
     GroupResult
         { group = DerivedTotal
         , entries = entries
+        , total = totalOf entries
         , aggregate = aggregateOf entries
         }
   where
-    entries = mapMaybe totalFor fixtures
+    entries = mapMaybe rowFor fixtures
 
-    totalFor fixture = do
+    rowFor fixture = do
         current <- sumOver [m | (c, m) <- measured, c.fixture == fixture]
         pure $ case sumOver =<< referenced fixture of
-            Just reference -> Referenced fixture current (shiftOf current reference)
+            Just reference -> Referenced fixture current reference
             Nothing -> Unreferenced fixture current
 
     referenced fixture = case state of
@@ -236,15 +267,33 @@ derivedTotal state measured =
         Recorded reference ->
             traverse (lookupCase reference . Case fixture) [CheckC, FixC, BaselineC]
 
-    sumOver = fmap (\(m :| ms) -> foldl' addMeasurement m ms) . nonEmpty
-
 entryFor :: ReferenceState -> Case -> Measurement -> Entry
 entryFor state c current = case referenceFor state of
-    Just reference -> Referenced c.fixture current (shiftOf current reference)
+    Just reference -> Referenced c.fixture current reference
     Nothing -> Unreferenced c.fixture current
   where
     referenceFor Unrecorded = Nothing
     referenceFor (Recorded reference) = lookupCase reference c
+
+{- | Adds every row in a group together, so the report can say what Deslopping
+all of these projects costs end to end.
+
+Compared against the Reference only when every row has a counterpart there -
+a sum over six projects set against a sum over five would read as a large
+saving that nobody made.
+-}
+totalOf :: [Entry] -> Maybe Total
+totalOf entries = do
+    current <- sumOver $ rowMeasurement <$> entries
+    pure $ case sumOver =<< traverse referenceOf entries of
+        Just reference -> Referenced () current reference
+        Nothing -> Unreferenced () current
+  where
+    referenceOf (Referenced _ _ reference) = Just reference
+    referenceOf (Unreferenced _ _) = Nothing
+
+sumOver :: [Measurement] -> Maybe Measurement
+sumOver = fmap (\(m :| ms) -> foldl' addMeasurement m ms) . nonEmpty
 
 shiftOf :: Measurement -> Measurement -> Shift
 shiftOf current reference =
@@ -258,7 +307,7 @@ shiftOf current reference =
 
 aggregateOf :: [Entry] -> Maybe Shift
 aggregateOf entries = do
-    shifts <- nonEmpty [shift | Referenced _ _ shift <- entries]
+    shifts <- nonEmpty $ mapMaybe rowShift entries
     pure
         Shift
             { time = geometricMean $ (.time) <$> shifts

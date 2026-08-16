@@ -38,9 +38,11 @@ data Case = Case
 the report opens with the rows carrying the most signal.
 
 Excluded on purpose: @ts-invalid-rulebook-project@, whose rulebook fails to
-load, so a run of it measures error handling rather than Deslop's work; and
+load, so a run of it measures error handling rather than Deslop's work;
 @rulebook@, @secrets@, @static@ and @typescript@, which are not projects and
-have no @tsconfig.json@.
+have no @tsconfig.json@; and @ts-cycles-project@, six files that finish in half
+a millisecond, which is short enough that the measurement was mostly scheduling
+noise and its cycle detection is covered by the larger fixtures anyway.
 -}
 fixtures :: [Fixture]
 fixtures =
@@ -51,7 +53,6 @@ fixtures =
             , "ts-casing-project"
             , "ts-globplus-project"
             , "ts-gitignore-project"
-            , "ts-cycles-project"
             ]
 
 {- | Every case, grouped by Command so the report reads group by group.
