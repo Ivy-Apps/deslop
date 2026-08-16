@@ -1,0 +1,109 @@
+id: clean-architecture-layers
+name: Clean Architecture Layers
+description: >-
+  The dependency rule for this project's layers. Dependencies point inwards:
+  domain knows nobody, data and presentation know domain, ui knows presentation,
+  app knows ui, and ioc is the composition root that is allowed to know
+  everything.
+rules:
+  - id: domain-is-pure
+    description: >-
+      The domain layer is the stable core. It must not reach out to the network,
+      to a presenter, to the UI or to the container that wires them together -
+      anything it imports becomes part of what a use case drags in.
+    target: "domain/**"
+    forbids:
+      - import: "**"
+    allows:
+      - import: "domain/**"
+    fix: >-
+      Depend on an interface declared inside domain and let ioc supply the
+      implementation. Repository interfaces belong in domain/{Feature}/repositories.
+
+  - id: data-does-not-know-the-ui
+    description: >-
+      The data layer talks to the network and maps what comes back into domain
+      models. A repository that imports a presenter or a view has picked up a
+      dependency on how the result is displayed.
+    target: "data/**"
+    forbids:
+      - import: "ui/**"
+      - import: "app/**"
+      - import: "presentation/**"
+    fix: >-
+      Map the response into a domain model and let the presenter shape it for
+      display. Mappers belong in data/network/rest/v1/shared/{Feature}/mappers.
+
+  - id: presentation-does-not-know-data
+    description: >-
+      A presenter drives use cases and shapes their results for display. It must
+      not know that the data behind them arrives over REST, or the transport
+      cannot be changed without editing the presentation layer.
+    target: "presentation/**"
+    forbids:
+      - import: "data/**"
+      - import: "ui/**"
+      - import: "app/**"
+      - import: "ioc/**"
+    fix: >-
+      Take the use case as a constructor parameter and let ioc inject it, as
+      the other presenters in this layer do.
+
+  - id: presentation-never-reaches-the-network
+    description: >-
+      Stronger than the direct rule above, and the one that actually holds the
+      line: no chain of imports from a presenter may end at the network layer.
+      A single innocent-looking re-export is enough to couple the two.
+    target: "presentation/**"
+    forbids:
+      - import: "data/network/**"
+        transitive: true
+    fix: >-
+      Follow the reported import chain and break it. The presenter should reach
+      the network only through a domain repository interface that ioc binds.
+
+  - id: views-do-not-reach-the-rest-client
+    description: >-
+      A view renders state. It may read that state from a presenter, but no
+      import chain starting at a view may arrive at the REST client itself - a
+      view that can reach it can issue a request that bypasses every use case
+      in between.
+    target: "ui/**/{{feature-name}}.view"
+    forbids:
+      - import: "data/network/rest/common/config/rest.client"
+        transitive: true
+    fix: >-
+      Take the data from the presenter this view already uses, rather than from
+      anything that reaches the REST client directly.
+
+  - id: app-talks-to-the-ui-layer
+    description: >-
+      Route files under app are a thin shell around the UI layer. Reaching past
+      it into presentation, data or domain puts business logic in a Next.js
+      routing file, where nothing can reuse or test it.
+    target: "app/**"
+    forbids:
+      - import: "data/**"
+      - import: "domain/**"
+      - import: "presentation/**"
+    fix: >-
+      Render a view from ui/{Feature} and let that view obtain what it needs
+      through the container.
+
+  - id: only-ioc-wires-the-container
+    description: >-
+      ioc is the one place that knows every layer at once. Letting other layers
+      import it spreads the wiring across the codebase and turns the container
+      into a service locator.
+    target: "ui/**"
+    exclude:
+      # The inject helper is the sanctioned bridge between the UI and the
+      # container. It is the one module whose whole purpose is to import it.
+      - "ui/common/utils/inject"
+    forbids:
+      - import: "ioc/**"
+    allows:
+      - import: "ioc/common/**"
+    fix: >-
+      Receive what you need through the inject helper in ui/common/utils,
+      rather than importing a container module directly.

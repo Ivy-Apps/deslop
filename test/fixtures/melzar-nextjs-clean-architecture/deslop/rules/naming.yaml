@@ -1,0 +1,98 @@
+id: naming-conventions
+name: Naming Conventions
+description: >-
+  This project names a thing once and then spells that name differently
+  depending on where it appears - a PascalCase folder, a camelCase file, a
+  PascalCase type. These rules capture the name in one place and require it to
+  agree everywhere else it shows up.
+rules:
+  - id: presenter-implements-its-interface
+    description: >-
+      A presenter is written against the interface that sits next to it, so that
+      ioc can bind the interface rather than the concrete presenter. The folder
+      names the feature in PascalCase and the file names it in camelCase; both
+      are the same name.
+    target: "presentation/**/{{feature-name}}.presenter"
+    uses:
+      - import: "{{TARGET_DIR}}/{{feature-name}}Presenter.interface"
+    fix: >-
+      Import I{{FeatureName}}Presenter from {{TARGET_DIR}}/{{feature-name}}Presenter.interface
+      and declare this presenter as returning it.
+
+  - id: presenter-interface-has-an-implementation
+    description: >-
+      The reverse direction. An interface with no implementation beside it is
+      either dead or is being implemented somewhere it does not belong.
+    target: "presentation/**/{{feature-name}}Presenter.interface"
+    exists:
+      - module: "{{TARGET_DIR}}/{{feature-name}}.presenter"
+    fix: >-
+      Add {{feature-name}}.presenter.ts next to the interface, or delete the
+      interface if nothing implements it.
+
+  - id: use-case-implements-the-use-case-interface
+    description: >-
+      Every use case is an IUseCase, so that presenters can depend on the shape
+      of a use case rather than on any particular one.
+    target: "domain/**/useCases/{{use-case}}.useCase"
+    uses:
+      - import: "domain/common/useCases/useCase.interface"
+    fix: >-
+      Declare the returned object as IUseCase<Request, Response> and import
+      IUseCase from domain/common/useCases/useCase.interface.
+
+  - id: rest-repository-has-its-endpoints
+    description: >-
+      A REST repository reads its paths from the endpoint constants that belong
+      to the same feature, rather than assembling URLs inline. The feature is
+      named by the folder and again by the file.
+    target: "data/network/rest/v1/{{FeatureName}}/repositories/{{feature-name}}.repository"
+    exists:
+      - module: "data/network/rest/v1/{{FeatureName}}/consts/{{FeatureName}}Endpoints"
+    fix: >-
+      Add {{FeatureName}}Endpoints.ts under data/network/rest/v1/{{FeatureName}}/consts
+      and move the paths into it.
+
+  - id: rest-model-mirrors-a-domain-model
+    description: >-
+      A wire model exists to be mapped into the domain model of the same name.
+      If the domain has no counterpart, either the mapping is missing or the
+      wire model is describing something the domain has never heard of.
+    target: "data/network/rest/v1/{{FeatureName}}/models/{{Model}}Rest"
+    exists:
+      - module: "domain/{{FeatureName}}/models/{{Model}}"
+    fix: >-
+      Add domain/{{FeatureName}}/models/{{Model}}.ts, or move the wire model under
+      the feature whose domain model it actually mirrors.
+
+  - id: ioc-module-binds-its-own-presenter
+    description: >-
+      A container module wires one feature. It binds the presenter of the
+      feature it is named after, which is what keeps the wiring greppable.
+    target: "ioc/{{FeatureName}}/{{feature-name}}.module"
+    uses:
+      - import: "presentation/{{FeatureName}}/{{feature-name}}.presenter"
+    fix: >-
+      Bind {{FeatureName}}Presenter in this module, or move the binding to the
+      container module named after the feature it belongs to.
+
+  - id: view-has-a-dictionary
+    description: >-
+      User-facing strings live in a dictionary beside the view rather than
+      inline, so that a view can be read without wading through copy.
+    target: "ui/**/{{feature-name}}.view"
+    exists:
+      - module: "{{TARGET_DIR}}/{{feature-name}}.dictionary"
+    fix: >-
+      Add {{feature-name}}.dictionary.ts next to this view and move its strings
+      into it.
+
+  - id: component-has-a-story
+    description: >-
+      A shared component is documented in Storybook. The folder and the file
+      carry the same component name, and the story carries it a third time.
+    target: "ui/common/components/**/{{Component}}/{{Component}}"
+    exists:
+      - module: "{{TARGET_DIR}}/{{Component}}.stories"
+    fix: >-
+      Add {{Component}}.stories.tsx next to the component.

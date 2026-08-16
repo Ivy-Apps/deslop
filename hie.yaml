@@ -1,10 +1,31 @@
 cradle:
   cabal:
-    - path: "./src"
-      component: "lib:deslop"
-
     - path: "./app/Main.hs"
       component: "deslop:exe:deslop"
 
+    - path: "./src"
+      component: "lib:deslop"
+
     - path: "./test"
       component: "deslop:test:deslop-test"
+
+    - path: "./bench/Main.hs"
+      component: "deslop:bench:deslop-bench"
+
+    - path: "./bench/Bench/Compare.hs"
+      component: "deslop:bench:deslop-bench"
+
+    - path: "./bench/Bench/Fixtures.hs"
+      component: "deslop:bench:deslop-bench"
+
+    - path: "./bench/Bench/Harness.hs"
+      component: "deslop:bench:deslop-bench"
+
+    - path: "./bench/Bench/Measurement.hs"
+      component: "deslop:bench:deslop-bench"
+
+    - path: "./bench/Bench/Reference.hs"
+      component: "deslop:bench:deslop-bench"
+
+    - path: "./bench/Bench/Report.hs"
+      component: "deslop:bench:deslop-bench"

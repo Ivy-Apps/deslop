@@ -1,9 +1,20 @@
 [Title] 🚀 Baselining project: ~/test/fixtures/melzar-nextjs-clean-architecture
-[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
-Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
-[Success] ✅ Success: Baseline generated with 6 problems.
+[Plain] 📚 Loaded 2 rulebooks, 15 rules
+[Success] ✅ Success: Baseline generated with 18 problems.
 
 >>> baseline.yaml
+- clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Clients/Admin/Client/client.view
+- clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Clients/Admin/Clients/clients.view
+- clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Dashboard/Admin/dashboard.view
+- clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Packages/Admin/packages.view
+- naming-conventions#component-has-a-story#ui/common/components/layout/SideNavigation/SideNavigationLinks/SideNavigationLinks
+- naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigation
+- naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions
+- naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser
+- naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Authentication/models/AuthenticationRest
+- naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Authentication/models/RoleRest
+- naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Packages/models/PackageRest
+- naming-conventions#view-has-a-dictionary#ui/Login/login.view
 - no-import-cycles#src/ioc/Application/authentication.module.ts
 - no-relative-imports#.storybook/preview.tsx
 - no-relative-imports#src/app/layout.tsx

@@ -121,6 +121,14 @@ name variables bound by its own Rule's Target Pattern.
 A Glob+ pattern in a Rule's `exclude`. A plain glob: it filters the target and
 binds nothing, so it may not contain variables at all.
 
+### Benchmarking
+
+**Reference**:
+The saved measurements in `bench/reference.yaml` that a benchmark run is judged
+against, together with the environment they were taken under.
+_Avoid_: Baseline (means the accepted Problem IDs, and is also one of the groups
+the benchmark measures — see below), snapshot, budget
+
 ### Overloaded terms
 
 **Pattern** is deliberately never used unqualified. Three distinct things carry

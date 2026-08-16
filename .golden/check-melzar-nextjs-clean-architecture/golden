@@ -1,7 +1,6 @@
 [Title] 🚀 Checking project: ~/test/fixtures/melzar-nextjs-clean-architecture
-[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
-Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
-[Error] Found 6 problems:
+[Plain] 📚 Loaded 2 rulebooks, 15 rules
+[Error] Found 18 problems:
 [Error] ─────────────────────────────────────────
 [Error] # no-import-cycles#src/ioc/Application/authentication.module.ts
 Circular dependency (import cycle) detected: ioc/Application/authentication.module → ioc/common/utils/ioc.utils → ioc/application.container → ioc/Application/authentication.module
@@ -49,7 +48,103 @@ Relative imports are not allowed. Use aliased ones.
 import styles from './topNavigation.module.scss';
 ```
 FIX: Use ```import styles from 'ui/common/components/layout/TopNavigation/topNavigation.module.scss';``` instead.
+---------
+
+# clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Clients/Admin/Client/client.view
+A view renders state. It may read that state from a presenter, but no import chain starting at a view may arrive at the REST client itself - a view that can reach it can issue a request that bypasses every use case in between.
+
+Module 'ui/Clients/Admin/Client/client.view' transitively imports 'data/network/rest/common/config/rest.client' (8 hops) via: ui/Clients/Admin/Client/client.view → ui/Clients/Admin/Client/components/ClientPageHeading/ClientPageHeading → ui/Clients/Admin/Client/components/ClientPageHeading/clientPageHeading.hooks → ui/Clients/Admin/Client/client.data → ui/Clients/Admin/Client/client.actions → ui/common/utils/inject → ioc/application.container → ioc/shared/network.module → data/network/rest/common/config/rest.client.
+```ts
+import { ClientPageHeading } from 'ui/Clients/Admin/Client/components/ClientPageHeading/ClientPageHeading';
+```
+FIX: Take the data from the presenter this view already uses, rather than from anything that reaches the REST client directly.
+---------
+
+# clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Clients/Admin/Clients/clients.view
+A view renders state. It may read that state from a presenter, but no import chain starting at a view may arrive at the REST client itself - a view that can reach it can issue a request that bypasses every use case in between.
+
+Module 'ui/Clients/Admin/Clients/clients.view' transitively imports 'data/network/rest/common/config/rest.client' (8 hops) via: ui/Clients/Admin/Clients/clients.view → ui/Clients/Admin/Clients/components/ClientsList/ClientsList → ui/Clients/Admin/Clients/components/ClientsList/clientsList.hooks → ui/Clients/Admin/Clients/components/ClientsList/clientsList.data → ui/Clients/Admin/Clients/components/ClientsList/clientsList.actions → ui/common/utils/inject → ioc/application.container → ioc/shared/network.module → data/network/rest/common/config/rest.client.
+```ts
+import { ClientsList } from 'ui/Clients/Admin/Clients/components/ClientsList/ClientsList';
+```
+FIX: Take the data from the presenter this view already uses, rather than from anything that reaches the REST client directly.
+---------
+
+# clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Dashboard/Admin/dashboard.view
+A view renders state. It may read that state from a presenter, but no import chain starting at a view may arrive at the REST client itself - a view that can reach it can issue a request that bypasses every use case in between.
+
+Module 'ui/Dashboard/Admin/dashboard.view' transitively imports 'data/network/rest/common/config/rest.client' (7 hops) via: ui/Dashboard/Admin/dashboard.view → ui/Dashboard/Admin/dashboard.hooks → ui/Dashboard/Admin/dashboard.data → ui/shared/Packages/Admin/packages.actions → ui/common/utils/inject → ioc/application.container → ioc/shared/network.module → data/network/rest/common/config/rest.client.
+```ts
+import { useDashboard } from 'ui/Dashboard/Admin/dashboard.hooks';
+```
+FIX: Take the data from the presenter this view already uses, rather than from anything that reaches the REST client directly.
+---------
+
+# clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Packages/Admin/packages.view
+A view renders state. It may read that state from a presenter, but no import chain starting at a view may arrive at the REST client itself - a view that can reach it can issue a request that bypasses every use case in between.
+
+Module 'ui/Packages/Admin/packages.view' transitively imports 'data/network/rest/common/config/rest.client' (8 hops) via: ui/Packages/Admin/packages.view → ui/Packages/Admin/components/PackagesList/PackagesList → ui/Packages/Admin/components/PackagesList/packagesList.hooks → ui/Packages/Admin/packages.data → ui/shared/Packages/Admin/packages.actions → ui/common/utils/inject → ioc/application.container → ioc/shared/network.module → data/network/rest/common/config/rest.client.
+```ts
+import { PackagesList } from 'ui/Packages/Admin/components/PackagesList/PackagesList';
+```
+FIX: Take the data from the presenter this view already uses, rather than from anything that reaches the REST client directly.
+---------
+
+# naming-conventions#component-has-a-story#ui/common/components/layout/SideNavigation/SideNavigationLinks/SideNavigationLinks
+A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
+
+Module 'ui/common/components/layout/SideNavigation/SideNavigationLinks/SideNavigationLinks' requires 'ui/common/components/layout/SideNavigation/SideNavigationLinks/SideNavigationLinks.stories' to exist.
+FIX: Add SideNavigationLinks.stories.tsx next to the component.
+---------
+
+# naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigation
+A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
+
+Module 'ui/common/components/layout/TopNavigation/TopNavigation' requires 'ui/common/components/layout/TopNavigation/TopNavigation.stories' to exist.
+FIX: Add TopNavigation.stories.tsx next to the component.
+---------
+
+# naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions
+A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
+
+Module 'ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions' requires 'ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions.stories' to exist.
+FIX: Add TopNavigationActions.stories.tsx next to the component.
+---------
+
+# naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser
+A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
+
+Module 'ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser' requires 'ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser.stories' to exist.
+FIX: Add TopNavigationUser.stories.tsx next to the component.
+---------
+
+# naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Authentication/models/AuthenticationRest
+A wire model exists to be mapped into the domain model of the same name. If the domain has no counterpart, either the mapping is missing or the wire model is describing something the domain has never heard of.
+
+Module 'data/network/rest/v1/Authentication/models/AuthenticationRest' requires 'domain/Authentication/models/Authentication' to exist.
+FIX: Add domain/Authentication/models/Authentication.ts, or move the wire model under the feature whose domain model it actually mirrors.
+---------
+
+# naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Authentication/models/RoleRest
+A wire model exists to be mapped into the domain model of the same name. If the domain has no counterpart, either the mapping is missing or the wire model is describing something the domain has never heard of.
+
+Module 'data/network/rest/v1/Authentication/models/RoleRest' requires 'domain/Authentication/models/Role' to exist.
+FIX: Add domain/Authentication/models/Role.ts, or move the wire model under the feature whose domain model it actually mirrors.
+---------
+
+# naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Packages/models/PackageRest
+A wire model exists to be mapped into the domain model of the same name. If the domain has no counterpart, either the mapping is missing or the wire model is describing something the domain has never heard of.
+
+Module 'data/network/rest/v1/Packages/models/PackageRest' requires 'domain/Packages/models/Package' to exist.
+FIX: Add domain/Packages/models/Package.ts, or move the wire model under the feature whose domain model it actually mirrors.
+---------
+
+# naming-conventions#view-has-a-dictionary#ui/Login/login.view
+User-facing strings live in a dictionary beside the view rather than inline, so that a view can be read without wading through copy.
+
+Module 'ui/Login/login.view' requires 'ui/Login/login.dictionary' to exist.
+FIX: Add login.dictionary.ts next to this view and move its strings into it.
 [Error] ─────────────────────────────────────────
-[exit] Found 6 problems, 5 of them auto-fixable.
+[exit] Found 18 problems, 5 of them auto-fixable.
    Run `deslop fix` to fix the 5 auto-fixable problems.
-   Run `deslop baseline` to silence all 6 problems.
+   Run `deslop baseline` to silence all 18 problems.
