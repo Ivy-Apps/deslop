@@ -35,6 +35,18 @@ rules:
       - module: "{{TARGET_DIR}}/{{FileName}}View.stories"
     fix: Add a {{FileName}}View.stories.tsx file next to the View.
 
+  - id: storybook-has-a-visual-test
+    description: >-
+      Every story is paired with a visual test. This rule's own prose carries
+      variables: {{FileName}} and {{TARGET_DIR}} are substituted from the match,
+      while the misspelled {{FileNam}} names nothing and is printed as written.
+    target: "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View.stories"
+    exists:
+      - module: "{{TARGET_DIR}}/{{FileName}}View.visual"
+    fix: >-
+      Add {{TARGET_DIR}}/{{FileName}}View.visual next to the story for the
+      {{provider-name}} provider. Not {{FileNam}}.
+
   - id: providers-are-isolated
     description: >-
       One provider's components must never import another provider's components.

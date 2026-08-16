@@ -3,7 +3,7 @@ module Deslop.RuleEnforcer (enforceRulebooks) where
 import Data.Text qualified as T
 import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
-import Deslop.GlobPlus (MatchEnv, matchClause, matchExclude, matchTarget, moduleFromGlob, renderClausePattern)
+import Deslop.GlobPlus (MatchEnv, interpolate, matchClause, matchExclude, matchTarget, moduleFromGlob, renderClausePattern)
 import Deslop.Problem (Problem (..))
 import Deslop.Rulebook (AllowsClause (..), ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Effectful (Eff, (:>))
@@ -15,12 +15,15 @@ import Types (DeslopError (..))
 import UI (pluralise)
 import Utils (todo)
 
+{- | The rule's own prose speaks about the match that violated it, so the
+variables its target captured are substituted into it before it is reported.
+-}
 ruleViolation ::
     ( Reader RulebookId :> es
     , Reader Rule :> es
     ) =>
-    AstModule -> Text -> Eff es Problem
-ruleViolation m desc = do
+    MatchEnv -> AstModule -> Text -> Eff es Problem
+ruleViolation env m desc = do
     rbId <- ask @RulebookId
     rule <- ask @Rule
     pure $
@@ -28,8 +31,8 @@ ruleViolation m desc = do
             { rulebook = rbId
             , rule = rule.id
             , badModule = m.id
-            , description = rule.description <> "\n\n" <> desc
-            , fix = rule.fix
+            , description = interpolate env rule.description <> "\n\n" <> desc
+            , fix = interpolate env rule.fix
             }
 
 newtype ReachableModules = ReachableModules [ModuleId]
@@ -117,7 +120,7 @@ enforceForbids m env (ForbidsImport target transitive)
                             <> "'.\n```ts\n"
                             <> T.strip rawStatement
                             <> "\n```"
-                ruleViolation m message
+                ruleViolation env m message
                     >>= report
         | otherwise = pure ()
 
@@ -141,7 +144,7 @@ enforceForbids m env (ForbidsImport target transitive)
                             <> via
                             <> "."
                             <> stmtSuffix
-                ruleViolation m message >>= report
+                ruleViolation env m message >>= report
         | otherwise = pure ()
 
     inAllows moduleId = do
@@ -172,7 +175,7 @@ enforceUses m env (UsesImport usesPattern transitive)
                         <> "' must transitively import '"
                         <> renderClausePattern env usesPattern
                         <> "'."
-            ruleViolation m msg >>= report
+            ruleViolation env m msg >>= report
     | otherwise = do
         let imports = m.nodes
         unless (any (\node -> matchClause usesPattern env node.target.text) imports) $ do
@@ -182,7 +185,7 @@ enforceUses m env (UsesImport usesPattern transitive)
                         <> "' must import '"
                         <> renderClausePattern env usesPattern
                         <> "'."
-            ruleViolation m msg >>= report
+            ruleViolation env m msg >>= report
 
 enforceExists ::
     ( Reader ModuleGraph :> es
@@ -213,4 +216,4 @@ enforceExists m env (ExistsModule pat) = do
                     <> "' requires '"
                     <> mid.text
                     <> "' to exist."
-        ruleViolation m msg >>= report
+        ruleViolation env m msg >>= report

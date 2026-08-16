@@ -240,6 +240,61 @@ multiVarRulebook =
 runMultiVarTest :: [AstModule] -> AstModule -> IO [Problem]
 runMultiVarTest = runTransitiveTestWith [multiVarRulebook]
 
+--------------------------------------------------------------------------------
+-- Variables in a rule's prose
+--------------------------------------------------------------------------------
+
+{- | A rule whose @description@ and @fix@ speak about the match rather than
+about the pattern. The unbound @{{provider-name}}@ is deliberate: prose is not
+validated at load, so a name nothing captured has to survive being reported.
+-}
+proseRulebook :: Rulebook
+proseRulebook =
+    fromRight (error "proseRulebook: invalid fixture") $
+        ruleBookFromDto
+            rulebookDto
+                { id = "prose-rules"
+                , name = "Prose Rules"
+                , description = "Rules whose prose carries variables."
+                , rules =
+                    [ ruleDto
+                        { id = RuleId "container-wires-state-event"
+                        , description = "{{FileName}}Container must wire {{FileName}}StateEvent."
+                        , target = GlobDto "@/features/**/{{FileName}}Container"
+                        , uses = Just [mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" False]
+                        , fix = "Import {{FileName}}StateEvent from {{TARGET_DIR}}, or move it to {{TARGET_DIR}}/{{file-name}}. Not {{provider-name}}."
+                        }
+                    ]
+                }
+
+runProseTest :: AstModule -> IO [Problem]
+runProseTest m = runTransitiveTestWith [proseRulebook] [m] m
+
+fixesOf :: [Problem] -> [Text]
+fixesOf = mapMaybe fixOf
+  where
+    fixOf RuleViolation {fix = f} = Just f
+    fixOf _ = Nothing
+
+proseSpec :: Spec
+proseSpec = describe "variables in a rule's prose" $ do
+    let violation = runProseTest (mkModule "@/features/checkout/PaymentContainer" [])
+
+    it "substitutes the captured variables into the fix" $
+        fixesOf
+            <$> violation
+                `shouldReturn` [ "Import PaymentStateEvent from @/features/checkout, "
+                                    <> "or move it to @/features/checkout/payment. Not {{provider-name}}."
+                               ]
+
+    it "substitutes the captured variables into the description" $
+        descriptionsOf
+            <$> violation
+                `shouldReturn` [ "PaymentContainer must wire PaymentStateEvent.\n\n"
+                                    <> "Module '@/features/checkout/PaymentContainer' must import "
+                                    <> "'@/features/checkout/PaymentStateEvent'."
+                               ]
+
 descriptionsOf :: [Problem] -> [Text]
 descriptionsOf = mapMaybe descriptionOf
   where
@@ -412,6 +467,7 @@ multiVariableSpec = describe "several variables in one rule" $ do
 spec :: Spec
 spec = describe "Deslop.RuleEnforcer" $ do
     multiVariableSpec
+    proseSpec
     describe "forbids imports" $ do
         it "no violations" $ do
             let m = mkModule "@/components/Button" ["react"]
