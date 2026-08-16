@@ -145,6 +145,7 @@ User-facing strings live in a dictionary beside the view rather than inline, so 
 Module 'ui/Login/login.view' requires 'ui/Login/login.dictionary' to exist.
 FIX: Add login.dictionary.ts next to this view and move its strings into it.
 [Error] ─────────────────────────────────────────
+[summary] Checked 240 modules enforcing 17 rules
 [exit] Found 18 problems, 5 of them auto-fixable.
    Run `deslop fix` to fix the 5 auto-fixable problems.
    Run `deslop baseline` to silence all 18 problems.

@@ -34,6 +34,7 @@ import { app } from './app';
 ```
 FIX: Use ```import { app } from '@/app';``` instead.
 [Error] ─────────────────────────────────────────
+[summary] Checked 5 modules enforcing 2 rules
 [exit] Found 4 problems, 4 of them auto-fixable.
    Run `deslop fix` to fix the 4 auto-fixable problems.
    Run `deslop baseline` to silence all 4 problems.

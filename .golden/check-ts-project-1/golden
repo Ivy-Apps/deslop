@@ -263,6 +263,7 @@ import { httpGet } from "@/infrastructure/HttpClient";
 ```
 FIX: Move the dependency out of the domain layer. Infrastructure concerns (HTTP, DB) belong in @/infrastructure. UI concerns belong in @/features or @/components. Shared pure utilities belong in @/shared.
 [Error] ─────────────────────────────────────────
+[summary] Checked 38 modules enforcing 10 rules
 [exit] Found 30 problems, 17 of them auto-fixable.
    Run `deslop fix` to fix the 17 auto-fixable problems.
    Run `deslop baseline` to silence all 30 problems.

@@ -1,6 +1,7 @@
 [Title] 🚀 Baselining project: ~/test/fixtures/ts-casing-project
 [Plain] 📚 Loaded 1 rulebook, 5 rules
 [Success] ✅ Success: Baseline generated with 6 problems.
+[summary] Baselined 36 modules enforcing 7 rules
 
 >>> baseline.yaml
 - casing#gateway-keeps-out-of-internal-transitively#@/gateways/http-client

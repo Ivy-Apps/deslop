@@ -2,6 +2,7 @@
 [Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
 Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
 [Success] ✅ Success: Baseline generated with 2 problems.
+[summary] Baselined 6 modules enforcing 2 rules
 
 >>> baseline.yaml
 - no-import-cycles#src/a.ts

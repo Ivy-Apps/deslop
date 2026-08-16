@@ -10,5 +10,6 @@ import { b } from '@/b';
 ```
 FIX: Import cycles are not allowed. Break the loop by removing one of its imports - usually by extracting the shared code into a module that both sides can depend on.
 [Error] ─────────────────────────────────────────
+[summary] Checked 6 modules enforcing 2 rules
 [exit] Found 1 problem, none auto-fixable.
    Run `deslop baseline` to silence all 1 problem.
