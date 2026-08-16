@@ -31,6 +31,7 @@ module Deslop.GlobPlus (
     -- * Expansion
     moduleFromGlob,
     renderClausePattern,
+    interpolate,
 ) where
 
 import Data.Char (isAsciiUpper)
@@ -286,8 +287,12 @@ didYouMean name = find within . sortOn distance . Set.toList
     distance candidate = editDistance name.text candidate.text
     within candidate = distance candidate <= 3
 
+openBrace, closeBrace :: Text
+openBrace = "{{"
+closeBrace = "}}"
+
 braced :: Text -> Text
-braced t = "{{" <> t <> "}}"
+braced t = openBrace <> t <> closeBrace
 
 quoted :: Text -> Text
 quoted t = "\"" <> t <> "\""
@@ -647,8 +652,7 @@ moduleFromGlob env crp = T.concat <$> traverse expand crp.rawTokens
     expand (Literal t) = Just t
     expand Star = Nothing
     expand GlobStar = Nothing
-    expand (Var CTargetDir) = Just env.targetDir
-    expand (Var (ClauseVar name casing)) = casedAs casing <$> Map.lookup name env.variables
+    expand (Var v) = valueOf env v
 
 {- | Renders a clause pattern as a human-readable string by substituting
 variables from the MatchEnv and keeping wildcards (* or **) literally.
@@ -659,9 +663,50 @@ renderClausePattern env crp = T.concat (renderToken <$> crp.rawTokens)
     renderToken (Literal t) = t
     renderToken Star = "*"
     renderToken GlobStar = "**"
-    renderToken (Var CTargetDir) = env.targetDir
-    renderToken (Var (ClauseVar name casing)) =
-        maybe (braced (spellVar name casing)) (casedAs casing) (Map.lookup name env.variables)
+    renderToken (Var v) = fromMaybe (asWritten v) (valueOf env v)
+
+    asWritten CTargetDir = braced targetDirKeyword
+    asWritten (ClauseVar name casing) = braced (spellVar name casing)
+
+-- | What a clause variable stands for under a match, if anything does.
+valueOf :: MatchEnv -> ClauseVar -> Maybe Text
+valueOf env CTargetDir = Just env.targetDir
+valueOf env (ClauseVar name casing) = casedAs casing <$> Map.lookup name env.variables
+
+{- | Substitutes the variables in prose - a rule's @description@ or @fix@ -
+with the values its target captured, each written in the casing its occurrence
+is spelled in.
+
+Prose is not a pattern: @*@ and @\/@ are ordinary characters here, and a token
+that names nothing in scope is left exactly as written. A message can therefore
+never be mangled by a typo, an unbound name, or braces that were only ever
+meant to be read as braces.
+-}
+interpolate :: MatchEnv -> Text -> Text
+interpolate env = go
+  where
+    go text =
+        let (before, rest) = T.breakOn openBrace text
+         in if T.null rest
+                then before
+                else before <> token (T.drop (T.length openBrace) rest)
+
+    {- The opening braces are already consumed, so either the token resolves,
+    or they are written back out and scanning resumes just after them - which
+    is what lets a token nested inside an unrecognised one still be found. -}
+    token rest = case T.breakOn closeBrace rest of
+        (raw, closing)
+            | not (T.null closing)
+            , Just value <- resolve raw ->
+                value <> go (T.drop (T.length closeBrace) closing)
+        _ -> openBrace <> go rest
+
+    -- What may stand between braces is 'pRawVar''s business, so a candidate is
+    -- put back through it rather than judged by a second set of rules here.
+    resolve raw = do
+        name <- rightToMaybe (parse (pRawVar <* eof) "" (braced raw))
+        var <- rightToMaybe (resolveClauseVar name)
+        valueOf env var
 
 --------------------------------------------------------------------------------
 -- Utilities

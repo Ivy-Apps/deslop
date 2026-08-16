@@ -540,6 +540,69 @@ spec = describe "Deslop.GlobPLus" $ do
             let pat = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
             renderClausePattern sparseEnv pat `shouldBe` "@/features/x/{{FileName}}View"
 
+    describe "interpolate" $ do
+        let env = envFor "@/features/auth/{{FileName}}" "@/features/auth/UserAuth"
+
+        it "substitutes a variable in each of the four casings" $ do
+            interpolate env "{{FileName}} {{fileName}} {{file-name}} {{FILE_NAME}}"
+                `shouldBe` "UserAuth userAuth user-auth USER_AUTH"
+
+        it "substitutes TARGET_DIR" $
+            interpolate env "Add a spec next to {{TARGET_DIR}}."
+                `shouldBe` "Add a spec next to @/features/auth."
+
+        it "substitutes a variable that occurs more than once" $
+            interpolate env "Import use{{FileName}}ViewModel and drive {{FileName}}View from it."
+                `shouldBe` "Import useUserAuthViewModel and drive UserAuthView from it."
+
+        it "leaves prose without variables untouched" $
+            interpolate env "Promote the shared code out of the provider folders."
+                `shouldBe` "Promote the shared code out of the provider folders."
+
+        it "leaves the empty text untouched" $
+            interpolate env "" `shouldBe` ""
+
+        it "keeps wildcards and slashes literal, because prose is not a pattern" $
+            interpolate env "Move **/*.spec files under {{TARGET_DIR}}/tests."
+                `shouldBe` "Move **/*.spec files under @/features/auth/tests."
+
+        it "leaves a misspelled variable exactly as written" $
+            interpolate env "Add a {{FileNam}}View." `shouldBe` "Add a {{FileNam}}View."
+
+        it "leaves a variable the target never bound exactly as written" $
+            interpolate env "Import {{provider-name}}." `shouldBe` "Import {{provider-name}}."
+
+        it "leaves a token that is not written in a recognised casing as written" $
+            interpolate env "Rename {{File_Name}}." `shouldBe` "Rename {{File_Name}}."
+
+        it "leaves a whitespace-padded token as written" $
+            interpolate env "Add {{ FileName }}." `shouldBe` "Add {{ FileName }}."
+
+        it "leaves a token containing pattern syntax as written" $
+            interpolate env "See {{a/b}} and {{a*b}}." `shouldBe` "See {{a/b}} and {{a*b}}."
+
+        it "leaves empty braces as written" $
+            interpolate env "Braces are written {{}}." `shouldBe` "Braces are written {{}}."
+
+        it "leaves unclosed braces as written" $
+            interpolate env "An unfinished {{FileName is just prose."
+                `shouldBe` "An unfinished {{FileName is just prose."
+
+        it "still finds a variable nested inside an unrecognised token" $
+            interpolate env "{{outer {{FileName}}" `shouldBe` "{{outer UserAuth"
+
+        it "substitutes every variable when the target binds several" $ do
+            let providerEnv =
+                    envFor
+                        "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+                        "@/components/stripe-connect/payment/CheckoutView"
+            interpolate providerEnv "Import @/services/{{provider-name}}/{{service-type}}-{{file-name}} from {{TARGET_DIR}}."
+                `shouldBe` "Import @/services/stripe-connect/payment-checkout from @/components/stripe-connect/payment."
+
+        it "substitutes TARGET_DIR even when the env binds no variables" $
+            interpolate sparseEnv "Look in {{TARGET_DIR}} for {{FileName}}."
+                `shouldBe` "Look in @/features/x for {{FileName}}."
+
     describe "End-to-End Scenarios" $ do
         it "validates the Page Architecture ViewModel rule end-to-end" $ do
             let cTarget = unsafeCompileTarget "@/features/**/use{{FileName}}ViewModel"

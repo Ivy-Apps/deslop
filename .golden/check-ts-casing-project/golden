@@ -19,28 +19,28 @@ Module '@/services/db-connection' directly imports '@/internal/DBConnection/secr
 ```ts
 import { secret } from '@/internal/DBConnection/secret';
 ```
-FIX: Reach only into @/internal/{{FileName}}, spelled as the canonical PascalCase of your own name.
+FIX: Reach only into @/internal/DbConnection, spelled as the canonical PascalCase of your own name.
 ---------
 
 # casing#view-is-named-after-its-provider#@/components/db-pool/DBPoolView
 A provider's View carries the provider's name. The same variable occurs as the kebab-case folder and as the PascalCase file, so it binds only where some one name spells both - which is what makes HTTPClient and http-client the same provider, and Paypal and stripe-connect not.
 
 Module '@/components/db-pool/DBPoolView' must import '@/config/db-pool'.
-FIX: Import @/config/{{provider-name}}, the config of the provider you sit under.
+FIX: Import @/config/db-pool, the config of the provider you sit under.
 ---------
 
 # casing#widget-uses-its-config#@/widgets/AWSS3Widget
 A Widget's config is named after it. The name is captured in PascalCase only, so kebab-case has to be derived, and a run of capitals is read as a single word.
 
 Module '@/widgets/AWSS3Widget' must import '@/config/awss3'.
-FIX: Import @/config/{{file-name}}.
+FIX: Import @/config/awss3.
 ---------
 
 # casing#widget-uses-its-config#@/widgets/ArchiveDBOrderWidget
 A Widget's config is named after it. The name is captured in PascalCase only, so kebab-case has to be derived, and a run of capitals is read as a single word.
 
 Module '@/widgets/ArchiveDBOrderWidget' must import '@/config/archive-db-order'.
-FIX: Import @/config/{{file-name}}.
+FIX: Import @/config/archive-db-order.
 ---------
 
 # casing#widgets-keep-out-of-internal#@/widgets/db-connection

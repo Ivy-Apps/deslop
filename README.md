@@ -392,6 +392,21 @@ fix: Promote shared logic to @/components, @/hooks, @/lib, or an appropriate sha
 
 Keep `fix` actionable — describe what to move, extract, or remove, not just what went wrong.
 
+**Variables work here too.** Any variable the rule's `target` captured, plus `{{TARGET_DIR}}`, is substituted with the value it captured, written in the casing you spell it in, so the message names the actual file rather than the pattern.
+
+```yaml
+target: "@/features/**/{{FileName}}Container"
+fix: Import use{{FileName}}ViewModel from {{TARGET_DIR}} and drive the View from the state it returns.
+```
+
+For `@/features/checkout/PaymentContainer`, that prints:
+
+```
+FIX: Import usePaymentViewModel from @/features/checkout and drive the View from the state it returns.
+```
+
+A token naming nothing in scope (a typo, or a variable this rule's target never captured) is printed exactly as written rather than blanked out. `description` is substituted the same way.
+
 #### `example`
 
 Optional TypeScript snippet showing what correct code looks like. Used in violation output to guide the fix.

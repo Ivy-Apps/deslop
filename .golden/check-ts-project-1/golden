@@ -150,14 +150,14 @@ FIX: Use ```import { HomeScreen } from "@/features/home/home-screen";``` instead
 Every Container must import its corresponding StateEvent module from the same directory. The StateEvent defines the UiState and UiEvent types that wire the Container to the ViewModel and View.
 
 Module '@/features/products/ProductListContainer' must import '@/features/products/ProductListStateEvent'.
-FIX: Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
+FIX: Import the StateEvent module: import { ... } from '@/features/products/ProductListStateEvent'.
 ---------
 
 # architecture#container-uses-state-event#@/features/settings/SettingsContainer
 Every Container must import its corresponding StateEvent module from the same directory. The StateEvent defines the UiState and UiEvent types that wire the Container to the ViewModel and View.
 
 Module '@/features/settings/SettingsContainer' must import '@/features/settings/SettingsStateEvent'.
-FIX: Import the StateEvent module: import { ... } from '{{TARGET_DIR}}/{{FileName}}StateEvent'.
+FIX: Import the StateEvent module: import { ... } from '@/features/settings/SettingsStateEvent'.
 ---------
 
 # architecture#features-cant-import-other-features#@/features/auth/auth-home-bridge
@@ -244,14 +244,14 @@ FIX: Remove the import from the tests directory. If you need shared data structu
 Every Screen must transitively import its corresponding StateEvent module. A Screen typically delegates to a Container which wires the StateEvent, so the StateEvent must be reachable somewhere in the import chain.
 
 Module '@/features/settings/SettingsScreen' must transitively import '@/features/settings/SettingsStateEvent'.
-FIX: Ensure that '{{TARGET_DIR}}/{{FileName}}StateEvent' is reachable from this Screen, typically by having the Screen import a Container that wires the StateEvent.
+FIX: Ensure that '@/features/settings/SettingsStateEvent' is reachable from this Screen, typically by having the Screen import a Container that wires the StateEvent.
 ---------
 
 # architecture#viewmodel-has-spec#@/features/profile/useUserProfileViewModel
 Every ViewModel hook must have a corresponding spec file in the same directory to verify its state transitions and business logic.
 
 Module '@/features/profile/useUserProfileViewModel' requires '@/features/profile/useUserProfileViewModel.spec' to exist.
-FIX: Create a spec file named 'use{{FileName}}ViewModel.spec.ts' in the same directory as the ViewModel.
+FIX: Create a spec file named 'useUserProfileViewModel.spec.ts' in the same directory as the ViewModel.
 ---------
 
 # domain-rules#domain-purity#@/domain/order/OrderService

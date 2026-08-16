@@ -1,12 +1,12 @@
 [Title] 🚀 Checking project: ~/test/fixtures/ts-globplus-project
-[Plain] 📚 Loaded 1 rulebook, 8 rules
-[Error] Found 10 problems:
+[Plain] 📚 Loaded 1 rulebook, 9 rules
+[Error] Found 11 problems:
 [Error] ─────────────────────────────────────────
 [Error] # provider-services#nested-view-uses-its-provider-config#@/components/paypal/payment/RefundView
 A View at any depth under a provider folder must import that provider's config. The provider variable sits before the **, so the group that captures it is numbered after the globstar's own - the arrangement in which reading captures by position binds the provider to the globstar.
 
 Module '@/components/paypal/payment/RefundView' must import '@/config/paypal'.
-FIX: Import @/config/{{provider-name}} rather than another provider's config.
+FIX: Import @/config/paypal rather than another provider's config.
 ---------
 
 # provider-services#provider-entry-is-named-after-its-folder#@/components/square/SquareEntry
@@ -23,56 +23,63 @@ Module '@/components/paypal/payment/RefundView' directly imports '@/components/s
 ```ts
 import { CheckoutView } from '@/components/stripe-connect/payment/CheckoutView';
 ```
-FIX: Import only from within @/components/{{provider-name}}, or promote the shared code out of the provider folders.
+FIX: Import only from within @/components/paypal, or promote the shared code out of the provider folders.
+---------
+
+# provider-services#storybook-has-a-visual-test#@/components/stripe-connect/payment/CheckoutView.stories
+Every story is paired with a visual test. This rule's own prose carries variables: Checkout and @/components/stripe-connect/payment are substituted from the match, while the misspelled {{FileNam}} names nothing and is printed as written.
+
+Module '@/components/stripe-connect/payment/CheckoutView.stories' requires '@/components/stripe-connect/payment/CheckoutView.visual' to exist.
+FIX: Add @/components/stripe-connect/payment/CheckoutView.visual next to the story for the stripe-connect provider. Not {{FileNam}}.
 ---------
 
 # provider-services#use-case-has-a-view-model#@/application/notify-user/NotifyUserUseCase
 Every use case is driven by a ViewModel named after it, in camelCase this time - the same three words spelled a third way.
 
 Module '@/application/notify-user/NotifyUserUseCase' requires '@/application/notify-user/useNotifyUserViewModel' to exist.
-FIX: Add a use{{UseCaseName}}ViewModel next to the use case.
+FIX: Add a useNotifyUserViewModel next to the use case.
 ---------
 
 # provider-services#view-has-a-storybook#@/components/paypal/payment/RefundView
 Every service View must be documented in Storybook.
 
 Module '@/components/paypal/payment/RefundView' requires '@/components/paypal/payment/RefundView.stories' to exist.
-FIX: Add a {{FileName}}View.stories.tsx file next to the View.
+FIX: Add a RefundView.stories.tsx file next to the View.
 ---------
 
 # provider-services#view-has-a-storybook#@/components/stripe-connect/payout/TransferView
 Every service View must be documented in Storybook.
 
 Module '@/components/stripe-connect/payout/TransferView' requires '@/components/stripe-connect/payout/TransferView.stories' to exist.
-FIX: Add a {{FileName}}View.stories.tsx file next to the View.
+FIX: Add a TransferView.stories.tsx file next to the View.
 ---------
 
 # provider-services#view-model-calls-its-own-provider-service#@/components/stripe-connect/payout/useTransferViewModel
 A ViewModel may only talk to the service module of the provider and service type it belongs to. The service module name is derived from all three variables, so a ViewModel cannot reach into another provider's service.
 
 Module '@/components/stripe-connect/payout/useTransferViewModel' must import '@/services/stripe-connect/payout-transfer'.
-FIX: Import @/services/{{provider-name}}/{{service-type}}-{{file-name}} rather than another provider's service module.
+FIX: Import @/services/stripe-connect/payout-transfer rather than another provider's service module.
 ---------
 
 # provider-services#view-model-drives-its-use-case#@/application/db-sync-job/useDBSyncJobViewModel
 A use case's ViewModel drives that use case and no other. The variable is three words long and occurs three times - as the kebab-case folder, and in PascalCase inside two different affixed segments - so every word of it has to survive being written out in two casings.
 
 Module '@/application/db-sync-job/useDBSyncJobViewModel' must import '@/application/db-sync-job/DBSyncJobUseCase'.
-FIX: Import {{TARGET_DIR}}/{{UseCaseName}}UseCase rather than another use case.
+FIX: Import @/application/db-sync-job/DBSyncJobUseCase rather than another use case.
 ---------
 
 # provider-services#view-model-drives-its-use-case#@/application/refund-payment/useRefundPaymentViewModel
 A use case's ViewModel drives that use case and no other. The variable is three words long and occurs three times - as the kebab-case folder, and in PascalCase inside two different affixed segments - so every word of it has to survive being written out in two casings.
 
 Module '@/application/refund-payment/useRefundPaymentViewModel' must import '@/application/refund-payment/RefundPaymentUseCase'.
-FIX: Import {{TARGET_DIR}}/{{UseCaseName}}UseCase rather than another use case.
+FIX: Import @/application/refund-payment/RefundPaymentUseCase rather than another use case.
 ---------
 
 # provider-services#view-wires-own-view-model#@/components/paypal/payment/RefundView
 A service View is pure UI. It must delegate its state and behaviour to the ViewModel hook that sits next to it in the same provider/service folder.
 
 Module '@/components/paypal/payment/RefundView' must import '@/components/paypal/payment/useRefundViewModel'.
-FIX: Import use{{FileName}}ViewModel from the same directory and drive the View from the state it returns.
+FIX: Import useRefundViewModel from the same directory and drive the View from the state it returns.
 [Error] ─────────────────────────────────────────
-[exit] Found 10 problems, none auto-fixable.
-   Run `deslop baseline` to silence all 10 problems.
+[exit] Found 11 problems, none auto-fixable.
+   Run `deslop baseline` to silence all 11 problems.
