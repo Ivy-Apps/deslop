@@ -1,6 +1,6 @@
 cases:
 - command: check
-  fixture: melzar-nextjs-clean-architecture
+  fixture: nikolovlazar-nextjs-clean-architecture
   measurement:
     allocated: 1.312321733727381e9
     copied: 1.25053715e7
@@ -48,7 +48,7 @@ cases:
     time: 1.2261604921957635e-3
     timeStdDev: 2.8325379538978937e-5
 - command: fix
-  fixture: melzar-nextjs-clean-architecture
+  fixture: nikolovlazar-nextjs-clean-architecture
   measurement:
     allocated: 8.752382345388954e8
     copied: 8250796.545454546
@@ -96,7 +96,7 @@ cases:
     time: 1.1840242806378223e-3
     timeStdDev: 2.3660956891720544e-5
 - command: baseline
-  fixture: melzar-nextjs-clean-architecture
+  fixture: nikolovlazar-nextjs-clean-architecture
   measurement:
     allocated: 1.3122669480821428e9
     copied: 1.3202472125e7

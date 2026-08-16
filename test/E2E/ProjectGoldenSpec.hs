@@ -25,7 +25,7 @@ spec :: Spec
 spec = describe "E2E.Project" $ do
     itChecks "ts-project-1"
     itChecks "ixartz-next-js-boilerplate"
-    itChecks "melzar-nextjs-clean-architecture"
+    itChecks "nikolovlazar-nextjs-clean-architecture"
     itChecks "ts-cycles-project"
     itChecks "ts-gitignore-project"
     itChecks "ts-globplus-project"
@@ -35,7 +35,7 @@ spec = describe "E2E.Project" $ do
 
     itBaselines "ts-project-1"
     itBaselines "ixartz-next-js-boilerplate"
-    itBaselines "melzar-nextjs-clean-architecture"
+    itBaselines "nikolovlazar-nextjs-clean-architecture"
     itBaselines "ts-cycles-project"
     itBaselines "ts-gitignore-project"
     itBaselines "ts-globplus-project"
@@ -75,7 +75,7 @@ spec = describe "E2E.Project" $ do
         ]
 
     itFixes
-        "melzar-nextjs-clean-architecture"
+        "nikolovlazar-nextjs-clean-architecture"
         [ "src/app/layout.tsx"
         , "src/ui/common/components/layout/ContainerBox/ContainerBox.tsx"
         , "src/ui/common/components/layout/TopHeader/TopHeader.stories.tsx"

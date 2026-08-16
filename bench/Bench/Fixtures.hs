@@ -47,7 +47,7 @@ noise and its cycle detection is covered by the larger fixtures anyway.
 fixtures :: [Fixture]
 fixtures =
     Fixture
-        <$> [ "melzar-nextjs-clean-architecture"
+        <$> [ "nikolovlazar-nextjs-clean-architecture"
             , "ixartz-next-js-boilerplate"
             , "ts-project-1"
             , "ts-casing-project"
