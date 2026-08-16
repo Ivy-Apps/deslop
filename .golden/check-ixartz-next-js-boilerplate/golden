@@ -99,6 +99,7 @@ import { db } from '@/libs/DB';
 ```
 FIX: Follow the reported import chain and break it. Fetch in a server component or a route handler and pass the result down as a prop.
 [Error] ─────────────────────────────────────────
+[summary] Checked 59 modules enforcing 12 rules
 [exit] Found 12 problems, 11 of them auto-fixable.
    Run `deslop fix` to fix the 11 auto-fixable problems.
    Run `deslop baseline` to silence all 12 problems.

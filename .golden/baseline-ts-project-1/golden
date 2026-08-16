@@ -1,6 +1,7 @@
 [Title] 🚀 Baselining project: ~/test/fixtures/ts-project-1
 [Plain] 📚 Loaded 2 rulebooks, 8 rules
 [Success] ✅ Success: Baseline generated with 34 problems.
+[summary] Baselined 38 modules enforcing 10 rules
 
 >>> baseline.yaml
 - architecture#container-uses-state-event#@/features/products/ProductListContainer

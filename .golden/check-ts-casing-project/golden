@@ -52,5 +52,6 @@ import { secret } from '@/internal/DBConnection/secret';
 ```
 FIX: Move what you need out of @/internal, or expose it through @/config.
 [Error] ─────────────────────────────────────────
+[summary] Checked 36 modules enforcing 7 rules
 [exit] Found 6 problems, none auto-fixable.
    Run `deslop baseline` to silence all 6 problems.

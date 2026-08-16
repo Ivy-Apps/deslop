@@ -163,6 +163,7 @@ test-suite deslop-test
     TypeScript.ModuleResolverSpec
     TypeScript.ParserSpec
     TypeScript.RenderableSpec
+    UISpec
     UtilsSpec
 
   build-depends:

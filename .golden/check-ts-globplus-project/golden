@@ -81,5 +81,6 @@ A service View is pure UI. It must delegate its state and behaviour to the ViewM
 Module '@/components/paypal/payment/RefundView' must import '@/components/paypal/payment/useRefundViewModel'.
 FIX: Import useRefundViewModel from the same directory and drive the View from the state it returns.
 [Error] ─────────────────────────────────────────
+[summary] Checked 22 modules enforcing 11 rules
 [exit] Found 11 problems, none auto-fixable.
    Run `deslop baseline` to silence all 11 problems.

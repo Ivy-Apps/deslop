@@ -43,7 +43,7 @@ import TypeScript.Config (TsConfig, readTsConfig)
 import TypeScript.Iterator (getTsFiles)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types
-import UI (divider, elapsed, humanReadable, pluralise, problemsLogText)
+import UI (divider, humanReadable, pluralise, problemsFoundText, problemsLogText, summaryLine)
 
 runDeslop :: ParamsDto -> IO ()
 runDeslop paramsDto =
@@ -59,10 +59,16 @@ runDeslop paramsDto =
                     paramsFromDto paramsDto >>= doWork
             end <- liftIO getCurrentTime
             case res of
-                Left err -> do
-                    cliLog Error $ "❌ Error: " <> humanReadable err
-                    liftIO exitFailure
-                Right () -> cliLog Plain . elapsed $ diffUTCTime end start
+                Left err -> failWith . humanReadable $ err
+                Right report -> do
+                    cliLog Plain . summaryLine report.summary $ diffUTCTime end start
+                    case report.verdict of
+                        Clean -> pure ()
+                        ProblemsFound counts -> failWith . problemsFoundText $ counts
+  where
+    failWith msg = do
+        cliLog Error $ "❌ Error: " <> msg
+        liftIO exitFailure
 
 doWork ::
     ( WrFileSystem :> es
@@ -74,36 +80,41 @@ doWork ::
     , Error DeslopError :> es
     ) =>
     Params ->
-    Eff es ()
+    Eff es RunReport
 doWork params = do
     logTitle params
     case params.command of
         FixC -> do
             baseline <- loadBaseline params.projectPath
-            deslopProject params baseline
+            summary <- deslopProject params baseline
             ps <- applyBaseline baseline <$> getProblems
             logFixSummary . length . filter isAutoFixable $ ps
+            pure RunReport {summary = summary, verdict = Clean}
         CheckC -> do
             baseline <- loadBaseline params.projectPath
-            deslopProject params baseline
+            summary <- deslopProject params baseline
             ps <- applyBaseline baseline <$> getProblems
-            case ps of
-                [] -> cliLog Success "✅ Success: No problems found."
+            verdict <- case ps of
+                [] -> do
+                    cliLog Success "✅ Success: No problems found."
+                    pure Clean
                 _ -> do
                     logProblems ps
-                    throwError
-                        CheckModeFoundProblems
+                    pure . ProblemsFound $
+                        ProblemCounts
                             { total = length ps
                             , autoFixable = length . filter isAutoFixable $ ps
                             }
+            pure RunReport {summary = summary, verdict = verdict}
         BaselineC -> do
-            deslopProject params emptyBaseline
+            summary <- deslopProject params emptyBaseline
             ps <- getProblems
             saveBaseline params.projectPath ps
             cliLog Success $
                 "✅ Success: Baseline generated with "
                     <> pluralise (length ps) "problem"
                     <> "."
+            pure RunReport {summary = summary, verdict = Clean}
 
 logTitle :: (CLI :> es) => Params -> Eff es ()
 logTitle params = do
@@ -147,7 +158,7 @@ deslopProject ::
     ) =>
     Params ->
     Baseline ->
-    Eff es ()
+    Eff es RunSummary
 deslopProject params baseline = do
     rulebookRes <- loadRuleBook params.projectPath
     rulebook <- case rulebookRes of
@@ -176,6 +187,35 @@ deslopProject params baseline = do
                     runReader @[Rulebook] rulebook
                         . traverse_ enforceRulebooks
                         $ asts
+    pure $
+        summaryOf
+            params.command
+            (ModuleCount . length $ asts)
+            (enforcedRules rulebook)
+
+{- | What the command covered. @fix@ enforces no Rulebook Rules, so it reports
+only the modules it went through.
+-}
+summaryOf :: Command -> ModuleCount -> RuleCount -> RunSummary
+summaryOf CheckC ms rs = Checked ms rs
+summaryOf BaselineC ms rs = Baselined ms rs
+summaryOf FixC ms _ = Scanned ms
+
+{- | Every Rule the run enforced: the Rulebooks' own, plus the built-in ones
+that hold with no Rulebook at all.
+-}
+enforcedRules :: [Rulebook] -> RuleCount
+enforcedRules rulebooks = RuleCount $ rulebookRules + buildInRulesCount
+  where
+    RuleCount rulebookRules = countRules rulebooks
+
+-- | No relative imports and no import cycles.
+buildInRulesCount :: Int
+buildInRulesCount = 2
+
+-- | What the Rulebooks themselves define, built-in Rules aside.
+countRules :: [Rulebook] -> RuleCount
+countRules = RuleCount . sum . fmap (length . (.rules))
 
 {- | Reports what the Rulebooks contribute. Silent for @fix@, which never
 enforces Rulebook Rules.
@@ -190,7 +230,7 @@ logRulebooks _ rulebooks = do
         0 -> cliLog Warning noRulesWarning
         _ -> pure ()
   where
-    totalRules = sum $ length . (.rules) <$> rulebooks
+    RuleCount totalRules = countRules rulebooks
     summary =
         "📚 Loaded "
             <> pluralise (length rulebooks) "rulebook"

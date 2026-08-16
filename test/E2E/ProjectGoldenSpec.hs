@@ -17,8 +17,8 @@ import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (copyDir, defaultParams, fixturesPath, mkAbsolute, pathSafeGolden, requireJust, snapshot)
 import TypeScript.Iterator (getTsFiles)
-import Types (DeslopError (..))
-import UI (humanReadable)
+import Types (DeslopError (..), RunReport (..), Verdict (..))
+import UI (coverage, humanReadable, problemsFoundText)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
@@ -85,12 +85,19 @@ spec = describe "E2E.Project" $ do
         , "src/app/page.tsx"
         ]
   where
-    -- The check summary is rendered by runDeslop, outside doWork, so the
-    -- transcript alone would not cover it. Appending it goldens the wording
-    -- together with the counts that produced it.
-    renderResult :: Either DeslopError () -> Text
-    renderResult (Right ()) = ""
+    -- The closing summary and the check verdict are rendered by runDeslop,
+    -- outside doWork, so the transcript alone would not cover them. Appending
+    -- them goldens the wording together with the counts that produced it. Only
+    -- the elapsed time is left out, since it differs on every run.
+    renderResult :: Either DeslopError RunReport -> Text
     renderResult (Left err) = "[exit] " <> humanReadable err <> "\n"
+    renderResult (Right report) =
+        "[summary] " <> coverage report.summary <> "\n" <> renderVerdict report.verdict
+
+    renderVerdict :: Verdict -> Text
+    renderVerdict Clean = ""
+    renderVerdict (ProblemsFound counts) =
+        "[exit] " <> problemsFoundText counts <> "\n"
 
     -- Goldens exactly which files the iteration produced. Unlike the check and
     -- baseline goldens, which can only show a skipped file as an absence, this
@@ -185,11 +192,12 @@ spec = describe "E2E.Project" $ do
                 $ doWork params
 
         -- Then
-        res `shouldBe` Right ()
+        fmap (.verdict) res `shouldBe` Right Clean
         content <- requireJust "Expected baseline.yaml to be written" =<< readIORef filesRef
         logs <- readIORef logsRef
         pathSafeGolden ("baseline-" <> project) . T.unpack $
             renderTranscript logs
+                <> renderResult res
                 <> "\n>>> baseline.yaml\n"
                 <> TE.decodeUtf8 content
 
@@ -212,6 +220,6 @@ spec = describe "E2E.Project" $ do
                     $ doWork params
 
             -- Then
-            res `shouldBe` Right ()
+            fmap (.verdict) res `shouldBe` Right Clean
             fullSnapshot <- snapshot tmpDir filesToCheck
             return $ defaultGolden ("fix-" <> project) fullSnapshot

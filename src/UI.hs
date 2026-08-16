@@ -6,9 +6,11 @@ module UI (
     redStderr,
     plainOut,
     divider,
-    elapsed,
+    summaryLine,
+    coverage,
     pluralise,
     humanReadable,
+    problemsFoundText,
     ProblemsLog (..),
     problemsLogText,
 ) where
@@ -22,7 +24,7 @@ import Effects.FileSystem (decodeOsPath)
 import Fmt
 import System.Console.ANSI
 import System.IO (hPutStr)
-import Types (DeslopError (..))
+import Types (DeslopError (..), ModuleCount (..), ProblemCounts (..), RuleCount (..), RunSummary (..))
 
 --------------------------------------------------------------------------------
 -- Colour primitives
@@ -70,13 +72,31 @@ redStderr t = do
 divider :: Text
 divider = "─────────────────────────────────────────"
 
-elapsed :: NominalDiffTime -> Text
-elapsed d = fmt $ "⏱  Finished in " +| formatDuration
+{- | The closing line of a run:
+@"⏱  Checked 412 modules enforcing 38 rules in 870ms"@.
+-}
+summaryLine :: RunSummary -> NominalDiffTime -> Text
+summaryLine summary d = "⏱  " <> coverage summary <> " in " <> duration d
+
+-- | What the run went through: @"Checked 412 modules enforcing 38 rules"@.
+coverage :: RunSummary -> Text
+coverage (Checked ms rs) = "Checked " <> modules ms <> " enforcing " <> rules rs
+coverage (Baselined ms rs) = "Baselined " <> modules ms <> " enforcing " <> rules rs
+coverage (Scanned ms) = "Scanned " <> modules ms
+
+modules :: ModuleCount -> Text
+modules (ModuleCount n) = pluralise n "module"
+
+rules :: RuleCount -> Text
+rules (RuleCount n) = pluralise n "rule"
+
+-- | Whole milliseconds below a second, seconds above it.
+duration :: NominalDiffTime -> Text
+duration d
+    | t < 1 = show (round (t * 1000) :: Int) <> "ms"
+    | otherwise = fmt $ fixedF 2 t |+ "s"
   where
     t = realToFrac d :: Double
-    formatDuration
-        | t < 1 = fixedF 2 (t * 1000) |+ "ms"
-        | otherwise = fixedF 2 t |+ "s"
 
 -- | @pluralise 1 "rule" == "1 rule"@, @pluralise 2 "rule" == "2 rules"@.
 pluralise :: Int -> Text -> Text
@@ -98,14 +118,22 @@ humanReadable (TsConfigNotFoundError path) =
     "tsconfig.json not found in '" <> decodeOsPath path <> "'"
 humanReadable (TsConfigParseError path) =
     "Could not parse TS config, check: '" <> path <> "'"
-humanReadable (CheckModeFoundProblems total autoFixable) =
+humanReadable (RulebookError msg) =
+    "Could not load Rulebook: " <> msg
+humanReadable (InvalidRuleConfig msg) =
+    "Invalid rule configuration: " <> msg
+
+-- | What the user can do about the Problems a check found.
+problemsFoundText :: ProblemCounts -> Text
+problemsFoundText counts =
     T.intercalate "\n" $ headline : fixLine <> [baselineLine]
   where
-    headline = "Found " <> pluralise total "problem" <> ", " <> fixableCount <> "."
-    fixableCount = case autoFixable of
+    headline =
+        "Found " <> pluralise counts.total "problem" <> ", " <> fixableCount <> "."
+    fixableCount = case counts.autoFixable of
         0 -> "none auto-fixable"
         n -> show n <> " of them auto-fixable"
-    fixLine = case autoFixable of
+    fixLine = case counts.autoFixable of
         0 -> []
         n ->
             [ "   Run `deslop fix` to fix the "
@@ -114,9 +142,5 @@ humanReadable (CheckModeFoundProblems total autoFixable) =
             ]
     baselineLine =
         "   Run `deslop baseline` to silence all "
-            <> pluralise total "problem"
+            <> pluralise counts.total "problem"
             <> "."
-humanReadable (RulebookError msg) =
-    "Could not load Rulebook: " <> msg
-humanReadable (InvalidRuleConfig msg) =
-    "Invalid rule configuration: " <> msg
