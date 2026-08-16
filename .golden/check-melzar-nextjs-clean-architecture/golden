@@ -94,56 +94,56 @@ FIX: Take the data from the presenter this view already uses, rather than from a
 A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
 
 Module 'ui/common/components/layout/SideNavigation/SideNavigationLinks/SideNavigationLinks' requires 'ui/common/components/layout/SideNavigation/SideNavigationLinks/SideNavigationLinks.stories' to exist.
-FIX: Add {{Component}}.stories.tsx next to the component.
+FIX: Add SideNavigationLinks.stories.tsx next to the component.
 ---------
 
 # naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigation
 A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
 
 Module 'ui/common/components/layout/TopNavigation/TopNavigation' requires 'ui/common/components/layout/TopNavigation/TopNavigation.stories' to exist.
-FIX: Add {{Component}}.stories.tsx next to the component.
+FIX: Add TopNavigation.stories.tsx next to the component.
 ---------
 
 # naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions
 A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
 
 Module 'ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions' requires 'ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions.stories' to exist.
-FIX: Add {{Component}}.stories.tsx next to the component.
+FIX: Add TopNavigationActions.stories.tsx next to the component.
 ---------
 
 # naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser
 A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
 
 Module 'ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser' requires 'ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser.stories' to exist.
-FIX: Add {{Component}}.stories.tsx next to the component.
+FIX: Add TopNavigationUser.stories.tsx next to the component.
 ---------
 
 # naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Authentication/models/AuthenticationRest
 A wire model exists to be mapped into the domain model of the same name. If the domain has no counterpart, either the mapping is missing or the wire model is describing something the domain has never heard of.
 
 Module 'data/network/rest/v1/Authentication/models/AuthenticationRest' requires 'domain/Authentication/models/Authentication' to exist.
-FIX: Add domain/{{FeatureName}}/models/{{Model}}.ts, or move the wire model under the feature whose domain model it actually mirrors.
+FIX: Add domain/Authentication/models/Authentication.ts, or move the wire model under the feature whose domain model it actually mirrors.
 ---------
 
 # naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Authentication/models/RoleRest
 A wire model exists to be mapped into the domain model of the same name. If the domain has no counterpart, either the mapping is missing or the wire model is describing something the domain has never heard of.
 
 Module 'data/network/rest/v1/Authentication/models/RoleRest' requires 'domain/Authentication/models/Role' to exist.
-FIX: Add domain/{{FeatureName}}/models/{{Model}}.ts, or move the wire model under the feature whose domain model it actually mirrors.
+FIX: Add domain/Authentication/models/Role.ts, or move the wire model under the feature whose domain model it actually mirrors.
 ---------
 
 # naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Packages/models/PackageRest
 A wire model exists to be mapped into the domain model of the same name. If the domain has no counterpart, either the mapping is missing or the wire model is describing something the domain has never heard of.
 
 Module 'data/network/rest/v1/Packages/models/PackageRest' requires 'domain/Packages/models/Package' to exist.
-FIX: Add domain/{{FeatureName}}/models/{{Model}}.ts, or move the wire model under the feature whose domain model it actually mirrors.
+FIX: Add domain/Packages/models/Package.ts, or move the wire model under the feature whose domain model it actually mirrors.
 ---------
 
 # naming-conventions#view-has-a-dictionary#ui/Login/login.view
 User-facing strings live in a dictionary beside the view rather than inline, so that a view can be read without wading through copy.
 
 Module 'ui/Login/login.view' requires 'ui/Login/login.dictionary' to exist.
-FIX: Add {{feature-name}}.dictionary.ts next to this view and move its strings into it.
+FIX: Add login.dictionary.ts next to this view and move its strings into it.
 [Error] ─────────────────────────────────────────
 [exit] Found 18 problems, 5 of them auto-fixable.
    Run `deslop fix` to fix the 5 auto-fixable problems.
