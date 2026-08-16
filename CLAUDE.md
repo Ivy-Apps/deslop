@@ -44,3 +44,5 @@ git add -f test/fixtures/ts-gitignore-project/<path>
 - **Custom Prelude:** The project uses `relude` as a custom prelude and `Text` (Data.Text) is available without importing.
 - **Extensions:** Assume `OverloadedRecordDot` is enabled.
 - **Function composition:** Prefer the `.` composition operator when idiomatic. For example: Prefer `f . g $ a` over `f $ g a`, prefer `traverse (const . Gen.subsequence $ xs) xs` over `traverse (const (Gen.subsequence names)) names`.
+- **Existing type classes:** Prefer using existing type classes and the functions that come out-of-the-box with them. Create instances for those typeclasses for our custom types so we can re-use the standard constructions and avoid re-inventing the wheel. Prefer Category Theory and read [Typeclassopedia](https://wiki.haskell.org/index.php?title=Typeclassopedia) if you have to deal with type classes. 
+- **Generalized code:** When a concept generalizes well prefer implementing it using parametric polymorphic functions or creating custom type classes. If you thing a new code is general, ask the user and suggest a general implementation.
