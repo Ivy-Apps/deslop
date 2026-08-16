@@ -1,11 +1,7 @@
 [ TsToken
     { raw =
         "/**\n * Calculates the nth Fibonacci number.\n * * @param n - Zero-based index.\n * @returns The Fibonacci number.\n */"
-    , kind =
-        DocsK
-          { comment =
-              "* Calculates the nth Fibonacci number.\n * * @param n - Zero-based index.\n * @returns The Fibonacci number."
-          }
+    , kind = CommentK
     }
 , TsToken { raw = "\n" , kind = WhitespaceK }
 , TsToken
@@ -14,29 +10,20 @@
 , TsToken
     { raw =
         "/* Standard Block Comment:\n   This part handles the iterative logic \n   without using recursion. */"
-    , kind =
-        CommentK
-          { comment =
-              "Standard Block Comment:\n   This part handles the iterative logic \n   without using recursion."
-          }
+    , kind = CommentK
     }
 , TsToken { raw = "\n" , kind = WhitespaceK }
 , TsToken
     { raw = "function fib(n: number): number {\n    " , kind = RawK }
 , TsToken
-    { raw = "// Single line comment with spaces\n"
-    , kind = CommentK { comment = "Single line comment with spaces" }
-    }
+    { raw = "// Single line comment with spaces\n" , kind = CommentK }
 , TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken
     { raw =
         "if (n <= 1) return n;\n\n    let a = 0, b = 1;\n    for (let i = 2; i <= n; i++) {\n        "
     , kind = RawK
     }
-, TsToken
-    { raw = "/* Inline block comment */"
-    , kind = CommentK { comment = "Inline block comment" }
-    }
+, TsToken { raw = "/* Inline block comment */" , kind = CommentK }
 , TsToken { raw = "\n        " , kind = WhitespaceK }
 , TsToken
     { raw =

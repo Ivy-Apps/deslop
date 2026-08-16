@@ -8,7 +8,6 @@ rules:
       It should be executed on the server. 
       Use the page to SSR data and pass it as a parameter to the Container that will display the UI.
     target: "@/app/**/page"
-    execution-context: server
     example: |
       import { HomeContainer } from "@/features/home/HomeContainer";
 
@@ -32,7 +31,6 @@ rules:
       A Container is a glue code executed on the client side that connects a View with its ViewModel hook.
       The Container optionally accepts initial SSR data from the page and passes it to the ViewModel.
     target: "@/features/**/{{FileName}}Container"
-    execution-context: client
     uses:
       - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"
       - import: "{{TARGET_DIR}}/use{{FileName}}ViewModel"
@@ -65,7 +63,6 @@ rules:
       It must be strictly free of UI elements (JSX) and must not perform direct HTTP fetch calls.
       Instead, it should manage the state and delegate data fetching to the data layer (repositories).
     target: "@/features/**/use{{FileName}}ViewModel"
-    execution-context: client
     uses:
       - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"
     uses-optional:
@@ -74,7 +71,6 @@ rules:
       - "{{TARGET_DIR}}/domain/**/*"
       - "@/domain/**/*"
     forbids:
-      - functional-call: fetch
       - import: "{{TARGET_DIR}}/{{FileName}}View"
       - import: "@/**/components/**/*"
     example: |
@@ -148,14 +144,11 @@ rules:
       Each page/feature should have a pure UI (View) that renders the UiState 
       and submits user interactions as UiEvents.
     target: "@/features/**/{{FileName}}View"
-    execution-context: client
     uses:
       - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"
     uses-optional:
       - "{{TARGET_DIR}}/components/*"
       - "@/components/**/*"
-    forbids:
-      - functional-call: fetch
     example: |
       import { HomeUiState, HomeUiEvent } from "@/features/home/HomeStateEvent";
       import { Button } from "@/components/ui/Button";

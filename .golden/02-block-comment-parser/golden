@@ -8,20 +8,13 @@ TsModule
           , suffix = "\";"
           }
       , Source { raw = "\n\n" }
-      , Comment
-          { raw = "/* Hello, world! in JS */"
-          , content = "Hello, world! in JS"
-          }
+      , Source { raw = "/* Hello, world! in JS */" }
       , Source { raw = "\n" }
       , Source { raw = "function main() {\n    setup(); " }
-      , Comment
-          { raw = "// do not delete\n" , content = "do not delete" }
+      , Source { raw = "// do not delete\n" }
       , Source { raw = "    " }
       , Source { raw = "console.log(\"Hello, world!\") " }
-      , Comment
-          { raw = "// prints \"Hello, world!\"\n"
-          , content = "prints \"Hello, world!\""
-          }
+      , Source { raw = "// prints \"Hello, world!\"\n" }
       , Source { raw = "}" }
       ]
   }

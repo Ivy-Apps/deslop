@@ -193,7 +193,6 @@ ruleDto =
         , description = "test"
         , target = GlobDto ""
         , exclude = Nothing
-        , executionContext = Nothing
         , forbids = Nothing
         , allows = Nothing
         , uses = Nothing

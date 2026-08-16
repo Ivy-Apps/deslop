@@ -13,7 +13,6 @@ import Effects.ReportProblem (ReportProblem, report)
 import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe)
 import Types (DeslopError (..))
 import UI (pluralise)
-import Utils (todo)
 
 {- | The rule's own prose speaks about the match that violated it, so the
 variables its target captured are substituted into it before it is reported.
@@ -156,7 +155,6 @@ enforceForbids m env (ForbidsImport target transitive)
     inAllowClause :: ModuleId -> AllowsClause -> Bool
     inAllowClause moduleId (AllowsImport pattern) =
         matchClause pattern env moduleId.text
-enforceForbids _ _ (ForbidsFunctionCall _) = todo
 
 enforceUses ::
     ( Reader RulebookId :> es
