@@ -13,9 +13,9 @@ check:
 lint:
     hlint .
 
-# Compile everything, including the test suite
+# Compile the library, the executable and the benchmark
 build:
-    cabal build all
+    cabal build --enable-benchmarks all
 
 # Run the test suite
 test:
@@ -28,6 +28,14 @@ integration:
     just sandbox
     cabal run deslop -- baseline sandbox/
     cabal run deslop -- check sandbox/
+
+# Measure performance and fail if it regressed against bench/reference.yaml
+benchmark:
+    cabal bench deslop-bench
+
+# Accept the current performance as the new benchmark Reference
+update-benchmark:
+    cabal bench deslop-bench --benchmark-options=--update
 
 # Generate a testing '/sandbox' project dir
 @sandbox:

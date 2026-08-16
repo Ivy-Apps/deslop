@@ -1,0 +1,129 @@
+id: boilerplate-architecture
+name: Boilerplate Architecture
+description: >-
+  This is a flat Next.js application: routes under @/app, presentational pieces
+  under @/components and @/templates, and everything they stand on under
+  @/libs, @/models, @/utils and @/validations. These rules keep the arrows
+  pointing from the routes downwards and never back up.
+rules:
+  - id: libs-do-not-import-the-ui
+    description: >-
+      @/libs holds the wiring for external services - the database handle, the
+      logger, the i18n runtime. A lib that imports a component cannot be used
+      from a server context, and drags React into places that never render.
+    target: "@/libs/**"
+    forbids:
+      - import: "@/components/**"
+      - import: "@/templates/**"
+      - import: "@/app/**"
+    fix: >-
+      Keep the lib free of rendering. Anything that needs to display something
+      belongs in @/components, driven by what the lib returns.
+
+  - id: components-do-not-import-routes
+    description: >-
+      Routes compose components, never the other way round. A component that
+      imports a page has tied itself to one place in the URL structure and
+      cannot be reused at another.
+    target: "@/components/**"
+    forbids:
+      - import: "@/app/**"
+    fix: >-
+      Take what the route knows as a prop, and let the route pass it in.
+
+  - id: templates-do-not-import-routes
+    description: >-
+      The same rule for layout templates, which sit even further from routing
+      than components do.
+    target: "@/templates/**"
+    forbids:
+      - import: "@/app/**"
+    fix: >-
+      Accept the varying parts as props and let the route supply them.
+
+  - id: validations-are-standalone
+    description: >-
+      Validation schemas describe the shape of input and nothing else. They are
+      imported by both the client and the server, so anything they pull in is
+      paid for on both sides.
+    target: "@/validations/**"
+    forbids:
+      - import: "@/components/**"
+      - import: "@/app/**"
+      - import: "@/libs/**"
+    fix: >-
+      Keep the schema to its shape. Behaviour that depends on it belongs
+      wherever it is being validated.
+
+  - id: models-describe-persistence-only
+    description: >-
+      @/models is the database schema. It must not know how the data reaches a
+      screen, or a migration starts depending on the UI.
+    target: "@/models/**"
+    forbids:
+      - import: "@/components/**"
+      - import: "@/templates/**"
+      - import: "@/app/**"
+      - import: "@/utils/**"
+    fix: >-
+      Express the column in schema terms. Anything derived from it belongs
+      where it is read, not where it is declared.
+
+  - id: utils-do-not-import-the-ui
+    description: >-
+      Helpers are called from everywhere, including from tests and from the
+      edge runtime, so they must not assume a renderer is present.
+    target: "@/utils/**"
+    forbids:
+      - import: "@/components/**"
+      - import: "@/templates/**"
+      - import: "@/app/**"
+    fix: >-
+      Return a value and let the caller render it.
+
+  - id: components-never-reach-the-database
+    description: >-
+      Stronger than the direct rules above: no chain of imports starting at a
+      component may arrive at the database handle. A component that can reach
+      it can query from the browser bundle, which is both a correctness and a
+      security problem.
+    target: "@/components/**"
+    forbids:
+      - import: "@/libs/DB"
+        transitive: true
+    fix: >-
+      Follow the reported import chain and break it. Fetch in a server
+      component or a route handler and pass the result down as a prop.
+
+  - id: only-the-data-layer-touches-the-database
+    description: >-
+      The counterpart to the rule above, stated positively and over the whole
+      project: the database handle has exactly three legitimate neighbours -
+      the schema it serves, the routes that query it, and the rest of @/libs.
+    target: "**"
+    forbids:
+      - import: "@/libs/DB"
+    allows:
+      - import: "@/libs/**"
+      - import: "@/models/**"
+      - import: "@/app/**"
+    fix: >-
+      Query from a route handler or a server component and pass the result on.
+
+  - id: template-has-a-story
+    description: >-
+      Every layout template is documented in Storybook, so that it can be seen
+      without booting the application.
+    target: "@/templates/{{Component}}"
+    exists:
+      - module: "@/templates/{{Component}}.stories"
+    fix: Add {{Component}}.stories.tsx next to the template.
+
+  - id: template-has-a-test
+    description: >-
+      Templates decide what every page inside them looks like, so a change to
+      one is felt everywhere. Each carries its own test.
+    target: "@/templates/{{Component}}"
+    exists:
+      - module: "@/templates/{{Component}}.test"
+    fix: Add {{Component}}.test.tsx next to the template.

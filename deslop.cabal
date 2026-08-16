@@ -188,3 +188,38 @@ test-suite deslop-test
     , text
     , unliftio
     , yaml
+
+-- Measures 'Deslop.doWork' over the fixture projects and gates on regression
+-- against bench/reference.yaml. Local-only by design - see
+-- docs/adr/0008-benchmarks-are-local-only.md.
+benchmark deslop-bench
+  import:         shared-properties
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: bench
+  main-is:        Main.hs
+  other-modules:
+    Bench.Compare
+    Bench.Fixtures
+    Bench.Harness
+    Bench.Measurement
+    Bench.Reference
+    Bench.Report
+
+  -- -O2 matches what the release CD ships, so the measurements describe the
+  -- codegen users actually run. -N is pinned rather than left to the machine:
+  -- a varying capability count scales wall time directly and would show up as
+  -- a phantom regression. -T is what populates the memory metrics.
+  ghc-options:    -O2 -threaded -rtsopts "-with-rtsopts=-N4 -T"
+  build-depends:
+    , aeson
+    , bytestring
+    , criterion
+    , deslop
+    , directory   >=1.3.8.0
+    , effectful
+    , filepath    >=1.4.100.0
+    , statistics
+    , text
+    , time
+    , vector
+    , yaml
