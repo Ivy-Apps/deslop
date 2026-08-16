@@ -30,8 +30,7 @@ buildCST = fmap node
     node :: TsToken -> TsNode
     node (TsToken r RawK) = Source r
     node (TsToken r WhitespaceK) = Source r
-    node (TsToken r (CommentK c)) = Comment {raw = r, content = c}
-    node (TsToken r (DocsK c)) = Docs {raw = r, content = c}
+    node (TsToken r CommentK) = Source r
     node (TsToken r ImportK) = case parseImport r of
         Left _ -> Source r
         Right n -> n

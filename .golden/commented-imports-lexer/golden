@@ -6,20 +6,12 @@
 , TsToken
     { raw =
         "// import { firstName } from './users'; <-- we don't need that\n"
-    , kind =
-        CommentK
-          { comment =
-              "import { firstName } from './users'; <-- we don't need that"
-          }
+    , kind = CommentK
     }
 , TsToken
     { raw =
         "/*\nimport * from 'react';\nimport * from '../../lib/utils';\n*/"
-    , kind =
-        CommentK
-          { comment =
-              "import * from 'react';\nimport * from '../../lib/utils';"
-          }
+    , kind = CommentK
     }
 , TsToken { raw = "\n\n" , kind = WhitespaceK }
 , TsToken
@@ -27,9 +19,7 @@
     , kind = RawK
     }
 , TsToken
-    { raw = "// await import('../old/data');\n"
-    , kind = CommentK { comment = "await import('../old/data');" }
-    }
+    { raw = "// await import('../old/data');\n" , kind = CommentK }
 , TsToken { raw = "    " , kind = WhitespaceK }
 , TsToken { raw = "await " , kind = RawK }
 , TsToken { raw = "import('../new/data');" , kind = ImportK }

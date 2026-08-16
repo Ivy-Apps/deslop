@@ -23,7 +23,7 @@ module Deslop.Rulebook (
     loadRuleBook,
 ) where
 
-import Data.Aeson (FromJSON (..), withObject, withText, (.:), (.:?))
+import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
 import Data.Text qualified as T
 import Data.Yaml (decodeEither')
 import Deslop.GlobPlus (CompiledClausePattern, CompiledExcludePattern, CompiledTargetPattern, GlobPlusError, Polarity (..), VarName, boundVars, compileClausePattern, compileExcludePattern, compileTargetPattern, renderGlobPlusError)
@@ -41,14 +41,11 @@ data Rulebook = Rulebook
     }
     deriving stock (Show)
 
-data ExecutionContext = UseClient | UseServer | Neutral deriving (Show, Eq, Ord)
-
 data Rule = Rule
     { id :: RuleId
     , description :: Text
     , target :: CompiledTargetPattern
     , exclude :: Maybe (NonEmpty CompiledExcludePattern)
-    , executionContext :: ExecutionContext
     , forbids :: Maybe (NonEmpty ForbidsClause)
     , allows :: Maybe (NonEmpty AllowsClause)
     , uses :: Maybe (NonEmpty UsesClause)
@@ -64,16 +61,10 @@ data UsesClause = UsesImport
     }
     deriving stock (Show, Eq)
 
-newtype FunctionName = FunctionName Text deriving (Show, Eq)
-
-data ForbidsClause
-    = ForbidsImport
-        { target :: CompiledClausePattern
-        , transitive :: Bool
-        }
-    | ForbidsFunctionCall
-        { functionName :: FunctionName
-        }
+data ForbidsClause = ForbidsImport
+    { target :: CompiledClausePattern
+    , transitive :: Bool
+    }
     deriving stock (Show, Eq)
 
 newtype AllowsClause
@@ -100,20 +91,11 @@ data RulebookDto = RulebookDto
     deriving stock (Show, Eq, Generic)
     deriving anyclass (FromJSON)
 
-data ExecutionContextDto = UseClientDto | UseServerDto deriving (Show, Eq)
-
-instance FromJSON ExecutionContextDto where
-    parseJSON = withText "ExecutionContextDto" $ \case
-        "client" -> pure UseClientDto
-        "server" -> pure UseServerDto
-        other -> fail $ "Unknown execution-context: " <> T.unpack other
-
 data RuleDto = RuleDto
     { id :: RuleId
     , description :: Text
     , target :: GlobDto
     , exclude :: Maybe [GlobDto]
-    , executionContext :: Maybe ExecutionContextDto
     , forbids :: Maybe [ForbidsDto]
     , allows :: Maybe [AllowsDto]
     , uses :: Maybe [UsesDto]
@@ -128,20 +110,15 @@ newtype RuleId = RuleId Text
     deriving stock (Show, Eq, Ord)
     deriving newtype (FromJSON)
 
-data ForbidsDto
-    = ForbidsImportDto
-        { target :: GlobDto
-        , transitive :: Maybe Bool
-        }
-    | ForbidsFunctionCallDto
-        { functionName :: Text
-        }
+data ForbidsDto = ForbidsImportDto
+    { target :: GlobDto
+    , transitive :: Maybe Bool
+    }
     deriving stock (Show, Eq)
 
 instance FromJSON ForbidsDto where
     parseJSON = withObject "ForbidsDto" $ \v ->
-        (ForbidsImportDto <$> v .: "import" <*> v .:? "transitive")
-            <|> (ForbidsFunctionCallDto <$> v .: "functional-call")
+        ForbidsImportDto <$> v .: "import" <*> v .:? "transitive"
 
 newtype AllowsDto
     = AllowsImportDto
@@ -235,7 +212,6 @@ ruleFromDto dto = do
             , description = dto.description
             , target = target
             , exclude = exclude
-            , executionContext = mapExecutionContext dto.executionContext
             , forbids = forbids
             , allows = allows
             , uses = uses
@@ -252,8 +228,6 @@ compileForbidsClauses scope = traverseOptional compileForbids
     compileForbids (ForbidsImportDto glob transitive) = do
         target <- compileClause Forbidding scope "forbids.import" glob
         Right ForbidsImport {target = target, transitive = fromMaybe False transitive}
-    compileForbids (ForbidsFunctionCallDto name) =
-        Right ForbidsFunctionCall {functionName = FunctionName name}
 
 compileAllowsClauses :: RuleScope -> Maybe [AllowsDto] -> Either Text (Maybe (NonEmpty AllowsClause))
 compileAllowsClauses scope = traverseOptional compileAllows
@@ -321,8 +295,3 @@ compileGlob scope field compile (GlobDto glob) =
             <> "\"\n"
             <> indent (renderGlobPlusError err)
     indent = T.intercalate "\n" . fmap ("  " <>) . T.lines
-
-mapExecutionContext :: Maybe ExecutionContextDto -> ExecutionContext
-mapExecutionContext Nothing = Neutral
-mapExecutionContext (Just UseClientDto) = UseClient
-mapExecutionContext (Just UseServerDto) = UseServer

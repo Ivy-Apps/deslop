@@ -3,7 +3,6 @@ module TypeScript.Lexer (
     lexer,
 ) where
 
-import Data.Text qualified as T
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
@@ -18,7 +17,6 @@ pToken :: Lexer TsToken
 pToken =
     choice
         [ try pImport
-        , try pDocs
         , try pComment
         , pWhitespace
         , pRaw
@@ -61,22 +59,17 @@ pImport =
         skipBetween q =
             void $ char q *> manyTill L.charLiteral (char q)
 
-pDocs :: Lexer TsToken
-pDocs =
-    uncurry TsToken . second (DocsK . T.strip . T.pack)
-        <$> match (string "/**" *> manyTill anySingle (string "*/"))
-
 pComment :: Lexer TsToken
 pComment = try pLineComment <|> pBlockComment
 
 pLineComment :: Lexer TsToken
 pLineComment =
-    uncurry TsToken . second (CommentK . T.strip)
+    uncurry TsToken . second (const CommentK)
         <$> match (string "//" *> takeWhileP (Just "comment") ('\n' /=) <* optional newline)
 
 pBlockComment :: Lexer TsToken
 pBlockComment =
-    uncurry TsToken . second (CommentK . T.strip . T.pack)
+    uncurry TsToken . second (const CommentK)
         <$> match (string "/*" *> manyTill anySingle (string "*/"))
 
 pWhitespace :: Lexer TsToken

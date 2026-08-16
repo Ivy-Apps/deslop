@@ -66,12 +66,10 @@ library
     Deslop.GlobPlus
     Deslop.Lint.CycleDetection
     Deslop.Lint.RelativeImports
-    Deslop.MCP
     Deslop.Problem
     Deslop.ProblemFormatter
     Deslop.Rulebook
     Deslop.RuleEnforcer
-    Deslop.RuleExplainer
     Effects.CLI
     Effects.FileSystem
     Effects.ReportProblem

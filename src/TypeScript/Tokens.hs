@@ -9,10 +9,12 @@ data TsToken = TsToken
     }
     deriving (Show, Eq)
 
+{- | Comments carry no content: they are lexed only so that an @import@ inside
+one is never mistaken for a real import.
+-}
 data TsTokenKind
     = ImportK
-    | CommentK {comment :: Text}
-    | DocsK {comment :: Text}
+    | CommentK
     | WhitespaceK
     | RawK
     deriving (Show, Eq)

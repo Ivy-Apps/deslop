@@ -9,25 +9,18 @@ TsModule
           , suffix = "';"
           }
       , Source { raw = "\n" }
-      , Comment
+      , Source
           { raw =
               "// import { firstName } from './users'; <-- we don't need that\n"
-          , content =
-              "import { firstName } from './users'; <-- we don't need that"
           }
-      , Comment
+      , Source
           { raw =
               "/*\nimport * from 'react';\nimport * from '../../lib/utils';\n*/"
-          , content =
-              "import * from 'react';\nimport * from '../../lib/utils';"
           }
       , Source { raw = "\n\n" }
       , Source
           { raw = "function main() {\n    console.log('Hi');\n    " }
-      , Comment
-          { raw = "// await import('../old/data');\n"
-          , content = "await import('../old/data');"
-          }
+      , Source { raw = "// await import('../old/data');\n" }
       , Source { raw = "    " }
       , Source { raw = "await " }
       , Import

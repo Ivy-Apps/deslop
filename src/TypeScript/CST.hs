@@ -18,14 +18,6 @@ data TsNode
         , target :: Text
         , suffix :: Text
         }
-    | Comment
-        { raw :: Text
-        , content :: Text
-        }
-    | Docs
-        { raw :: Text
-        , content :: Text
-        }
     | Source
         { raw :: Text
         }
@@ -33,6 +25,4 @@ data TsNode
 
 instance Renderable TsNode where
     render (Source r) = r
-    render (Comment r _) = r
-    render (Docs r _) = r
     render (Import p t s) = p <> t <> s

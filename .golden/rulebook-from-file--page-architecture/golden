@@ -10,7 +10,6 @@ Right
                 "Add a page in /src/app/[locale]/{route} to connect it with the NextJS router.  It should be executed on the server.  Use the page to SSR data and pass it as a parameter to the Container that will display the UI."
             , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
-            , executionContext = Neutral
             , forbids = Nothing
             , allows = Nothing
             , uses = Nothing
@@ -27,7 +26,6 @@ Right
                 "Each page should have a Container that's executed on the client. It connects the View (pure UI) and its viewmodel hook."
             , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
-            , executionContext = Neutral
             , forbids = Nothing
             , allows = Nothing
             , uses =
@@ -69,7 +67,6 @@ Right
                       ]
                   }
             , exclude = Nothing
-            , executionContext = Neutral
             , forbids = Nothing
             , allows = Nothing
             , uses =
@@ -158,31 +155,29 @@ Right
                       ]
                   }
             , exclude = Nothing
-            , executionContext = Neutral
             , forbids =
                 Just
-                  (ForbidsFunctionCall { functionName = FunctionName "fetch" } :|
+                  (ForbidsImport
+                     { target =
+                         CompiledClausePattern
+                           { chunks =
+                               [ StaticChunk "^"
+                               , VarChunk CTargetDir
+                               , StaticChunk "/"
+                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
+                               , StaticChunk "View$"
+                               ]
+                           , rawTokens =
+                               [ Var CTargetDir
+                               , Literal "/"
+                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
+                               , Literal "View"
+                               ]
+                           , polarity = Forbidding
+                           }
+                     , transitive = False
+                     } :|
                      [ ForbidsImport
-                         { target =
-                             CompiledClausePattern
-                               { chunks =
-                                   [ StaticChunk "^"
-                                   , VarChunk CTargetDir
-                                   , StaticChunk "/"
-                                   , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , StaticChunk "View$"
-                                   ]
-                               , rawTokens =
-                                   [ Var CTargetDir
-                                   , Literal "/"
-                                   , Var (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , Literal "View"
-                                   ]
-                               , polarity = Forbidding
-                               }
-                         , transitive = False
-                         }
-                     , ForbidsImport
                          { target =
                              CompiledClausePattern
                                { chunks = [ StaticChunk "^@/(.*/)?components/(.*/)?[^/]*$" ]
@@ -246,7 +241,6 @@ Right
                       ]
                   }
             , exclude = Nothing
-            , executionContext = Neutral
             , forbids = Nothing
             , allows = Nothing
             , uses =
@@ -316,10 +310,7 @@ Right
                       ]
                   }
             , exclude = Nothing
-            , executionContext = Neutral
-            , forbids =
-                Just
-                  (ForbidsFunctionCall { functionName = FunctionName "fetch" } :| [])
+            , forbids = Nothing
             , allows = Nothing
             , uses =
                 Just
@@ -367,7 +358,6 @@ Right
                       ]
                   }
             , exclude = Nothing
-            , executionContext = Neutral
             , forbids = Nothing
             , allows = Nothing
             , uses = Nothing
@@ -404,7 +394,6 @@ Right
             , description = "Features can't import from other features."
             , target = CompiledTargetPattern { regex = <regex> , vars = [] }
             , exclude = Nothing
-            , executionContext = Neutral
             , forbids =
                 Just
                   (ForbidsImport

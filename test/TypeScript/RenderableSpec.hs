@@ -11,14 +11,6 @@ spec = describe "TypeScript.Renderable" $ do
             renderGolden "ts-render-source" $
                 Source "fun main() {\n  console.log('Hello, world!')\n}\n"
 
-        it "renders Comment as raw text" $
-            renderGolden "ts-render-comment" $
-                Comment "// comment\n" " comment"
-
-        it "renders Docs as raw text" $
-            renderGolden "ts-render-docs" $
-                Docs "/** doc */" " doc "
-
         it "renders Import as prefix <> target <> suffix" $
             renderGolden "ts-render-import" $
                 Import "import x from '" "@/lib" "';"
@@ -30,7 +22,7 @@ spec = describe "TypeScript.Renderable" $ do
         it "concatenates rendered nodes" $ do
             let nodes =
                     [ Source "a"
-                    , Comment "// b" " b"
+                    , Source "// b"
                     , Source "c"
                     ]
             renderGolden "ts-render-concat" nodes
