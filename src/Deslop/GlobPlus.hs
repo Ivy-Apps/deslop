@@ -141,6 +141,7 @@ newtype CaptureGroup = CaptureGroup {number :: Int}
 data CompiledTargetPattern = CompiledTargetPattern
     { regex :: Regex
     , vars :: [CapturedVar] -- one entry per occurrence, in pattern order
+    , source :: Text -- as the author wrote it, for diagnostics
     }
 
 instance Show CompiledTargetPattern where
@@ -206,6 +207,12 @@ data GlobPlusError
       AdjacentVariables Text Text
     | -- | A clause variable the rule's target pattern never captures.
       UnboundVariable VarName (Set VarName)
+    | -- | @\/**View@ - a globstar glued to text inside a segment.
+      GlobStarNotWholeSegment Text
+    | -- | @**\/{{a}}\/**@ - nothing in the pattern says which segment @a@ is.
+      UnanchoredVariable VarName
+    | -- | @{{a}}{{b}}@ or @{{a}}*{{b}}@ - no literal separates the two.
+      NoBoundaryBetween Text Text
     deriving (Show, Eq)
 
 renderGlobPlusError :: GlobPlusError -> Text
@@ -272,6 +279,30 @@ renderGlobPlusError (UnboundVariable name bound) =
         | Set.null bound = "(none)"
         | otherwise = T.intercalate ", " ((.text) <$> Set.toList bound)
 
+renderGlobPlusError (GlobStarNotWholeSegment segment) =
+    quoted segment
+        <> " glues ** to text inside a single path segment.\n"
+        <> "  ** stands for zero or many whole segments, so it cannot be part of one.\n"
+        <> "  Match within a segment with *, e.g. *View, or give ** a segment of its\n"
+        <> "  own, e.g. **/*View."
+renderGlobPlusError (UnanchoredVariable name) =
+    braced name.text
+        <> " has ** on both sides, so nothing in the pattern says which\n"
+        <> "  path segment it names. A deeper tree would bind a different directory\n"
+        <> "  than a shallow one, and neither would be the one you meant.\n"
+        <> "  Anchor it: drop one of the **, or replace it with * to fix the depth."
+renderGlobPlusError (NoBoundaryBetween left right) =
+    braced left
+        <> braced right
+        <> " has no literal between the two variables, so there\n"
+        <> "  is no way to tell where the first one ends. A * between them is not a\n"
+        <> "  boundary either, because it can match nothing.\n"
+        <> "  Separate them with a literal, e.g. "
+        <> braced left
+        <> "/"
+        <> braced right
+        <> "."
+
 {- | Suggests a two-word name for each casing the raw token could have meant,
 so the author can pick the one they intended.
 -}
@@ -313,6 +344,7 @@ compileTargetPattern input = do
         CompiledTargetPattern
             { regex = makeRegex (anchored body) :: Regex
             , vars = [CapturedVar name casing grp | (TargetVar name casing, grp) <- captures]
+            , source = input
             }
   where
     targetVarRegex (TargetVar _ casing) = captureRegex casing

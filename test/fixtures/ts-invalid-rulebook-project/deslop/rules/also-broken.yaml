@@ -1,0 +1,25 @@
+id: also-broken
+name: Also Broken Rulebook
+description: >-
+  A second broken rulebook, so that the report has to say which file each error
+  came from rather than leaving the author to guess.
+rules:
+  - id: globstar-inside-a-segment
+    description: >-
+      ** stands for zero or many whole segments, so it cannot be glued to text
+      inside one.
+    target: "@/widgets/**View"
+    forbids:
+      - import: "@/internal/**"
+    fix: Use *View to match within a segment, or **/*View to cross segments.
+
+  - id: clause-names-a-variable-the-target-never-binds
+    description: >-
+      The target compiles and binds file-name; the clause then misspells it.
+      Only a rule whose target compiled can have its clauses checked at all,
+      which is why this one reports where the rule above reports nothing about
+      its clauses.
+    target: "@/widgets/{{file-name}}"
+    uses:
+      - import: "@/config/{{fil-name}}"
+    fix: Name a variable the target actually binds.

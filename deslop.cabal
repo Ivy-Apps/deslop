@@ -140,6 +140,9 @@ test-suite deslop-test
     Deslop.CasingSpec
     Deslop.CodeGraphSpec
     Deslop.GlobPlusModel
+    Deslop.GlobPlusOracle
+    Deslop.GlobPlusPropSpec
+    Deslop.GlobPlusSemanticsSpec
     Deslop.GlobPlusSpec
     Deslop.Lint.CycleDetectionSpec
     Deslop.Lint.RelativeImportsSpec
