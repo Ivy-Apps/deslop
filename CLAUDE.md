@@ -30,7 +30,8 @@ Notes:
 
 - Editing `deslop.cabal` restarts the session, so that check costs ~8s.
 - Long error output is truncated; the printed path holds the full text.
-- The daemon stops itself after 30 minutes idle. `just stop-ghcid` stops it now.
+- The daemon stops itself after 30 minutes idle. `just stop-ghcid` stops every
+  daemon on the machine immediately and frees the memory.
 
 ### Building
 

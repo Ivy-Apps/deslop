@@ -47,9 +47,24 @@ the common path, and fifteen times faster when the answer is already known.
 `nix run .#build`, `nix run .#test` and `nix run .#lint` remain the gates, and
 `CLAUDE.md` says so at the point where the command is introduced.
 
-A single script, `deslop-ghcid`, owns the daemon lifecycle and has two callers:
-the app (`check`) and `just stop-ghcid` (`stop`). It lives in `nix/ghcid.nix`,
-not `flake.nix`, which it would otherwise more than double in length.
+The implementation lives in `nix/ghcid.nix`, not `flake.nix`, which it would
+otherwise more than double in length. It is three small programs composed in
+Nix rather than one script with a subcommand dispatcher: `ai-quick-typecheck`,
+`deslop-ghcid-stop` and the internal `deslop-ghcid-watchdog`. What the session
+covers, which files force a restart, and every timing constant are Nix values,
+so the shell is left with control flow and nothing else. Each program is handed
+only the state it actually uses; `deslop-ghcid-stop` is machine-wide and so
+carries no worktree state at all.
+
+`deslop-ghcid-stop` deliberately retires *every* daemon on the machine and
+deletes the whole cache namespace. Reaching for it means wanting the memory
+back, not wanting to reason about which worktree owns which session.
+
+Concurrent callers are made safe by an atomic `mkdir` lock around the spawn.
+Without it, several terminals asking at once each observe no daemon and each
+start one, and a session costs ~700MB. Losing the race is not an error: the
+winner is starting the daemon the loser is about to wait for. Verified with
+five simultaneous cold invocations, which produce exactly one session.
 
 The session is started lazily by the first `check`, not warmed on shell entry.
 Warming from the `default` shell's `shellHook` was implemented and reverted:

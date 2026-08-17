@@ -76,9 +76,8 @@
             '';
           };
 
-          # The ghcid daemon behind `nix run .#quick-typecheck`, plus its
-          # lifecycle script. One definition, three callers: the app (`check`),
-          # the `default` shellHook (`ensure`) and `just stop-ghcid` (`stop`).
+          # The ghcid daemon behind `nix run .#quick-typecheck`, and the tool
+          # `just stop-ghcid` uses to retire every session on the machine.
           ghcidTools = import ./nix/ghcid.nix { inherit pkgs; };
 
         in
@@ -89,7 +88,7 @@
             lint = { type = "app"; program = "${aiLintRunner}/bin/ai-lint"; };
             quick-typecheck = {
               type = "app";
-              program = "${ghcidTools.app}/bin/ai-quick-typecheck";
+              program = "${ghcidTools.quickTypecheck}/bin/ai-quick-typecheck";
             };
           };
 
@@ -131,7 +130,7 @@
                 # ghcid by store path and does not need it here. Kept out of the
                 # `ci` shell so CI never realises this closure.
                 pkgs.ghcid
-                ghcidTools.daemon
+                ghcidTools.stop
               ];
 
               buildInputs = sysLibs;
