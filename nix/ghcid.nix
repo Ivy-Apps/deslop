@@ -17,7 +17,7 @@
 #     so a pattern kill orphans ~700MB that can never be found again.
 #
 # Exposes:
-#   quickTypecheck - `nix run .#quick-typecheck`
+#   quickTypecheck - `nix run .#quick-typecheck` and `just quick-typecheck`
 #   stop           - `just stop-ghcid`, retires every daemon on the machine
 { pkgs }:
 
@@ -49,6 +49,11 @@ let
   cacheNamespace = "deslop-ghcid";
   idleSeconds = 1800; # a session holds ~700MB; reclaim it when unused
   waitSeconds = 180; # budget for a verdict before giving up loudly
+  spawnSeconds = 10; # a daemon we just spawned must be visible to pgrep by now
+  # A live daemon that has not rewritten its verdict in this long is not going
+  # to: the stale input is outside its module graph. Comfortably above the 7.8s
+  # a full `--restart` reload costs, so a slow but healthy reload never trips it.
+  settleSeconds = 30;
   pollSeconds = "0.2";
   maxReportLines = 200; # keep a wide breakage from flooding an agent's context
 
@@ -70,8 +75,9 @@ let
   # state it never touches. Patterns are arguments rather than globals for the
   # same reason.
   processHelpers = ''
-    # Kills every process matching $1 along with its descendants. Children are
-    # signalled before parents so nothing is reparented while still running.
+    # Kills every process matching $1 along with its descendants. The whole tree
+    # is enumerated before anything is signalled, so a child cannot be reparented
+    # out of sight while the walk is still in progress.
     kill_matching() {
       local pattern=$1 pid
       local -a victims=() tree=()
@@ -193,22 +199,40 @@ let
           printf '%s\n' "$$" > "$LOCK/owner"
           return 0
         fi
+        reclaim_lock
+      }
 
-        # Reclaim a lock whose owner died mid-spawn.
-        owner=$(cat "$LOCK/owner" 2>/dev/null || true)
-        if [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; then
-          rm -rf "$LOCK"
-          if mkdir "$LOCK" 2>/dev/null; then
-            printf '%s\n' "$$" > "$LOCK/owner"
-            return 0
-          fi
+      # Reclaim a lock whose owner died mid-spawn.
+      #
+      # Reading the owner and then deleting the lock would be two steps, and two
+      # callers that both saw the same dead owner would each delete the other's
+      # freshly created lock and both go on to spawn - the exact double spawn the
+      # lock exists to prevent. So possession comes first: `mv` is a rename, which
+      # is atomic, so exactly one caller can take the directory and the losers see
+      # ENOENT. Only then is it safe to ask whose it was, and a live owner gets it
+      # back untouched.
+      reclaim_lock() {
+        claim="$LOCK.claim.$$"
+        mv "$LOCK" "$claim" 2>/dev/null || return 1
+
+        owner=$(cat "$claim/owner" 2>/dev/null || true)
+        if [ -n "$owner" ] && kill -0 "$owner" 2>/dev/null; then
+          mv "$claim" "$LOCK" 2>/dev/null || rm -rf "$claim"
+          return 1
         fi
-        return 1
+
+        rm -rf "$claim"
+        mkdir "$LOCK" 2>/dev/null || return 1
+        printf '%s\n' "$$" > "$LOCK/owner"
       }
 
       start_daemon() {
         rm -f "$OUTF"
         touch "$STAMP"
+        # Truncated per spawn, not appended to forever: ghcid renders in full on
+        # every reload, and the "see $LOGF" pointer is only useful if it holds
+        # this session rather than every session since the cache was cleared.
+        : > "$LOGF"
         # setsid does not exist on macOS, so detach with a subshell.
         (
           nohup nix develop ".#ci" --no-warn-dirty --quiet -c \
@@ -220,12 +244,43 @@ let
         )
       }
 
+      # Ends as soon as the answer is in, or as soon as no answer is coming.
+      # There are two ways for no answer to be coming, and left to run the full
+      # budget both cost an agent three minutes of silence and then repeat on the
+      # next call, which is worse than the slow build this tool replaces:
+      #
+      #   2  the daemon is gone - a broken flake.nix, say, which is exactly the
+      #      edit that forces a respawn, so it recurs every call until fixed.
+      #   3  the daemon is alive but has stopped reacting. ghcid only watches its
+      #      own module graph, while the freshness check watches every .hs file,
+      #      so an unregistered new module is stale in a way no reload can clear.
       await_verdict() {
-        deadline=$(( $(date +%s) + ${toString waitSeconds} ))
+        now=$(date +%s)
+        deadline=$(( now + ${toString waitSeconds} ))
+        spawned_by=$(( now + ${toString spawnSeconds} ))
+        settled_by=$(( now + ${toString settleSeconds} ))
+        seen=0
+
         while [ "$(date +%s)" -lt "$deadline" ]; do
           if [ -s "$OUTF" ] && [ -z "$(stale_inputs)" ]; then
             return 0
           fi
+
+          if [ "$(date +%s)" -ge "$spawned_by" ] \
+            && ! pgrep -f "$DAEMON_MATCH" >/dev/null 2>&1; then
+            return 2
+          fi
+
+          # Every reload rewrites the verdict, so its mtime is the daemon's
+          # heartbeat. Absent while the repl is still loading, hence the -gt 0.
+          wrote_at=$(stat -c %Y "$OUTF" 2>/dev/null || echo 0)
+          if [ "$wrote_at" -ne "$seen" ]; then
+            seen=$wrote_at
+            settled_by=$(( $(date +%s) + ${toString settleSeconds} ))
+          elif [ "$seen" -gt 0 ] && [ "$(date +%s)" -ge "$settled_by" ]; then
+            return 3
+          fi
+
           sleep ${pollSeconds}
         done
         return 1
@@ -265,11 +320,29 @@ let
       }
 
       ensure_daemon
-      if ! await_verdict; then
-        echo "quick-typecheck: no verdict within ${toString waitSeconds}s; see $LOGF" >&2
-        exit 2
-      fi
-      report
+
+      status=0
+      await_verdict || status=$?
+      case "$status" in
+        0) report ;;
+        2)
+          printf 'quick-typecheck: the ghcid daemon exited; see %s\n' "$LOGF" >&2
+          exit 2
+          ;;
+        3)
+          printf '%s\n' \
+            "quick-typecheck: ghcid is not watching these, so they cannot be" \
+            "checked. A new module needs registering in deslop.cabal; a scratch" \
+            "file needs deleting." >&2
+          stale_inputs >&2
+          exit 2
+          ;;
+        *)
+          printf 'quick-typecheck: no verdict within %ss; see %s\n' \
+            '${toString waitSeconds}' "$LOGF" >&2
+          exit 2
+          ;;
+      esac
     '';
   };
 

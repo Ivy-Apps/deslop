@@ -130,6 +130,11 @@
                 # ghcid by store path and does not need it here. Kept out of the
                 # `ci` shell so CI never realises this closure.
                 pkgs.ghcid
+                # Behind `just quick-typecheck` and `just stop-ghcid`. The app
+                # under `nix run .#quick-typecheck` is the same program; having
+                # it here lets the recipe call it directly, as every other
+                # recipe calls its tool, and skips a flake evaluation per check.
+                ghcidTools.quickTypecheck
                 ghcidTools.stop
               ];
 

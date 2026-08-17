@@ -66,6 +66,15 @@ start one, and a session costs ~700MB. Losing the race is not an error: the
 winner is starting the daemon the loser is about to wait for. Verified with
 five simultaneous cold invocations, which produce exactly one session.
 
+A lock whose owner was killed mid-spawn has to be reclaimable, and that is the
+one place the mutex can leak. Reading the owner and then deleting the lock is two
+steps, so two callers that both saw the same dead owner would each delete the
+other's freshly created lock and both spawn - the failure the lock exists to
+prevent, reached by the path meant to recover from it. Reclaiming therefore takes
+possession first, with `mv`: a rename is atomic, so exactly one caller takes the
+directory and the losers get `ENOENT`. Only once it is held exclusively is the
+owner read, and a lock that turns out to be live is renamed straight back.
+
 The session is started lazily by the first `check`, not warmed on shell entry.
 Warming from the `default` shell's `shellHook` was implemented and reverted:
 direnv waits on the hook's process group, so every `cd` into the project hung
@@ -112,8 +121,9 @@ nothing identifying: not the worktree, not the project, not even the component.
 restart strands another one. During development this reached a 12.9GB process
 spinning at 100% CPU before it was noticed.
 
-`stop_repl` therefore resolves the ghcid process to its full descendant tree via
-`pgrep -P`, signals children before parents, and follows `TERM` with `KILL`.
+`kill_matching` therefore resolves the ghcid process to its full descendant tree
+via `pgrep -P`, collecting every PID before signalling any, and follows `TERM`
+with `KILL`.
 Nothing here may be simplified back to a pattern match.
 
 ### Why the freshness wait exists
@@ -127,6 +137,20 @@ so a reader cannot tell a green from two seconds ago from one from yesterday.
 newer than the outputfile, using `find -newer`, and fails loudly after 180s
 rather than reporting anything at all. Stale green is made structurally
 impossible rather than merely unlikely.
+
+That refusal has a cost, and it is paid whenever the wait cannot succeed. Waiting
+the full 180s and then saying only "no verdict" is worse for an agent than the
+8s build this replaces, especially as both causes recur on the next call. So the
+wait ends as soon as no answer is coming, and says which of the two it was. If
+the daemon is not in the process table shortly after being spawned it has exited,
+and the log holds why - a broken `flake.nix` is the likely reason, being the edit
+that forces a respawn. If it is alive but has not rewritten its verdict for 30s
+while an input is still newer, it is not going to: ghcid watches its own module
+graph, the freshness check watches every `.hs` file under the source directories,
+and a module not yet registered in `deslop.cabal` sits in the gap. Those files are
+named on stderr, since the fix is to register or delete them. The verdict's mtime
+serves as the heartbeat, and 30s clears the 7.8s a full `--restart` reload costs
+by enough that a slow but healthy reload never trips it.
 
 `coreutils` and `findutils` are pinned in the script's `runtimeInputs` because
 of a trap found while measuring: inside the dev shell a GNU `stat` shadows the
@@ -150,8 +174,10 @@ on its own writes, and `touch`ing a `lastuse` marker on every call would have
 done the same. Pointing `.ghcid` at an out-of-tree directory through a symlink
 was tried and did not help, so the state directory moved out wholesale, to
 `$XDG_CACHE_HOME/deslop-ghcid/<hash of worktree path>`. Isolation is preserved
-by the key; a `worktree` file in each state directory records which checkout it
-belongs to, and `quick-typecheck` prints the outputfile path when it truncates.
+by the key, and `quick-typecheck` prints the outputfile path when it truncates.
+The hash is one-way, so a state directory whose worktree has since been deleted
+cannot be traced back to it. `deslop-ghcid-stop` clears the namespace wholesale,
+which is the only cleanup on offer and is deliberately all that is.
 
 ## Rejected alternatives
 
@@ -166,10 +192,15 @@ belongs to, and `quick-typecheck` prints the outputfile path when it truncates.
   added in ADR 0001. Every CI run would realise a 75 MiB closure it never
   executes. The app reaches `ghcid` by store path, so neither shell is required
   to carry it; it is in `default` only so humans can run the TUI directly.
-- **A `just` recipe for the check.** ADR 0001 makes the `Justfile` the source of
-  truth for quality checks. This is not a check, so it gets no recipe and is not
-  part of `just check`. `stop-ghcid` is a recipe because stopping a daemon is a
-  developer utility, like `fix-hls`.
+- **Making this part of `just check`.** ADR 0001 makes the `Justfile` the source
+  of truth for quality checks, and `check` mirrors Quality CI. An interpreted
+  typecheck is not a check by that definition, so it stays out of `check` and out
+  of CI. It does get its own recipe, `just quick-typecheck`, on the same footing
+  as `stop-ghcid` and `fix-hls`: a developer utility that happens to live in the
+  `Justfile` because that is where developers look. The recipe and
+  `nix run .#quick-typecheck` are the same program, the former reached directly
+  from the dev shell like every other recipe's tool, the latter usable without
+  entering one.
 
 ## Consequences
 

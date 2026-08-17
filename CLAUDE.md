@@ -29,9 +29,15 @@ done until `nix run .#build`, `nix run .#test` and `nix run .#lint` pass.**
 Notes:
 
 - Editing `deslop.cabal` restarts the session, so that check costs ~8s.
+- A new module is invisible to the session until it is registered in
+  `deslop.cabal`. Until then the check refuses to report and names the file.
 - Long error output is truncated; the printed path holds the full text.
-- The daemon stops itself after 30 minutes idle. `just stop-ghcid` stops every
-  daemon on the machine immediately and frees the memory.
+- Exit codes: 0 typechecks, 1 GHC errors, 2 no usable verdict (the reason goes
+  to stderr).
+- You should not normally need to stop the daemon: it retires itself after 30
+  minutes idle. To reclaim the ~700MB now, run `nix develop -c just stop-ghcid`
+  from the repo root. It stops every daemon on the machine, including ones other
+  worktrees are still using, so do not run it as routine cleanup.
 
 ### Building
 

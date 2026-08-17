@@ -64,7 +64,11 @@ update-benchmark:
     hgold
     git add .golden
 
-# Stop every background ghcid daemon behind `nix run .#quick-typecheck`
+# Does the project typecheck? Fast inner loop, NOT a quality gate: see `check`
+@quick-typecheck:
+    ai-quick-typecheck
+
+# Stop every background ghcid daemon behind `just quick-typecheck`
 @stop-ghcid:
     deslop-ghcid-stop
 
