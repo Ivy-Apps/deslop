@@ -1,4 +1,4 @@
-# 9. ghcid is the inner loop, not a gate
+# 11. ghcid is the inner loop, not a gate
 
 Date: 2026-08-17
 

@@ -3,7 +3,7 @@
 # full `cabal build`.
 #
 # Rationale, measurements and rejected alternatives live in
-# docs/adr/0009-ghcid-is-the-inner-loop-not-a-gate.md. The decisions most likely
+# docs/adr/0011-ghcid-is-the-inner-loop-not-a-gate.md. The decisions most likely
 # to look arbitrary from here:
 #
 #   * `--restart` on the cabal files is not optional. Without it, adding a
