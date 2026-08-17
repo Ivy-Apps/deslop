@@ -64,6 +64,11 @@ update-benchmark:
     hgold
     git add .golden
 
+# Stop the background ghcid daemon behind `nix run .#quick-typecheck`
+@stop-ghcid:
+    deslop-ghcid stop
+    echo "🛑 ghcid daemon stopped."
+
 # Fixes HLS by purging caches and rebuilding
 @fix-hls:
     echo "🛑 Stopping any running HLS instances..."
