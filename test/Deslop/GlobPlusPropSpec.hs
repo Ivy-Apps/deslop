@@ -15,6 +15,7 @@ import Data.Set qualified as Set
 import Data.Text qualified as T
 import Deslop.Casing (render, renderings, spells)
 import Deslop.GlobPlus
+import Deslop.GlobPlus.Compiler
 import Deslop.GlobPlusOracle (OPart (..), OPattern, OSeg (..))
 import Deslop.GlobPlusOracle qualified as O
 import Hedgehog (Gen, MonadTest, PropertyT, annotate, annotateShow, assert, discard, failure, forAll, (===))
@@ -119,13 +120,24 @@ tier3 = describe "tier 3 - bindings" $ do
             Nothing -> discard
             Just env -> traverse_ (assertBoundInItsOwnSegment env path) (pinnedOccurrences pattern' (length path))
 
-    prop "P7 every successful split yields identical bindings" $ do
-        pattern' <- forAll O.genOPattern
+    prop "P7 bindings do not depend on which globstar width matched" $ do
+        {- The theorem stated as a test: replacing a globstar by the exact
+        segments it stood for cannot change what anything binds. Asserted
+        against every width that still matches, rather than against a second
+        parse of the same pattern, so it holds whether or not the path happens
+        to admit more than one. -}
+        pattern' <- forAll (unambiguous <$> O.genOPattern)
         path <- forAll (O.genPathFor pattern')
-        let assignments = ordNub (fmap L.sort (O.oracleMatches pattern' path))
-        when (length assignments < 2) discard
-        annotateShow assignments
-        length (ordNub (fmap capturedValues assignments)) === 1
+        compiled <- compileOrFail pattern'
+        expected <- maybe discard pure (matchTarget compiled (joinPath path))
+        index <- case [i | (i, OGlobStar) <- zip [0 ..] pattern'] of
+            [] -> discard
+            indices -> forAll (Gen.element indices)
+        for_ [0 .. length path] $ \width -> do
+            let fixed = spliceAt index (replicate width (OSeg [OStar])) pattern'
+            when (O.isLegalTarget fixed) $ do
+                atWidth <- compileOrFail fixed
+                whenJust (matchTarget atWidth (joinPath path)) (=== expected)
 
     prop "P8 if any assignment satisfies the pattern, the matcher finds one" $ do
         pattern' <- forAll O.genOPattern
@@ -177,7 +189,7 @@ tier4 = describe "tier 4 - compiler" $ do
     prop "P13 boundVars is exactly the set of variable names in the pattern" $ do
         pattern' <- forAll O.genOPattern
         compiled <- compileOrFail pattern'
-        boundVars compiled === Set.fromList (VarName . render KebabCase <$> namesOf pattern')
+        compiled.boundVars === Set.fromList (VarName . render KebabCase <$> namesOf pattern')
 
     prop "P14 compilation is total on arbitrary text" $ do
         raw <- forAll (Gen.text (Range.linear 0 40) (Gen.element patternChars))
@@ -194,20 +206,20 @@ tier5 = describe "tier 5 - polarity and casing" $ do
         candidate <- forAll (genSpellingOf env name casing)
         let clause polarity = unsafeClause polarity (boundOf env) ("@/x/" <> braced (render casing name))
             path = "@/x/" <> candidate
-        when (matchClause (clause Requiring) env path) $
-            assert (matchClause (clause Forbidding) env path)
+        when (matchClause (clause Narrow) env (segmentsOf path)) $
+            assert (matchClause (clause Widen) env (segmentsOf path))
 
     prop "P16 same-casing use is exact under both polarities" $ do
         (env, name, casing) <- forAll genBoundEnv
-        literal <- maybe discard pure (casedAs casing <$> Map.lookup (varNameOf name) env.variables)
-        for_ [Requiring, Forbidding] $ \polarity ->
-            assert (matchClause (unsafeClause polarity (boundOf env) ("@/x/" <> braced (render casing name))) env ("@/x/" <> literal))
+        literal <- maybe discard (pure . casedAs casing) (Map.lookup (varNameOf name) env.variables)
+        for_ [Narrow, Widen] $ \polarity ->
+            assert (matchClause (unsafeClause polarity (boundOf env) ("@/x/" <> braced (render casing name))) env (segmentsOf ("@/x/" <> literal)))
 
     prop "P17 Widen accepts every spelling of every name the capture could denote" $ do
         (env, name, casing) <- forAll genBoundEnv
         bound <- maybe discard pure (Map.lookup (varNameOf name) env.variables)
         candidate <- forAll (Gen.element (spellingsOf casing bound))
-        assert (matchClause (unsafeClause Forbidding (boundOf env) ("@/x/" <> braced (render casing name))) env ("@/x/" <> candidate))
+        assert (matchClause (unsafeClause Widen (boundOf env) ("@/x/" <> braced (render casing name))) env (segmentsOf ("@/x/" <> candidate)))
 
     prop "P18 occurrences agree when some name spells both, not when both decode alike" $ do
         name <- forAll O.genVarName
@@ -215,7 +227,7 @@ tier5 = describe "tier 5 - polarity and casing" $ do
         pascal <- forAll (O.genRendering PascalCase name)
         compiled <- either (const failure) pure (compileTargetPattern "@/c/{{provider-name}}/{{ProviderName}}View")
         annotate (toString (kebab <> "/" <> pascal))
-        assert (isJust (matchTarget compiled ("@/c/" <> kebab <> "/" <> pascal <> "View")))
+        assert (isJust (matchTarget compiled (segmentsOf ("@/c/" <> kebab <> "/" <> pascal <> "View"))))
 
 --------------------------------------------------------------------------------
 -- Tier 6: robustness
@@ -282,7 +294,7 @@ assertSpelledByOccurrences env (name, casing) = case Map.lookup (varNameOf name)
 
 assertMatches :: (MonadTest m) => OPattern -> [Text] -> m ()
 assertMatches pattern' path = do
-    annotate (toString (O.renderOPattern pattern') <> "  vs  " <> toString (joinPath path))
+    annotate (toString (O.renderOPattern pattern') <> "  vs  " <> toString (pathOf (joinPath path)))
     compiled <- compileOrFail pattern'
     assert (isJust (matchTarget compiled (joinPath path)))
 
@@ -299,9 +311,7 @@ compileOrFail pattern' = case compileTargetPattern (O.renderOPattern pattern') o
         failure
 
 matchOrFail :: (MonadTest m) => CompiledTargetPattern -> [Text] -> m MatchEnv
-matchOrFail compiled path = case matchTarget compiled (joinPath path) of
-    Just env -> pure env
-    Nothing -> failure
+matchOrFail compiled path = maybe failure pure (matchTarget compiled (joinPath path))
 
 matchOf :: (MonadTest m) => OPattern -> [Text] -> m Bool
 matchOf pattern' path = do
@@ -315,8 +325,9 @@ forAllLegalInsertion pattern' =
         [] -> discard
         candidates -> forAll (Gen.element candidates)
 
-joinPath :: [Text] -> Text
-joinPath = T.intercalate "/"
+-- | The matcher takes a path already split, so a property hands it one.
+joinPath :: [Text] -> Segments
+joinPath = Segments
 
 expectedTargetDir :: [Text] -> Text
 expectedTargetDir path = case nonEmpty path of
@@ -328,6 +339,29 @@ insertAt index x xs = take index xs <> [x] <> drop index xs
 
 replaceAt :: Int -> a -> [a] -> [a]
 replaceAt index x xs = take index xs <> [x] <> drop (index + 1) xs
+
+spliceAt :: Int -> [a] -> [a] -> [a]
+spliceAt index xs ys = take index ys <> xs <> drop (index + 1) ys
+
+{- | Keeps at most one variable per segment, and no @*@ beside it. Such a
+segment divides into its parts in exactly one way, which is what isolates a
+claim about globstar widths from one about greedy-left.
+-}
+unambiguous :: OPattern -> OPattern
+unambiguous = fmap simplify
+  where
+    simplify OGlobStar = OGlobStar
+    simplify (OSeg parts)
+        | any isVar parts = OSeg (firstVarOnly (filter (/= OStar) parts))
+        | otherwise = OSeg parts
+
+    firstVarOnly (part : rest)
+        | isVar part = part : filter (not . isVar) rest
+        | otherwise = part : firstVarOnly rest
+    firstVarOnly [] = []
+
+    isVar (OVar _ _) = True
+    isVar _ = False
 
 varNameOf :: [Text] -> VarName
 varNameOf = VarName . render KebabCase
@@ -364,9 +398,6 @@ pinnedOccurrences pattern' pathLength =
         | globStarsAfter position == 0 = Just (pathLength - (length pattern' - position))
         | otherwise = Nothing
 
-capturedValues :: [O.Capture] -> [([Text], Casing, Text)]
-capturedValues = L.sort . fmap (\c -> (c.name, c.casing, c.value))
-
 patternChars :: [Char]
 patternChars = "abAB/*{}-_.@01"
 
@@ -383,7 +414,7 @@ genBoundEnv = do
     casing <- Gen.element [minBound .. maxBound]
     value <- O.genRendering casing name
     let pattern' = "@/probe/" <> braced (render casing name)
-    case rightToMaybe (compileTargetPattern pattern') >>= \c -> matchTarget c ("@/probe/" <> value) of
+    case rightToMaybe (compileTargetPattern pattern') >>= \c -> matchTarget c (segmentsOf ("@/probe/" <> value)) of
         Just env -> pure (env, name, casing)
         Nothing -> Gen.discard
 

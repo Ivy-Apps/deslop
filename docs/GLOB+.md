@@ -29,6 +29,49 @@ Expands: @/services/stripe-connect/payment-checkout
 
 ---
 
+## Paths are segments
+
+A module id is a list of `/`-separated **segments**, and a Glob+ pattern is a
+list of segment patterns matched against them one for one. Everything about
+Glob+ follows from that: `**` is the only token that changes how many segments
+a pattern consumes, and every other token consumes exactly one segment, or part
+of one.
+
+```
+@/components/stripe/CheckoutView   →   [@] [components] [stripe] [CheckoutView]
+```
+
+### Wildcards
+
+| Token | Scope | Meaning |
+|---|---|---|
+| `**` | a whole segment | zero or many segments |
+| `*` | inside a segment | zero or more characters, never a `/` |
+
+`**` must stand alone as a segment. `@/a/**View` does not compile, because a
+globstar glued to text would make the number of segments a pattern consumes
+depend on the path rather than on the pattern. Write `@/a/*View` to match inside
+one segment, or `@/a/**/*View` to cross segments.
+
+`*` is an ordinary part of a segment and may sit beside literals and variables:
+`use*ViewModel`, `*.spec`, and a bare `*` - the segment whose only part is a
+star, matching exactly one segment of any content.
+
+### `**` means zero, so `a/**` matches `a`
+
+```
+@/lib/**        matches  @/lib          (** stands for nothing)
+                matches  @/lib/jwt
+                matches  @/lib/auth/user
+
+@/**/{{F}}View  matches  @/CheckoutView (** stands for nothing)
+```
+
+This is why `forbids: "@/internal/{{FileName}}/**"` catches an import of the
+module `@/internal/Foo` itself, and not only what sits beneath it.
+
+---
+
 ## Variables
 
 A variable is **a name written in a casing**. The spelling determines both: the
@@ -102,38 +145,54 @@ spelling.
 
 ---
 
-## Pattern Types
+## Where a variable may stand
 
-Three kinds of pattern appear in a rulebook, and they differ in what they may
-contain.
+Two rules govern placement, and both exist so that a pattern means the same
+thing in a shallow tree as in a deep one.
 
-### TargetPattern
+### A variable must be anchored
 
-Used in the `target:` field. Matches a file path and **captures variables**.
+In a **target** pattern, a variable may not have `**` on both sides.
 
-- Supports `*`, `**` and variables.
-- Does **not** support `{{TARGET_DIR}}` - there is no directory yet, it is derived from the match.
+```
+@/{{provider-name}}/**/{{FileName}}View     ✅ each variable anchored on one side
+@/**/{{provider-name}}/{{FileName}}View     ✅ anchored from the end
+@/**/{{provider-name}}/**/{{FileName}}View  ❌ nothing says which directory it is
+@/**/{{provider-name}}/**                   ❌ same
+```
 
-### ClausePattern
+With `**` on both sides, the *path* decides which directory the variable names
+rather than the pattern: at depth 2 it would bind one folder, at depth 4 another,
+and neither is the one you meant. Anchor it against a literal, or use `*` to fix
+the depth.
 
-Used in `uses:`, `exists:`, `forbids:` and `allows:`. Matches a file path against a **hydrated** environment.
+Because every variable is anchored, its segment is a function of the pattern and
+the path length alone. That is a guarantee, not a convention: **no choice the
+matcher makes about `**` can change what anything binds.**
 
-- Supports `*`, `**`, `{{TARGET_DIR}}` and any variable **bound by its rule's target pattern**.
-- Referencing an unbound variable is a compilation error, not a wildcard.
+A **clause** pattern is exempt. It substitutes variables rather than capturing
+them, so by the time anything is matched they are literal text.
 
-### ExcludePattern
+### Two variables need a literal between them
 
-Used in `exclude:`. A plain glob.
+```
+@/x/{{FileName}}{{ServiceType}}     ❌ no boundary
+@/x/{{FileName}}*{{ServiceType}}    ❌ a * can match nothing, so it is not a boundary either
+@/x/{{provider-name}}-{{service-type}}   ✅
+@/x/{{provider-name}}/{{service-type}}   ✅
+```
 
-- Supports `*` and `**` only. Variables are rejected: an exclude pattern filters
-  the target and binds nothing, so a variable there could never resolve.
+Where a separator is one that both variables *could* consume, the leftmost binds
+greedily:
 
-### Glob Wildcards
+```
+@/x/{{provider-name}}-{{service-type}}
+  matching @/x/stripe-connect-payment gives
+    provider-name = "stripe-connect"
+    service-type  = "payment"
+```
 
-| Token | Meaning |
-|---|---|
-| `*` | Any sequence of characters except `/` |
-| `**` | Any sequence of characters including `/` |
+Greedy is only a *preference*, though - see the next section.
 
 ---
 
@@ -141,29 +200,68 @@ Used in `exclude:`. A plain glob.
 
 ### Target Matching (`matchTarget`)
 
-1. The TargetPattern is compiled into a regex. Each variable occurrence becomes a capture group typed by its casing:
-   - PascalCase → `([A-Z][a-zA-Z0-9]*)`
-   - camelCase → `([a-z][a-zA-Z0-9]*)`
-   - kebab-case → `([a-z0-9-]+)`
-   - CONSTANT_CASE → `([A-Z0-9_]+)`
-   The `**/` idiom compiles to a capturing `(.*/)?`, because POSIX ERE has no
-   non-capturing group. Group numbers are therefore assigned in the same pass
-   that emits the regex, so a variable can sit on either side of a `**` without
-   its capture being mistaken for the globstar's.
-2. The pattern is matched against the full file path.
-3. Each capture is grouped under its variable's name, the occurrences are
-   reconciled (see below), and **all four case variants** are derived.
+1. The path is split into segments once.
+2. The matcher walks pattern segments against path segments. A `**` tries zero
+   segments first, then one, and so on.
+3. Each variable occurrence narrows what that variable can name, and a branch
+   that leaves it naming nothing is abandoned immediately.
 4. A `MatchEnv` is returned containing:
    - `targetDir`: the directory of the matched path.
    - `variables`: a map from each variable name to its value in every casing.
 
+### Agreement chooses the split, it does not merely check it
+
+A variable may appear several times in a target pattern, in the same casing or
+different ones:
+
+```
+@/components/{{provider-name}}/{{ProviderName}}View
+```
+
+After matching, **some one name must spell every occurrence**, or the target does
+not match. This is not the same as the occurrences decoding to the same words:
+`HTTPClient` decodes to several readings, and it is enough that `http-client` is
+one of them.
+
+```
+@/components/stripe-connect/StripeConnectView   →  matches, provider-name bound
+@/components/http-client/HTTPClientView         →  matches, provider-name = http-client
+@/components/aws-s3/AWSS3View                   →  matches, provider-name = aws-s3
+@/components/api-2fa/Api2faView                 →  matches, provider-name = api-2fa
+@/components/stripe-connect/PaypalView          →  no match, no name spells both
+```
+
+Crucially, that requirement takes part in **choosing** how a segment divides,
+rather than judging a division picked without it:
+
+```
+@/c/{{provider-name}}/{{provider-name}}-{{service-type}}
+  matching @/c/stripe/stripe-connect-payment
+
+  the greedy division would be  provider-name = "stripe-connect"
+  but the folder already bound  provider-name = "stripe"
+  so the next division wins:    service-type  = "connect-payment"
+```
+
+A repeated variable is a **narrower** filter, deliberately: it matches strictly
+less than two distinct variables would. To *require* the matching file rather
+than just skip the ones that do not, use `exists:`:
+
+```yaml
+target: "@/components/{{provider-name}}/{{FileName}}View"
+exists:
+  - module: "{{TARGET_DIR}}/{{ProviderName}}View"
+```
+
+This also lets one variable constrain two parts of a path to the same value:
+`@/{{provider-name}}/{{provider-name}}-service` matches `@/stripe/stripe-service`
+but not `@/stripe/paypal-service`.
+
 ### Clause Matching (`matchClause`)
 
-1. The ClausePattern is compiled into a list of chunks: static regex fragments and variable references.
-2. At match time, each variable chunk is resolved from the `MatchEnv`:
-   - `{{TARGET_DIR}}` → `env.targetDir` (regex-escaped)
-   - a variable → its value in the requested casing (regex-escaped)
-3. Chunks are concatenated into a full regex and matched against the candidate path.
+1. A clause is **hydrated** once against the `MatchEnv`: every variable becomes
+   literal text, and `{{TARGET_DIR}}` may expand into several segments.
+2. The hydrated clause is then matched against each candidate path.
 
 ### Case Enrichment
 
@@ -204,94 +302,29 @@ UserProfile   →  user-profile           IOStream    →  io-stream
 Two readings cannot be recovered, and are listed under
 [Limitations](../README.md#limitations).
 
-### A variable used more than once
+---
 
-A variable may appear several times in a target pattern, in the same casing or
-different ones:
+## Polarity
 
-```
-@/components/{{provider-name}}/{{ProviderName}}View
-```
+Writing a variable out in a casing it was not captured in is a guess. Deslop
+guesses in whichever direction costs a **false positive** rather than a **false
+negative**: a false positive is visible and can be silenced with `exclude`,
+`allows` or the baseline, while a rule that quietly stops enforcing is not
+visible at all.
 
-Each occurrence gets its own capture group. After matching, **some one name must
-spell every capture**, or the target does not match. Note this is not the same
-as the captures decoding to the same words: `HTTPClient` decodes to any of
-several readings, and it is enough that `http-client` is one of them.
+| Field | Polarity | A match means | Spellings accepted |
+|---|---|---|---|
+| `target:` | **Widen** | the rule applies here | any name that spells every occurrence |
+| `exclude:` | n/a | the module is dropped | *(no variables, so nothing to guess)* |
+| `forbids:` | **Widen** | a violation | **every** spelling of the name |
+| `allows:` | **Narrow** | exempt from `forbids` | the canonical spelling only |
+| `uses:` | **Narrow** | the rule is satisfied | the canonical spelling only |
+| `exists:` | **Narrow** | the rule is satisfied | the canonical spelling only |
 
-```
-@/components/stripe-connect/StripeConnectView   →  matches, provider-name bound
-@/components/http-client/HTTPClientView         →  matches, provider-name = http-client
-@/components/aws-s3/AWSS3View                   →  matches, provider-name = aws-s3
-@/components/api-2fa/Api2faView                 →  matches, provider-name = api-2fa
-@/components/stripe-connect/PaypalView          →  no match, no name spells both
-```
-
-Because a kebab-case or CONSTANT_CASE occurrence has only one spelling, naming
-the folder in the target pins the name exactly, and the acronym guess above
-never comes into it. That is the reason to prefer
-`@/components/{{provider-name}}/{{ProviderName}}View` over
-`@/components/{{provider-name}}/{{FileName}}View` when the two really are one
-name.
-
-A repeated variable is a **narrower** filter, deliberately: it matches strictly
-less than two distinct variables would. To *require* the matching file rather
-than just skip the ones that do not, use `exists:`:
-
-```yaml
-target: "@/components/{{provider-name}}/{{FileName}}View"
-exists:
-  - module: "{{TARGET_DIR}}/{{ProviderName}}View"
-```
-
-This also lets one variable constrain two parts of a path to the same value:
-`@/{{provider-name}}/{{provider-name}}-service` matches `@/stripe/stripe-service`
-but not `@/stripe/paypal-service`.
-
-### Boundaries between variables
-
-Two variables with nothing between them are rejected, because the regex has no
-way to tell where the first one ends:
-
-```
-@/x/{{FileName}}{{ServiceType}}   →  error: no boundary between the two variables
-```
-
-A separator that both variables *could* consume is allowed, and the leftmost
-variable binds greedily:
-
-```
-@/x/{{provider-name}}-{{service-type}}
-  matching @/x/stripe-connect-payment-service gives
-    provider-name = "stripe-connect-payment"
-    service-type  = "service"
-```
-
-If that is not what you want, separate them with a character neither casing can
-contain, such as `/` or `.`.
-
-`**` is greedy for the same reason. Where several parses are possible, the
-leftmost `**` takes as much as it can:
-
-```
-@/{{provider-name}}/**/{{service-type}}/**/{{FileName}}View
-  matching @/stripe-connect/a/payment/b/CheckoutView gives
-    service-type = "b"        (the first ** absorbed "a/payment/")
-```
-
-### Polarity
-
-Writing a variable out in a casing it was not captured in is a guess, so which
-way it is safe to guess wrong depends on what a match *means*:
-
-| Clause | A match means | Spellings accepted |
-|---|---|---|
-| `forbids:` | a violation | **every** spelling of the name |
-| `uses:` | the rule is satisfied | the canonical spelling only |
-| `exists:` | the rule is satisfied | the canonical spelling only |
-| `allows:` | exempt from `forbids` | the canonical spelling only |
-
-A `forbids:` clause that failed to recognise a spelling would let a forbidden
-import through unreported, so it accepts them all:
+`forbids:` and `target:` widen because failing to recognise a spelling there
+means a violation goes unreported. `uses:`, `exists:` and `allows:` narrow
+because they are the clauses where a *match silences a report* - widening them
+could only ever remove one.
 
 ```yaml
 target: "@/widgets/{{file-name}}"
@@ -303,6 +336,39 @@ matching `@/widgets/db-connection` forbids imports under `@/internal/DbConnectio
 **and** `@/internal/DBConnection`. A `uses:` clause naming the same variable
 would require `DbConnection`, because a clause that is too easily satisfied
 hides a real violation.
+
+**Same-casing use is never a guess**, so polarity only ever bites where a clause
+writes a variable in a casing its target did not capture it in.
+
+---
+
+## Pattern Types
+
+Three kinds of pattern appear in a rulebook, and they differ in what they may
+contain.
+
+### TargetPattern
+
+Used in the `target:` field. Matches a file path and **captures variables**.
+
+- Supports `*`, `**` and variables.
+- Every variable must be anchored, and two variables need a literal between them.
+- Does **not** support `{{TARGET_DIR}}` - there is no directory yet, it is derived from the match.
+
+### ClausePattern
+
+Used in `uses:`, `exists:`, `forbids:` and `allows:`. Matches a file path against a **hydrated** environment.
+
+- Supports `*`, `**`, `{{TARGET_DIR}}` and any variable **bound by its rule's target pattern**.
+- Referencing an unbound variable is a compilation error, not a wildcard.
+- The anchoring rule does not apply: a clause substitutes rather than captures.
+
+### ExcludePattern
+
+Used in `exclude:`. A plain glob.
+
+- Supports `*` and `**` only. Variables are rejected: an exclude pattern filters
+  the target and binds nothing, so a variable there could never resolve.
 
 ---
 
@@ -360,36 +426,68 @@ ViewModel cannot satisfy the rule by importing another provider's service.
 ## Compilation Errors
 
 A rulebook whose patterns do not compile aborts the run before any file is
-checked. Every message names the rule and the field it came from:
+checked. **Every** error is reported, not just the first, grouped by file and
+then by rule in the order they were written:
 
 ```
-Could not load Rulebook: rule 'provider-components-are-isolated', target: "@/components/{{provider}}/**"
-  {{provider}} is ambiguous: a single-word name reads as both camelCase and kebab-case.
-    Give the variable a name of at least two words, for example:
-      {{providerName}}
-      {{provider-name}}
+Could not load 2 rulebooks.
+
+deslop/rules/components.yaml
+  rule 'provider-components-are-isolated'
+    target: "@/components/{{provider}}/**"
+      {{provider}} is ambiguous: a single-word name reads as both camelCase and kebab-case.
+        Give the variable a name of at least two words, for example:
+          {{providerName}}
+          {{provider-name}}
+  rule 'provider-view-is-anchored'
+    target: "@/**/{{provider-name}}/**/{{FileName}}View"
+      {{provider-name}} has ** on both sides, so nothing in the pattern says which
+        path segment it names. A deeper tree would bind a different directory
+        than a shallow one, and neither would be the one you meant.
+        Anchor it: drop one of the **, or replace it with * to fix the depth.
+
+deslop/rules/widgets.yaml
+  rule 'provider-service-view'
+    uses.import: "{{TARGET_DIR}}/{{provider-nam}}Service"
+      unknown variable {{provider-nam}}.
+        Variables bound by this rule's target: file-name, provider-name, service-type
+        Did you mean {{provider-name}}?
 ```
 
-An unbound clause variable lists what is actually in scope and suggests the
-nearest match:
-
-```
-rule 'provider-service-view', uses.import: "{{TARGET_DIR}}/{{provider-nam}}Service"
-  unknown variable {{provider-nam}}.
-    Variables bound by this rule's target: file-name, provider-name, service-type
-    Did you mean {{provider-name}}?
-```
+A rule whose **target** does not compile stays quiet about its clauses: they are
+checked against the variables the target binds, and a target that failed never
+got to bind any.
 
 ---
 
 ## Implementation Notes
 
-- Parsing is done with **Megaparsec**, which handles pattern *shape* only. What is inside `{{ }}` is carried through verbatim and interpreted by a separate validation pass, so casing diagnostics are Deslop's rather than megaparsec's.
-- The rule, not the individual pattern, is the compilation unit: `compileTargetPattern` runs first and its `boundVars` become the scope that `compileClausePattern` validates against.
-- Ahead-of-time compilation separates parse/validate/compile from the hot matching path.
-- Regex engine: **TDFA** (`Text.Regex.TDFA`) operating directly on `Text`.
-- Adjacent static chunks in a CompiledClausePattern are merged at compile time to minimize allocations on the hot path.
-- A single `{` that is not followed by another `{` is treated as a literal character, not a variable delimiter.
-- Capture group numbers are assigned in the pass that builds the regex, since the `**/` idiom opens a group of its own and POSIX ERE has no non-capturing group.
-- Reading a PascalCase or camelCase capture is a guess; comparing two captures is not. Agreement asks whether some name spells both, which is exact whenever one of them is kebab-case or CONSTANT_CASE. See [ADR 7](adr/0007-glob-plus-values-agree-by-spelling-compatibility.md).
-- Same-casing use is always exact, because the literal capture is preserved in its own slot: a captured `HTTPClient` stays `HTTPClient` in a PascalCase clause.
+- Matching is a native segment walk over `Text`. There is no regex engine.
+- Parsing is done with **Megaparsec**, per segment, and handles pattern *shape*
+  only. What is inside `{{ }}` is carried through verbatim and interpreted by a
+  separate validation pass, so casing diagnostics are Deslop's rather than
+  megaparsec's.
+- The rule, not the individual pattern, is the compilation unit: the target
+  compiles first and its bound variables become the scope its clauses validate
+  against.
+- Ahead-of-time compilation separates parse/validate/compile from the hot
+  matching path. A clause is then hydrated once per matched target and reused
+  for every candidate path.
+- The globstar search tries widths shortest-first, but the anchoring rule makes
+  that choice unobservable - it can be replaced by any complete search without
+  changing a single binding.
+- Within a segment, divisions are enumerated greedy-left and the first that
+  satisfies every variable's constraints wins. Backtracking is global across
+  segments, so a later segment can reject an earlier segment's division.
+- A single `{` that is not followed by another `{` is treated as a literal
+  character, not a variable delimiter.
+- Reading a PascalCase or camelCase capture is a guess; comparing two captures is
+  not. Agreement asks whether some name spells both, which is exact whenever one
+  of them is kebab-case or CONSTANT_CASE. See
+  [ADR 7](adr/0007-glob-plus-values-agree-by-spelling-compatibility.md).
+- Same-casing use is always exact, because the literal capture is preserved in
+  its own slot: a captured `HTTPClient` stays `HTTPClient` in a PascalCase clause.
+
+See [ADR 9](adr/0009-glob-plus-matches-path-segments.md) for why matching is
+structural, and [ADR 10](adr/0010-rulebook-compilation-is-a-separate-stage.md)
+for how a rulebook is compiled.

@@ -101,11 +101,45 @@ both, which is a different question from what either one decodes to.
 _Avoid_: Rendering, form, variant
 
 **Polarity**:
-Whether a Clause Pattern matching means a violation (`forbids`) or means the Rule
-is satisfied (`uses`, `exists`, `allows`). It decides which way a Clause Pattern
-is allowed to be wrong about a Spelling: a forbidding clause accepts every
-spelling of its variable, a requiring one accepts only the canonical spelling.
-_Avoid_: Direction, sign, mode
+The direction Deslop errs in when a Glob+ Variable's Spelling has to be guessed:
+**Widen** accepts every Spelling of every name the capture could denote, **Narrow**
+accepts only the canonical one. Chosen per clause so that a wrong guess costs a
+false positive rather than a false negative - `target` and `forbids` widen, while
+`allows`, `uses` and `exists` narrow, because those are the clauses where a match
+*silences* a report. An Exclude Pattern has no Polarity: it has no variables to
+guess about.
+_Avoid_: Direction, sign, mode, Forbidding/Requiring (the previous names)
+
+**Path Segment**:
+One `/`-delimited part of a module id, and the unit a Glob+ Pattern matches
+against. `@/components/stripe/View` is four segments.
+_Avoid_: Path component, part, directory (a segment may be a file)
+
+**GlobStar**:
+`**`: zero or many whole Path Segments. It is always a whole segment of the
+pattern - `**` glued to text inside a segment is not a GlobStar and does not
+compile.
+_Avoid_: Wildcard (that is `*`), double star, recursive glob
+
+**Anchored Variable**:
+A Glob+ Variable whose Path Segment is fixed by the pattern, because no GlobStar
+stands on one of its sides. Only Anchored Variables are allowed in a Target
+Pattern: an unanchored one has no defined meaning, since the path rather than the
+pattern would decide which segment it names.
+_Avoid_: Pinned variable, positional variable
+
+**Rulebook Compiler**:
+The stage that turns a raw Rulebook, as authored in YAML, into a valid Rulebook
+whose patterns are compiled - or into the collected Compilation Errors explaining
+why it cannot. Every Rulebook reaching enforcement has been through it.
+_Avoid_: Parser (parsing is one part of it), validator, loader (loading is
+reading bytes)
+
+**Compilation Error**:
+One reason a raw Rulebook cannot become a Rulebook, naming the file, the Rule and
+the field it came from. A run reports all of them at once and enforces nothing.
+_Avoid_: Problem (that is something Deslop reports *about a codebase*), parse
+error
 
 **Target Pattern**:
 The Glob+ pattern in a Rule's `target`. The only pattern that *captures*

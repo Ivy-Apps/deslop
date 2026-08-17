@@ -22,6 +22,8 @@ module Deslop.GlobPlusOracle (
     renderOPattern,
     oracleMatch,
     oracleMatches,
+    oracleAgreeing,
+    unambiguousSegment,
     capturedBy,
 
     -- * Legality, as the compiler defines it
@@ -40,6 +42,8 @@ module Deslop.GlobPlusOracle (
     genOpaqueSegment,
     genWord,
     genVarName,
+    genLongVarName,
+    genValue,
     genRendering,
 ) where
 
@@ -110,6 +114,20 @@ no variable may have a globstar on both sides, so every variable's segment
 index is fixed by the pattern and the path length, and all of these
 assignments necessarily agree about which segment each variable took.
 -}
+oracleAgreeing :: OPattern -> [Text] -> [[Capture]]
+oracleAgreeing pattern' = filter agreesEverywhere . oracleMatches pattern'
+
+{- | Whether a segment divides into its parts in only one way. A segment with
+two variables, or with a variable beside a @*@, does not: several divisions can
+satisfy it and they bind different text. Globstar widths never do that, which
+is the difference the anchoring rule buys.
+-}
+unambiguousSegment :: OSeg -> Bool
+unambiguousSegment OGlobStar = True
+unambiguousSegment (OSeg parts) = length variables <= 1 && (null variables || notElem OStar parts)
+  where
+    variables = [() | OVar _ _ <- parts]
+
 oracleMatches :: OPattern -> [Text] -> [[Capture]]
 oracleMatches [] segments = [[] | null segments]
 oracleMatches (OGlobStar : rest) segments =
@@ -156,7 +174,7 @@ question 'Deslop.Casing.agree' answers, asked here without reference to how
 production carries it.
 -}
 agreesEverywhere :: [Capture] -> Bool
-agreesEverywhere captures = all (not . null . survivingNames) (groupByName captures)
+agreesEverywhere captures = not (any (null . survivingNames) (groupByName captures))
 
 -- | The names that spell every occurrence in a group.
 survivingNames :: [Capture] -> [[Text]]
@@ -208,9 +226,9 @@ unanchoredVars pattern' =
     ordNub
         [ name
         | (index, OSeg parts) <- indexed
-        , OVar name _ <- parts
         , any (isGlobStarAt (< index)) indexed
         , any (isGlobStarAt (> index)) indexed
+        , OVar name _ <- parts
         ]
   where
     indexed = zip [0 :: Int ..] pattern'
@@ -292,7 +310,7 @@ firstUnanchoredIndex pattern' =
 
 demoteFirstGlobStarAfter :: Int -> OPattern -> OPattern
 demoteFirstGlobStarAfter index pattern' =
-    case L.findIndex (== OGlobStar) (drop (index + 1) pattern') of
+    case L.elemIndex OGlobStar (drop (index + 1) pattern') of
         Nothing -> pattern'
         Just offset ->
             let at = index + 1 + offset
@@ -385,6 +403,25 @@ genVarName :: Gen [Text]
 genVarName = do
     count <- Gen.int (Range.linear 2 4)
     Gen.list (Range.singleton count) genWord
+
+{- | A name of at least three words. Two is the smallest legal name and the
+shape every hand-written case reaches for, so the longer ones get a generator
+of their own rather than being left to chance.
+-}
+genLongVarName :: Gen [Text]
+genLongVarName = do
+    count <- Gen.int (Range.linear 3 6)
+    Gen.list (Range.singleton count) genWord
+
+{- | A captured /value/ of 1-3 words. Values are read rather than parsed, so
+they may be one letter long and carry digits - which is where @AB@, @Api2fa@
+and @HTTP2_CLIENT@ live.
+-}
+genValue :: Gen [Text]
+genValue = do
+    opening <- genValueWord
+    rest <- Gen.list (Range.linear 0 2) genValueWord
+    pure (opening : rest)
 
 {- | A word for a variable /name/. The second character is a letter, which
 rules out both ways a name fails to compile: a Pascal spelling of @v4g8@ reads

@@ -1,11 +1,13 @@
 [Title] 🚀 Baselining project: ~/test/fixtures/ts-globplus-project
-[Plain] 📚 Loaded 1 rulebook, 9 rules
-[Success] ✅ Success: Baseline generated with 11 problems.
-[summary] Baselined 22 modules enforcing 11 rules
+[Plain] 📚 Loaded 1 rulebook, 10 rules
+[Success] ✅ Success: Baseline generated with 13 problems.
+[summary] Baselined 24 modules enforcing 12 rules
 
 >>> baseline.yaml
+- provider-services#adapter-imports-its-provider-config#@/adapters/stripe-connect/stripe-connect-payment-gateway
 - provider-services#nested-view-uses-its-provider-config#@/components/paypal/payment/RefundView
 - provider-services#provider-entry-is-named-after-its-folder#@/components/square/SquareEntry
+- provider-services#providers-are-isolated#@/components/paypal
 - provider-services#providers-are-isolated#@/components/paypal/payment/RefundView
 - provider-services#storybook-has-a-visual-test#@/components/stripe-connect/payment/CheckoutView.stories
 - provider-services#use-case-has-a-view-model#@/application/notify-user/NotifyUserUseCase

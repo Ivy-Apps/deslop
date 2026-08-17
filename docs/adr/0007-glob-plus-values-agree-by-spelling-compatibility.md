@@ -8,6 +8,13 @@ Accepted. Refines [ADR 6](0006-glob-plus-variables-are-named-with-inferred-casin
 which decided how a variable is *named*; this one decides how its captured
 *values* are compared and written back out.
 
+Refined in turn by [ADR 9](0009-glob-plus-matches-path-segments.md). The
+agreement rule here survives unchanged, but agreement now *participates in
+choosing* how a path divides rather than validating a division already chosen -
+the question this ADR left open. `Forbidding` and `Requiring` are renamed
+`Widen` and `Narrow`, and a target pattern gains an explicit polarity it never
+had here.
+
 ## Context
 
 ADR 6 made a variable a name written in a casing, and let a name occur more than

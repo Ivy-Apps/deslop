@@ -256,12 +256,17 @@ exclude:
 | Pattern | Matches |
 |---------|---------|
 | `*` | Any string within a single path segment (no `/`) |
-| `**` | Any string across any number of path segments |
+| `**` | Zero or many whole path segments; always a segment of its own |
 
 ```yaml
 "@/features/**/data/*"   # any module inside any data/ subfolder
 "@/app/**/page"          # any page module anywhere under app/
+"@/lib/**"               # anything under @/lib, and @/lib itself
 ```
+
+`**` stands for zero segments as readily as for many, so `@/lib/**` covers the
+module `@/lib` too. It must be a whole segment: write `*View` to match inside
+one, and `**/*View` to cross them.
 
 ---
 
@@ -655,17 +660,35 @@ exists:
   - module: "{{TARGET_DIR}}/{{ProviderName}}View"
 ```
 
-### Variables bind greedily
+### Variables bind greedily, unless something else pins them
 
-Where a boundary is genuinely ambiguous, the leftmost variable, and the leftmost
-`**`, take as much as they can:
+Where a boundary within one segment is genuinely ambiguous, the leftmost
+variable takes as much as it can:
 
 ```
 @/x/{{provider-name}}-{{service-type}}      on @/x/stripe-connect-payment-service
   →  provider-name = "stripe-connect-payment",  service-type = "service"
 ```
 
-Separate them with a character no casing can contain, such as `/` or `.`.
+Greedy is only the order the splits are tried in: the first one that satisfies
+every variable in the rule wins, so naming the variable again elsewhere settles
+it exactly.
+
+```
+@/c/{{provider-name}}/{{provider-name}}-{{service-type}}   on @/c/stripe/stripe-connect-payment
+  →  provider-name = "stripe",  service-type = "connect-payment"
+```
+
+Otherwise, separate them with a character no casing can contain, such as `/`
+or `.`.
+
+### A variable cannot sit between two `**`
+
+`@/**/{{provider-name}}/**/{{FileName}}View` does not compile. With a globstar
+on both sides, the *path* would decide which directory `{{provider-name}}` names
+(a different one in a shallow tree than in a deep one), so the rule would mean
+something you did not write. Anchor it against a literal, or use `*` to fix the
+depth.
 
 ### `forbids:` accepts more spellings than `uses:`
 

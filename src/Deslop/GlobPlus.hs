@@ -1,52 +1,84 @@
+{- | Glob+ patterns, and the matcher that runs them.
+
+A Glob+ pattern is a list of /path segments/. Exactly one token, @**@, varies
+how many segments the pattern consumes; everything else consumes one segment,
+or part of one. That single fact is what the whole design rests on.
+
+A target pattern may not put a variable between two @**@ - the compiler
+rejects it - and so every variable's segment index is a function of the
+pattern and the path length alone. The globstar search therefore decides only
+/whether/ a path matches, never /what/ anything binds. The two searches here
+are independent because of it:
+
+* 'walkSegments' chooses globstar widths. Bindings are invariant under it, so
+  its order is an implementation detail.
+* 'bindParts' chooses how one segment's text divides between its parts. That
+  order /is/ observable, and it is greedy-left: the leftmost part takes the
+  most it can, and the first division satisfying every constraint wins.
+
+Agreement between repeated occurrences is carried /through/ the walk rather
+than checked after it. Each variable holds the set of names still able to
+spell every occurrence seen so far; when that set empties, the branch dies
+there. A kebab-case or CONSTANT_CASE occurrence collapses it to one name
+immediately, which is why the common pattern costs nothing.
+
+Compilation lives in "Deslop.GlobPlus.Compiler".
+-}
 module Deslop.GlobPlus (
-    -- * Core Types
-    MatchEnv (..),
+    -- * Names
     Casing (..),
     VarName (..),
     CasedName (..),
     BoundName (..),
     casedAs,
 
-    -- * Compiled Types (For Reader Env)
+    -- * Pattern structure
+    Seg (..),
+    SegPart (..),
+    PatternSegment,
+    TargetVar (..),
+    ClauseVar (..),
     Polarity (..),
+
+    -- * Compiled patterns
     CompiledTargetPattern (..),
     CompiledClausePattern (..),
     CompiledExcludePattern (..),
 
-    -- * Compilation Errors
-    GlobPlusError (..),
-    renderGlobPlusError,
+    -- * Paths
+    Segments (..),
+    segmentsOf,
+    pathOf,
 
-    -- * Compiling (Ahead-of-Time)
-    compileTargetPattern,
-    compileClausePattern,
-    compileExcludePattern,
-    boundVars,
-
-    -- * Matching Engines (Hot Path)
+    -- * Matching
+    MatchEnv (..),
     matchTarget,
     matchClause,
     matchExclude,
 
+    -- * Clause hydration (hot path)
+    ResolvedClause,
+    hydrate,
+    matchResolved,
+
     -- * Expansion
     moduleFromGlob,
     renderClausePattern,
-    interpolate,
+    valueOf,
+    spellVar,
+    targetDirKeyword,
+
+    -- * Shared with the compiler
+    minSegments,
 ) where
 
-import Data.Char (isAsciiUpper)
+import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Data.Map.Strict qualified as Map
-import Data.Set qualified as Set
 import Data.Text qualified as T
-import Deslop.Casing (AgreedName (..), Casing (..), agree, casingName, decode, render, renderings, spelledIn)
-import Text.Megaparsec (MonadParsec (notFollowedBy), ParseErrorBundle, Parsec, between, choice, eof, errorBundlePretty, many, noneOf, parse, some, try)
-import Text.Megaparsec.Char (char, string)
-import Text.Regex.TDFA (Regex, makeRegex, match)
-import Text.Regex.TDFA.Text ()
-import Text.Show (Show (..), showString, shows)
+import Deslop.Casing (AgreedName (..), Casing (..), agree, decode, render, renderings)
 
 --------------------------------------------------------------------------------
--- 1. Core Types & Type Safety
+-- 1. Names
 --------------------------------------------------------------------------------
 
 {- | The identity of a variable, canonicalised to kebab-case words. All four
@@ -68,8 +100,8 @@ data CasedName = CasedName
 
 {- | A bound variable: the name its occurrences agreed on, written out in every
 casing, plus every name they could equally have denoted. The alternatives are
-what a clause widens over when missing a match would be worse than making a
-spurious one.
+what a 'Widen' clause ranges over, where missing a match would be worse than
+making a spurious one.
 -}
 data BoundName = BoundName
     { spelling :: CasedName
@@ -83,6 +115,34 @@ casedAs CamelCase n = n.spelling.camel
 casedAs KebabCase n = n.spelling.kebab
 casedAs ConstantCase n = n.spelling.constant
 
+--------------------------------------------------------------------------------
+-- 2. Pattern structure
+--------------------------------------------------------------------------------
+
+{- | One piece of a pattern, at the level where a globstar lives. Parameterised
+over what a single segment is, because a target segment binds variables while a
+hydrated clause segment only decides.
+-}
+data Seg a
+    = -- | @**@: zero or many whole segments.
+      GlobStar
+    | -- | Exactly one segment.
+      Segment a
+    deriving (Show, Eq, Functor, Foldable, Traversable)
+
+{- | One piece of a single segment. The list of parts may be empty, which is
+the empty segment - reachable both by writing @a\/\/b@ and by hydrating
+@{{TARGET_DIR}}@ for a file that sits at the root.
+-}
+data SegPart var
+    = Lit Text
+    | -- | @*@: zero or more characters, never a @\/@.
+      AnyChars
+    | VarPart var
+    deriving (Show, Eq, Functor, Foldable, Traversable)
+
+type PatternSegment var = Seg [SegPart var]
+
 -- | A variable occurrence in a target pattern. Strictly no @{{TARGET_DIR}}@.
 data TargetVar = TargetVar VarName Casing
     deriving (Show, Eq, Ord)
@@ -94,23 +154,81 @@ data ClauseVar
       CTargetDir
     deriving (Show, Eq, Ord)
 
-data Token var
-    = Literal Text
-    | Star
-    | GlobStar
-    | Var var
-    deriving (Show, Eq, Functor, Foldable, Traversable)
+{- | Which way it is safe to be wrong when a variable's spelling has to be
+guessed.
 
-newtype Pattern var = Pattern [Token var]
+Deslop guesses in whichever direction costs a false positive rather than a
+false negative, because a false positive is visible and baselineable while a
+rule that quietly stops enforcing is not. A @forbids:@ pattern matching means a
+violation, so it accepts every spelling of every name the capture could have
+denoted. A @uses:@, @exists:@ or @allows:@ pattern matching means the rule is
+/satisfied/, so widening it could only ever remove a report - those accept the
+canonical spelling alone.
+-}
+data Polarity
+    = -- | Accept every spelling: @target@ and @forbids@.
+      Widen
+    | -- | Accept the canonical spelling only: @uses@, @exists@, @allows@.
+      Narrow
     deriving (Show, Eq)
 
-type TargetPattern = Pattern TargetVar
-type ClausePattern = Pattern ClauseVar
+--------------------------------------------------------------------------------
+-- 3. Compiled patterns
+--------------------------------------------------------------------------------
 
-{- | An exclude pattern is a plain glob. 'Void' makes the 'Var' constructor
-uninhabited, so a variable in an exclude pattern is unrepresentable.
+data CompiledTargetPattern = CompiledTargetPattern
+    { segments :: [PatternSegment TargetVar]
+    , minLength :: Int
+    , boundVars :: Set VarName
+    , source :: Text
+    }
+    deriving (Show, Eq)
+
+data CompiledClausePattern = CompiledClausePattern
+    { segments :: [PatternSegment ClauseVar]
+    , polarity :: Polarity
+    , source :: Text
+    }
+    deriving (Show, Eq)
+
+{- | An exclude pattern is a plain glob. 'Void' makes 'VarPart' uninhabited, so
+a variable in an exclude pattern is unrepresentable rather than merely
+rejected - and with no variable there is nothing to guess, which is why an
+exclude carries no 'Polarity'.
 -}
-type ExcludePattern = Pattern Void
+data CompiledExcludePattern = CompiledExcludePattern
+    { segments :: [PatternSegment Void]
+    , minLength :: Int
+    , source :: Text
+    }
+    deriving (Show, Eq)
+
+-- | How many segments a pattern must consume at minimum: an O(1) reject.
+minSegments :: [Seg a] -> Int
+minSegments = length . filter isSegment
+  where
+    isSegment GlobStar = False
+    isSegment (Segment _) = True
+
+--------------------------------------------------------------------------------
+-- 4. Paths
+--------------------------------------------------------------------------------
+
+{- | A module path, split into segments once. Splitting at the call site is
+what lets one module id be tested against every rule and clause without being
+taken apart again each time.
+-}
+newtype Segments = Segments {segments :: [Text]}
+    deriving (Show, Eq)
+
+segmentsOf :: Text -> Segments
+segmentsOf = Segments . T.splitOn "/"
+
+pathOf :: Segments -> Text
+pathOf = T.intercalate "/" . (.segments)
+
+instance IsString Segments where
+    fromString = segmentsOf . toText
 
 data MatchEnv = MatchEnv
     { targetDir :: Text
@@ -119,490 +237,142 @@ data MatchEnv = MatchEnv
     deriving (Show, Eq)
 
 --------------------------------------------------------------------------------
--- 2. Compiled Types (Performance Optimizations)
+-- 5. Target matching
 --------------------------------------------------------------------------------
 
-{- | A variable occurrence, paired with the regex group that captures it.
-Groups are numbered by the position of their opening paren, and the @**\/@
-idiom opens one of its own, so an occurrence's group cannot be derived from
-its position in this list - it is assigned when the regex is built.
--}
-data CapturedVar = CapturedVar
-    { name :: VarName
-    , casing :: Casing
-    , group :: CaptureGroup
-    }
-    deriving (Show, Eq)
-
--- | A 1-based regex capture group number.
-newtype CaptureGroup = CaptureGroup {number :: Int}
-    deriving (Show, Eq, Ord)
-
-data CompiledTargetPattern = CompiledTargetPattern
-    { regex :: Regex
-    , vars :: [CapturedVar] -- one entry per occurrence, in pattern order
-    , source :: Text -- as the author wrote it, for diagnostics
-    }
-
-instance Show CompiledTargetPattern where
-    showsPrec _ ctp =
-        showString "CompiledTargetPattern {regex = <regex>, vars = "
-            . shows ctp.vars
-            . showString "}"
-
-data ClauseChunk
-    = StaticChunk Text
-    | VarChunk ClauseVar
-    deriving (Show, Eq)
-
-{- | What a clause match means, and so which way it is safe to be wrong about
-a variable's spelling.
-
-A @forbids:@ pattern that matches reports a violation, so a spelling it fails
-to recognise is a violation that goes unreported. A @uses:@, @exists:@ or
-@allows:@ pattern that matches means the rule is satisfied, so a spelling it
-recognises too eagerly silences a real violation. Only the first may widen.
--}
-data Polarity
-    = -- | A match is a violation: @forbids:@.
-      Forbidding
-    | -- | A match is satisfaction: @uses:@, @exists:@, @allows:@.
-      Requiring
-    deriving (Show, Eq)
-
-data CompiledClausePattern = CompiledClausePattern
-    { chunks :: [ClauseChunk] -- regex form for matchClause (hot path)
-    , rawTokens :: [Token ClauseVar] -- original tokens for moduleFromGlob
-    , polarity :: Polarity
-    }
-    deriving (Show, Eq)
-
-newtype CompiledExcludePattern = CompiledExcludePattern
-    { regex :: Regex
-    }
-
-instance Show CompiledExcludePattern where
-    showsPrec _ _ = showString "CompiledExcludePattern {regex = <regex>}"
-
---------------------------------------------------------------------------------
--- 3. Compilation Errors
---------------------------------------------------------------------------------
-
-data GlobPlusError
-    = -- | The pattern is not valid Glob+ syntax at all.
-      MalformedPattern Text (ParseErrorBundle Text Void)
-    | -- | @{{Provider-Name}}@ - not a recognised casing.
-      UnrecognisedCasing Text
-    | -- | @{{provider}}@ - reads as more than one casing.
-      AmbiguousCasing Text (NonEmpty Casing)
-    | -- | @{{HTTPClient}}@ - word boundaries cannot be determined.
-      ConsecutiveCapitals Text
-    | -- | @{{target-dir}}@ - reserved, and only @{{TARGET_DIR}}@ is accepted.
-      ReservedTargetDir Text
-    | -- | @{{TARGET_DIR}}@ in a target pattern, where it cannot be captured.
-      TargetDirInTargetPattern Text
-    | -- | Any variable in an exclude pattern, which binds nothing.
-      VariableInExcludePattern Text
-    | -- | @{{a}}{{b}}@ in a target pattern - no boundary between captures.
-      AdjacentVariables Text Text
-    | -- | A clause variable the rule's target pattern never captures.
-      UnboundVariable VarName (Set VarName)
-    | -- | @\/**View@ - a globstar glued to text inside a segment.
-      GlobStarNotWholeSegment Text
-    | -- | @**\/{{a}}\/**@ - nothing in the pattern says which segment @a@ is.
-      UnanchoredVariable VarName
-    | -- | @{{a}}{{b}}@ or @{{a}}*{{b}}@ - no literal separates the two.
-      NoBoundaryBetween Text Text
-    deriving (Show, Eq)
-
-renderGlobPlusError :: GlobPlusError -> Text
-renderGlobPlusError (MalformedPattern input bundle) =
-    "invalid Glob+ pattern "
-        <> quoted input
-        <> "\n"
-        <> T.strip (toText (errorBundlePretty bundle))
-renderGlobPlusError (UnrecognisedCasing raw) =
-    braced raw
-        <> " is not written in a recognised casing.\n"
-        <> "  A variable must be spelled in exactly one of:\n"
-        <> "    PascalCase     e.g. {{ProviderName}}\n"
-        <> "    camelCase      e.g. {{providerName}}\n"
-        <> "    kebab-case     e.g. {{provider-name}}\n"
-        <> "    CONSTANT_CASE  e.g. {{PROVIDER_NAME}}"
-renderGlobPlusError (AmbiguousCasing raw casings) =
-    braced raw
-        <> " is ambiguous: a single-word name reads as both "
-        <> T.intercalate " and " (casingName <$> toList casings)
-        <> ".\n"
-        <> "  Give the variable a name of at least two words, for example:\n"
-        <> T.intercalate "\n" (("    " <>) . braced <$> ambiguitySuggestions raw casings)
-renderGlobPlusError (ConsecutiveCapitals raw) =
-    braced raw
-        <> " contains consecutive capitals, so its word boundaries are ambiguous.\n"
-        <> "  Capitalise only the first letter of each word, e.g. {{HttpClient}},\n"
-        <> "  or use kebab-case, e.g. {{http-client}}."
-renderGlobPlusError (ReservedTargetDir raw) =
-    braced raw
-        <> " is reserved.\n"
-        <> "  The directory of the matched target is written {{TARGET_DIR}},\n"
-        <> "  and no other spelling of that name is accepted."
-renderGlobPlusError (TargetDirInTargetPattern raw) =
-    braced raw
-        <> " cannot be used in a target pattern.\n"
-        <> "  {{TARGET_DIR}} is derived from the path the target matches,\n"
-        <> "  so it only has a value in a clause pattern."
-renderGlobPlusError (VariableInExcludePattern raw) =
-    braced raw
-        <> " cannot be used in an exclude pattern.\n"
-        <> "  An exclude pattern filters the target and binds no variables.\n"
-        <> "  Use a wildcard instead, e.g. * or **."
-renderGlobPlusError (AdjacentVariables left right) =
-    braced left
-        <> braced right
-        <> " has no boundary between the two variables,\n"
-        <> "  so there is no way to tell where the first one ends.\n"
-        <> "  Separate them with a literal, e.g. "
-        <> braced left
-        <> "/"
-        <> braced right
-        <> "."
-renderGlobPlusError (UnboundVariable name bound) =
-    "unknown variable "
-        <> braced name.text
-        <> ".\n"
-        <> "  Variables bound by this rule's target: "
-        <> renderBound
-        <> maybe "" (\s -> "\n  Did you mean " <> braced s.text <> "?") (didYouMean name bound)
-  where
-    -- Set.toList is sorted, which keeps the message deterministic.
-    renderBound
-        | Set.null bound = "(none)"
-        | otherwise = T.intercalate ", " ((.text) <$> Set.toList bound)
-
-renderGlobPlusError (GlobStarNotWholeSegment segment) =
-    quoted segment
-        <> " glues ** to text inside a single path segment.\n"
-        <> "  ** stands for zero or many whole segments, so it cannot be part of one.\n"
-        <> "  Match within a segment with *, e.g. *View, or give ** a segment of its\n"
-        <> "  own, e.g. **/*View."
-renderGlobPlusError (UnanchoredVariable name) =
-    braced name.text
-        <> " has ** on both sides, so nothing in the pattern says which\n"
-        <> "  path segment it names. A deeper tree would bind a different directory\n"
-        <> "  than a shallow one, and neither would be the one you meant.\n"
-        <> "  Anchor it: drop one of the **, or replace it with * to fix the depth."
-renderGlobPlusError (NoBoundaryBetween left right) =
-    braced left
-        <> braced right
-        <> " has no literal between the two variables, so there\n"
-        <> "  is no way to tell where the first one ends. A * between them is not a\n"
-        <> "  boundary either, because it can match nothing.\n"
-        <> "  Separate them with a literal, e.g. "
-        <> braced left
-        <> "/"
-        <> braced right
-        <> "."
-
-{- | Suggests a two-word name for each casing the raw token could have meant,
-so the author can pick the one they intended.
--}
-ambiguitySuggestions :: Text -> NonEmpty Casing -> [Text]
-ambiguitySuggestions raw casings = (`render` twoWords) <$> toList casings
-  where
-    -- The token is ambiguous, so any of its readings will do to name it after.
-    twoWords = decode (head casings) raw <> ["name"]
-
-didYouMean :: VarName -> Set VarName -> Maybe VarName
-didYouMean name = find within . sortOn distance . Set.toList
-  where
-    distance candidate = editDistance name.text candidate.text
-    within candidate = distance candidate <= 3
-
-openBrace, closeBrace :: Text
-openBrace = "{{"
-closeBrace = "}}"
-
-braced :: Text -> Text
-braced t = openBrace <> t <> closeBrace
-
-quoted :: Text -> Text
-quoted t = "\"" <> t <> "\""
-
---------------------------------------------------------------------------------
--- 4. Ahead-of-Time Compilers
---------------------------------------------------------------------------------
-
-{- | Compiles the @target:@ of a rule. The variables it captures become the
-only variables its clauses may reference.
--}
-compileTargetPattern :: Text -> Either GlobPlusError CompiledTargetPattern
-compileTargetPattern input = do
-    Pattern tokens <- parseTargetPattern input
-    checkAdjacency tokens
-    let (body, captures) = compileGlob targetVarRegex tokens
-    pure
-        CompiledTargetPattern
-            { regex = makeRegex (anchored body) :: Regex
-            , vars = [CapturedVar name casing grp | (TargetVar name casing, grp) <- captures]
-            , source = input
-            }
-  where
-    targetVarRegex (TargetVar _ casing) = captureRegex casing
-
-{- | Compiles a @uses@ \/ @forbids@ \/ @allows@ \/ @exists@ pattern against the
-variables its rule's target pattern binds. Referencing anything else is an
-error, so every lookup at match time is guaranteed to succeed.
--}
-compileClausePattern :: Polarity -> Set VarName -> Text -> Either GlobPlusError CompiledClausePattern
-compileClausePattern polarity bound input = do
-    Pattern tokens <- parseClausePattern input
-    traverse_ (checkBound bound) tokens
-    pure
-        CompiledClausePattern
-            { chunks =
-                mergeStaticChunks $
-                    StaticChunk "^" : (toChunk <$> fragments tokens) <> [StaticChunk "$"]
-            , rawTokens = tokens
-            , polarity = polarity
-            }
-  where
-    toChunk (Static t) = StaticChunk t
-    toChunk GlobSlash = StaticChunk globSlashRegex
-    toChunk (VarCapture v) = VarChunk v
-
-    mergeStaticChunks (StaticChunk a : StaticChunk b : rest) = mergeStaticChunks (StaticChunk (a <> b) : rest)
-    mergeStaticChunks (x : xs) = x : mergeStaticChunks xs
-    mergeStaticChunks [] = []
-
--- | Compiles an @exclude:@ pattern, which is a plain glob over module ids.
-compileExcludePattern :: Text -> Either GlobPlusError CompiledExcludePattern
-compileExcludePattern input = do
-    Pattern tokens <- parseExcludePattern input
-    pure CompiledExcludePattern {regex = makeRegex (anchored (fst (compileGlob absurd tokens))) :: Regex}
-
-boundVars :: CompiledTargetPattern -> Set VarName
-boundVars ctp = Set.fromList ((.name) <$> ctp.vars)
-
-{- | A token list lowered to regex, with a group number for every variable.
-Numbering happens in the same pass that emits the regex, so a group number
-can never describe a paren that is not there.
--}
-compileGlob :: (var -> Text) -> [Token var] -> (Text, [(var, CaptureGroup)])
-compileGlob varRegex = go 1 . fragments
-  where
-    go _ [] = ("", [])
-    go next (Static t : rest) = first (t <>) (go next rest)
-    go next (GlobSlash : rest) = first (globSlashRegex <>) (go (next + 1) rest)
-    go next (VarCapture v : rest) =
-        let (body, captures) = go (next + 1) rest
-         in (varRegex v <> body, (v, CaptureGroup next) : captures)
-
-{- | One piece of a lowered token list. 'GlobSlash' and 'VarCapture' each open
-exactly one capture group; 'Static' opens none. Keeping that distinction in the
-type is what lets 'compileGlob' number groups without a second traversal.
--}
-data Fragment var
-    = Static Text
-    | GlobSlash
-    | VarCapture var
-
-{- | Lowers tokens to fragments, absorbing the /**/ idiom: a 'GlobStar'
-immediately followed by a 'Literal' starting with '/' becomes a single
-optional group, so that ** matches zero path segments and e.g. @a\/**\/*@
-matches @a\/x@ as well as @a\/x\/y@.
--}
-fragments :: [Token var] -> [Fragment var]
-fragments [] = []
-fragments (GlobStar : Literal l : rest)
-    | Just l' <- T.stripPrefix "/" l = GlobSlash : fragments (Literal l' : rest)
-fragments (Literal t : rest) = Static (escapeRegex t) : fragments rest
-fragments (Star : rest) = Static "[^/]*" : fragments rest
-fragments (GlobStar : rest) = Static ".*" : fragments rest
-fragments (Var v : rest) = VarCapture v : fragments rest
-
-{- | POSIX ERE has no non-capturing group, so the /**/ idiom is forced to open
-a real one. That is the whole reason group numbers have to be tracked.
--}
-globSlashRegex :: Text
-globSlashRegex = "(.*/)?"
-
-anchored :: Text -> Text
-anchored body = "^" <> body <> "$"
-
--- | The capture group a variable contributes to a target pattern's regex.
-captureRegex :: Casing -> Text
-captureRegex PascalCase = "([A-Z][a-zA-Z0-9]*)"
-captureRegex CamelCase = "([a-z][a-zA-Z0-9]*)"
-captureRegex KebabCase = "([a-z0-9-]+)"
-captureRegex ConstantCase = "([A-Z0-9_]+)"
-
---------------------------------------------------------------------------------
--- 5. Megaparsec Parsers
---------------------------------------------------------------------------------
-
-type Parser = Parsec Void Text
-
-parseTargetPattern :: Text -> Either GlobPlusError TargetPattern
-parseTargetPattern = resolveVars resolveTargetVar <=< parsePattern
-
-parseClausePattern :: Text -> Either GlobPlusError ClausePattern
-parseClausePattern = resolveVars resolveClauseVar <=< parsePattern
-
-parseExcludePattern :: Text -> Either GlobPlusError ExcludePattern
-parseExcludePattern = resolveVars (Left . VariableInExcludePattern) <=< parsePattern
-
-resolveVars :: (Text -> Either GlobPlusError var) -> Pattern Text -> Either GlobPlusError (Pattern var)
-resolveVars resolve (Pattern tokens) = Pattern <$> traverse (traverse resolve) tokens
-
-{- | Parses the shape of a pattern only. What is inside @{{ }}@ is carried
-through verbatim and interpreted by 'resolveTargetVar' \/ 'resolveClauseVar',
-so that casing diagnostics are ours rather than megaparsec's.
--}
-parsePattern :: Text -> Either GlobPlusError (Pattern Text)
-parsePattern input =
-    first (MalformedPattern input) $
-        parse (Pattern <$> many pToken <* eof) "" input
-
-pToken :: Parser (Token Text)
-pToken = choice [try pGlobStar, pStar, Var <$> pRawVar, pLiteral]
-
-pGlobStar, pStar :: Parser (Token Text)
-pGlobStar = GlobStar <$ string "**"
-pStar = Star <$ char '*'
-
-pLiteral :: Parser (Token Text)
-pLiteral = Literal . T.pack <$> some pLitChar
-  where
-    pLitChar = try (char '{' <* notFollowedBy (char '{')) <|> noneOf ['*', '{']
-
--- | Anything that is not structural is a name character, so that a bad name
--- yields our own casing diagnostic rather than a raw megaparsec error.
-pRawVar :: Parser Text
-pRawVar = between (string "{{") (string "}}") (T.pack <$> some (noneOf ['{', '}', '*', '/']))
-
---------------------------------------------------------------------------------
--- 6. Validation
---------------------------------------------------------------------------------
-
-targetDirKeyword :: Text
-targetDirKeyword = "TARGET_DIR"
-
-targetDirName :: VarName
-targetDirName = VarName "target-dir"
-
-resolveTargetVar :: Text -> Either GlobPlusError TargetVar
-resolveTargetVar raw
-    | namesTargetDir raw = Left (TargetDirInTargetPattern raw)
-    | otherwise = uncurry TargetVar <$> resolveVar raw
-
-resolveClauseVar :: Text -> Either GlobPlusError ClauseVar
-resolveClauseVar raw
-    | raw == targetDirKeyword = Right CTargetDir
-    | namesTargetDir raw = Left (ReservedTargetDir raw)
-    | otherwise = uncurry ClauseVar <$> resolveVar raw
-
-resolveVar :: Text -> Either GlobPlusError (VarName, Casing)
-resolveVar raw = do
-    casing <- detectCasing raw
-    checkConsecutiveCapitals casing raw
-    pure (canonicalName casing raw, casing)
-
-{- | Whether a token is any spelling of the reserved name. A token that is not
-written in a single recognised casing cannot be one, and is left to
-'resolveVar' to report against the casing rules instead.
--}
-namesTargetDir :: Text -> Bool
-namesTargetDir raw = case detectCasing raw of
-    Right casing -> canonicalName casing raw == targetDirName
-    Left _ -> False
-
-{- | A token is written in the one casing it is a valid spelling of. Spelling
-alone is enough for a name of two or more words; a single word such as
-@provider@ reads as both camelCase and kebab-case, and is rejected.
--}
-detectCasing :: Text -> Either GlobPlusError Casing
-detectCasing raw = case filter (`spelledIn` raw) [minBound .. maxBound] of
-    [casing] -> Right casing
-    [] -> Left (UnrecognisedCasing raw)
-    (c : cs) -> Left (AmbiguousCasing raw (c :| cs))
-
-{- | @HTTPClient@ has no determinable word boundaries, which would make it a
-different variable from @http-client@. Constant case is all capitals by
-definition, so the check applies only where capitals carry meaning.
--}
-checkConsecutiveCapitals :: Casing -> Text -> Either GlobPlusError ()
-checkConsecutiveCapitals casing raw = case casing of
-    PascalCase -> reject
-    CamelCase -> reject
-    KebabCase -> Right ()
-    ConstantCase -> Right ()
-  where
-    reject
-        | any bothUpper (T.zip raw (T.drop 1 raw)) = Left (ConsecutiveCapitals raw)
-        | otherwise = Right ()
-    bothUpper (a, b) = isAsciiUpper a && isAsciiUpper b
-
-{- | Two variables with nothing between them give the regex no boundary to
-split on. A literal separator that both can consume is allowed: the leftmost
-variable binds greedily, which is documented behaviour.
--}
-checkAdjacency :: [Token TargetVar] -> Either GlobPlusError ()
-checkAdjacency (Var left : Var right : _) = Left (AdjacentVariables (spellTargetVar left) (spellTargetVar right))
-checkAdjacency (_ : rest) = checkAdjacency rest
-checkAdjacency [] = Right ()
-
-checkBound :: Set VarName -> Token ClauseVar -> Either GlobPlusError ()
-checkBound bound (Var (ClauseVar name _))
-    | not (Set.member name bound) = Left (UnboundVariable name bound)
-checkBound _ _ = Right ()
-
-canonicalName :: Casing -> Text -> VarName
-canonicalName casing = VarName . render KebabCase . decode casing
-
-spellTargetVar :: TargetVar -> Text
-spellTargetVar (TargetVar name casing) = spellVar name casing
-
--- | Writes a variable's canonical name back out in the given casing.
-spellVar :: VarName -> Casing -> Text
-spellVar name casing = render casing (decode KebabCase name.text)
-
---------------------------------------------------------------------------------
--- 7. Matchers (The Hot Path)
---------------------------------------------------------------------------------
-
-matchTarget :: CompiledTargetPattern -> Text -> Maybe MatchEnv
-matchTarget ctp targetPath =
-    let (_, matched, _, captures) = match ctp.regex targetPath :: (Text, Text, Text, [Text])
-     in if matched /= ""
-            then do
-                occurrences <- traverse (capturedBy captures) ctp.vars
-                MatchEnv (getDirName targetPath) <$> bindVariables occurrences
-            else Nothing
-  where
-    -- Group numbers are 1-based; the subgroup list is not.
-    capturedBy captures v =
-        ((v.name, v.casing),) <$> captures !!? (v.group.number - 1)
-
-{- | Groups every capture by the variable it belongs to. A variable may occur
-more than once - @{{provider-name}}\/{{ProviderName}}View@ - in which case some
-one name must spell all of its captures, or the target does not match.
-
-Each occurrence's literal text is then written back into its own casing slot,
-so same-casing use is always exact even where the agreed name renders
-differently: a captured @HTTPClient@ stays @HTTPClient@ in a Pascal clause.
--}
-bindVariables :: [((VarName, Casing), Text)] -> Maybe (Map VarName BoundName)
-bindVariables captures = traverse bindOne grouped
-  where
-    grouped = Map.fromListWith (<>) [(name, [(casing, value)]) | ((name, casing), value) <- captures]
-
-    bindOne occurrences = do
-        agreed <- agree =<< nonEmpty occurrences
+matchTarget :: CompiledTargetPattern -> Segments -> Maybe MatchEnv
+matchTarget target (Segments path)
+    | length path < target.minLength = Nothing
+    | otherwise = do
+        bindings <- walkSegments bindParts target.segments path noBindings
         pure
-            BoundName
-                { spelling = foldl' overlay (casedNameFrom agreed.canonical) occurrences
-                , candidates = agreed.candidates
+            MatchEnv
+                { targetDir = directoryOf path
+                , variables = resolveBindings bindings
                 }
+
+-- | The directory a matched path sits in: everything but its final segment.
+directoryOf :: [Text] -> Text
+directoryOf = maybe "." (T.intercalate "/" . init) . nonEmpty
+
+{- | The outer walk: how many segments each globstar eats.
+
+Shared by targets, clauses and excludes, which differ only in what matching a
+single segment /means/ - the @step@ argument. A step returns every way that
+segment could be consumed, so that a later segment can reject an earlier
+segment's division and the walk carries on to the next one.
+-}
+walkSegments :: (a -> Text -> st -> [st]) -> [Seg a] -> [Text] -> st -> Maybe st
+walkSegments _ [] path st = st <$ guard (null path)
+walkSegments step (GlobStar : rest) path st =
+    asum [walkSegments step rest (drop width path) st | width <- [0 .. slack]]
+  where
+    slack = length path - minSegments rest
+walkSegments step (Segment a : rest) path st = case path of
+    [] -> Nothing
+    (segment : deeper) -> asum [walkSegments step rest deeper st' | st' <- step a segment st]
+
+--------------------------------------------------------------------------------
+-- 6. Binding, and agreement as a constraint
+--------------------------------------------------------------------------------
+
+{- | What each variable has bound so far: every occurrence's literal text, and
+the name they have agreed on given all of them.
+-}
+newtype Bindings = Bindings (Map VarName Binding)
+
+data Binding = Binding
+    { agreed :: AgreedName
+    , occurrences :: NonEmpty (Casing, Text)
+    }
+
+noBindings :: Bindings
+noBindings = Bindings Map.empty
+
+{- | Every way the parts can divide one segment's text, greedy-left: each slot
+in turn takes the most it can. A division that contradicts what a variable has
+already bound is never returned, so the caller's search is pruned at the
+earliest point the contradiction is visible rather than at the end.
+-}
+bindParts :: [SegPart TargetVar] -> Text -> Bindings -> [Bindings]
+bindParts [] text bindings = [bindings | T.null text]
+bindParts (Lit literal : rest) text bindings = case T.stripPrefix literal text of
+    Just remaining -> bindParts rest remaining bindings
+    Nothing -> []
+bindParts (AnyChars : rest) text bindings =
+    [ bound
+    | taken <- widthsOf 0 text
+    , bound <- bindParts rest (T.drop taken text) bindings
+    ]
+bindParts (VarPart (TargetVar name casing) : rest) text bindings =
+    [ bound
+    | taken <- widthsOf 1 text
+    , let value = T.take taken text
+    , capturedBy casing value
+    , narrowed <- toList (bindOccurrence name casing value bindings)
+    , bound <- bindParts rest (T.drop taken text) narrowed
+    ]
+
+-- | Candidate widths, longest first. A variable must take at least one char.
+widthsOf :: Int -> Text -> [Int]
+widthsOf smallest text = reverse [smallest .. T.length text]
+
+{- | Records one occurrence and re-asks whether the variable's occurrences can
+still denote one name. 'Nothing' is a dead branch: none can, so this division
+of the path is not the intended one and the search moves on.
+
+'Deslop.Casing.agree' is asked afresh over all the occurrences so far rather
+than the previous answer being narrowed, and that matters. A name only some
+occurrences /propose/ may still be spelled by all of them - @A00@ proposes
+@a00@ and @a 00@, while @A_0_0@ proposes @a 0 0@, and it is the last of those
+that spells both. Narrowing the first occurrence's proposals would lose it.
+-}
+bindOccurrence :: VarName -> Casing -> Text -> Bindings -> Maybe Bindings
+bindOccurrence name casing value (Bindings bound) = do
+    let occurrences = case Map.lookup name bound of
+            Nothing -> one (casing, value)
+            Just binding -> binding.occurrences <> one (casing, value)
+    agreed <- agree occurrences
+    pure . Bindings $ Map.insert name (Binding agreed occurrences) bound
+
+{- | Whether a value is something this casing's capture accepts. Deliberately
+looser than 'Deslop.Casing.spelledIn': a /pattern/ token must be a well-formed
+spelling, but a /value/ read out of a codebase is taken as generously as the
+character class allows.
+-}
+capturedBy :: Casing -> Text -> Bool
+capturedBy PascalCase = opensWith isAsciiUpper isAlphaNum
+capturedBy CamelCase = opensWith isAsciiLower isAlphaNum
+capturedBy KebabCase = opensWith isKebabChar isKebabChar
+capturedBy ConstantCase = opensWith isConstantChar isConstantChar
+
+opensWith :: (Char -> Bool) -> (Char -> Bool) -> Text -> Bool
+opensWith isFirst isRest text = case T.uncons text of
+    Just (c, rest) -> isFirst c && T.all isRest rest
+    Nothing -> False
+
+isAlphaNum, isKebabChar, isConstantChar :: Char -> Bool
+isAlphaNum c = isAsciiUpper c || isAsciiLower c || isDigit c
+isKebabChar c = isAsciiLower c || isDigit c || c == '-'
+isConstantChar c = isAsciiUpper c || isDigit c || c == '_'
+
+{- | Turns the surviving constraints into values.
+
+The coarsest surviving name - the one with fewest words - is what gets written
+out, which is the standard acronym reading derived from the rendering model
+rather than bolted on beside it. Each occurrence's own literal text is then
+written back into its own casing slot, so same-casing use is always exact even
+where the agreed name renders differently: a captured @HTTPClient@ stays
+@HTTPClient@ in a Pascal clause.
+-}
+resolveBindings :: Bindings -> Map VarName BoundName
+resolveBindings (Bindings bound) = resolve <$> bound
+  where
+    resolve binding =
+        BoundName
+            { spelling = foldl' overlay (casedNameFrom binding.agreed.canonical) (toList binding.occurrences)
+            , candidates = binding.agreed.candidates
+            }
 
     overlay named (PascalCase, value) = named {pascal = value}
     overlay named (CamelCase, value) = named {camel = value}
@@ -618,149 +388,165 @@ casedNameFrom name =
         , constant = render ConstantCase name
         }
 
-matchExclude :: CompiledExcludePattern -> Text -> Bool
-matchExclude cep targetPath = match cep.regex targetPath :: Bool
+--------------------------------------------------------------------------------
+-- 7. Clause and exclude matching
+--------------------------------------------------------------------------------
 
-getDirName :: Text -> Text
-getDirName = maybe "." (T.intercalate "/" . init) . nonEmpty . T.splitOn "/"
-
--- TODO(perf): `matchClause` currently recompiles the hydrated regex on every call.
--- Fix: eta-reduce to `matchClause crp env = let regexObj = makeRegex ... in match regexObj`
--- so the Regex is compiled once when partially applied to `(crp, env)`, and bind
--- `matchClause p e` to a `let`/`where` name at each call site to guarantee sharing
--- across the inner loop (e.g. the transitive reachability traverse in RuleEnforcer).
-matchClause :: CompiledClausePattern -> MatchEnv -> Text -> Bool
-matchClause crp env targetPath = case traverse resolveChunk crp.chunks of
-    -- Compilation guarantees every variable is bound, so Nothing is unreachable.
-    -- Failing closed keeps an impossible state from silently widening a rule.
-    Nothing -> False
-    Just parts -> match (makeRegex (T.concat parts) :: Regex) targetPath :: Bool
-  where
-    resolveChunk (StaticChunk s) = Just s
-    resolveChunk (VarChunk CTargetDir) = Just (escapeRegex env.targetDir)
-    resolveChunk (VarChunk (ClauseVar name casing)) =
-        hydrate casing <$> Map.lookup name env.variables
-
-    hydrate casing bound = case crp.polarity of
-        Requiring -> escapeRegex (casedAs casing bound)
-        Forbidding -> alternation (spellingsAs casing bound)
-
-{- | Every spelling of a bound name in a casing: each name its captures could
-have denoted, written every way that casing admits. @db-connection@ yields
-@DbConnection@ and @DBConnection@, so a @forbids:@ clause cannot be evaded by
-writing the acronym the other way.
+{- | A clause pattern with its variables already substituted. Built once per
+matched target and reused for every candidate path, which is the difference
+between resolving a variable once and resolving it per import.
 -}
-spellingsAs :: Casing -> BoundName -> NonEmpty Text
-spellingsAs casing bound =
-    fromMaybe (one (casedAs casing bound))
-        . nonEmpty
-        . take alternationLimit
-        . ordNub
-        . concatMap (toList . renderings casing)
-        $ bound.candidates
+data ResolvedClause = ResolvedClause
+    { segments :: [Seg [ResolvedPart]]
+    , minLength :: Int
+    }
+    deriving (Show, Eq)
 
-{- | A cap on how wide a @forbids:@ clause may grow. The canonical spelling
-comes first, so a name pathological enough to be truncated still matches the
-way it was actually captured.
+-- | One piece of a hydrated segment: no variables left, only text to match.
+data ResolvedPart
+    = RLit Text
+    | RAnyChars
+    | -- | One of several spellings, as a 'Widen' clause admits.
+      RAlt (NonEmpty Text)
+    deriving (Show, Eq)
+
+matchClause :: CompiledClausePattern -> MatchEnv -> Segments -> Bool
+matchClause clause env = matchResolved (hydrate env clause)
+
+matchExclude :: CompiledExcludePattern -> Segments -> Bool
+matchExclude exclude (Segments path)
+    | length path < exclude.minLength = False
+    | otherwise = isJust (walkSegments matchParts (resolveVoid <$> exclude.segments) path ())
+  where
+    resolveVoid = fmap (fmap plainPart)
+    plainPart (Lit t) = RLit t
+    plainPart AnyChars = RAnyChars
+    plainPart (VarPart v) = absurd v
+
+matchResolved :: ResolvedClause -> Segments -> Bool
+matchResolved clause (Segments path)
+    | length path < clause.minLength = False
+    | otherwise = isJust (walkSegments matchParts clause.segments path ())
+
+-- | Whether the parts can divide this segment's text at all.
+matchParts :: [ResolvedPart] -> Text -> () -> [()]
+matchParts parts text () = [() | consumes parts text]
+  where
+    consumes [] remaining = T.null remaining
+    consumes (RLit literal : rest) remaining = maybe False (consumes rest) (T.stripPrefix literal remaining)
+    consumes (RAnyChars : rest) remaining =
+        any (\taken -> consumes rest (T.drop taken remaining)) (widthsOf 0 remaining)
+    consumes (RAlt spellings : rest) remaining =
+        any (\s -> maybe False (consumes rest) (T.stripPrefix s remaining)) spellings
+
+{- | Substitutes a clause's variables. @{{TARGET_DIR}}@ is the one substitution
+that can introduce a @\/@, so a hydrated segment may become several - which is
+why hydration produces the segment list rather than editing it in place.
+-}
+hydrate :: MatchEnv -> CompiledClausePattern -> ResolvedClause
+hydrate env clause =
+    ResolvedClause
+        { segments = hydrated
+        , minLength = minSegments hydrated
+        }
+  where
+    hydrated = concatMap hydrateSegment clause.segments
+
+    hydrateSegment GlobStar = [GlobStar]
+    hydrateSegment (Segment parts) = Segment <$> splitOnSlash (mergeLits (hydratePart =<< parts))
+
+    hydratePart (Lit t) = [RLit t]
+    hydratePart AnyChars = [RAnyChars]
+    hydratePart (VarPart CTargetDir) = [RLit env.targetDir]
+    hydratePart (VarPart (ClauseVar name casing)) = case Map.lookup name env.variables of
+        -- Compilation guarantees every clause variable is bound, so this is
+        -- unreachable. Matching nothing keeps an impossible state from widening.
+        Nothing -> [RAlt (one "\0unbound")]
+        Just bound -> [spellingsOf clause.polarity casing bound]
+
+    mergeLits (RLit a : RLit b : rest) = mergeLits (RLit (a <> b) : rest)
+    mergeLits (part : rest) = part : mergeLits rest
+    mergeLits [] = []
+
+{- | What a variable stands for in a clause, in the direction its polarity says
+it is safe to be wrong.
+-}
+spellingsOf :: Polarity -> Casing -> BoundName -> ResolvedPart
+spellingsOf Narrow casing bound = RLit (casedAs casing bound)
+spellingsOf Widen casing bound = case nonEmpty (take alternationLimit spellings) of
+    Just alternatives -> RAlt alternatives
+    Nothing -> RLit (casedAs casing bound)
+  where
+    -- The literal capture first, so a name pathological enough to be truncated
+    -- still matches the way it was actually captured.
+    spellings = ordNub (casedAs casing bound : concatMap (toList . renderings casing) bound.candidates)
+
+{- | A cap on how wide a 'Widen' clause may grow. A name with more acronym
+letters than this is pathological rather than real.
 -}
 alternationLimit :: Int
 alternationLimit = 256
 
-alternation :: NonEmpty Text -> Text
-alternation (single :| []) = escapeRegex single
-alternation spellings = "(" <> T.intercalate "|" (escapeRegex <$> toList spellings) <> ")"
+{- | Breaks a hydrated segment wherever a substitution introduced a @\/@. Only
+@{{TARGET_DIR}}@ can, since no capture's character class admits one.
+-}
+splitOnSlash :: [ResolvedPart] -> [[ResolvedPart]]
+splitOnSlash = go []
+  where
+    go current [] = [reverse current]
+    go current (RLit text : rest) = case reverse (T.splitOn "/" text) of
+        [] -> go current rest
+        (final : beforeFinal) -> case reverse beforeFinal of
+            -- No slash in the substitution: it stays part of this segment.
+            [] -> go (RLit final : current) rest
+            (opening : middles) ->
+                reverse (RLit opening : current)
+                    : fmap (one . RLit) middles
+                    <> go [RLit final] rest
+    go current (part : rest) = go (part : current) rest
 
 --------------------------------------------------------------------------------
 -- 8. Expansion
 --------------------------------------------------------------------------------
 
 {- | Expands a clause pattern into a concrete module path by substituting
-variables from the MatchEnv. Returns Nothing if the pattern contains
-wildcards (* or **), which cannot be deterministically expanded.
+variables. Returns Nothing if the pattern contains wildcards, which cannot be
+deterministically expanded.
 -}
 moduleFromGlob :: MatchEnv -> CompiledClausePattern -> Maybe Text
-moduleFromGlob env crp = T.concat <$> traverse expand crp.rawTokens
+moduleFromGlob env clause = T.intercalate "/" <$> traverse expandSegment clause.segments
   where
-    expand (Literal t) = Just t
-    expand Star = Nothing
-    expand GlobStar = Nothing
-    expand (Var v) = valueOf env v
+    expandSegment GlobStar = Nothing
+    expandSegment (Segment parts) = T.concat <$> traverse expandPart parts
 
-{- | Renders a clause pattern as a human-readable string by substituting
-variables from the MatchEnv and keeping wildcards (* or **) literally.
+    expandPart (Lit t) = Just t
+    expandPart AnyChars = Nothing
+    expandPart (VarPart v) = valueOf env v
+
+{- | Renders a clause pattern for a human, substituting what is bound and
+keeping the wildcards literally.
 -}
 renderClausePattern :: MatchEnv -> CompiledClausePattern -> Text
-renderClausePattern env crp = T.concat (renderToken <$> crp.rawTokens)
+renderClausePattern env clause = T.intercalate "/" (renderSegment <$> clause.segments)
   where
-    renderToken (Literal t) = t
-    renderToken Star = "*"
-    renderToken GlobStar = "**"
-    renderToken (Var v) = fromMaybe (asWritten v) (valueOf env v)
+    renderSegment GlobStar = "**"
+    renderSegment (Segment parts) = T.concat (renderPart <$> parts)
 
-    asWritten CTargetDir = braced targetDirKeyword
-    asWritten (ClauseVar name casing) = braced (spellVar name casing)
+    renderPart (Lit t) = t
+    renderPart AnyChars = "*"
+    renderPart (VarPart v) = fromMaybe (asWritten v) (valueOf env v)
+
+    asWritten CTargetDir = "{{" <> targetDirKeyword <> "}}"
+    asWritten (ClauseVar name casing) = "{{" <> spellVar name casing <> "}}"
 
 -- | What a clause variable stands for under a match, if anything does.
 valueOf :: MatchEnv -> ClauseVar -> Maybe Text
 valueOf env CTargetDir = Just env.targetDir
 valueOf env (ClauseVar name casing) = casedAs casing <$> Map.lookup name env.variables
 
-{- | Substitutes the variables in prose - a rule's @description@ or @fix@ -
-with the values its target captured, each written in the casing its occurrence
-is spelled in.
+-- | Writes a variable's canonical name back out in the given casing.
+spellVar :: VarName -> Casing -> Text
+spellVar name casing = render casing (decode KebabCase name.text)
 
-Prose is not a pattern: @*@ and @\/@ are ordinary characters here, and a token
-that names nothing in scope is left exactly as written. A message can therefore
-never be mangled by a typo, an unbound name, or braces that were only ever
-meant to be read as braces.
--}
-interpolate :: MatchEnv -> Text -> Text
-interpolate env = go
-  where
-    go text =
-        let (before, rest) = T.breakOn openBrace text
-         in if T.null rest
-                then before
-                else before <> token (T.drop (T.length openBrace) rest)
-
-    {- The opening braces are already consumed, so either the token resolves,
-    or they are written back out and scanning resumes just after them - which
-    is what lets a token nested inside an unrecognised one still be found. -}
-    token rest = case T.breakOn closeBrace rest of
-        (raw, closing)
-            | not (T.null closing)
-            , Just value <- resolve raw ->
-                value <> go (T.drop (T.length closeBrace) closing)
-        _ -> openBrace <> go rest
-
-    -- What may stand between braces is 'pRawVar''s business, so a candidate is
-    -- put back through it rather than judged by a second set of rules here.
-    resolve raw = do
-        name <- rightToMaybe (parse (pRawVar <* eof) "" (braced raw))
-        var <- rightToMaybe (resolveClauseVar name)
-        valueOf env var
-
---------------------------------------------------------------------------------
--- Utilities
---------------------------------------------------------------------------------
-
-escapeRegex :: Text -> Text
-escapeRegex =
-    T.concatMap
-        ( \c ->
-            if c `elem` ("\\^$.|?*+()[]{}" :: String)
-                then "\\" <> T.singleton c
-                else T.singleton c
-        )
-
--- | Levenshtein distance, used only to suggest a near-miss variable name.
-editDistance :: Text -> Text -> Int
-editDistance source target =
-    fromMaybe 0 . viaNonEmpty last $
-        foldl' nextRow [0 .. T.length source] (T.unpack target)
-  where
-    nextRow row@(leading : rest) c = scanl (nextCost c) (leading + 1) (zip3 (T.unpack source) row rest)
-    nextRow [] _ = []
-
-    nextCost c left (sourceChar, diagonal, up) =
-        (up + 1) `min` (left + 1) `min` (diagonal + if sourceChar == c then 0 else 1)
+targetDirKeyword :: Text
+targetDirKeyword = "TARGET_DIR"

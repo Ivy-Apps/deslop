@@ -64,11 +64,15 @@ library
     Deslop.Casing
     Deslop.CodeGraph
     Deslop.GlobPlus
+    Deslop.GlobPlus.Compiler
     Deslop.Lint.CycleDetection
     Deslop.Lint.RelativeImports
     Deslop.Problem
     Deslop.ProblemFormatter
     Deslop.Rulebook
+    Deslop.Rulebook.Compiler
+    Deslop.Rulebook.Dto
+    Deslop.Rulebook.Loader
     Deslop.RuleEnforcer
     Effects.CLI
     Effects.FileSystem
@@ -112,7 +116,6 @@ library
     , os-string
     , process
     , random
-    , regex-tdfa
     , req
     , stm
     , template-haskell
@@ -139,7 +142,6 @@ test-suite deslop-test
     Deslop.BaselineSpec
     Deslop.CasingSpec
     Deslop.CodeGraphSpec
-    Deslop.GlobPlusModel
     Deslop.GlobPlusOracle
     Deslop.GlobPlusPropSpec
     Deslop.GlobPlusSemanticsSpec

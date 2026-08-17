@@ -14,6 +14,7 @@ module Deslop.GlobPlusSemanticsSpec (spec) where
 
 import Data.Map.Strict qualified as Map
 import Deslop.GlobPlus
+import Deslop.GlobPlus.Compiler
 import Test.Hspec
 import TestUtils (requireJust)
 
@@ -132,7 +133,7 @@ spec = describe "Deslop.GlobPlus semantics" $ do
 
         it "is idempotent: two globstars say what one says" $
             for_ ["@/a/b", "@/a/x/b", "@/a/x/y/b"] $ \path ->
-                match "@/a/**/**/b" path `shouldSatisfy` sameAs (match "@/a/**/b" path)
+                match "@/a/**/**/b" path `shouldBe` match "@/a/**/b" path
 
     describe "** is a whole segment or it is nothing" $ do
         it "rejects a globstar glued to a suffix" $
@@ -164,7 +165,7 @@ spec = describe "Deslop.GlobPlus semantics" $ do
 
 match :: Text -> Text -> Maybe MatchEnv
 match pat path = case compileTargetPattern pat of
-    Right compiled -> matchTarget compiled path
+    Right compiled -> matchTarget compiled (segmentsOf path)
     Left err -> error $ "target pattern did not compile: " <> renderGlobPlusError err
 
 matched :: Text -> Text -> IO MatchEnv
@@ -179,11 +180,7 @@ that a failure is about the pattern's shape rather than about its scope.
 clauseError :: Text -> Maybe GlobPlusError
 clauseError =
     leftToMaybe
-        . compileClausePattern Requiring (fromList [VarName "provider-name", VarName "service-type", VarName "file-name"])
+        . compileClausePattern Narrow (fromList [VarName "provider-name", VarName "service-type", VarName "file-name"])
 
 kebabOf :: Text -> MatchEnv -> Maybe Text
 kebabOf name env = casedAs KebabCase <$> Map.lookup (VarName name) env.variables
-
--- | Whether two matches agree on both the decision and every binding.
-sameAs :: Maybe MatchEnv -> Maybe MatchEnv -> Bool
-sameAs = (==)

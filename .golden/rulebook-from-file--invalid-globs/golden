@@ -1,2 +1,16 @@
 Left
-  "rule 'provider-service-view', uses.import: \"{{TARGET_DIR}}/{{provider-nam}}Service\"\n  unknown variable {{provider-nam}}.\n    Variables bound by this rule's target: file-name, provider-name, service-type\n    Did you mean {{provider-name}}?"
+  (UncompilablePatterns
+     (CompileError
+        { rule = RuleId "provider-service-view"
+        , field = UsesField
+        , glob = "{{TARGET_DIR}}/{{provider-nam}}Service"
+        , cause =
+            UnboundVariable
+              VarName { text = "provider-nam" }
+              (fromList
+                 [ VarName { text = "file-name" }
+                 , VarName { text = "provider-name" }
+                 , VarName { text = "service-type" }
+                 ])
+        } :|
+        []))
