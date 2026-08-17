@@ -4,6 +4,41 @@
 
 All cabal/GHC commands must run inside the Nix dev shell using our `nix run` commands.
 
+### Fast feedback
+
+While iterating on code, use this instead of a full build:
+
+```bash
+nix run .#quick-typecheck
+```
+
+It answers exactly one question, "does the project typecheck", by keeping a warm
+`ghcid` session over all four components (library, executable, tests,
+benchmark). It prints either `All good (70 modules)` and exits 0, or the GHC
+errors verbatim and exits 1. There is no need to pipe it through `grep`.
+
+Roughly 0.5s when nothing broke and ~2s when something did, against ~8s for
+`nix run .#build`. The first call after a break starts the session and takes
+~15s; every call after that is fast, so just run it and keep going.
+
+**This is not a quality gate.** The session is interpreted, so it does not run
+tests, does not run `hlint`, does not link, and does not compile with `-O2`. Use
+it to converge quickly, then finish with the real checks below. **You are not
+done until `nix run .#build`, `nix run .#test` and `nix run .#lint` pass.**
+
+Notes:
+
+- Editing `deslop.cabal` restarts the session, so that check costs ~8s.
+- A new module is invisible to the session until it is registered in
+  `deslop.cabal`. Until then the check refuses to report and names the file.
+- Long error output is truncated; the printed path holds the full text.
+- Exit codes: 0 typechecks, 1 GHC errors, 2 no usable verdict (the reason goes
+  to stderr).
+- You should not normally need to stop the daemon: it retires itself after 30
+  minutes idle. To reclaim the ~700MB now, run `nix develop -c just stop-ghcid`
+  from the repo root. It stops every daemon on the machine, including ones other
+  worktrees are still using, so do not run it as routine cleanup.
+
 ### Building
 
 ```bash

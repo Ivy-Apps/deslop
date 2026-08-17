@@ -76,12 +76,20 @@
             '';
           };
 
+          # The ghcid daemon behind `nix run .#quick-typecheck`, and the tool
+          # `just stop-ghcid` uses to retire every session on the machine.
+          ghcidTools = import ./nix/ghcid.nix { inherit pkgs; };
+
         in
         {
           apps = {
             test = { type = "app"; program = "${aiTestRunner}/bin/ai-test"; };
             build = { type = "app"; program = "${aiBuildRunner}/bin/ai-build"; };
             lint = { type = "app"; program = "${aiLintRunner}/bin/ai-lint"; };
+            quick-typecheck = {
+              type = "app";
+              program = "${ghcidTools.quickTypecheck}/bin/ai-quick-typecheck";
+            };
           };
 
           devShells = {
@@ -118,12 +126,27 @@
                 # See the `ci` shell: `git check-ignore` is a test oracle.
                 pkgs.git
                 hgold
+                # For an interactive ghcid TUI; the agent-facing app reaches
+                # ghcid by store path and does not need it here. Kept out of the
+                # `ci` shell so CI never realises this closure.
+                pkgs.ghcid
+                # Behind `just quick-typecheck` and `just stop-ghcid`. The app
+                # under `nix run .#quick-typecheck` is the same program; having
+                # it here lets the recipe call it directly, as every other
+                # recipe calls its tool, and skips a flake evaluation per check.
+                ghcidTools.quickTypecheck
+                ghcidTools.stop
               ];
 
               buildInputs = sysLibs;
 
               shellHook = ''
                 export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')
+                # Deliberately does NOT warm the ghcid daemon. direnv waits on
+                # this hook's process group, so spawning the session here hung
+                # every `cd` into the project behind a callCabal2nix IFD
+                # evaluation and a 70-module repl load. The first
+                # `nix run .#quick-typecheck` pays that cost instead.
                 echo "🔮 Dev Environment started."
               '';
             };

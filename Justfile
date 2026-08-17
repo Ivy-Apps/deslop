@@ -64,6 +64,14 @@ update-benchmark:
     hgold
     git add .golden
 
+# Does the project typecheck? Fast inner loop, NOT a quality gate: see `check`
+@quick-typecheck:
+    ai-quick-typecheck
+
+# Stop every background ghcid daemon behind `just quick-typecheck`
+@stop-ghcid:
+    deslop-ghcid-stop
+
 # Fixes HLS by purging caches and rebuilding
 @fix-hls:
     echo "🛑 Stopping any running HLS instances..."
