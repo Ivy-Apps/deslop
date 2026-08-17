@@ -118,8 +118,9 @@ humanReadable (TsConfigNotFoundError path) =
     "tsconfig.json not found in '" <> decodeOsPath path <> "'"
 humanReadable (TsConfigParseError path) =
     "Could not parse TS config, check: '" <> path <> "'"
-humanReadable (RulebookError msg) =
-    "Could not load Rulebook: " <> msg
+-- The loader's report already names every file, rule and field, and counts
+-- them, so a prefix here would only say it twice.
+humanReadable (RulebookError msg) = msg
 humanReadable (InvalidRuleConfig msg) =
     "Invalid rule configuration: " <> msg
 

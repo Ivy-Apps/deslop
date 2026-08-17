@@ -83,6 +83,20 @@ rules:
       - module: "@/config/{{provider-name}}"
     fix: Name the entry point after the provider folder it sits under.
 
+  - id: adapter-imports-its-provider-config
+    description: >-
+      An adapter names its provider twice: once as the folder it sits in, and
+      once as the prefix of its own file name, before the service type. The
+      greedy split of that file segment gives the provider one word too many,
+      and the folder above has already ruled it out - so the split has to be
+      chosen by what is already bound rather than merely checked against it.
+    target: "@/adapters/{{provider-name}}/{{provider-name}}-{{service-type}}"
+    uses:
+      - import: "@/config/{{provider-name}}"
+    fix: >-
+      Import @/config/{{provider-name}}, the config of the provider your folder
+      names, rather than the {{service-type}} adapter's own.
+
   - id: view-model-drives-its-use-case
     description: >-
       A use case's ViewModel drives that use case and no other. The variable is

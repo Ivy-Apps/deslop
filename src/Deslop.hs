@@ -16,7 +16,8 @@ import Deslop.Lint.CycleDetection (noImportCycles)
 import Deslop.Lint.RelativeImports (noRelativeImports)
 import Deslop.Problem (Problem, isAutoFixable)
 import Deslop.RuleEnforcer (enforceRulebooks)
-import Deslop.Rulebook (Rulebook (..), loadRuleBook)
+import Deslop.Rulebook (Rulebook (..))
+import Deslop.Rulebook.Loader (loadRulebook)
 import Effectful (Eff, IOE, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
@@ -160,7 +161,7 @@ deslopProject ::
     Baseline ->
     Eff es RunSummary
 deslopProject params baseline = do
-    rulebookRes <- loadRuleBook params.projectPath
+    rulebookRes <- loadRulebook params.projectPath
     rulebook <- case rulebookRes of
         Right rb -> pure rb
         Left e -> throwError . RulebookError $ e

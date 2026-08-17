@@ -130,9 +130,13 @@ runRoFileSystemIO = interpret $ \_env -> \case
     FileExists (AbsPath path) -> liftIO $ SDO.doesFileExist path
     DirectoryExists (AbsPath path) -> liftIO $ SDO.doesDirectoryExist path
     IsSymlink (AbsPath path) -> liftIO $ SDO.pathIsSymbolicLink path
+    -- Sorted, because listDirectory's order is unspecified and every caller
+    -- turns it into output a user reads: which rulebooks load first, which
+    -- modules are walked first. Left to the filesystem, that order differs
+    -- between machines and the same run gives two different answers.
     ListDirectory absP@(AbsPath p) ->
         liftIO
-            . fmap (fmap (withAbsBaseUnsafe absP))
+            . fmap (sort . fmap (withAbsBaseUnsafe absP))
             . SDO.listDirectory
             $ p
     GetHomeDirectory -> liftIO $ absPathUnsafe <$> SDO.getHomeDirectory

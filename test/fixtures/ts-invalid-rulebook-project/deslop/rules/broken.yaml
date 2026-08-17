@@ -1,8 +1,9 @@
 id: broken
 name: Broken Rulebook
 description: >-
-  {{provider}} is a single word, so it reads as both camelCase and kebab-case.
-  Deslop must refuse to run rather than guess which one was meant.
+  Every rule here is broken, and in a different way. Deslop must refuse to run
+  and report all of them at once: fixing a rulebook one error per run is the
+  behaviour this fixture exists to prevent coming back.
 rules:
   - id: provider-components-are-isolated
     description: A provider's components must not import another provider's code
@@ -10,3 +11,21 @@ rules:
     forbids:
       - import: "@/components/**"
     fix: Import only from within your own provider folder.
+
+  - id: provider-view-is-unanchored
+    description: >-
+      {{provider-name}} has ** on both sides, so nothing in the pattern says
+      which directory it names.
+    target: "@/**/{{provider-name}}/**/{{FileName}}View"
+    uses:
+      - import: "@/config/{{provider-name}}"
+    fix: Anchor the provider variable against a literal.
+
+  - id: view-has-no-boundary
+    description: >-
+      A * between two variables is not a boundary, because it can match
+      nothing at all.
+    target: "@/x/{{FileName}}*{{ServiceType}}"
+    forbids:
+      - import: "@/internal/**"
+    fix: Separate the two variables with a literal.

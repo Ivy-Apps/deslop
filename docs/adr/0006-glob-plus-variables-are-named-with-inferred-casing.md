@@ -10,6 +10,13 @@ how *values* are compared: this ADR's rule that all captures of one variable
 must canonicalise identically is replaced by asking whether some one name spells
 all of them.
 
+Further refined by
+[ADR 9](0009-glob-plus-matches-path-segments.md), which replaces the regex
+engine with a segment matcher. The naming rules here all survive; what does not
+is the `**/` idiom, the capture-group numbering that existed to work around it,
+and the rejection of adjacent variables - generalised there to a rule about
+literals that also catches `{{A}}*{{B}}`.
+
 ## Context
 
 Glob+ supported exactly one variable per rule. `{{FileName}}`, `{{fileName}}`,

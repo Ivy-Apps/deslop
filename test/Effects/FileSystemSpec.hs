@@ -31,6 +31,9 @@ spec = describe "Effects.FileSystem" $ do
 
         -- Then
         entries `shouldSatisfy` all (isAbsolute . (.osPath))
+        -- Sorted, not merely listed: callers turn this order into output a
+        -- user reads, and the filesystem's own order differs between machines.
+        entries `shouldBe` sort entries
 
     it "encodeOsPath" $ do
         let validText = "src/Main.hs"

@@ -3,7 +3,8 @@ module Deslop.RuleEnforcer (enforceRulebooks) where
 import Data.Text qualified as T
 import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
-import Deslop.GlobPlus (MatchEnv, interpolate, matchClause, matchExclude, matchTarget, moduleFromGlob, renderClausePattern)
+import Deslop.GlobPlus (MatchEnv, Segments, hydrate, matchExclude, matchResolved, matchTarget, moduleFromGlob, renderClausePattern, segmentsOf)
+import Deslop.GlobPlus.Compiler (interpolate)
 import Deslop.Problem (Problem (..))
 import Deslop.Rulebook (AllowsClause (..), ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Effectful (Eff, (:>))
@@ -34,7 +35,15 @@ ruleViolation env m desc = do
             , fix = interpolate env rule.fix
             }
 
-newtype ReachableModules = ReachableModules [ModuleId]
+{- | Every path this module will be tested against, each split into segments
+exactly once. A module id is matched against every rule and every clause, so
+taking it apart per match is work done as many times as there are clauses.
+-}
+data Candidates = Candidates
+    { self :: Segments
+    , imports :: [(AstNode, Segments)]
+    , reachable :: [(ModuleId, Segments)]
+    }
 
 enforceRulebooks ::
     ( Reader [Rulebook] :> es
@@ -46,12 +55,17 @@ enforceRulebooks ::
 enforceRulebooks m = do
     rulebooks <- ask @[Rulebook]
     reachable <- reachableFrom m.id
-    runReader (ReachableModules reachable) $
-        traverse_ (enforceRulebook m) rulebooks
+    let candidates =
+            Candidates
+                { self = segmentsOf m.id.text
+                , imports = [(node, segmentsOf node.target.text) | node <- m.nodes]
+                , reachable = [(moduleId, segmentsOf moduleId.text) | moduleId <- reachable]
+                }
+    runReader candidates $ traverse_ (enforceRulebook m) rulebooks
 
 enforceRulebook ::
     ( Reader ModuleGraph :> es
-    , Reader ReachableModules :> es
+    , Reader Candidates :> es
     , ReportProblem :> es
     , Error DeslopError :> es
     ) =>
@@ -62,21 +76,23 @@ enforceRulebook m rulebook =
 
 enforceRule ::
     ( Reader ModuleGraph :> es
-    , Reader ReachableModules :> es
+    , Reader Candidates :> es
     , Reader RulebookId :> es
     , ReportProblem :> es
     , Error DeslopError :> es
     ) =>
     AstModule -> Rule -> Eff es ()
-enforceRule m rule = case isTarget m.id rule of
-    Just env -> runReader rule $ execute env
-    Nothing -> pure ()
+enforceRule m rule = do
+    candidates <- ask @Candidates
+    case isTarget candidates.self rule of
+        Just env -> runReader rule $ execute env
+        Nothing -> pure ()
   where
     execute ::
         ( Reader RulebookId :> es
         , Reader Rule :> es
         , Reader ModuleGraph :> es
-        , Reader ReachableModules :> es
+        , Reader Candidates :> es
         , ReportProblem :> es
         , Error DeslopError :> es
         ) =>
@@ -86,104 +102,89 @@ enforceRule m rule = case isTarget m.id rule of
         for_ rule.exists (traverse_ (enforceExists m env))
         for_ rule.uses (traverse_ (enforceUses m env))
 
-isTarget :: ModuleId -> Rule -> Maybe MatchEnv
-isTarget moduleId rule = case matchTarget rule.target moduleId.text of
+isTarget :: Segments -> Rule -> Maybe MatchEnv
+isTarget moduleSegments rule = case matchTarget rule.target moduleSegments of
     Just env | not isExcluded -> Just env
     _ -> Nothing
   where
-    isExcluded = any (`matchExclude` moduleId.text) (foldMap toList rule.exclude)
+    isExcluded = any (`matchExclude` moduleSegments) (foldMap toList rule.exclude)
 
+{- | Clauses are hydrated once per matched target and then run against every
+candidate path, rather than resolved afresh for each one.
+-}
 enforceForbids ::
     ( Reader ModuleGraph :> es
-    , Reader ReachableModules :> es
+    , Reader Candidates :> es
     , Reader RulebookId :> es
     , Reader Rule :> es
     , ReportProblem :> es
     ) =>
     AstModule -> MatchEnv -> ForbidsClause -> Eff es ()
-enforceForbids m env (ForbidsImport target transitive)
-    | transitive = do
-        ReachableModules reachable <- ask @ReachableModules
-        traverse_ transitiveForbiddenImport reachable
-    | otherwise = traverse_ directForbiddenImport m.nodes
+enforceForbids m env (ForbidsImport target transitive) = do
+    candidates <- ask @Candidates
+    allowed <- asks @Rule (fmap (hydrate env . (.target)) . foldMap toList . (.allows))
+    let forbidden = hydrate env target
+        isAllowed segments = any (`matchResolved` segments) allowed
+    if transitive
+        then traverse_ (transitiveForbiddenImport forbidden isAllowed) candidates.reachable
+        else traverse_ (directForbiddenImport forbidden isAllowed) candidates.imports
   where
-    directForbiddenImport (ImportNode t rawStatement)
-        | matchClause target env t.text = do
-            allowed <- inAllows t
-            unless allowed $ do
-                let message =
-                        "Module '"
-                            <> m.id.text
-                            <> "' directly imports '"
-                            <> t.text
-                            <> "'.\n```ts\n"
-                            <> T.strip rawStatement
-                            <> "\n```"
-                ruleViolation env m message
-                    >>= report
+    directForbiddenImport forbidden isAllowed (ImportNode t rawStatement, segments)
+        | matchResolved forbidden segments && not (isAllowed segments) = do
+            let message =
+                    "Module '"
+                        <> m.id.text
+                        <> "' directly imports '"
+                        <> t.text
+                        <> "'.\n```ts\n"
+                        <> T.strip rawStatement
+                        <> "\n```"
+            ruleViolation env m message >>= report
         | otherwise = pure ()
 
-    transitiveForbiddenImport reachableModuleId
-        | matchClause target env reachableModuleId.text = do
-            allowed <- inAllows reachableModuleId
-            unless allowed $ do
-                p <- findKnownPath m.id reachableModuleId
-                let hops = " (" <> pluralise (length p - 1) "hop" <> ")"
-                    via = " via: " <> T.intercalate " → " (map (.text) (toList p))
-                    firstHop = listToMaybe (drop 1 (toList p))
-                    importRaw hop = T.strip . (.rawStatement) <$> find (\n -> n.target == hop) m.nodes
-                    stmtSuffix = maybe "" (\raw -> "\n```ts\n" <> raw <> "\n```") (firstHop >>= importRaw)
-                    message =
-                        "Module '"
-                            <> m.id.text
-                            <> "' transitively imports '"
-                            <> reachableModuleId.text
-                            <> "'"
-                            <> hops
-                            <> via
-                            <> "."
-                            <> stmtSuffix
-                ruleViolation env m message >>= report
+    transitiveForbiddenImport forbidden isAllowed (reachableModuleId, segments)
+        | matchResolved forbidden segments && not (isAllowed segments) = do
+            p <- findKnownPath m.id reachableModuleId
+            let hops = " (" <> pluralise (length p - 1) "hop" <> ")"
+                via = " via: " <> T.intercalate " → " (map (.text) (toList p))
+                firstHop = listToMaybe (drop 1 (toList p))
+                importRaw hop = T.strip . (.rawStatement) <$> find (\n -> n.target == hop) m.nodes
+                stmtSuffix = maybe "" (\raw -> "\n```ts\n" <> raw <> "\n```") (firstHop >>= importRaw)
+                message =
+                    "Module '"
+                        <> m.id.text
+                        <> "' transitively imports '"
+                        <> reachableModuleId.text
+                        <> "'"
+                        <> hops
+                        <> via
+                        <> "."
+                        <> stmtSuffix
+            ruleViolation env m message >>= report
         | otherwise = pure ()
-
-    inAllows moduleId = do
-        allows <- asks @Rule (.allows)
-        case allows of
-            Nothing -> pure False
-            Just as -> pure . any (inAllowClause moduleId) $ as
-
-    inAllowClause :: ModuleId -> AllowsClause -> Bool
-    inAllowClause moduleId (AllowsImport pattern) =
-        matchClause pattern env moduleId.text
 
 enforceUses ::
     ( Reader RulebookId :> es
     , Reader Rule :> es
-    , Reader ReachableModules :> es
+    , Reader Candidates :> es
     , ReportProblem :> es
     ) =>
     AstModule -> MatchEnv -> UsesClause -> Eff es ()
-enforceUses m env (UsesImport usesPattern transitive)
-    | transitive = do
-        ReachableModules reachable <- ask @ReachableModules
-        unless (any (\rid -> matchClause usesPattern env rid.text) reachable) $ do
-            let msg =
-                    "Module '"
-                        <> m.id.text
-                        <> "' must transitively import '"
-                        <> renderClausePattern env usesPattern
-                        <> "'."
-            ruleViolation env m msg >>= report
-    | otherwise = do
-        let imports = m.nodes
-        unless (any (\node -> matchClause usesPattern env node.target.text) imports) $ do
-            let msg =
-                    "Module '"
-                        <> m.id.text
-                        <> "' must import '"
-                        <> renderClausePattern env usesPattern
-                        <> "'."
-            ruleViolation env m msg >>= report
+enforceUses m env (UsesImport usesPattern transitive) = do
+    candidates <- ask @Candidates
+    let required = hydrate env usesPattern
+        satisfied
+            | transitive = any (matchResolved required . snd) candidates.reachable
+            | otherwise = any (matchResolved required . snd) candidates.imports
+    unless satisfied $ do
+        let msg =
+                "Module '"
+                    <> m.id.text
+                    <> "' must "
+                    <> (if transitive then "transitively import '" else "import '")
+                    <> renderClausePattern env usesPattern
+                    <> "'."
+        ruleViolation env m msg >>= report
 
 enforceExists ::
     ( Reader ModuleGraph :> es

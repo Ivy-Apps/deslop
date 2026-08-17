@@ -8,7 +8,18 @@ Right
             { id = RuleId "next-js-page-on-server"
             , description =
                 "Add a page in /src/app/[locale]/{route} to connect it with the NextJS router.  It should be executed on the server.  Use the page to SSR data and pass it as a parameter to the Container that will display the UI."
-            , target = CompiledTargetPattern { regex = <regex> , vars = [] }
+            , target =
+                CompiledTargetPattern
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "app" ]
+                      , GlobStar
+                      , Segment [ Lit "page" ]
+                      ]
+                  , minLength = 3
+                  , boundVars = fromList []
+                  , source = "@/app/**/page"
+                  }
             , exclude = Nothing
             , forbids = Nothing
             , allows = Nothing
@@ -24,7 +35,18 @@ Right
             { id = RuleId "page-container"
             , description =
                 "Each page should have a Container that's executed on the client. It connects the View (pure UI) and its viewmodel hook."
-            , target = CompiledTargetPattern { regex = <regex> , vars = [] }
+            , target =
+                CompiledTargetPattern
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "app" ]
+                      , GlobStar
+                      , Segment [ Lit "page" ]
+                      ]
+                  , minLength = 3
+                  , boundVars = fromList []
+                  , source = "@/app/**/page"
+                  }
             , exclude = Nothing
             , forbids = Nothing
             , allows = Nothing
@@ -33,15 +55,14 @@ Right
                   (UsesImport
                      { target =
                          CompiledClausePattern
-                           { chunks = [ StaticChunk "^@/features/(.*/)?[^/]*Container$" ]
-                           , rawTokens =
-                               [ Literal "@/features/"
+                           { segments =
+                               [ Segment [ Lit "@" ]
+                               , Segment [ Lit "features" ]
                                , GlobStar
-                               , Literal "/"
-                               , Star
-                               , Literal "Container"
+                               , Segment [ AnyChars , Lit "Container" ]
                                ]
-                           , polarity = Requiring
+                           , polarity = Narrow
+                           , source = "@/features/**/*Container"
                            }
                      , transitive = False
                      } :|
@@ -57,14 +78,18 @@ Right
                 "A Container is a glue code executed on the client side that connects a View with its ViewModel hook. The Container optionally accepts initial SSR data from the page and passes it to the ViewModel."
             , target =
                 CompiledTargetPattern
-                  { regex = <regex>
-                  , vars =
-                      [ CapturedVar
-                          { name = VarName { text = "file-name" }
-                          , casing = PascalCase
-                          , group = CaptureGroup { number = 2 }
-                          }
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "features" ]
+                      , GlobStar
+                      , Segment
+                          [ VarPart (TargetVar VarName { text = "file-name" } PascalCase)
+                          , Lit "Container"
+                          ]
                       ]
+                  , minLength = 3
+                  , boundVars = fromList [ VarName { text = "file-name" } ]
+                  , source = "@/features/**/{{FileName}}Container"
                   }
             , exclude = Nothing
             , forbids = Nothing
@@ -74,60 +99,48 @@ Right
                   (UsesImport
                      { target =
                          CompiledClausePattern
-                           { chunks =
-                               [ StaticChunk "^"
-                               , VarChunk CTargetDir
-                               , StaticChunk "/"
-                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , StaticChunk "StateEvent$"
+                           { segments =
+                               [ Segment [ VarPart CTargetDir ]
+                               , Segment
+                                   [ VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
+                                   , Lit "StateEvent"
+                                   ]
                                ]
-                           , rawTokens =
-                               [ Var CTargetDir
-                               , Literal "/"
-                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , Literal "StateEvent"
-                               ]
-                           , polarity = Requiring
+                           , polarity = Narrow
+                           , source = "{{TARGET_DIR}}/{{FileName}}StateEvent"
                            }
                      , transitive = False
                      } :|
                      [ UsesImport
                          { target =
                              CompiledClausePattern
-                               { chunks =
-                                   [ StaticChunk "^"
-                                   , VarChunk CTargetDir
-                                   , StaticChunk "/use"
-                                   , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , StaticChunk "ViewModel$"
+                               { segments =
+                                   [ Segment [ VarPart CTargetDir ]
+                                   , Segment
+                                       [ Lit "use"
+                                       , VarPart
+                                           (ClauseVar VarName { text = "file-name" } PascalCase)
+                                       , Lit "ViewModel"
+                                       ]
                                    ]
-                               , rawTokens =
-                                   [ Var CTargetDir
-                                   , Literal "/use"
-                                   , Var (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , Literal "ViewModel"
-                                   ]
-                               , polarity = Requiring
+                               , polarity = Narrow
+                               , source = "{{TARGET_DIR}}/use{{FileName}}ViewModel"
                                }
                          , transitive = False
                          }
                      , UsesImport
                          { target =
                              CompiledClausePattern
-                               { chunks =
-                                   [ StaticChunk "^"
-                                   , VarChunk CTargetDir
-                                   , StaticChunk "/"
-                                   , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , StaticChunk "View$"
+                               { segments =
+                                   [ Segment [ VarPart CTargetDir ]
+                                   , Segment
+                                       [ VarPart
+                                           (ClauseVar VarName { text = "file-name" } PascalCase)
+                                       , Lit "View"
+                                       ]
                                    ]
-                               , rawTokens =
-                                   [ Var CTargetDir
-                                   , Literal "/"
-                                   , Var (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , Literal "View"
-                                   ]
-                               , polarity = Requiring
+                               , polarity = Narrow
+                               , source = "{{TARGET_DIR}}/{{FileName}}View"
                                }
                          , transitive = True
                          }
@@ -145,14 +158,19 @@ Right
                 "The ViewModel is a custom React hook that encapsulates the View's state and business logic. It must be strictly free of UI elements (JSX) and must not perform direct HTTP fetch calls. Instead, it should manage the state and delegate data fetching to the data layer (repositories)."
             , target =
                 CompiledTargetPattern
-                  { regex = <regex>
-                  , vars =
-                      [ CapturedVar
-                          { name = VarName { text = "file-name" }
-                          , casing = PascalCase
-                          , group = CaptureGroup { number = 2 }
-                          }
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "features" ]
+                      , GlobStar
+                      , Segment
+                          [ Lit "use"
+                          , VarPart (TargetVar VarName { text = "file-name" } PascalCase)
+                          , Lit "ViewModel"
+                          ]
                       ]
+                  , minLength = 3
+                  , boundVars = fromList [ VarName { text = "file-name" } ]
+                  , source = "@/features/**/use{{FileName}}ViewModel"
                   }
             , exclude = Nothing
             , forbids =
@@ -160,36 +178,30 @@ Right
                   (ForbidsImport
                      { target =
                          CompiledClausePattern
-                           { chunks =
-                               [ StaticChunk "^"
-                               , VarChunk CTargetDir
-                               , StaticChunk "/"
-                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , StaticChunk "View$"
+                           { segments =
+                               [ Segment [ VarPart CTargetDir ]
+                               , Segment
+                                   [ VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
+                                   , Lit "View"
+                                   ]
                                ]
-                           , rawTokens =
-                               [ Var CTargetDir
-                               , Literal "/"
-                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , Literal "View"
-                               ]
-                           , polarity = Forbidding
+                           , polarity = Widen
+                           , source = "{{TARGET_DIR}}/{{FileName}}View"
                            }
                      , transitive = False
                      } :|
                      [ ForbidsImport
                          { target =
                              CompiledClausePattern
-                               { chunks = [ StaticChunk "^@/(.*/)?components/(.*/)?[^/]*$" ]
-                               , rawTokens =
-                                   [ Literal "@/"
+                               { segments =
+                                   [ Segment [ Lit "@" ]
                                    , GlobStar
-                                   , Literal "/components/"
+                                   , Segment [ Lit "components" ]
                                    , GlobStar
-                                   , Literal "/"
-                                   , Star
+                                   , Segment [ AnyChars ]
                                    ]
-                               , polarity = Forbidding
+                               , polarity = Widen
+                               , source = "@/**/components/**/*"
                                }
                          , transitive = False
                          }
@@ -200,20 +212,15 @@ Right
                   (UsesImport
                      { target =
                          CompiledClausePattern
-                           { chunks =
-                               [ StaticChunk "^"
-                               , VarChunk CTargetDir
-                               , StaticChunk "/"
-                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , StaticChunk "StateEvent$"
+                           { segments =
+                               [ Segment [ VarPart CTargetDir ]
+                               , Segment
+                                   [ VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
+                                   , Lit "StateEvent"
+                                   ]
                                ]
-                           , rawTokens =
-                               [ Var CTargetDir
-                               , Literal "/"
-                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , Literal "StateEvent"
-                               ]
-                           , polarity = Requiring
+                           , polarity = Narrow
+                           , source = "{{TARGET_DIR}}/{{FileName}}StateEvent"
                            }
                      , transitive = False
                      } :|
@@ -231,14 +238,19 @@ Right
                 "Each ViewModel must have a corresponding unit test file to verify its state transitions,  event handling, and business logic independently of the UI components."
             , target =
                 CompiledTargetPattern
-                  { regex = <regex>
-                  , vars =
-                      [ CapturedVar
-                          { name = VarName { text = "file-name" }
-                          , casing = PascalCase
-                          , group = CaptureGroup { number = 2 }
-                          }
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "features" ]
+                      , GlobStar
+                      , Segment
+                          [ Lit "use"
+                          , VarPart (TargetVar VarName { text = "file-name" } PascalCase)
+                          , Lit "ViewModel"
+                          ]
                       ]
+                  , minLength = 3
+                  , boundVars = fromList [ VarName { text = "file-name" } ]
+                  , source = "@/features/**/use{{FileName}}ViewModel"
                   }
             , exclude = Nothing
             , forbids = Nothing
@@ -248,20 +260,16 @@ Right
                   (UsesImport
                      { target =
                          CompiledClausePattern
-                           { chunks =
-                               [ StaticChunk "^"
-                               , VarChunk CTargetDir
-                               , StaticChunk "/use"
-                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , StaticChunk "ViewModel$"
+                           { segments =
+                               [ Segment [ VarPart CTargetDir ]
+                               , Segment
+                                   [ Lit "use"
+                                   , VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
+                                   , Lit "ViewModel"
+                                   ]
                                ]
-                           , rawTokens =
-                               [ Var CTargetDir
-                               , Literal "/use"
-                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , Literal "ViewModel"
-                               ]
-                           , polarity = Requiring
+                           , polarity = Narrow
+                           , source = "{{TARGET_DIR}}/use{{FileName}}ViewModel"
                            }
                      , transitive = False
                      } :|
@@ -271,20 +279,16 @@ Right
                   (ExistsModule
                      { target =
                          CompiledClausePattern
-                           { chunks =
-                               [ StaticChunk "^"
-                               , VarChunk CTargetDir
-                               , StaticChunk "/use"
-                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , StaticChunk "ViewModel\\.spec$"
+                           { segments =
+                               [ Segment [ VarPart CTargetDir ]
+                               , Segment
+                                   [ Lit "use"
+                                   , VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
+                                   , Lit "ViewModel.spec"
+                                   ]
                                ]
-                           , rawTokens =
-                               [ Var CTargetDir
-                               , Literal "/use"
-                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , Literal "ViewModel.spec"
-                               ]
-                           , polarity = Requiring
+                           , polarity = Narrow
+                           , source = "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
                            }
                      } :|
                      [])
@@ -300,14 +304,18 @@ Right
                 "Each page/feature should have a pure UI (View) that renders the UiState  and submits user interactions as UiEvents."
             , target =
                 CompiledTargetPattern
-                  { regex = <regex>
-                  , vars =
-                      [ CapturedVar
-                          { name = VarName { text = "file-name" }
-                          , casing = PascalCase
-                          , group = CaptureGroup { number = 2 }
-                          }
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "features" ]
+                      , GlobStar
+                      , Segment
+                          [ VarPart (TargetVar VarName { text = "file-name" } PascalCase)
+                          , Lit "View"
+                          ]
                       ]
+                  , minLength = 3
+                  , boundVars = fromList [ VarName { text = "file-name" } ]
+                  , source = "@/features/**/{{FileName}}View"
                   }
             , exclude = Nothing
             , forbids = Nothing
@@ -317,20 +325,15 @@ Right
                   (UsesImport
                      { target =
                          CompiledClausePattern
-                           { chunks =
-                               [ StaticChunk "^"
-                               , VarChunk CTargetDir
-                               , StaticChunk "/"
-                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , StaticChunk "StateEvent$"
+                           { segments =
+                               [ Segment [ VarPart CTargetDir ]
+                               , Segment
+                                   [ VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
+                                   , Lit "StateEvent"
+                                   ]
                                ]
-                           , rawTokens =
-                               [ Var CTargetDir
-                               , Literal "/"
-                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , Literal "StateEvent"
-                               ]
-                           , polarity = Requiring
+                           , polarity = Narrow
+                           , source = "{{TARGET_DIR}}/{{FileName}}StateEvent"
                            }
                      , transitive = False
                      } :|
@@ -348,14 +351,18 @@ Right
                 "Each pure UI View should have a corresponding Storybook file to develop, test,  and document its various UI states in isolation."
             , target =
                 CompiledTargetPattern
-                  { regex = <regex>
-                  , vars =
-                      [ CapturedVar
-                          { name = VarName { text = "file-name" }
-                          , casing = PascalCase
-                          , group = CaptureGroup { number = 2 }
-                          }
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "features" ]
+                      , GlobStar
+                      , Segment
+                          [ VarPart (TargetVar VarName { text = "file-name" } PascalCase)
+                          , Lit "View"
+                          ]
                       ]
+                  , minLength = 3
+                  , boundVars = fromList [ VarName { text = "file-name" } ]
+                  , source = "@/features/**/{{FileName}}View"
                   }
             , exclude = Nothing
             , forbids = Nothing
@@ -366,20 +373,15 @@ Right
                   (ExistsModule
                      { target =
                          CompiledClausePattern
-                           { chunks =
-                               [ StaticChunk "^"
-                               , VarChunk CTargetDir
-                               , StaticChunk "/"
-                               , VarChunk (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , StaticChunk "View\\.stories$"
+                           { segments =
+                               [ Segment [ VarPart CTargetDir ]
+                               , Segment
+                                   [ VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
+                                   , Lit "View.stories"
+                                   ]
                                ]
-                           , rawTokens =
-                               [ Var CTargetDir
-                               , Literal "/"
-                               , Var (ClauseVar VarName { text = "file-name" } PascalCase)
-                               , Literal "View.stories"
-                               ]
-                           , polarity = Requiring
+                           , polarity = Narrow
+                           , source = "{{TARGET_DIR}}/{{FileName}}View.stories"
                            }
                      } :|
                      [])
@@ -392,16 +394,24 @@ Right
         , Rule
             { id = RuleId "features-cant-import-other-features"
             , description = "Features can't import from other features."
-            , target = CompiledTargetPattern { regex = <regex> , vars = [] }
+            , target =
+                CompiledTargetPattern
+                  { segments =
+                      [ Segment [ Lit "@" ] , Segment [ Lit "features" ] , GlobStar ]
+                  , minLength = 2
+                  , boundVars = fromList []
+                  , source = "@/features/**"
+                  }
             , exclude = Nothing
             , forbids =
                 Just
                   (ForbidsImport
                      { target =
                          CompiledClausePattern
-                           { chunks = [ StaticChunk "^@/features/.*$" ]
-                           , rawTokens = [ Literal "@/features/" , GlobStar ]
-                           , polarity = Forbidding
+                           { segments =
+                               [ Segment [ Lit "@" ] , Segment [ Lit "features" ] , GlobStar ]
+                           , polarity = Widen
+                           , source = "@/features/**"
                            }
                      , transitive = False
                      } :|
@@ -411,10 +421,9 @@ Right
                   (AllowsImport
                      { target =
                          CompiledClausePattern
-                           { chunks =
-                               [ StaticChunk "^" , VarChunk CTargetDir , StaticChunk "/.*$" ]
-                           , rawTokens = [ Var CTargetDir , Literal "/" , GlobStar ]
-                           , polarity = Requiring
+                           { segments = [ Segment [ VarPart CTargetDir ] , GlobStar ]
+                           , polarity = Narrow
+                           , source = "{{TARGET_DIR}}/**"
                            }
                      } :|
                      [])

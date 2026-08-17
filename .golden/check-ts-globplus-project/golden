@@ -1,8 +1,15 @@
 [Title] 🚀 Checking project: ~/test/fixtures/ts-globplus-project
-[Plain] 📚 Loaded 1 rulebook, 9 rules
-[Error] Found 11 problems:
+[Plain] 📚 Loaded 1 rulebook, 10 rules
+[Error] Found 13 problems:
 [Error] ─────────────────────────────────────────
-[Error] # provider-services#nested-view-uses-its-provider-config#@/components/paypal/payment/RefundView
+[Error] # provider-services#adapter-imports-its-provider-config#@/adapters/stripe-connect/stripe-connect-payment-gateway
+An adapter names its provider twice: once as the folder it sits in, and once as the prefix of its own file name, before the service type. The greedy split of that file segment gives the provider one word too many, and the folder above has already ruled it out - so the split has to be chosen by what is already bound rather than merely checked against it.
+
+Module '@/adapters/stripe-connect/stripe-connect-payment-gateway' must import '@/config/stripe-connect'.
+FIX: Import @/config/stripe-connect, the config of the provider your folder names, rather than the payment-gateway adapter's own.
+---------
+
+# provider-services#nested-view-uses-its-provider-config#@/components/paypal/payment/RefundView
 A View at any depth under a provider folder must import that provider's config. The provider variable sits before the **, so the group that captures it is numbered after the globstar's own - the arrangement in which reading captures by position binds the provider to the globstar.
 
 Module '@/components/paypal/payment/RefundView' must import '@/config/paypal'.
@@ -14,6 +21,16 @@ A provider's entry point carries its provider's name. The same variable occurs o
 
 Module '@/components/square/SquareEntry' requires '@/config/square' to exist.
 FIX: Name the entry point after the provider folder it sits under.
+---------
+
+# provider-services#providers-are-isolated#@/components/paypal
+One provider's components must never import another provider's components. Anything shared between providers belongs outside @/components.
+
+Module '@/components/paypal' directly imports '@/components/stripe-connect/payment/CheckoutView'.
+```ts
+import { CheckoutView } from '@/components/stripe-connect/payment/CheckoutView';
+```
+FIX: Import only from within @/components/paypal, or promote the shared code out of the provider folders.
 ---------
 
 # provider-services#providers-are-isolated#@/components/paypal/payment/RefundView
@@ -81,6 +98,6 @@ A service View is pure UI. It must delegate its state and behaviour to the ViewM
 Module '@/components/paypal/payment/RefundView' must import '@/components/paypal/payment/useRefundViewModel'.
 FIX: Import useRefundViewModel from the same directory and drive the View from the state it returns.
 [Error] ─────────────────────────────────────────
-[summary] Checked 22 modules enforcing 11 rules
-[exit] Found 11 problems, none auto-fixable.
-   Run `deslop baseline` to silence all 11 problems.
+[summary] Checked 24 modules enforcing 12 rules
+[exit] Found 13 problems, none auto-fixable.
+   Run `deslop baseline` to silence all 13 problems.

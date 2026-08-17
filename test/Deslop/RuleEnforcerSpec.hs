@@ -5,7 +5,9 @@ import Deslop.AST (AstModule (..))
 import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Problem (Problem (..))
 import Deslop.RuleEnforcer (enforceRulebooks)
-import Deslop.Rulebook (GlobDto (..), RuleDto (..), RuleId (..), Rulebook, RulebookDto (..), RulebookId (..), ruleBookFromDto)
+import Deslop.Rulebook (RuleId (..), Rulebook, RulebookId (..))
+import Deslop.Rulebook.Compiler (compileRulebook)
+import Deslop.Rulebook.Dto (GlobDto (..), RuleDto (..), RulebookDto (..))
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
@@ -18,7 +20,7 @@ import Types (DeslopError (..))
 testRulebook :: Rulebook
 testRulebook =
     fromRight (error "testRulebook: invalid fixture") $
-        ruleBookFromDto
+        compileRulebook
             rulebookDto
                 { rules =
                     [ ruleDto
@@ -34,7 +36,7 @@ testRulebook =
 testTransitiveRulebook :: Rulebook
 testTransitiveRulebook =
     fromRight (error "testTransitiveRulebook: invalid fixture") $
-        ruleBookFromDto
+        compileRulebook
             rulebookDto
                 { rules =
                     [ ruleDto
@@ -77,7 +79,7 @@ runTransitiveTest = runTransitiveTestWith [testTransitiveRulebook]
 domainRulebook :: Rulebook
 domainRulebook =
     fromRight (error "domainRulebook: invalid fixture") $
-        ruleBookFromDto
+        compileRulebook
             rulebookDto
                 { id = "domain-rules"
                 , name = "Domain Rules"
@@ -96,7 +98,7 @@ domainRulebook =
 existsRulebook :: Rulebook
 existsRulebook =
     fromRight (error "existsRulebook: invalid fixture") $
-        ruleBookFromDto
+        compileRulebook
             rulebookDto
                 { id = "exists-rules"
                 , name = "Exists Rules"
@@ -126,7 +128,7 @@ runExistsTest rulebooks allModules m =
 usesRulebook :: Rulebook
 usesRulebook =
     fromRight (error "usesRulebook: invalid fixture") $
-        ruleBookFromDto
+        compileRulebook
             rulebookDto
                 { id = "uses-rules"
                 , name = "Uses Rules"
@@ -164,7 +166,7 @@ that produced it without any of the others joining in.
 multiVarRulebook :: Rulebook
 multiVarRulebook =
     fromRight (error "multiVarRulebook: invalid fixture") $
-        ruleBookFromDto
+        compileRulebook
             rulebookDto
                 { id = "multi-var-rules"
                 , name = "Multi Variable Rules"
@@ -251,7 +253,7 @@ validated at load, so a name nothing captured has to survive being reported.
 proseRulebook :: Rulebook
 proseRulebook =
     fromRight (error "proseRulebook: invalid fixture") $
-        ruleBookFromDto
+        compileRulebook
             rulebookDto
                 { id = "prose-rules"
                 , name = "Prose Rules"
@@ -592,7 +594,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
         it "throws InvalidRuleConfig when an exists pattern contains wildcards" $ do
             let wildcardRulebook =
                     fromRight (error "wildcardRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { id = "bad-rules"
                                 , name = "Bad Rules"
@@ -657,7 +659,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
         it "reports one violation per unmatched uses pattern" $ do
             let multiUsesRulebook =
                     fromRight (error "multiUsesRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
@@ -699,7 +701,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
         it "wildcard uses pattern matches any qualifying import" $ do
             let wildcardUsesRulebook =
                     fromRight (error "wildcardUsesRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
@@ -721,7 +723,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
     describe "transitive uses enforcement" $ do
         let usesTransitiveRulebook =
                 fromRight (error "usesTransitiveRulebook: invalid fixture") $
-                    ruleBookFromDto
+                    compileRulebook
                         rulebookDto
                             { id = "uses-rules"
                             , name = "Uses Rules"
@@ -794,7 +796,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
         it "wildcard transitive uses pattern matches a reachable module" $ do
             let wildcardTransitiveRulebook =
                     fromRight (error "wildcardTransitiveRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
@@ -829,7 +831,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
         describe "direct forbids with allows" $ do
             let directAllowsRulebook =
                     fromRight (error "directAllowsRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -844,7 +846,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 }
                 sharedOnlyRulebook =
                     fromRight (error "sharedOnlyRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -859,7 +861,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 }
                 domainPurityRulebook =
                     fromRight (error "domainPurityRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -966,7 +968,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
         describe "transitive forbids with allows" $ do
             let storeAllowsRulebook =
                     fromRight (error "storeAllowsRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -981,7 +983,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                                 }
                 domainPurityTransitiveRulebook =
                     fromRight (error "domainPurityTransitiveRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -1047,7 +1049,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
             -- own directory (and any subdirectories, since ** spans segments).
             let dirIsolationRulebook =
                     fromRight (error "dirIsolationRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -1063,7 +1065,7 @@ spec = describe "Deslop.RuleEnforcer" $ do
                 -- Relaxed variant: also permits @/shared/** imports
                 dirIsolationWithSharedRulebook =
                     fromRight (error "dirIsolationWithSharedRulebook: invalid fixture") $
-                        ruleBookFromDto
+                        compileRulebook
                             rulebookDto
                                 { rules =
                                     [ ruleDto

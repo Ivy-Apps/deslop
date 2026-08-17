@@ -1,2 +1,3 @@
 Left
-  "AesonException \"Error in $: parsing Deslop.Rulebook.RulebookDto(RulebookDto) failed, key \\\"description\\\" not found\""
+  (UnreadableYaml
+     "AesonException \"Error in $: parsing Deslop.Rulebook.Dto.RulebookDto(RulebookDto) failed, key \\\"description\\\" not found\"")

@@ -37,7 +37,8 @@ import Data.Text.Encoding qualified as TE
 import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.Baseline (Baseline (..))
 import Deslop.Problem (ProblemId (..))
-import Deslop.Rulebook (AllowsDto (AllowsImportDto), ExistsDto (ExistsModuleDto), ForbidsDto (..), GlobDto (GlobDto), RuleDto (..), RuleId (..), RulebookDto (..), UsesDto (UsesImportDto))
+import Deslop.Rulebook (RuleId (..))
+import Deslop.Rulebook.Dto (AllowsDto (AllowsImportDto), ExistsDto (ExistsModuleDto), ForbidsDto (..), GlobDto (GlobDto), RuleDto (..), RulebookDto (..), UsesDto (UsesImportDto))
 import Effectful
 import Effects.FileSystem (AbsPath (osPath), RelativePath, absPathUnsafe, encodeOsPath, encodeOsPathString, fsMkAbsolute, relativePathUnsafe, runFileSystemIO)
 import Hedgehog (PropertyT)
