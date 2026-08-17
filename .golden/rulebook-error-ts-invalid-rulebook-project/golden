@@ -1,6 +1,19 @@
 [Title] 🚀 Checking project: ~/test/fixtures/ts-invalid-rulebook-project
 [exit] Could not load 2 rulebooks.
 
+~/test/fixtures/ts-invalid-rulebook-project/deslop/rules/also-broken.yaml
+  rule 'globstar-inside-a-segment'
+    target: "@/widgets/**View"
+      "**View" glues ** to text inside a single path segment.
+        ** stands for zero or many whole segments, so it cannot be part of one.
+        Match within a segment with *, e.g. *View, or give ** a segment of its
+        own, e.g. **/*View.
+  rule 'clause-names-a-variable-the-target-never-binds'
+    uses.import: "@/config/{{fil-name}}"
+      unknown variable {{fil-name}}.
+        Variables bound by this rule's target: file-name
+        Did you mean {{file-name}}?
+
 ~/test/fixtures/ts-invalid-rulebook-project/deslop/rules/broken.yaml
   rule 'provider-components-are-isolated'
     target: "@/components/{{provider}}/**"
@@ -20,16 +33,3 @@
         is no way to tell where the first one ends. A * between them is not a
         boundary either, because it can match nothing.
         Separate them with a literal, e.g. {{FileName}}/{{ServiceType}}.
-
-~/test/fixtures/ts-invalid-rulebook-project/deslop/rules/also-broken.yaml
-  rule 'globstar-inside-a-segment'
-    target: "@/widgets/**View"
-      "**View" glues ** to text inside a single path segment.
-        ** stands for zero or many whole segments, so it cannot be part of one.
-        Match within a segment with *, e.g. *View, or give ** a segment of its
-        own, e.g. **/*View.
-  rule 'clause-names-a-variable-the-target-never-binds'
-    uses.import: "@/config/{{fil-name}}"
-      unknown variable {{fil-name}}.
-        Variables bound by this rule's target: file-name
-        Did you mean {{file-name}}?
