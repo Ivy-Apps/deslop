@@ -300,6 +300,34 @@ target matched:  @/features/home/HomeContainer
 {{TARGET_DIR}} → @/features/home
 ```
 
+#### `..`
+
+Available in clause patterns only. Goes one directory back, as it does on any
+filesystem - which is what lets a clause reach *sideways* from `{{TARGET_DIR}}`
+rather than only downwards.
+
+```yaml
+target: "@/client/{{feature-name}}/{{FileName}}View"
+forbids:
+  - import: "@/client/**"
+allows:
+  - import: "{{TARGET_DIR}}/**"              # my own folder
+  - import: "{{TARGET_DIR}}/../shared/**"    # my sibling shared/ folder
+```
+
+```
+target matched:               @/client/home/HomeView
+{{TARGET_DIR}}/../shared/** → @/client/shared/**
+```
+
+`{{TARGET_DIR}}` is the directory of the matched **file**, so under a target
+containing `**` the same clause resolves differently for files at different
+depths. A `..` may only go back past a directory the pattern names - never past
+a `*` or a `**` - and one with nothing left to go back past does nothing.
+
+`target:` and `exclude:` reject `..`: both are matched against whole module ids,
+so there is nothing for it to be relative to. Write the path out instead.
+
 > For the full pattern-matching semantics, see [`docs/GLOB+.md`](./docs/GLOB+.md).
 
 ---
@@ -689,6 +717,37 @@ on both sides, the *path* would decide which directory `{{provider-name}}` names
 (a different one in a shallow tree than in a deep one), so the rule would mean
 something you did not write. Anchor it against a literal, or use `*` to fix the
 depth.
+
+### More `..` than the path is deep matches nothing, silently
+
+A `..` with nothing left to go back past does nothing, as `/..` is `/` on Unix.
+So a clause that counts back further than `{{TARGET_DIR}}` is deep resolves to a
+path with no leading alias segment:
+
+```yaml
+target: "@/{{feature-name}}/**"
+allows:
+  - import: "{{TARGET_DIR}}/../../shared/**"
+```
+
+| matched file | `{{TARGET_DIR}}` | resolves to |
+|---|---|---|
+| `@/home/a/b/DeepView` | `@/home/a/b` | `@/home/shared/**` |
+| `@/home/HomeView` | `@/home` | `shared/**` - matches no module id |
+
+Nothing warns about this. The clause is simply dead for the shallow file, which
+in an `allows:` means extra violations and in a `forbids:` means silence. Count
+the `..` against the shallowest file your target can match.
+
+### `..` is relative to the file, not to the rule
+
+`{{TARGET_DIR}}` is the directory of the matched **file**, so under a target
+containing `**` the same `..` clause reaches a different folder for a file at
+depth 1 than for one at depth 2. That is `..` behaving as it does on a
+filesystem, but it means an allowance can move under you as the tree grows. Pin
+the depth by writing a target without `**`, or name the folder you mean instead
+of counting back to it. See
+[`..` is relative to the file](docs/GLOB+.md#-is-relative-to-the-file-not-to-the-rule).
 
 ### `forbids:` accepts more spellings than `uses:`
 

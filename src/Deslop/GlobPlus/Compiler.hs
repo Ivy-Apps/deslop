@@ -13,6 +13,9 @@ the path it is matched against:
   because it can match nothing.
 * A variable is a name written in a casing, and the spelling must say which -
   see @docs/adr/0006@.
+* @..@ may only go back past a segment whose text the pattern determines, and
+  only in a clause - the one pattern with a directory to be relative to. See
+  @docs/adr/0012@.
 
 The pattern is split on @\/@ before anything else, which is sound because a
 variable token may not contain one. Each piece is then parsed on its own, so a
@@ -59,6 +62,13 @@ data GlobPlusError
       TargetDirInTargetPattern Text
     | -- | Any variable in an exclude pattern, which binds nothing.
       VariableInExcludePattern Text
+    | -- | @..@ in a target pattern, which is matched against whole module ids.
+      ParentDirInTargetPattern
+    | -- | @..@ in an exclude pattern, for the same reason.
+      ParentDirInExcludePattern
+    | -- | @**\/..@ or @*\/..@ - the segment it would cancel names no one
+      -- directory. Carries that segment as written.
+      ParentDirPastWildcard Text
     | -- | A clause variable the rule's target pattern never captures.
       UnboundVariable VarName (Set VarName)
     | -- | @\/**View@ - a globstar glued to text inside a segment.
@@ -110,6 +120,45 @@ renderGlobPlusError (VariableInExcludePattern raw) =
         <> " cannot be used in an exclude pattern.\n"
         <> "  An exclude pattern filters the target and binds no variables.\n"
         <> "  Use a wildcard instead, e.g. * or **."
+renderGlobPlusError ParentDirInTargetPattern =
+    quoted parentDir
+        <> " cannot be used in a target pattern.\n"
+        <> "  A target is matched against whole module ids, so there is nothing\n"
+        <> "  for "
+        <> quoted parentDir
+        <> " to be relative to. Write the path you mean, e.g. \"@/shared/**\".\n"
+        <> relativeToTargetDir
+renderGlobPlusError ParentDirInExcludePattern =
+    quoted parentDir
+        <> " cannot be used in an exclude pattern.\n"
+        <> "  An exclude pattern filters the target and is matched against whole\n"
+        <> "  module ids, so there is nothing for "
+        <> quoted parentDir
+        <> " to be relative to. Write\n"
+        <> "  the path you mean, e.g. \"@/shared/**\".\n"
+        <> relativeToTargetDir
+renderGlobPlusError (ParentDirPastWildcard segment) =
+    quoted parentDir
+        <> " cannot go back past "
+        <> quoted segment
+        <> ".\n"
+        <> "  "
+        <> whyNoDirectory segment
+        <> "\n"
+        <> "  Write the directory you mean, or start from "
+        <> braced targetDirKeyword
+        <> "."
+  where
+    -- The two ways a segment can fail to name a directory read differently to
+    -- an author, and 'checkParentDirs' spells a globstar as exactly @**@.
+    whyNoDirectory segment'
+        | segment' == globStar =
+            quoted globStar
+                <> " stands for zero or many segments, so there is no one\n"
+                <> "  directory to go back from."
+        | otherwise =
+            "A segment containing \"*\" does not say which directory it is,\n"
+                <> "  so there is no one directory to go back from."
 renderGlobPlusError (UnboundVariable name bound) =
     "unknown variable "
         <> braced name.text
@@ -146,6 +195,19 @@ renderGlobPlusError (NoBoundaryBetween left right) =
         <> braced right
         <> "."
 
+{- | The one place @..@ does belong, said the same way in both messages that
+have to point at it.
+-}
+relativeToTargetDir :: Text
+relativeToTargetDir =
+    "  "
+        <> quoted parentDir
+        <> " belongs in a clause, where it is relative to the directory\n"
+        <> "  of the file the target matched:\n"
+        <> "    allows: \""
+        <> braced targetDirKeyword
+        <> "/../shared/**\""
+
 {- | Suggests a two-word name for each casing the raw token could have meant,
 so the author can pick the one they intended.
 -}
@@ -170,7 +232,10 @@ only variables its clauses may reference.
 -}
 compileTargetPattern :: Text -> Either GlobPlusError CompiledTargetPattern
 compileTargetPattern input = do
-    segments <- resolveVars resolveTargetVar =<< parseSegments input
+    segments <-
+        traverse (resolveVars resolveTargetVar)
+            =<< noParentDirs ParentDirInTargetPattern
+            =<< parseSegments input
     traverse_ checkBoundaries segments
     checkAnchoring segments
     pure
@@ -188,14 +253,18 @@ error, so every lookup at match time is guaranteed to succeed.
 A clause variable is /substituted/ rather than captured, so it is a literal by
 the time anything is matched - which is why the anchoring rule does not apply
 here and a clause may say @**\/{{provider-name}}\/**@ quite safely.
+
+This is also the only pattern that may carry @..@, since it is the only one
+with a directory - @{{TARGET_DIR}}@ - to be relative to.
 -}
 compileClausePattern :: Polarity -> Set VarName -> Text -> Either GlobPlusError CompiledClausePattern
 compileClausePattern polarity bound input = do
-    segments <- resolveVars resolveClauseVar =<< parseSegments input
-    traverse_ (traverse_ (traverse_ (checkBound bound))) segments
+    steps <- traverse (traverse (resolveVars resolveClauseVar)) =<< parseSegments input
+    traverse_ (checkBound bound) (partsOf steps)
+    checkParentDirs steps
     pure
         CompiledClausePattern
-            { segments = segments
+            { steps = steps
             , polarity = polarity
             , source = input
             }
@@ -203,7 +272,10 @@ compileClausePattern polarity bound input = do
 -- | Compiles an @exclude:@ pattern, which is a plain glob over module ids.
 compileExcludePattern :: Text -> Either GlobPlusError CompiledExcludePattern
 compileExcludePattern input = do
-    segments <- resolveVars (Left . VariableInExcludePattern) =<< parseSegments input
+    segments <-
+        traverse (resolveVars (Left . VariableInExcludePattern))
+            =<< noParentDirs ParentDirInExcludePattern
+            =<< parseSegments input
     pure
         CompiledExcludePattern
             { segments = segments
@@ -217,22 +289,47 @@ compileExcludePattern input = do
 
 type Parser = Parsec Void Text
 
-{- | Splits on @\/@ and parses each segment on its own. A variable token cannot
-contain a @\/@, so splitting first can never cut one in half.
--}
+-- | Interprets what one segment's @{{ }}@ tokens name.
 resolveVars ::
     (Text -> Either GlobPlusError var) ->
-    [PatternSegment Text] ->
-    Either GlobPlusError [PatternSegment var]
-resolveVars resolve = traverse (traverse (traverse (traverse resolve)))
+    PatternSegment Text ->
+    Either GlobPlusError (PatternSegment var)
+resolveVars resolve = traverse (traverse (traverse resolve))
 
-parseSegments :: Text -> Either GlobPlusError [PatternSegment Text]
-parseSegments input = traverse (parseSegment input) (T.splitOn "/" input)
+{- | Every part of every segment, whatever it is nested inside. Validation that
+looks at one part at a time has no use for the structure above it.
+-}
+partsOf :: [Step (PatternSegment var)] -> [SegPart var]
+partsOf steps = [part | Step (Segment parts) <- steps, part <- parts]
+
+{- | Drops the step wrapper from a pattern that may not carry @..@, naming the
+error to report if one does.
+-}
+noParentDirs :: GlobPlusError -> [Step a] -> Either GlobPlusError [a]
+noParentDirs cause = traverse unwrap
+  where
+    unwrap ParentDir = Left cause
+    unwrap (Step step) = Right step
+
+{- | Splits on @\/@ and parses each piece on its own. A variable token cannot
+contain a @\/@, so splitting first can never cut one in half.
+-}
+parseSegments :: Text -> Either GlobPlusError [Step (PatternSegment Text)]
+parseSegments input = traverse (parseStep input) (T.splitOn "/" input)
+
+{- | @..@ is a whole segment or it is nothing. Unlike @**@, a dotted name has an
+obvious ordinary reading - @..foo@, @a..b@ and @*.spec@ are all just text - so
+only the exact token is structural, and nothing else about a dot is an error.
+-}
+parseStep :: Text -> Text -> Either GlobPlusError (Step (PatternSegment Text))
+parseStep input piece
+    | piece == parentDir = Right ParentDir
+    | otherwise = Step <$> parseSegment input piece
 
 parseSegment :: Text -> Text -> Either GlobPlusError (PatternSegment Text)
 parseSegment input piece
-    | piece == "**" = Right GlobStar
-    | "**" `T.isInfixOf` piece = Left (GlobStarNotWholeSegment piece)
+    | piece == globStar = Right GlobStar
+    | globStar `T.isInfixOf` piece = Left (GlobStarNotWholeSegment piece)
     | otherwise = Segment . mergeLits <$> first (MalformedPattern input) (parse (many pPart <* eof) "" piece)
 
 mergeLits :: [SegPart var] -> [SegPart var]
@@ -355,6 +452,40 @@ checkAnchoring segments = maybe (Right ()) (Left . UnanchoredVariable) unanchore
     indexed = zip [0 :: Int ..] segments
     globStarsWhere side = any (\(index, segment) -> side index && segment == GlobStar) indexed
 
+{- | Simulates the cancellation to find what each @..@ would go back past.
+
+Each step contributes one token and each @..@ takes one back, which is never
+more of the pattern than hydration itself has: a @{{TARGET_DIR}}@ step becomes
+several segments there and one token here, so this reaches an earlier step
+sooner than hydration can, and never later. That is what makes the check
+sufficient - a @..@ hydration would let past a @**@ is one this rejects first,
+so the resolution at match time is a plain drop and cannot fail.
+
+Taking back nothing at all is the clamp, and is allowed. Taking back a segment
+that names no one directory is not.
+-}
+checkParentDirs :: [Step (PatternSegment ClauseVar)] -> Either GlobPlusError ()
+checkParentDirs = void . foldlM cancel []
+  where
+    cancel behind ParentDir = case behind of
+        [] -> Right []
+        (segment : earlier) -> earlier <$ namesOneDirectory segment
+    cancel behind (Step segment) = Right (segment : behind)
+
+    namesOneDirectory GlobStar = Left (ParentDirPastWildcard globStar)
+    namesOneDirectory (Segment parts)
+        | AnyChars `elem` parts = Left (ParentDirPastWildcard (spellSegment parts))
+        | otherwise = Right ()
+
+-- | Writes a compiled segment back out the way its author wrote it.
+spellSegment :: [SegPart ClauseVar] -> Text
+spellSegment = foldMap spellPart
+  where
+    spellPart (Lit literal) = literal
+    spellPart AnyChars = "*"
+    spellPart (VarPart CTargetDir) = braced targetDirKeyword
+    spellPart (VarPart (ClauseVar name casing)) = braced (spellVar name casing)
+
 checkBound :: Set VarName -> SegPart ClauseVar -> Either GlobPlusError ()
 checkBound bound (VarPart (ClauseVar name _))
     | not (Set.member name bound) = Left (UnboundVariable name bound)
@@ -412,6 +543,13 @@ interpolate env = go
 openBrace, closeBrace :: Text
 openBrace = "{{"
 closeBrace = "}}"
+
+-- | The parent-directory entry, spelled the way a filesystem spells it.
+parentDir :: Text
+parentDir = ".."
+
+globStar :: Text
+globStar = "**"
 
 braced :: Text -> Text
 braced t = openBrace <> t <> closeBrace

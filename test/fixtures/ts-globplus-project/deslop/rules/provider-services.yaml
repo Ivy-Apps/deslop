@@ -109,6 +109,39 @@ rules:
     fix: >-
       Import {{TARGET_DIR}}/{{UseCaseName}}UseCase rather than another use case.
 
+  - id: view-may-reach-its-providers-shared-folder
+    description: >-
+      A View may use its own service folder and the provider's shared folder,
+      which sits one directory back from {{TARGET_DIR}}. A sibling *service*
+      folder of the same provider is not reachable that way, so the .. in this
+      clause is what decides where the allowance stops - providers-are-isolated
+      permits that import, and this rule does not.
+    target: "@/components/{{provider-name}}/{{service-type}}/{{FileName}}View"
+    forbids:
+      - import: "@/components/**"
+    allows:
+      - import: "{{TARGET_DIR}}/**"
+      - import: "{{TARGET_DIR}}/../shared/**"
+    fix: >-
+      Import from your own {{service-type}} folder or from
+      @/components/{{provider-name}}/shared, and promote anything else there.
+
+  - id: nested-view-uses-its-shared-formatter
+    description: >-
+      Every View imports the money formatter from the shared folder one
+      directory back from its own. {{TARGET_DIR}} is the directory of the
+      matched FILE rather than of the rule, so this clause names a different
+      module for a View nested one level deeper. That is documented behaviour
+      rather than a bug: see "`..` is relative to the file, not to the rule".
+    target: "@/components/{{provider-name}}/**/{{FileName}}View"
+    uses:
+      - import: "{{TARGET_DIR}}/../shared/format-money"
+    exists:
+      - module: "{{TARGET_DIR}}/../shared/format-money"
+    fix: >-
+      Import the format-money module from the shared folder beside your own,
+      or move this View up to the depth where that folder is its sibling.
+
   - id: use-case-has-a-view-model
     description: >-
       Every use case is driven by a ViewModel named after it, in camelCase this

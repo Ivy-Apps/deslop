@@ -32,6 +32,7 @@ spec = describe "Deslop.GlobPlus properties" $ do
     tier4
     tier5
     tier6
+    tier7
 
 --------------------------------------------------------------------------------
 -- Tier 1: the oracle
@@ -265,6 +266,52 @@ tier6 = describe "tier 6 - robustness" $ do
         matchExclude excluded (joinPath path) === isJust (matchTarget target (joinPath path))
 
 --------------------------------------------------------------------------------
+-- Tier 7: parent directories
+--------------------------------------------------------------------------------
+
+{- | Clause patterns come from the target generator: a legal target is also a
+legal clause, and matching a planted path against it yields an environment that
+binds every variable the clause then names. That is what lets @..@ be tried
+against the whole variety of shapes the oracle already produces.
+-}
+tier7 :: Spec
+tier7 = describe "tier 7 - parent directories" $ do
+    prop "P23 a segment followed by .. cancels out, wherever it is inserted" $ do
+        (env, bound, segments) <- forAllClause
+        path <- forAll (Gen.list (Range.linear 0 6) O.genOpaqueSegment)
+        index <- forAll (Gen.int (Range.linear 0 (length segments)))
+        filler <- forAll O.genOpaqueSegment
+        let detoured = take index segments <> [filler, ".."] <> drop index segments
+        annotate (toString (T.intercalate "/" detoured))
+        withDetour <- decides env bound detoured path
+        without <- decides env bound segments path
+        withDetour === without
+
+    prop "P24 a leading .. has nothing to go back past, so it does nothing" $ do
+        (env, bound, segments) <- forAllClause
+        path <- forAll (Gen.list (Range.linear 0 6) O.genOpaqueSegment)
+        count <- forAll (Gen.int (Range.linear 1 4))
+        withLeading <- decides env bound (replicate count ".." <> segments) path
+        without <- decides env bound segments path
+        withLeading === without
+
+    prop "P25 resolving .. agrees with textual normalisation, TARGET_DIR included" $ do
+        directory <- forAll (Gen.list (Range.linear 1 4) O.genOpaqueSegment)
+        rest <- forAll (Gen.list (Range.linear 0 6) genSegmentOrParentDir)
+        let env = MatchEnv {targetDir = T.intercalate "/" directory, variables = Map.empty}
+        clause <- compileClauseOrFail (braced "TARGET_DIR" : rest)
+        moduleFromGlob env clause
+            === Just (T.intercalate "/" (O.resolveParentDirs (directory <> rest)))
+
+    prop "P26 .. compiles in a clause alone, and only past a segment naming one directory" $ do
+        segments <- forAll (Gen.list (Range.linear 1 6) genStructuralSegment)
+        let rendered = T.intercalate "/" segments
+        annotate (toString rendered)
+        isLeft (compileTargetPattern rendered) === elem ".." segments
+        isLeft (compileExcludePattern rendered) === elem ".." segments
+        isRight (compileClausePattern Narrow mempty rendered) === O.parentDirsLegal segments
+
+--------------------------------------------------------------------------------
 -- Assertions
 --------------------------------------------------------------------------------
 
@@ -336,6 +383,46 @@ expectedTargetDir path = case nonEmpty path of
 
 insertAt :: Int -> a -> [a] -> [a]
 insertAt index x xs = take index xs <> [x] <> drop index xs
+
+--------------------------------------------------------------------------------
+-- Parent-directory fixtures
+--------------------------------------------------------------------------------
+
+{- | A clause pattern, its scope, and an environment binding every variable in
+it - all three derived from one legal target pattern and a path planted for it.
+-}
+forAllClause :: PropertyT IO (MatchEnv, Set VarName, [Text])
+forAllClause = do
+    pattern' <- forAll O.genOPattern
+    planted <- forAll (O.genPathFor pattern')
+    compiled <- compileOrFail pattern'
+    env <- matchOrFail compiled planted
+    pure (env, compiled.boundVars, T.splitOn "/" (O.renderOPattern pattern'))
+
+-- | Whether a clause, written as segments, accepts a path.
+decides :: (MonadTest m) => MatchEnv -> Set VarName -> [Text] -> [Text] -> m Bool
+decides env bound segments path = do
+    clause <- compileClauseIn bound segments
+    pure (matchClause clause env (joinPath path))
+
+genSegmentOrParentDir :: Gen Text
+genSegmentOrParentDir = Gen.frequency [(3, O.genOpaqueSegment), (2, pure "..")]
+
+-- | A segment drawn from everything a @..@ might meet to its left.
+genStructuralSegment :: Gen Text
+genStructuralSegment =
+    Gen.frequency [(2, O.genOpaqueSegment), (1, pure ".."), (1, pure "*"), (1, pure "**")]
+
+compileClauseOrFail :: (MonadTest m) => [Text] -> m CompiledClausePattern
+compileClauseOrFail = compileClauseIn mempty
+
+compileClauseIn :: (MonadTest m) => Set VarName -> [Text] -> m CompiledClausePattern
+compileClauseIn bound segments = case compileClausePattern Narrow bound (T.intercalate "/" segments) of
+    Right compiled -> pure compiled
+    Left err -> do
+        annotate (toString (T.intercalate "/" segments))
+        annotate (toString (renderGlobPlusError err))
+        failure
 
 replaceAt :: Int -> a -> [a] -> [a]
 replaceAt index x xs = take index xs <> [x] <> drop (index + 1) xs

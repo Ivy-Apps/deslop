@@ -408,6 +408,65 @@ spec = describe "Deslop.GlobPLus" $ do
             matchClauseAt rule env "src/v1.0/features/HomeView" `shouldBe` True
             matchClauseAt rule env "src/v1X0/features/HomeView" `shouldBe` False
 
+    describe "matchClauseAt with .." $ do
+        let featureTarget = "@/client/{{feature-name}}/{{FileName}}View"
+        let featureEnv = envFor featureTarget "@/client/home/HomeView"
+        let featureClause = unsafeCompileClauseIn (unsafeCompileTarget featureTarget).boundVars
+
+        it "goes one directory back from TARGET_DIR, reaching a sibling folder" $ do
+            let rule = featureClause "{{TARGET_DIR}}/../shared/**"
+            matchClauseAt rule featureEnv "@/client/shared/Button" `shouldBe` True
+            matchClauseAt rule featureEnv "@/client/shared/forms/Input" `shouldBe` True
+            matchClauseAt rule featureEnv "@/client/home/shared/Button" `shouldBe` False
+            matchClauseAt rule featureEnv "@/client/billing/shared/Button" `shouldBe` False
+
+        it "goes back twice, one directory per .." $ do
+            let rule = featureClause "{{TARGET_DIR}}/../../shared/**"
+            matchClauseAt rule featureEnv "@/shared/Button" `shouldBe` True
+            matchClauseAt rule featureEnv "@/client/shared/Button" `shouldBe` False
+
+        it "cancels one directory of TARGET_DIR, never the whole of it" $ do
+            let rule = featureClause "{{TARGET_DIR}}/.."
+            matchClauseAt rule featureEnv "@/client" `shouldBe` True
+            matchClauseAt rule featureEnv "@" `shouldBe` False
+
+        it "cancels a literal segment as readily as a substituted one" $ do
+            let rule = featureClause "@/client/home/../shared/**"
+            matchClauseAt rule featureEnv "@/client/shared/Button" `shouldBe` True
+            matchClauseAt rule featureEnv "@/client/home/Button" `shouldBe` False
+
+        it "cancels a variable segment, which is literal text by hydration time" $ do
+            let rule = featureClause "@/client/{{feature-name}}/../shared/**"
+            matchClauseAt rule featureEnv "@/client/shared/Button" `shouldBe` True
+
+        it "does nothing when there is nothing left to go back past" $ do
+            let clamped = featureClause "../../../@/client/shared/**"
+            let plain = featureClause "@/client/shared/**"
+            matchClauseAt clamped featureEnv "@/client/shared/Button" `shouldBe` True
+            matchClauseAt clamped featureEnv "@/client/shared/Button"
+                `shouldBe` matchClauseAt plain featureEnv "@/client/shared/Button"
+
+        it "clamps rather than escaping when a .. runs off the front of TARGET_DIR" $ do
+            let rule = featureClause "{{TARGET_DIR}}/../../../shared/**"
+            -- TARGET_DIR is @/client/home: two .. exhaust it, the third does nothing.
+            matchClauseAt rule featureEnv "shared/Button" `shouldBe` True
+            matchClauseAt rule featureEnv "@/shared/Button" `shouldBe` False
+
+        it "is relative to the matched file, so a deeper file goes back to a different place" $ do
+            let deepEnv = envFor "@/client/{{feature-name}}/**/{{FileName}}View" "@/client/home/widgets/CardView"
+            let rule = featureClause "{{TARGET_DIR}}/../shared/**"
+            matchClauseAt rule deepEnv "@/client/home/shared/Icon" `shouldBe` True
+            matchClauseAt rule deepEnv "@/client/shared/Button" `shouldBe` False
+
+        it "leaves a ** that is not being cancelled alone" $ do
+            let rule = featureClause "@/client/**/widgets/../shared/**"
+            matchClauseAt rule featureEnv "@/client/shared/Button" `shouldBe` True
+            matchClauseAt rule featureEnv "@/client/home/shared/Button" `shouldBe` True
+
+        it "treats a dotted segment that is not exactly .. as ordinary text" $ do
+            let rule = featureClause "{{TARGET_DIR}}/../..shared/x"
+            matchClauseAt rule featureEnv "@/client/..shared/x" `shouldBe` True
+
     describe "moduleFromGlob" $ do
         let env = envFor "@/features/auth/{{FileName}}" "@/features/auth/UserAuth"
 
@@ -507,6 +566,29 @@ spec = describe "Deslop.GlobPLus" $ do
                 expand (unsafeCompileClauseIn useCaseScope "@/x/{{UseCaseName}}/{{useCaseName}}/{{use-case-name}}/{{USE_CASE_NAME}}")
                     `shouldBe` Just "@/x/ArchiveOrder/archiveOrder/archive-order/ARCHIVE_ORDER"
 
+        describe "resolving .." $ do
+            let dirEnv = envFor "@/features/auth/{{FileName}}" "@/features/auth/UserAuth"
+
+            it "goes one directory back from TARGET_DIR" $
+                moduleFromGlob dirEnv (unsafeCompileClause "{{TARGET_DIR}}/../shared/registry")
+                    `shouldBe` Just "@/features/shared/registry"
+
+            it "goes back one directory per .., not the whole substitution" $
+                moduleFromGlob dirEnv (unsafeCompileClause "{{TARGET_DIR}}/../../shared/registry")
+                    `shouldBe` Just "@/shared/registry"
+
+            it "cancels a literal segment" $
+                moduleFromGlob dirEnv (unsafeCompileClause "@/features/auth/../shared/registry")
+                    `shouldBe` Just "@/features/shared/registry"
+
+            it "does nothing when there is nothing left to go back past" $
+                moduleFromGlob dirEnv (unsafeCompileClause "{{TARGET_DIR}}/../../../../shared/registry")
+                    `shouldBe` Just "shared/registry"
+
+            it "still refuses a pattern carrying a wildcard" $
+                moduleFromGlob dirEnv (unsafeCompileClause "{{TARGET_DIR}}/../shared/*")
+                    `shouldBe` Nothing
+
     describe "renderClausePattern" $ do
         let env = envFor "@/features/auth/{{FileName}}" "@/features/auth/UserAuth"
 
@@ -541,6 +623,18 @@ spec = describe "Deslop.GlobPLus" $ do
         it "falls back to the variable name when it is absent from the env" $ do
             let pat = unsafeCompileClause "{{TARGET_DIR}}/{{FileName}}View"
             renderClausePattern sparseEnv pat `shouldBe` "@/features/x/{{FileName}}View"
+
+        it "resolves .., showing the module id rather than a path to work out" $ do
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/../shared/registry"
+            renderClausePattern env pat `shouldBe` "@/features/shared/registry"
+
+        it "resolves .. against one directory of TARGET_DIR at a time" $ do
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/../../shared/registry"
+            renderClausePattern env pat `shouldBe` "@/shared/registry"
+
+        it "keeps a ** that no .. cancels" $ do
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/../**/*.spec"
+            renderClausePattern env pat `shouldBe` "@/features/**/*.spec"
 
     describe "interpolate" $ do
         let env = envFor "@/features/auth/{{FileName}}" "@/features/auth/UserAuth"
@@ -1249,6 +1343,32 @@ compilationErrorSpec = describe "compilation errors" $ do
         it "points at the only accepted spelling of TARGET_DIR" $
             renderError (compileClausePattern Narrow mempty "{{target-dir}}/x")
                 `shouldSatisfy` T.isInfixOf "{{TARGET_DIR}}"
+
+        it "tells a target to write the path out, and where .. does belong" $ do
+            let message = renderError (compileTargetPattern "@/client/../shared/**")
+            message `shouldSatisfy` T.isInfixOf "\"..\" cannot be used in a target pattern."
+            message `shouldSatisfy` T.isInfixOf "Write the path you mean"
+            message `shouldSatisfy` T.isInfixOf "{{TARGET_DIR}}/../shared/**"
+
+        it "says the same of an exclude, which also matches whole module ids" $ do
+            let message = renderError (compileExcludePattern "@/client/../shared/**")
+            message `shouldSatisfy` T.isInfixOf "\"..\" cannot be used in an exclude pattern."
+            message `shouldSatisfy` T.isInfixOf "{{TARGET_DIR}}/../shared/**"
+
+        it "names the ** a .. tried to go back past, and why it cannot" $ do
+            let message = renderError (compileClausePattern Narrow mempty "@/client/**/../shared")
+            message `shouldSatisfy` T.isInfixOf "\"..\" cannot go back past \"**\"."
+            message `shouldSatisfy` T.isInfixOf "zero or many segments"
+
+        it "names the wildcard segment a .. tried to go back past" $ do
+            let message = renderError (compileClausePattern Narrow mempty "@/client/*View/../shared")
+            message `shouldSatisfy` T.isInfixOf "\"..\" cannot go back past \"*View\"."
+            message `shouldSatisfy` T.isInfixOf "does not say which directory it is"
+
+        it "accepts a .. that goes back past a segment the pattern determines" $ do
+            compileClausePattern Narrow mempty "@/client/home/../shared" `shouldSatisfy` isRight
+            compileClausePattern Narrow mempty "{{TARGET_DIR}}/../shared" `shouldSatisfy` isRight
+            compileClausePattern Narrow mempty "../../shared" `shouldSatisfy` isRight
 
 --------------------------------------------------------------------------------
 -- Properties

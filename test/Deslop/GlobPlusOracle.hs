@@ -30,6 +30,10 @@ module Deslop.GlobPlusOracle (
     isLegalTarget,
     unanchoredVars,
     unboundedSegments,
+    parentDirsLegal,
+
+    -- * Parent directories
+    resolveParentDirs,
 
     -- * Generators
     genOPattern,
@@ -233,6 +237,35 @@ unanchoredVars pattern' =
   where
     indexed = zip [0 :: Int ..] pattern'
     isGlobStarAt side (index, segment) = side index && segment == OGlobStar
+
+{- | Whether every @..@ in a clause, written as raw segments, goes back past
+something that names one directory. Written over the text rather than over a
+compiled pattern, so it is a second opinion and not a restatement of the
+structure production walks.
+-}
+parentDirsLegal :: [Text] -> Bool
+parentDirsLegal = isRight . foldlM back []
+  where
+    back behind ".." = case behind of
+        -- Nothing left to go back past: the clamp, and legal.
+        [] -> Right []
+        (segment : earlier)
+            | "*" `T.isInfixOf` segment -> Left ()
+            | otherwise -> Right earlier
+    back behind segment = Right (segment : behind)
+
+{- | Resolving @..@ over plain segments, written the obvious way: each one
+takes back the segment before it, and one with nothing before it does nothing.
+
+Production has to do this over a pattern whose steps expand to varying numbers
+of segments - @{{TARGET_DIR}}@ is one step and many segments - which is the
+difference a differential property is measuring.
+-}
+resolveParentDirs :: [Text] -> [Text]
+resolveParentDirs = reverse . foldl' back []
+  where
+    back done ".." = drop 1 done
+    back done segment = segment : done
 
 -- | Every segment holding two variables with no literal between them.
 unboundedSegments :: OPattern -> [[OPart]]

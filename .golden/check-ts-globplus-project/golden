@@ -1,6 +1,6 @@
 [Title] 🚀 Checking project: ~/test/fixtures/ts-globplus-project
-[Plain] 📚 Loaded 1 rulebook, 10 rules
-[Error] Found 13 problems:
+[Plain] 📚 Loaded 1 rulebook, 12 rules
+[Error] Found 17 problems:
 [Error] ─────────────────────────────────────────
 [Error] # provider-services#adapter-imports-its-provider-config#@/adapters/stripe-connect/stripe-connect-payment-gateway
 An adapter names its provider twice: once as the folder it sits in, and once as the prefix of its own file name, before the service type. The greedy split of that file segment gives the provider one word too many, and the folder above has already ruled it out - so the split has to be chosen by what is already bound rather than merely checked against it.
@@ -14,6 +14,20 @@ A View at any depth under a provider folder must import that provider's config. 
 
 Module '@/components/paypal/payment/RefundView' must import '@/config/paypal'.
 FIX: Import @/config/paypal rather than another provider's config.
+---------
+
+# provider-services#nested-view-uses-its-shared-formatter#@/components/stripe-connect/payment/widgets/BadgeView
+Every View imports the money formatter from the shared folder one directory back from its own. @/components/stripe-connect/payment/widgets is the directory of the matched FILE rather than of the rule, so this clause names a different module for a View nested one level deeper. That is documented behaviour rather than a bug: see "`..` is relative to the file, not to the rule".
+
+Module '@/components/stripe-connect/payment/widgets/BadgeView' must import '@/components/stripe-connect/payment/shared/format-money'.
+FIX: Import the format-money module from the shared folder beside your own, or move this View up to the depth where that folder is its sibling.
+---------
+
+# provider-services#nested-view-uses-its-shared-formatter#@/components/stripe-connect/payment/widgets/BadgeView
+Every View imports the money formatter from the shared folder one directory back from its own. @/components/stripe-connect/payment/widgets is the directory of the matched FILE rather than of the rule, so this clause names a different module for a View nested one level deeper. That is documented behaviour rather than a bug: see "`..` is relative to the file, not to the rule".
+
+Module '@/components/stripe-connect/payment/widgets/BadgeView' requires '@/components/stripe-connect/payment/shared/format-money' to exist.
+FIX: Import the format-money module from the shared folder beside your own, or move this View up to the depth where that folder is its sibling.
 ---------
 
 # provider-services#provider-entry-is-named-after-its-folder#@/components/square/SquareEntry
@@ -71,6 +85,26 @@ Module '@/components/stripe-connect/payout/TransferView' requires '@/components/
 FIX: Add a TransferView.stories.tsx file next to the View.
 ---------
 
+# provider-services#view-may-reach-its-providers-shared-folder#@/components/paypal/payment/RefundView
+A View may use its own service folder and the provider's shared folder, which sits one directory back from @/components/paypal/payment. A sibling *service* folder of the same provider is not reachable that way, so the .. in this clause is what decides where the allowance stops - providers-are-isolated permits that import, and this rule does not.
+
+Module '@/components/paypal/payment/RefundView' directly imports '@/components/stripe-connect/payment/CheckoutView'.
+```ts
+import { CheckoutView } from '@/components/stripe-connect/payment/CheckoutView';
+```
+FIX: Import from your own payment folder or from @/components/paypal/shared, and promote anything else there.
+---------
+
+# provider-services#view-may-reach-its-providers-shared-folder#@/components/stripe-connect/payout/TransferView
+A View may use its own service folder and the provider's shared folder, which sits one directory back from @/components/stripe-connect/payout. A sibling *service* folder of the same provider is not reachable that way, so the .. in this clause is what decides where the allowance stops - providers-are-isolated permits that import, and this rule does not.
+
+Module '@/components/stripe-connect/payout/TransferView' directly imports '@/components/stripe-connect/payment/CheckoutView'.
+```ts
+import { CheckoutView } from '@/components/stripe-connect/payment/CheckoutView';
+```
+FIX: Import from your own payout folder or from @/components/stripe-connect/shared, and promote anything else there.
+---------
+
 # provider-services#view-model-calls-its-own-provider-service#@/components/stripe-connect/payout/useTransferViewModel
 A ViewModel may only talk to the service module of the provider and service type it belongs to. The service module name is derived from all three variables, so a ViewModel cannot reach into another provider's service.
 
@@ -98,6 +132,6 @@ A service View is pure UI. It must delegate its state and behaviour to the ViewM
 Module '@/components/paypal/payment/RefundView' must import '@/components/paypal/payment/useRefundViewModel'.
 FIX: Import useRefundViewModel from the same directory and drive the View from the state it returns.
 [Error] ─────────────────────────────────────────
-[summary] Checked 24 modules enforcing 12 rules
-[exit] Found 13 problems, none auto-fixable.
-   Run `deslop baseline` to silence all 13 problems.
+[summary] Checked 28 modules enforcing 14 rules
+[exit] Found 17 problems, none auto-fixable.
+   Run `deslop baseline` to silence all 17 problems.

@@ -16,6 +16,11 @@ are independent because of it:
   order /is/ observable, and it is greedy-left: the leftmost part takes the
   most it can, and the first division satisfying every constraint wins.
 
+A clause pattern may also carry @..@, which is resolved by 'resolveSteps'
+before either search runs. It cancels the segment to its left rather than
+moving a cursor over the path being tested, because the thing being navigated
+from is @{{TARGET_DIR}}@ - concrete text by then, and the pattern's own.
+
 Agreement between repeated occurrences is carried /through/ the walk rather
 than checked after it. Each variable holds the set of names still able to
 spell every occurrence seen so far; when that set empties, the branch dies
@@ -36,6 +41,8 @@ module Deslop.GlobPlus (
     Seg (..),
     SegPart (..),
     PatternSegment,
+    Step (..),
+    resolveSteps,
     TargetVar (..),
     ClauseVar (..),
     Polarity (..),
@@ -143,6 +150,33 @@ data SegPart var
 
 type PatternSegment var = Seg [SegPart var]
 
+{- | One piece of a clause pattern. A 'Seg' answers how many path segments
+something consumes; @..@ consumes none - it edits the list before consumption
+starts - so it is a different kind of thing and gets a different type. Target
+and exclude patterns are not built from 'Step' at all, which is what makes @..@
+unrepresentable in them rather than merely rejected.
+-}
+data Step a
+    = -- | @..@: cancels the segment to its left.
+      ParentDir
+    | Step a
+    deriving (Show, Eq, Functor, Foldable, Traversable)
+
+{- | Expands each step and cancels each @..@ against what came before, left to
+right. A @..@ with nothing left to cancel does nothing, exactly as @\/..@ is
+@\/@ on a Unix path.
+
+Cancellation happens /after/ expansion because @{{TARGET_DIR}}@ is the thing
+usually being navigated from, and it is one step that becomes many segments.
+Compilation guarantees no @..@ can reach a @**@ or a segment holding a @*@, so
+'drop' is the whole of it and it cannot fail.
+-}
+resolveSteps :: (a -> [b]) -> [Step a] -> [b]
+resolveSteps expand = reverse . foldl' cancel []
+  where
+    cancel done ParentDir = drop 1 done
+    cancel done (Step step) = reverse (expand step) <> done
+
 -- | A variable occurrence in a target pattern. Strictly no @{{TARGET_DIR}}@.
 data TargetVar = TargetVar VarName Casing
     deriving (Show, Eq, Ord)
@@ -185,7 +219,7 @@ data CompiledTargetPattern = CompiledTargetPattern
     deriving (Show, Eq)
 
 data CompiledClausePattern = CompiledClausePattern
-    { segments :: [PatternSegment ClauseVar]
+    { steps :: [Step (PatternSegment ClauseVar)]
     , polarity :: Polarity
     , source :: Text
     }
@@ -450,7 +484,7 @@ hydrate env clause =
         , minLength = minSegments hydrated
         }
   where
-    hydrated = concatMap hydrateSegment clause.segments
+    hydrated = resolveSteps hydrateSegment clause.steps
 
     hydrateSegment GlobStar = [GlobStar]
     hydrateSegment (Segment parts) = Segment <$> splitOnSlash (mergeLits (hydratePart =<< parts))
@@ -510,24 +544,31 @@ splitOnSlash = go []
 --------------------------------------------------------------------------------
 
 {- | Expands a clause pattern into a concrete module path by substituting
-variables. Returns Nothing if the pattern contains wildcards, which cannot be
-deterministically expanded.
+variables and resolving @..@. Returns Nothing if the pattern contains wildcards,
+which cannot be deterministically expanded.
+
+Every step is expanded before any @..@ is resolved, so a substitution that
+introduces a @\/@ is several segments by the time one is cancelled - a @..@
+after @{{TARGET_DIR}}@ drops one directory of it rather than all of it.
 -}
 moduleFromGlob :: MatchEnv -> CompiledClausePattern -> Maybe Text
-moduleFromGlob env clause = T.intercalate "/" <$> traverse expandSegment clause.segments
+moduleFromGlob env clause =
+    T.intercalate "/" . resolveSteps id <$> traverse (traverse expandSegment) clause.steps
   where
     expandSegment GlobStar = Nothing
-    expandSegment (Segment parts) = T.concat <$> traverse expandPart parts
+    expandSegment (Segment parts) = T.splitOn "/" . T.concat <$> traverse expandPart parts
 
     expandPart (Lit t) = Just t
     expandPart AnyChars = Nothing
     expandPart (VarPart v) = valueOf env v
 
-{- | Renders a clause pattern for a human, substituting what is bound and
-keeping the wildcards literally.
+{- | Renders a clause pattern for a human, substituting what is bound, resolving
+@..@ and keeping the wildcards literally. The author is shown the module id they
+need, not one they would have to resolve in their head.
 -}
 renderClausePattern :: MatchEnv -> CompiledClausePattern -> Text
-renderClausePattern env clause = T.intercalate "/" (renderSegment <$> clause.segments)
+renderClausePattern env clause =
+    T.intercalate "/" (resolveSteps (T.splitOn "/" . renderSegment) clause.steps)
   where
     renderSegment GlobStar = "**"
     renderSegment (Segment parts) = T.concat (renderPart <$> parts)
