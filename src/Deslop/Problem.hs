@@ -1,5 +1,6 @@
 module Deslop.Problem (
     Problem (..),
+    ViolationKind (..),
     ProblemId (..),
     problemId,
     isAutoFixable,
@@ -29,8 +30,42 @@ data Problem
         { rulebook :: RulebookId
         , rule :: RuleId
         , badModule :: ModuleId
-        , description :: Text
+        , prose :: Text
+        , kind :: ViolationKind
         , fix :: Text
+        }
+    deriving stock (Eq, Show, Ord)
+
+{- | How a Rule was broken. The Rule's own prose says why the Rule exists; this
+says what the module actually did, and carries the facts a report is written
+from rather than the sentence itself - "Deslop.ProblemFormatter" owns that.
+-}
+data ViolationKind
+    = -- | The module names the forbidden module in an import of its own.
+      DirectImport
+        { imported :: ModuleId
+        , importStatement :: Text
+        }
+    | {- | The module arrives at a forbidden module by following imports.
+      @chain@ runs from the module to what it must not reach, and @firstImport@
+      is the import that opens it - absent when the chain has no first hop.
+      -}
+      TransitiveImport
+        { chain :: NonEmpty ModuleId
+        , firstImport :: Maybe Text
+        , -- | The chains this violation stands in for, once duplicates have
+          -- been compacted. Empty until "Deslop.ProblemShrinker" runs, and
+          -- empty afterwards for a violation that had no duplicates.
+          alsoReached :: [NonEmpty ModuleId]
+        }
+    | -- | The module does not import something the Rule requires it to.
+      MissingUse
+        { requiredImport :: Text
+        , transitive :: Bool
+        }
+    | -- | A module the Rule requires to exist does not.
+      MissingModule
+        { requiredModule :: ModuleId
         }
     deriving stock (Eq, Show, Ord)
 

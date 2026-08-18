@@ -72,6 +72,19 @@ rules:
       import from @/lib, external non-React packages, or other framework-agnostic modules.
       Move any React-dependent logic to a ViewModel or Container in the features layer.
 
+  - id: hooks-cant-use-components
+    description: >-
+      A hook is reactive logic, so no import chain starting at a hook may arrive
+      at a component. One offending import usually drags in a whole subtree of
+      them.
+    target: "@/hooks/**"
+    forbids:
+      - import: "@/components/**"
+        transitive: true
+    fix: >-
+      Remove the component import. If shared logic is needed, extract it into
+      @/hooks or @/shared.
+
   - id: features-cant-import-other-features
     description: Features can't import from other features.
     target: "@/features/**"

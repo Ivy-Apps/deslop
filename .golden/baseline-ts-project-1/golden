@@ -1,7 +1,7 @@
 [Title] 🚀 Baselining project: ~/test/fixtures/ts-project-1
-[Plain] 📚 Loaded 2 rulebooks, 8 rules
-[Success] ✅ Success: Baseline generated with 34 problems.
-[summary] Baselined 38 modules enforcing 10 rules
+[Plain] 📚 Loaded 2 rulebooks, 9 rules
+[Success] ✅ Success: Baseline generated with 36 problems.
+[summary] Baselined 45 modules enforcing 11 rules
 
 >>> baseline.yaml
 - architecture#container-uses-state-event#@/features/products/ProductListContainer
@@ -10,6 +10,8 @@
 - architecture#features-cant-import-other-features#@/features/home/data/bad-repository
 - architecture#features-cant-import-other-features#@/features/home/home-component
 - architecture#features-cant-import-other-features#@/features/profile/data/profile-repository
+- architecture#hooks-cant-use-components#@/hooks/list/useItemList
+- architecture#hooks-cant-use-components#@/hooks/list/useItemList.spec
 - architecture#no-react-in-lib#@/lib/dom-utils
 - architecture#no-react-in-lib#@/lib/react-helper
 - architecture#no-react-transitively-in-data#@/features/home/data/bad-repository

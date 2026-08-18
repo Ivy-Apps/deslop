@@ -15,6 +15,7 @@ import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
 import Deslop.Lint.CycleDetection (noImportCycles)
 import Deslop.Lint.RelativeImports (noRelativeImports)
 import Deslop.Problem (Problem, isAutoFixable)
+import Deslop.ProblemShrinker (compactProblems)
 import Deslop.RuleEnforcer (enforceRulebooks)
 import Deslop.Rulebook (Rulebook (..))
 import Deslop.Rulebook.Loader (loadRulebook)
@@ -44,7 +45,8 @@ import TypeScript.Config (TsConfig, readTsConfig)
 import TypeScript.Iterator (getTsFiles)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import Types
-import UI (divider, humanReadable, pluralise, problemsFoundText, problemsLogText, summaryLine)
+import UI (divider, humanReadable, problemsFoundText, problemsLogText, summaryLine)
+import Utils (pluralise)
 
 runDeslop :: ParamsDto -> IO ()
 runDeslop paramsDto =
@@ -88,13 +90,13 @@ doWork params = do
         FixC -> do
             baseline <- loadBaseline params.projectPath
             summary <- deslopProject params baseline
-            ps <- applyBaseline baseline <$> getProblems
+            ps <- compactProblems . applyBaseline baseline <$> getProblems
             logFixSummary . length . filter isAutoFixable $ ps
             pure RunReport {summary = summary, verdict = Clean}
         CheckC -> do
             baseline <- loadBaseline params.projectPath
             summary <- deslopProject params baseline
-            ps <- applyBaseline baseline <$> getProblems
+            ps <- compactProblems . applyBaseline baseline <$> getProblems
             verdict <- case ps of
                 [] -> do
                     cliLog Success "✅ Success: No problems found."
@@ -109,7 +111,7 @@ doWork params = do
             pure RunReport {summary = summary, verdict = verdict}
         BaselineC -> do
             summary <- deslopProject params emptyBaseline
-            ps <- getProblems
+            ps <- compactProblems <$> getProblems
             saveBaseline params.projectPath ps
             cliLog Success $
                 "✅ Success: Baseline generated with "

@@ -69,6 +69,7 @@ library
     Deslop.Lint.RelativeImports
     Deslop.Problem
     Deslop.ProblemFormatter
+    Deslop.ProblemShrinker
     Deslop.Rulebook
     Deslop.Rulebook.Compiler
     Deslop.Rulebook.Dto
@@ -149,6 +150,7 @@ test-suite deslop-test
     Deslop.Lint.CycleDetectionSpec
     Deslop.Lint.RelativeImportsSpec
     Deslop.ProblemFormatterSpec
+    Deslop.ProblemShrinkerSpec
     Deslop.ProblemSpec
     Deslop.RulebookSpec
     Deslop.RuleEnforcerSpec
