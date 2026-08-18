@@ -11,6 +11,20 @@ on:
 permissions:
   contents: read
 
+# The toolchain, pinned once. The macOS job and the container script have to
+# agree on these, and a drift between them only ever surfaces during a release.
+#
+# Not named CABAL_VERSION: verify-version already uses that name as a shell
+# variable for deslop's own version, which is a different thing entirely, and a
+# workflow-level env var of the same name would sit right next to it meaning
+# something else.
+env:
+  GHC_VERSION: "9.10.3"
+  # ghcup's "Recommended" cabal. The previous pin, 3.16.0.0, silently resolves
+  # to an unofficial patched bindist (3.16.0.0-p1) that upstream tags neither
+  # Recommended nor Latest.
+  CABAL_INSTALL_VERSION: "3.16.1.0"
+
 jobs:
   # Cheap guard that runs before the slow builds: a tag whose version does not
   # match deslop.cabal would ship a package whose `deslop --version` lies.
@@ -84,10 +98,10 @@ jobs:
               fi &&
               
               # Always ensure the correct tools are installed (idempotent)
-              ghcup install ghc 9.10.3 &&
-              ghcup set ghc 9.10.3 &&
-              ghcup install cabal 3.16.0.0 &&
-              ghcup set cabal 3.16.0.0 &&
+              ghcup install ghc ${{ env.GHC_VERSION }} &&
+              ghcup set ghc ${{ env.GHC_VERSION }} &&
+              ghcup install cabal ${{ env.CABAL_INSTALL_VERSION }} &&
+              ghcup set cabal ${{ env.CABAL_INSTALL_VERSION }} &&
               
               cabal update &&
               # --flags=static turns on the deslop.cabal stanza that adds
@@ -126,8 +140,8 @@ jobs:
 
       - uses: haskell-actions/setup@v2
         with:
-          ghc-version: "9.10.3"
-          cabal-version: "3.16.0.0"
+          ghc-version: ${{ env.GHC_VERSION }}
+          cabal-version: ${{ env.CABAL_INSTALL_VERSION }}
 
       - name: Cache cabal store
         uses: actions/cache@v6
