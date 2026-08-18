@@ -29,3 +29,24 @@ rules:
     forbids:
       - import: "@/internal/**"
     fix: Separate the two variables with a literal.
+
+  - id: target-goes-back-a-directory
+    description: >-
+      A target is matched against whole module ids, so there is no directory
+      for .. to be relative to.
+    target: "@/client/../shared/**"
+    forbids:
+      - import: "@/internal/**"
+    fix: Write @/shared/** rather than going back a directory.
+
+  - id: exclude-goes-back-a-directory
+    description: >-
+      An exclude is matched against whole module ids too. Its target compiles,
+      which is what makes this error the exclude's own - an exclude is checked
+      whether or not the rule's target survived.
+    target: "@/client/{{file-name}}"
+    exclude:
+      - "@/client/../shared/**"
+    forbids:
+      - import: "@/internal/**"
+    fix: Write @/shared/** rather than going back a directory.

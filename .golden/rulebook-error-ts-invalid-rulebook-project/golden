@@ -8,6 +8,18 @@
         ** stands for zero or many whole segments, so it cannot be part of one.
         Match within a segment with *, e.g. *View, or give ** a segment of its
         own, e.g. **/*View.
+  rule 'clause-goes-back-past-a-globstar'
+    allows.import: "@/client/**/../shared/**"
+      ".." cannot go back past "**".
+        "**" stands for zero or many segments, so there is no one
+        directory to go back from.
+        Write the directory you mean, or start from {{TARGET_DIR}}.
+  rule 'clause-goes-back-past-a-wildcard'
+    allows.import: "@/client/*View/../shared/**"
+      ".." cannot go back past "*View".
+        A segment containing "*" does not say which directory it is,
+        so there is no one directory to go back from.
+        Write the directory you mean, or start from {{TARGET_DIR}}.
   rule 'clause-names-a-variable-the-target-never-binds'
     uses.import: "@/config/{{fil-name}}"
       unknown variable {{fil-name}}.
@@ -33,3 +45,20 @@
         is no way to tell where the first one ends. A * between them is not a
         boundary either, because it can match nothing.
         Separate them with a literal, e.g. {{FileName}}/{{ServiceType}}.
+  rule 'target-goes-back-a-directory'
+    target: "@/client/../shared/**"
+      ".." cannot be used in a target pattern.
+        A target is matched against whole module ids, so there is nothing
+        for ".." to be relative to. Write the path you mean, e.g. "@/shared/**".
+        ".." belongs in a clause, where it is relative to the directory
+        of the file the target matched:
+          allows: "{{TARGET_DIR}}/../shared/**"
+  rule 'exclude-goes-back-a-directory'
+    exclude: "@/client/../shared/**"
+      ".." cannot be used in an exclude pattern.
+        An exclude pattern filters the target and is matched against whole
+        module ids, so there is nothing for ".." to be relative to. Write
+        the path you mean, e.g. "@/shared/**".
+        ".." belongs in a clause, where it is relative to the directory
+        of the file the target matched:
+          allows: "{{TARGET_DIR}}/../shared/**"

@@ -13,6 +13,28 @@ rules:
       - import: "@/internal/**"
     fix: Use *View to match within a segment, or **/*View to cross segments.
 
+  - id: clause-goes-back-past-a-globstar
+    description: >-
+      ** stands for zero or many segments, so there is no one directory for
+      the .. that follows it to go back from.
+    target: "@/widgets/{{file-name}}"
+    allows:
+      - import: "@/client/**/../shared/**"
+    forbids:
+      - import: "@/internal/**"
+    fix: Name the directory you mean, or start from {{TARGET_DIR}}.
+
+  - id: clause-goes-back-past-a-wildcard
+    description: >-
+      A segment containing a * does not say which directory it is, so the ..
+      after it has nothing definite to go back from.
+    target: "@/widgets/{{file-name}}"
+    allows:
+      - import: "@/client/*View/../shared/**"
+    forbids:
+      - import: "@/internal/**"
+    fix: Name the directory you mean, or start from {{TARGET_DIR}}.
+
   - id: clause-names-a-variable-the-target-never-binds
     description: >-
       The target compiles and binds file-name; the clause then misspells it.

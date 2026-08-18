@@ -47,6 +47,7 @@ of one.
 |---|---|---|
 | `**` | a whole segment | zero or many segments |
 | `*` | inside a segment | zero or more characters, never a `/` |
+| `..` | a whole segment | one directory back - **clause patterns only** |
 
 `**` must stand alone as a segment. `@/a/**View` does not compile, because a
 globstar glued to text would make the number of segments a pattern consumes
@@ -142,6 +143,130 @@ For a target matched at `@/features/home/HomeContainer`, `{{TARGET_DIR}}` expand
 The name `target-dir` is reserved in every casing. `{{targetDir}}`,
 `{{target-dir}}` and `{{TargetDir}}` are all errors pointing at the one accepted
 spelling.
+
+### `..` goes one directory back
+
+A clause pattern may use `..`, which cancels the segment to its left. It is what
+lets a clause reach *sideways* from `{{TARGET_DIR}}` rather than only downwards.
+
+```yaml
+target: "@/client/{{feature-name}}/{{FileName}}View"
+forbids:
+  - import: "@/client/**"
+allows:
+  - import: "{{TARGET_DIR}}/**"              # my own folder
+  - import: "{{TARGET_DIR}}/../shared/**"    # my sibling shared/ folder
+```
+
+Matched at `@/client/home/HomeView`, `{{TARGET_DIR}}` is `@/client/home` and the
+second `allows` resolves to `@/client/shared/**`:
+
+```
+[@] [client] [home] [..] [shared] [**]   →   @/client/shared/**
+             ^^^^^^ ^^^^ cancel each other
+```
+
+Each `..` goes back exactly **one** directory, so `{{TARGET_DIR}}/../../shared`
+is `@/shared`. Cancellation happens after substitution, which is why a `..` after
+`{{TARGET_DIR}}` drops one directory of it rather than all of it.
+
+`..` is a whole segment or it is nothing. Unlike `**`, a dotted name has an
+ordinary reading, so `..foo`, `...` and `a..b` are plain text and only the exact
+token is structural. `.` is not special either.
+
+#### It may only go back past a directory the pattern names
+
+```
+{{TARGET_DIR}}/../shared/**      ✅
+@/client/home/../shared/**       ✅ a literal
+@/client/{{feature-name}}/../x   ✅ a variable - literal text once substituted
+@/client/**/widgets/../shared    ✅ the .. cancels widgets, not the **
+
+@/client/**/../shared/**         ❌ ** is zero or many segments: which one?
+@/client/*/../shared/**          ❌ a * names no directory in particular
+@/a*/b/../../shared              ❌ the second .. reaches a*
+```
+
+A chain of `..` is checked one at a time against what each would actually reach,
+so the last two differ from the ones above them only in how far back they get.
+
+#### Going back past the start does nothing
+
+As `/..` is `/` on a Unix path, a `..` with nothing left to cancel is a no-op:
+
+```
+{{TARGET_DIR}}/../../../shared/**   with {{TARGET_DIR}} = @/client/home
+  cancel home → cancel client → cancel @ → nothing left, so the fourth
+  .. does nothing   →   shared/**
+```
+
+Note the result: `shared/**` carries no leading alias segment, so it matches no
+module id and the clause is silently dead. Nothing warns about this - see
+[Limitations](../README.md#limitations).
+
+### `..` is relative to the file, not to the rule
+
+`{{TARGET_DIR}}` is the directory of the **matched file**. Under a target
+containing `**`, matched files sit at different depths, so the same `..` clause
+resolves differently for each of them.
+
+```yaml
+target: "@/client/{{feature-name}}/**"
+allows:
+  - import: "{{TARGET_DIR}}/../shared/**"
+```
+
+| matched file | `{{TARGET_DIR}}` | the clause resolves to |
+|---|---|---|
+| `@/client/home/HomeView` | `@/client/home` | `@/client/shared/**` |
+| `@/client/home/widgets/Card` | `@/client/home/widgets` | `@/client/home/shared/**` |
+
+This is `..` behaving exactly as it does on a filesystem - it is relative to
+where you *are*, and where you are is the file. Four consequences are worth
+knowing before you write one.
+
+**1. An allowance can reach a different folder at each depth.** With the rule
+above, `@/client/shared/Button` is importable from `HomeView` and a violation
+from `widgets/Card`. The same import, the same intent, reported for one file and
+not the other.
+
+**2. A clause that widens can neutralise the `forbids` it qualifies.**
+
+```yaml
+forbids: - import: "@/client/**"
+allows:  - import: "{{TARGET_DIR}}/../**"     # "my parent folder"
+```
+
+| matched file | the clause resolves to | effect |
+|---|---|---|
+| `@/client/home/widgets/Card` | `@/client/home/**` | scoped as intended |
+| `@/client/home/HomeView` | `@/client/**` | **forbids nothing at all** |
+
+Every depth-1 file may then import every other feature, and nothing says so.
+
+**3. `exists:` can demand a file in the wrong place.**
+
+```yaml
+target: "@/client/{{feature-name}}/**/{{FileName}}View"
+exists:  - module: "{{TARGET_DIR}}/../{{FileName}}Model"
+```
+
+For `@/client/home/widgets/CardView` that is `@/client/home/CardModel`; for
+`@/client/home/HomeView` it is `@/client/HomeModel`, outside the feature.
+
+**4. Too many `..` for a shallow file clamps to a dead clause**, as above.
+
+**Pin the depth if you want `..` to mean one thing.** A target without `**`
+gives every matched file the same `{{TARGET_DIR}}`:
+
+```yaml
+target: "@/client/{{feature-name}}/{{FileName}}View"   # always @/client/<feature>
+allows:  - import: "{{TARGET_DIR}}/../shared/**"       # always @/client/shared/**
+```
+
+If you want the *feature root* regardless of the file's depth, name it rather
+than counting back from the file: `@/client/{{feature-name}}/../shared/**` - or,
+equivalently, `@/client/shared/**`.
 
 ---
 
@@ -354,21 +479,27 @@ Used in the `target:` field. Matches a file path and **captures variables**.
 - Supports `*`, `**` and variables.
 - Every variable must be anchored, and two variables need a literal between them.
 - Does **not** support `{{TARGET_DIR}}` - there is no directory yet, it is derived from the match.
+- Does **not** support `..` - it is matched against whole module ids, so there is
+  nothing to be relative to.
 
 ### ClausePattern
 
 Used in `uses:`, `exists:`, `forbids:` and `allows:`. Matches a file path against a **hydrated** environment.
 
-- Supports `*`, `**`, `{{TARGET_DIR}}` and any variable **bound by its rule's target pattern**.
+- Supports `*`, `**`, `{{TARGET_DIR}}`, `..` and any variable **bound by its rule's target pattern**.
 - Referencing an unbound variable is a compilation error, not a wildcard.
 - The anchoring rule does not apply: a clause substitutes rather than captures.
+- The only pattern that may use `..`, because it is the only one with a
+  directory - `{{TARGET_DIR}}` - to be relative to.
 
 ### ExcludePattern
 
 Used in `exclude:`. A plain glob.
 
 - Supports `*` and `**` only. Variables are rejected: an exclude pattern filters
-  the target and binds nothing, so a variable there could never resolve.
+  the target and binds nothing, so a variable there could never resolve. `..` is
+  rejected for the same reason a target rejects it - there is no directory to be
+  relative to.
 
 ---
 
@@ -454,6 +585,29 @@ deslop/rules/widgets.yaml
         Did you mean {{provider-name}}?
 ```
 
+The three errors `..` can raise:
+
+```
+  rule 'target-goes-back-a-directory'
+    target: "@/client/../shared/**"
+      ".." cannot be used in a target pattern.
+        A target is matched against whole module ids, so there is nothing
+        for ".." to be relative to. Write the path you mean, e.g. "@/shared/**".
+        ".." belongs in a clause, where it is relative to the directory
+        of the file the target matched:
+          allows: "{{TARGET_DIR}}/../shared/**"
+  rule 'exclude-goes-back-a-directory'
+    exclude: "@/client/../shared/**"
+      ".." cannot be used in an exclude pattern.
+        ...
+  rule 'clause-goes-back-past-a-globstar'
+    allows.import: "@/client/**/../shared/**"
+      ".." cannot go back past "**".
+        "**" stands for zero or many segments, so there is no one
+        directory to go back from.
+        Write the directory you mean, or start from {{TARGET_DIR}}.
+```
+
 A rule whose **target** does not compile stays quiet about its clauses: they are
 checked against the variables the target binds, and a target that failed never
 got to bind any.
@@ -463,6 +617,11 @@ got to bind any.
 ## Implementation Notes
 
 - Matching is a native segment walk over `Text`. There is no regex engine.
+- `..` is resolved before matching begins, so the matcher never sees one. It
+  cancels a segment of the *pattern* rather than moving a cursor over the path
+  being tested - the pattern is the side with something to navigate, since
+  `{{TARGET_DIR}}` is concrete text by then. See
+  [ADR 12](adr/0012-glob-plus-parent-dir-navigates-the-pattern.md).
 - Parsing is done with **Megaparsec**, per segment, and handles pattern *shape*
   only. What is inside `{{ }}` is carried through verbatim and interpreted by a
   separate validation pass, so casing diagnostics are Deslop's rather than
@@ -489,5 +648,7 @@ got to bind any.
   its own slot: a captured `HTTPClient` stays `HTTPClient` in a PascalCase clause.
 
 See [ADR 9](adr/0009-glob-plus-matches-path-segments.md) for why matching is
-structural, and [ADR 10](adr/0010-rulebook-compilation-is-a-separate-stage.md)
-for how a rulebook is compiled.
+structural, [ADR 10](adr/0010-rulebook-compilation-is-a-separate-stage.md)
+for how a rulebook is compiled, and
+[ADR 12](adr/0012-glob-plus-parent-dir-navigates-the-pattern.md) for what `..`
+navigates.

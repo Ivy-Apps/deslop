@@ -55,11 +55,11 @@ Right
                   (UsesImport
                      { target =
                          CompiledClausePattern
-                           { segments =
-                               [ Segment [ Lit "@" ]
-                               , Segment [ Lit "features" ]
-                               , GlobStar
-                               , Segment [ AnyChars , Lit "Container" ]
+                           { steps =
+                               [ Step (Segment [ Lit "@" ])
+                               , Step (Segment [ Lit "features" ])
+                               , Step GlobStar
+                               , Step (Segment [ AnyChars , Lit "Container" ])
                                ]
                            , polarity = Narrow
                            , source = "@/features/**/*Container"
@@ -99,12 +99,14 @@ Right
                   (UsesImport
                      { target =
                          CompiledClausePattern
-                           { segments =
-                               [ Segment [ VarPart CTargetDir ]
-                               , Segment
-                                   [ VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , Lit "StateEvent"
-                                   ]
+                           { steps =
+                               [ Step (Segment [ VarPart CTargetDir ])
+                               , Step
+                                   (Segment
+                                      [ VarPart
+                                          (ClauseVar VarName { text = "file-name" } PascalCase)
+                                      , Lit "StateEvent"
+                                      ])
                                ]
                            , polarity = Narrow
                            , source = "{{TARGET_DIR}}/{{FileName}}StateEvent"
@@ -114,14 +116,15 @@ Right
                      [ UsesImport
                          { target =
                              CompiledClausePattern
-                               { segments =
-                                   [ Segment [ VarPart CTargetDir ]
-                                   , Segment
-                                       [ Lit "use"
-                                       , VarPart
-                                           (ClauseVar VarName { text = "file-name" } PascalCase)
-                                       , Lit "ViewModel"
-                                       ]
+                               { steps =
+                                   [ Step (Segment [ VarPart CTargetDir ])
+                                   , Step
+                                       (Segment
+                                          [ Lit "use"
+                                          , VarPart
+                                              (ClauseVar VarName { text = "file-name" } PascalCase)
+                                          , Lit "ViewModel"
+                                          ])
                                    ]
                                , polarity = Narrow
                                , source = "{{TARGET_DIR}}/use{{FileName}}ViewModel"
@@ -131,13 +134,14 @@ Right
                      , UsesImport
                          { target =
                              CompiledClausePattern
-                               { segments =
-                                   [ Segment [ VarPart CTargetDir ]
-                                   , Segment
-                                       [ VarPart
-                                           (ClauseVar VarName { text = "file-name" } PascalCase)
-                                       , Lit "View"
-                                       ]
+                               { steps =
+                                   [ Step (Segment [ VarPart CTargetDir ])
+                                   , Step
+                                       (Segment
+                                          [ VarPart
+                                              (ClauseVar VarName { text = "file-name" } PascalCase)
+                                          , Lit "View"
+                                          ])
                                    ]
                                , polarity = Narrow
                                , source = "{{TARGET_DIR}}/{{FileName}}View"
@@ -178,12 +182,14 @@ Right
                   (ForbidsImport
                      { target =
                          CompiledClausePattern
-                           { segments =
-                               [ Segment [ VarPart CTargetDir ]
-                               , Segment
-                                   [ VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , Lit "View"
-                                   ]
+                           { steps =
+                               [ Step (Segment [ VarPart CTargetDir ])
+                               , Step
+                                   (Segment
+                                      [ VarPart
+                                          (ClauseVar VarName { text = "file-name" } PascalCase)
+                                      , Lit "View"
+                                      ])
                                ]
                            , polarity = Widen
                            , source = "{{TARGET_DIR}}/{{FileName}}View"
@@ -193,12 +199,12 @@ Right
                      [ ForbidsImport
                          { target =
                              CompiledClausePattern
-                               { segments =
-                                   [ Segment [ Lit "@" ]
-                                   , GlobStar
-                                   , Segment [ Lit "components" ]
-                                   , GlobStar
-                                   , Segment [ AnyChars ]
+                               { steps =
+                                   [ Step (Segment [ Lit "@" ])
+                                   , Step GlobStar
+                                   , Step (Segment [ Lit "components" ])
+                                   , Step GlobStar
+                                   , Step (Segment [ AnyChars ])
                                    ]
                                , polarity = Widen
                                , source = "@/**/components/**/*"
@@ -212,12 +218,14 @@ Right
                   (UsesImport
                      { target =
                          CompiledClausePattern
-                           { segments =
-                               [ Segment [ VarPart CTargetDir ]
-                               , Segment
-                                   [ VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , Lit "StateEvent"
-                                   ]
+                           { steps =
+                               [ Step (Segment [ VarPart CTargetDir ])
+                               , Step
+                                   (Segment
+                                      [ VarPart
+                                          (ClauseVar VarName { text = "file-name" } PascalCase)
+                                      , Lit "StateEvent"
+                                      ])
                                ]
                            , polarity = Narrow
                            , source = "{{TARGET_DIR}}/{{FileName}}StateEvent"
@@ -260,13 +268,15 @@ Right
                   (UsesImport
                      { target =
                          CompiledClausePattern
-                           { segments =
-                               [ Segment [ VarPart CTargetDir ]
-                               , Segment
-                                   [ Lit "use"
-                                   , VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , Lit "ViewModel"
-                                   ]
+                           { steps =
+                               [ Step (Segment [ VarPart CTargetDir ])
+                               , Step
+                                   (Segment
+                                      [ Lit "use"
+                                      , VarPart
+                                          (ClauseVar VarName { text = "file-name" } PascalCase)
+                                      , Lit "ViewModel"
+                                      ])
                                ]
                            , polarity = Narrow
                            , source = "{{TARGET_DIR}}/use{{FileName}}ViewModel"
@@ -279,13 +289,15 @@ Right
                   (ExistsModule
                      { target =
                          CompiledClausePattern
-                           { segments =
-                               [ Segment [ VarPart CTargetDir ]
-                               , Segment
-                                   [ Lit "use"
-                                   , VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , Lit "ViewModel.spec"
-                                   ]
+                           { steps =
+                               [ Step (Segment [ VarPart CTargetDir ])
+                               , Step
+                                   (Segment
+                                      [ Lit "use"
+                                      , VarPart
+                                          (ClauseVar VarName { text = "file-name" } PascalCase)
+                                      , Lit "ViewModel.spec"
+                                      ])
                                ]
                            , polarity = Narrow
                            , source = "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"
@@ -325,12 +337,14 @@ Right
                   (UsesImport
                      { target =
                          CompiledClausePattern
-                           { segments =
-                               [ Segment [ VarPart CTargetDir ]
-                               , Segment
-                                   [ VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , Lit "StateEvent"
-                                   ]
+                           { steps =
+                               [ Step (Segment [ VarPart CTargetDir ])
+                               , Step
+                                   (Segment
+                                      [ VarPart
+                                          (ClauseVar VarName { text = "file-name" } PascalCase)
+                                      , Lit "StateEvent"
+                                      ])
                                ]
                            , polarity = Narrow
                            , source = "{{TARGET_DIR}}/{{FileName}}StateEvent"
@@ -373,12 +387,14 @@ Right
                   (ExistsModule
                      { target =
                          CompiledClausePattern
-                           { segments =
-                               [ Segment [ VarPart CTargetDir ]
-                               , Segment
-                                   [ VarPart (ClauseVar VarName { text = "file-name" } PascalCase)
-                                   , Lit "View.stories"
-                                   ]
+                           { steps =
+                               [ Step (Segment [ VarPart CTargetDir ])
+                               , Step
+                                   (Segment
+                                      [ VarPart
+                                          (ClauseVar VarName { text = "file-name" } PascalCase)
+                                      , Lit "View.stories"
+                                      ])
                                ]
                            , polarity = Narrow
                            , source = "{{TARGET_DIR}}/{{FileName}}View.stories"
@@ -408,8 +424,11 @@ Right
                   (ForbidsImport
                      { target =
                          CompiledClausePattern
-                           { segments =
-                               [ Segment [ Lit "@" ] , Segment [ Lit "features" ] , GlobStar ]
+                           { steps =
+                               [ Step (Segment [ Lit "@" ])
+                               , Step (Segment [ Lit "features" ])
+                               , Step GlobStar
+                               ]
                            , polarity = Widen
                            , source = "@/features/**"
                            }
@@ -421,7 +440,7 @@ Right
                   (AllowsImport
                      { target =
                          CompiledClausePattern
-                           { segments = [ Segment [ VarPart CTargetDir ] , GlobStar ]
+                           { steps = [ Step (Segment [ VarPart CTargetDir ]) , Step GlobStar ]
                            , polarity = Narrow
                            , source = "{{TARGET_DIR}}/**"
                            }

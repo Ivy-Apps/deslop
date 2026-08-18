@@ -121,6 +121,14 @@ pattern - `**` glued to text inside a segment is not a GlobStar and does not
 compile.
 _Avoid_: Wildcard (that is `*`), double star, recursive glob
 
+**Parent Dir**:
+`..`: a whole segment of a Clause Pattern that cancels the segment to its left,
+so a clause can name a directory relative to `{{TARGET_DIR}}`. It may only cancel
+a segment whose text the pattern determines - never a GlobStar, never a segment
+containing `*`. With nothing left to cancel it does nothing. It is a whole
+segment or it is nothing: `..foo` is ordinary text.
+_Avoid_: Dot-dot, up, back, relative segment, parent path
+
 **Anchored Variable**:
 A Glob+ Variable whose Path Segment is fixed by the pattern, because no GlobStar
 stands on one of its sides. Only Anchored Variables are allowed in a Target
@@ -144,16 +152,17 @@ error
 **Target Pattern**:
 The Glob+ pattern in a Rule's `target`. The only pattern that *captures*
 variables, and the one that decides which variables its clauses may use. Cannot
-contain `{{TARGET_DIR}}`, which is derived from what it matches.
+contain `{{TARGET_DIR}}`, which is derived from what it matches, nor a Parent
+Dir, since it is matched against whole module ids.
 
 **Clause Pattern**:
 A Glob+ pattern in `forbids` / `allows` / `uses` / `exists`. *Substitutes*
-variables rather than capturing them, and may use `{{TARGET_DIR}}`. May only
-name variables bound by its own Rule's Target Pattern.
+variables rather than capturing them, and may use `{{TARGET_DIR}}` and a Parent
+Dir. May only name variables bound by its own Rule's Target Pattern.
 
 **Exclude Pattern**:
 A Glob+ pattern in a Rule's `exclude`. A plain glob: it filters the target and
-binds nothing, so it may not contain variables at all.
+binds nothing, so it may contain neither variables nor a Parent Dir.
 
 ### Benchmarking
 

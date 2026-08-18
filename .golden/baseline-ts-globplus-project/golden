@@ -1,11 +1,12 @@
 [Title] 🚀 Baselining project: ~/test/fixtures/ts-globplus-project
-[Plain] 📚 Loaded 1 rulebook, 10 rules
-[Success] ✅ Success: Baseline generated with 13 problems.
-[summary] Baselined 24 modules enforcing 12 rules
+[Plain] 📚 Loaded 1 rulebook, 12 rules
+[Success] ✅ Success: Baseline generated with 17 problems.
+[summary] Baselined 28 modules enforcing 14 rules
 
 >>> baseline.yaml
 - provider-services#adapter-imports-its-provider-config#@/adapters/stripe-connect/stripe-connect-payment-gateway
 - provider-services#nested-view-uses-its-provider-config#@/components/paypal/payment/RefundView
+- provider-services#nested-view-uses-its-shared-formatter#@/components/stripe-connect/payment/widgets/BadgeView
 - provider-services#provider-entry-is-named-after-its-folder#@/components/square/SquareEntry
 - provider-services#providers-are-isolated#@/components/paypal
 - provider-services#providers-are-isolated#@/components/paypal/payment/RefundView
@@ -13,6 +14,8 @@
 - provider-services#use-case-has-a-view-model#@/application/notify-user/NotifyUserUseCase
 - provider-services#view-has-a-storybook#@/components/paypal/payment/RefundView
 - provider-services#view-has-a-storybook#@/components/stripe-connect/payout/TransferView
+- provider-services#view-may-reach-its-providers-shared-folder#@/components/paypal/payment/RefundView
+- provider-services#view-may-reach-its-providers-shared-folder#@/components/stripe-connect/payout/TransferView
 - provider-services#view-model-calls-its-own-provider-service#@/components/stripe-connect/payout/useTransferViewModel
 - provider-services#view-model-drives-its-use-case#@/application/db-sync-job/useDBSyncJobViewModel
 - provider-services#view-model-drives-its-use-case#@/application/refund-payment/useRefundPaymentViewModel
