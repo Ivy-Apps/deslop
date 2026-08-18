@@ -11,6 +11,7 @@ module Utils (
     headOrThrow,
     dropCommonPre,
     firstJustM,
+    pluralise,
 ) where
 
 import Data.Text qualified as T
@@ -73,3 +74,8 @@ dropCommonPre (x, y) = case T.commonPrefixes x y of
 firstJustM :: (Monad m) => (a -> m (Maybe b)) -> [a] -> m (Maybe b)
 firstJustM _ [] = pure Nothing
 firstJustM action (x : xs) = action x >>= maybe (firstJustM action xs) (pure . Just)
+
+-- | @pluralise 1 "rule" == "1 rule"@, @pluralise 2 "rule" == "2 rules"@.
+pluralise :: Int -> Text -> Text
+pluralise 1 word = "1 " <> word
+pluralise n word = show n <> " " <> word <> "s"

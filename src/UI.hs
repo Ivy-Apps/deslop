@@ -8,7 +8,6 @@ module UI (
     divider,
     summaryLine,
     coverage,
-    pluralise,
     humanReadable,
     problemsFoundText,
     ProblemsLog (..),
@@ -25,6 +24,7 @@ import Fmt
 import System.Console.ANSI
 import System.IO (hPutStr)
 import Types (DeslopError (..), ModuleCount (..), ProblemCounts (..), RuleCount (..), RunSummary (..))
+import Utils (pluralise)
 
 --------------------------------------------------------------------------------
 -- Colour primitives
@@ -97,11 +97,6 @@ duration d
     | otherwise = fmt $ fixedF 2 t |+ "s"
   where
     t = realToFrac d :: Double
-
--- | @pluralise 1 "rule" == "1 rule"@, @pluralise 2 "rule" == "2 rules"@.
-pluralise :: Int -> Text -> Text
-pluralise 1 word = "1 " <> word
-pluralise n word = show n <> " " <> word <> "s"
 
 newtype ProblemsLog = ProblemsLog [Problem]
 

@@ -5,7 +5,7 @@ import Deslop.AST (AstModule (..), AstNode (..))
 import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
 import Deslop.GlobPlus (MatchEnv, Segments, hydrate, matchExclude, matchResolved, matchTarget, moduleFromGlob, renderClausePattern, segmentsOf)
 import Deslop.GlobPlus.Compiler (interpolate)
-import Deslop.Problem (Problem (..))
+import Deslop.Problem (Problem (..), ViolationKind (..))
 import Deslop.Rulebook (AllowsClause (..), ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Effectful (Eff, (:>))
 import Effectful.Error.Static (Error, throwError)
@@ -13,7 +13,6 @@ import Effectful.Reader.Static (Reader, ask, asks, runReader)
 import Effects.ReportProblem (ReportProblem, report)
 import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe)
 import Types (DeslopError (..))
-import UI (pluralise)
 
 {- | The rule's own prose speaks about the match that violated it, so the
 variables its target captured are substituted into it before it is reported.
@@ -22,8 +21,8 @@ ruleViolation ::
     ( Reader RulebookId :> es
     , Reader Rule :> es
     ) =>
-    MatchEnv -> AstModule -> Text -> Eff es Problem
-ruleViolation env m desc = do
+    MatchEnv -> AstModule -> ViolationKind -> Eff es Problem
+ruleViolation env m violationKind = do
     rbId <- ask @RulebookId
     rule <- ask @Rule
     pure $
@@ -31,7 +30,8 @@ ruleViolation env m desc = do
             { rulebook = rbId
             , rule = rule.id
             , badModule = m.id
-            , description = interpolate env rule.description <> "\n\n" <> desc
+            , prose = interpolate env rule.description
+            , kind = violationKind
             , fix = interpolate env rule.fix
             }
 
@@ -130,37 +130,28 @@ enforceForbids m env (ForbidsImport target transitive) = do
         else traverse_ (directForbiddenImport forbidden isAllowed) candidates.imports
   where
     directForbiddenImport forbidden isAllowed (ImportNode t rawStatement, segments)
-        | matchResolved forbidden segments && not (isAllowed segments) = do
-            let message =
-                    "Module '"
-                        <> m.id.text
-                        <> "' directly imports '"
-                        <> t.text
-                        <> "'.\n```ts\n"
-                        <> T.strip rawStatement
-                        <> "\n```"
-            ruleViolation env m message >>= report
+        | matchResolved forbidden segments && not (isAllowed segments) =
+            report
+                =<< ruleViolation
+                    env
+                    m
+                    DirectImport {imported = t, importStatement = T.strip rawStatement}
         | otherwise = pure ()
 
     transitiveForbiddenImport forbidden isAllowed (reachableModuleId, segments)
         | matchResolved forbidden segments && not (isAllowed segments) = do
             p <- findKnownPath m.id reachableModuleId
-            let hops = " (" <> pluralise (length p - 1) "hop" <> ")"
-                via = " via: " <> T.intercalate " → " (map (.text) (toList p))
-                firstHop = listToMaybe (drop 1 (toList p))
+            let firstHop = listToMaybe . drop 1 . toList $ p
                 importRaw hop = T.strip . (.rawStatement) <$> find (\n -> n.target == hop) m.nodes
-                stmtSuffix = maybe "" (\raw -> "\n```ts\n" <> raw <> "\n```") (firstHop >>= importRaw)
-                message =
-                    "Module '"
-                        <> m.id.text
-                        <> "' transitively imports '"
-                        <> reachableModuleId.text
-                        <> "'"
-                        <> hops
-                        <> via
-                        <> "."
-                        <> stmtSuffix
-            ruleViolation env m message >>= report
+            report
+                =<< ruleViolation
+                    env
+                    m
+                    TransitiveImport
+                        { chain = p
+                        , firstImport = firstHop >>= importRaw
+                        , alsoReached = []
+                        }
         | otherwise = pure ()
 
 enforceUses ::
@@ -176,15 +167,15 @@ enforceUses m env (UsesImport usesPattern transitive) = do
         satisfied
             | transitive = any (matchResolved required . snd) candidates.reachable
             | otherwise = any (matchResolved required . snd) candidates.imports
-    unless satisfied $ do
-        let msg =
-                "Module '"
-                    <> m.id.text
-                    <> "' must "
-                    <> (if transitive then "transitively import '" else "import '")
-                    <> renderClausePattern env usesPattern
-                    <> "'."
-        ruleViolation env m msg >>= report
+    unless satisfied $
+        report
+            =<< ruleViolation
+                env
+                m
+                MissingUse
+                    { requiredImport = renderClausePattern env usesPattern
+                    , transitive = transitive
+                    }
 
 enforceExists ::
     ( Reader ModuleGraph :> es
@@ -208,11 +199,5 @@ enforceExists m env (ExistsModule pat) = do
                     <> rbIdText
                     <> "': 'exists' patterns must not contain wildcards (* or **)."
     exists <- moduleExists mid
-    unless exists $ do
-        let msg =
-                "Module '"
-                    <> m.id.text
-                    <> "' requires '"
-                    <> mid.text
-                    <> "' to exist."
-        ruleViolation env m msg >>= report
+    unless exists $
+        report =<< ruleViolation env m MissingModule {requiredModule = mid}

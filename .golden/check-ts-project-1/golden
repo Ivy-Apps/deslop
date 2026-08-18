@@ -1,6 +1,6 @@
 [Title] 🚀 Checking project: ~/test/fixtures/ts-project-1
-[Plain] 📚 Loaded 2 rulebooks, 8 rules
-[Error] Found 30 problems:
+[Plain] 📚 Loaded 2 rulebooks, 9 rules
+[Error] Found 32 problems:
 [Error] ─────────────────────────────────────────
 [Error] [AUTO-FIXABLE] # no-relative-imports#src/app/[locale]/login/page.tsx
 Relative imports are not allowed. Use aliased ones.
@@ -200,6 +200,28 @@ import { HomeScreen } from "@/features/home/home-screen";
 FIX: Use only what's internally in the feature folder or promote the used code to a shared place.
 ---------
 
+# architecture#hooks-cant-use-components#@/hooks/list/useItemList
+A hook is reactive logic, so no import chain starting at a hook may arrive at a component. One offending import usually drags in a whole subtree of them.
+
+Module '@/hooks/list/useItemList' transitively imports '@/components/list/ItemListView' (1 hop) via: @/hooks/list/useItemList → @/components/list/ItemListView.
+```ts
+import { ItemListViewProps } from '@/components/list/ItemListView';
+```
+Also reaches 4 more forbidden modules through this import.
+FIX: Remove the component import. If shared logic is needed, extract it into @/hooks or @/shared.
+---------
+
+# architecture#hooks-cant-use-components#@/hooks/list/useItemList.spec
+A hook is reactive logic, so no import chain starting at a hook may arrive at a component. One offending import usually drags in a whole subtree of them.
+
+Module '@/hooks/list/useItemList.spec' transitively imports '@/components/list/ItemListView' (2 hops) via: @/hooks/list/useItemList.spec → @/hooks/list/useItemList → @/components/list/ItemListView.
+```ts
+import { useItemList } from '@/hooks/list/useItemList';
+```
+Also reaches 4 more forbidden modules through this import.
+FIX: Remove the component import. If shared logic is needed, extract it into @/hooks or @/shared.
+---------
+
 # architecture#no-react-in-lib#@/lib/dom-utils
 Library modules in @/lib must not directly import React. The lib layer should contain pure, framework-agnostic utilities.
 
@@ -263,7 +285,7 @@ import { httpGet } from "@/infrastructure/HttpClient";
 ```
 FIX: Move the dependency out of the domain layer. Infrastructure concerns (HTTP, DB) belong in @/infrastructure. UI concerns belong in @/features or @/components. Shared pure utilities belong in @/shared.
 [Error] ─────────────────────────────────────────
-[summary] Checked 38 modules enforcing 10 rules
-[exit] Found 30 problems, 17 of them auto-fixable.
+[summary] Checked 45 modules enforcing 11 rules
+[exit] Found 32 problems, 17 of them auto-fixable.
    Run `deslop fix` to fix the 17 auto-fixable problems.
-   Run `deslop baseline` to silence all 30 problems.
+   Run `deslop baseline` to silence all 32 problems.

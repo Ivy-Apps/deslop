@@ -28,7 +28,7 @@ import Deslop.Rulebook.Dto (parseRulebookYaml)
 import Effectful
 import Effects.FileSystem (AbsPath (..), RoFileSystem, decodeOsPath, fsDirectoryExists, fsListDirectory, fsReadFile, withAbsBaseUnsafe)
 import System.OsPath (OsPath, osp)
-import UI (pluralise)
+import Utils (pluralise)
 
 -- | Why one rulebook file could not become a 'Rulebook'.
 data RulebookLoadError

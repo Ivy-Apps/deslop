@@ -2,7 +2,7 @@ module Deslop.BaselineSpec (spec) where
 
 import Data.HashSet qualified as HS
 import Deslop.Baseline (Baseline (..), applyBaseline, inBaseline, loadBaselineFromFile, saveBaseline)
-import Deslop.Problem (LintRuleId (..), Location (..), Problem (..), problemId)
+import Deslop.Problem (LintRuleId (..), Location (..), Problem (..), ViolationKind (..), problemId)
 import Deslop.Rulebook (RuleId (..), RulebookId (..))
 import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, mockFileAt, runMockRoFileSystem, runMockWrFileSystem)
 import Effectful (IOE, runEff)
@@ -42,7 +42,8 @@ problemA =
         { rulebook = RulebookId "rb"
         , rule = RuleId "rule"
         , badModule = moduleIdUnsafe "modA"
-        , description = "problem A"
+        , prose = "problem A"
+        , kind = MissingModule {requiredModule = moduleIdUnsafe "modA.spec"}
         , fix = "fix A"
         }
 
@@ -52,7 +53,8 @@ problemB =
         { rulebook = RulebookId "rb"
         , rule = RuleId "rule"
         , badModule = moduleIdUnsafe "modB"
-        , description = "problem B"
+        , prose = "problem B"
+        , kind = MissingModule {requiredModule = moduleIdUnsafe "modB.spec"}
         , fix = "fix B"
         }
 

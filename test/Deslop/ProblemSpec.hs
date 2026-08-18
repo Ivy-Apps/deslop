@@ -1,6 +1,6 @@
 module Deslop.ProblemSpec (spec) where
 
-import Deslop.Problem (LintRuleId (LintRuleId), Location (..), Problem (..), ProblemId (..), problemId)
+import Deslop.Problem (LintRuleId (LintRuleId), Location (..), Problem (..), ProblemId (..), ViolationKind (..), problemId)
 import Deslop.Rulebook (RuleId (RuleId), RulebookId (RulebookId))
 import Effects.FileSystem (encodeOsPath, relativePathUnsafe)
 import Test.Hspec (Spec, describe, it, shouldBe)
@@ -30,7 +30,8 @@ spec = describe "Deslop.Problem" $ do
                         { rulebook = RulebookId "architecture"
                         , rule = RuleId "no-barrel-imports"
                         , badModule = moduleIdUnsafe "@/lib/util"
-                        , description = "Barrel imports are forbidden"
+                        , prose = "Barrel imports are forbidden"
+                        , kind = DirectImport {imported = moduleIdUnsafe "@/lib/index", importStatement = "import { util } from '@/lib/index'"}
                         , fix = "Import directly from the module"
                         }
             problemId p `shouldBe` ProblemId "architecture#no-barrel-imports#@/lib/util"
