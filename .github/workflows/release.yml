@@ -153,14 +153,55 @@ jobs:
           cp $(cabal list-bin exe:deslop) dist/darwin-arm64/deslop
           strip -x dist/darwin-arm64/deslop
 
+    - uses: actions/upload-artifact@v7
+      with:
+        name: bin-darwin-arm64
+        path: dist/darwin-arm64
+
+  build-windows:
+    name: Build (win32-x64)
+    needs: [verify-version]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: "9.10.3"
+          cabal-version: "3.16.0.0"
+
+      - name: Cache cabal store
+        uses: actions/cache@v6
+        with:
+          path: ~\AppData\Roaming\cabal\store
+          key: cabal-win32-x64-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: cabal-win32-x64-
+
+      - run: cabal update
+
+      - name: Build binary
+        shell: bash
+        run: |
+          cabal build exe:deslop \
+            --ghc-option=-O2 \
+            --ghc-option=-threaded \
+            --ghc-option=-rtsopts \
+            --ghc-option=-with-rtsopts=-N
+
+      - name: Collect binary
+        shell: bash
+        run: |
+          mkdir -p dist/win32-x64
+          cp "$(cabal list-bin exe:deslop)" dist/win32-x64/deslop.exe
+
       - uses: actions/upload-artifact@v7
         with:
-          name: bin-darwin-arm64
-          path: dist/darwin-arm64
+          name: bin-win32-x64
+          path: dist/win32-x64
 
   publish-npm:
     name: Publish to NPM
-    needs: [build-linux, build-macos]
+    needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -204,16 +245,23 @@ jobs:
 
       - name: Publish platform packages
         run: |
-          for PLATFORM in darwin-arm64 linux-arm64 linux-x64; do
+          for PLATFORM in darwin-arm64 linux-arm64 linux-x64 win32-x64; do
             PKG_DIR="npm/packages/$PLATFORM"
             mkdir -p "$PKG_DIR/bin"
-            BINARY_PATH=$(find "dist/bin-$PLATFORM" -type f -name deslop -print -quit)
+
+            if [ "$PLATFORM" = "win32-x64" ]; then
+              BINARY_NAME="deslop.exe"
+            else
+              BINARY_NAME="deslop"
+            fi
+
+            BINARY_PATH=$(find "dist/bin-$PLATFORM" -type f -name "$BINARY_NAME" -print -quit)
             if [ -z "$BINARY_PATH" ]; then
               echo "No deslop binary found for $PLATFORM in dist/bin-$PLATFORM"
               exit 1
             fi
-            cp "$BINARY_PATH" "$PKG_DIR/bin/deslop"
-            chmod +x "$PKG_DIR/bin/deslop"
+            cp "$BINARY_PATH" "$PKG_DIR/bin/$BINARY_NAME"
+            chmod +x "$PKG_DIR/bin/$BINARY_NAME"
             cd "$PKG_DIR"
             npm version "$VERSION" --no-git-tag-version --allow-same-version
             npm publish --access public --tag "$NPM_TAG"
@@ -229,6 +277,7 @@ jobs:
           npm pkg set optionalDependencies.@ivy-apps/deslop-darwin-arm64="$VERSION"
           npm pkg set optionalDependencies.@ivy-apps/deslop-linux-arm64="$VERSION"
           npm pkg set optionalDependencies.@ivy-apps/deslop-linux-x64="$VERSION"
+          npm pkg set optionalDependencies.@ivy-apps/deslop-win32-x64="$VERSION"
 
           npm publish --access public --tag "$NPM_TAG"
 
@@ -251,15 +300,20 @@ jobs:
       - name: Package binaries
         run: |
           mkdir -p release
-          for PLATFORM in darwin-arm64 linux-arm64 linux-x64; do
-            BINARY_PATH=$(find "dist/bin-$PLATFORM" -type f -name deslop -print -quit)
+          for PLATFORM in darwin-arm64 linux-arm64 linux-x64 win32-x64; do
+            if [ "$PLATFORM" = "win32-x64" ]; then
+              BINARY_NAME="deslop.exe"
+            else
+              BINARY_NAME="deslop"
+            fi
+            BINARY_PATH=$(find "dist/bin-$PLATFORM" -type f -name "$BINARY_NAME" -print -quit)
             if [ -z "$BINARY_PATH" ]; then
               echo "::error::No deslop binary found for $PLATFORM in dist/bin-$PLATFORM"
               exit 1
             fi
             # tar preserves the executable bit; a bare GitHub asset does not
             chmod +x "$BINARY_PATH"
-            tar -czf "release/deslop-$PLATFORM.tar.gz" -C "$(dirname "$BINARY_PATH")" deslop
+            tar -czf "release/deslop-$PLATFORM.tar.gz" -C "$(dirname "$BINARY_PATH")" "$BINARY_NAME"
           done
           cd release
           sha256sum ./*.tar.gz > checksums.txt

@@ -96,7 +96,7 @@ jobs:
 ```
 </details>
 
-Prebuilt binaries ship for `darwin-arm64`, `linux-x64`, and `linux-arm64`. Windows is not supported yet.
+Prebuilt binaries ship for `darwin-arm64`, `linux-x64`, `linux-arm64`, and `win32-x64`.
 
 ---
 
@@ -618,7 +618,7 @@ Production-ready rulebooks you can copy into your own `deslop/rules/` live in [`
 | Exclude from target | `exclude` list | Yes | Yes |
 | Auto-fix relative imports | Built into `deslop fix` | Third-party plugin required | No |
 | Dependency graph visualization | No | No | Yes |
-| Windows support | Not yet | Yes | Yes |
+| Windows support | `win32-x64` (arm64 needs upstream Windows ARM64 runners) | Yes | Yes |
 | Monorepo / multiple tsconfigs | Run per package; full support WIP | `parserOptions.project` glob array | Run per package |
 
 ---
@@ -758,7 +758,7 @@ twice, so a `forbids:` clause accepts **every** spelling of its variable, while
 
 ### Other
 
-- **Windows is not supported yet.**
+- **`win32-x64`** — Windows x64 is supported via GitHub Actions `windows-latest`. Windows ARM64 (`win32-arm64`) will be added when GitHub Actions provides native Windows ARM64 runners.
 - **Monorepos** need one run per package; full multi-tsconfig support is in progress.
 - **`exists:` patterns cannot contain wildcards**, since the path has to be exact.
 
