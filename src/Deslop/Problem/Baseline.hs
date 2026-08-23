@@ -22,7 +22,7 @@ import Effects.FileSystem (
     fsFileExists,
     fsMkDirP,
     fsReadFile,
-    fsWriteFile
+    fsWriteFile,
  )
 import FileSystem.Path (AbsPath, withAbsBaseUnsafe)
 import System.OsPath (OsPath, osp)
