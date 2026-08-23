@@ -1,7 +1,7 @@
 module TypeScript.ParserSpec (spec) where
 
 import Data.Text qualified as T
-import Effects.FileSystem (absPathUnsafe)
+import FileSystem.Path (absPathUnsafe)
 import System.OsPath (osp)
 import Test.Hspec
 import TypeScript.CST

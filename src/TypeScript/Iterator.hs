@@ -3,8 +3,9 @@
 module TypeScript.Iterator (getTsFiles) where
 
 import Effectful
-import Effects.FileSystem (AbsPath (osPath), RoFileSystem)
+import Effects.FileSystem (RoFileSystem)
 import FileSystem.Iterator (Entry (..), walkDir)
+import FileSystem.Path (AbsPath (osPath))
 import Git.Ignore (GitIgnore, alwaysIgnored, isIgnored)
 import System.OsPath (osp, takeExtension)
 

@@ -9,16 +9,17 @@ module Deslop (
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
-import Deslop.AST (AstModule, parseAst)
-import Deslop.Baseline (Baseline, applyBaseline, emptyBaseline, loadBaseline, saveBaseline)
+import Deslop.AST (AstModule)
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
-import Deslop.Lint.CycleDetection (noImportCycles)
-import Deslop.Lint.RelativeImports (noRelativeImports)
+import Deslop.Error (DeslopError (..))
 import Deslop.Problem (Problem, isAutoFixable)
-import Deslop.ProblemShrinker (compactProblems)
-import Deslop.RuleEnforcer (enforceRulebooks)
-import Deslop.Rulebook (Rulebook (..))
-import Deslop.Rulebook.Loader (loadRulebook)
+import Deslop.Problem.Baseline (Baseline, applyBaseline, emptyBaseline, loadBaseline, saveBaseline)
+import Deslop.Problem.Shrinker (compactProblems)
+import Deslop.Rule.Book (Rulebook (..))
+import Deslop.Rule.Book.Loader (loadRulebook)
+import Deslop.Rule.Enforcer (enforceRulebooks)
+import Deslop.Rule.Lint.CycleDetection (noImportCycles)
+import Deslop.RunReport
 import Effectful (Eff, IOE, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
@@ -26,25 +27,25 @@ import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Reader.Static (Reader, asks, runReader)
 import Effects.CLI (CLI, LogStyle (..), cliLog, runCLI)
 import Effects.FileSystem (
-    AbsPath (osPath),
     RoFileSystem,
     WrFileSystem,
-    decodeOsPath,
     fsFileExists,
     fsReadFile,
     fsWriteFile,
     runFileSystemIO,
-    withAbsBaseUnsafe,
  )
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
+import FileSystem.Path (AbsPath (osPath), ProjectRoot (..), decodeOsPath, withAbsBaseUnsafe)
 import Git.Ignore (loadGitIgnore)
 import Params
+import Renderable (Renderable (render))
 import System.OsPath (osp)
+import TypeScript.AST (parseAst)
+import TypeScript.Config (TsConfig (..), readTsConfig)
 import TypeScript.CST
-import TypeScript.Config (TsConfig, readTsConfig)
 import TypeScript.Iterator (getTsFiles)
+import TypeScript.Lint.RelativeImports (noRelativeImports)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
-import Types
 import UI (divider, humanReadable, problemsFoundText, problemsLogText, summaryLine)
 import Utils (pluralise)
 
@@ -183,7 +184,7 @@ deslopProject params baseline = do
         (params.command /= FixC)
         $ do
             let mg = buildModuleGraph asts
-            runReader @TsConfig cfg
+            runReader @ProjectRoot (ProjectRoot cfg.baseUrl)
                 . runReader @ModuleGraph mg
                 $ do
                     noImportCycles

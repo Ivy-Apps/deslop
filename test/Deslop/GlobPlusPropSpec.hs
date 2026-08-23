@@ -3,7 +3,7 @@
 Properties are numbered P0-P22 and the numbers are load-bearing - they are the
 ones agreed in the design session and referenced from
 @docs/adr/0009-glob-plus-matches-path-segments.md@. P0 is the differential test
-against 'Deslop.GlobPlusOracle' and subsumes much of the rest; the others are
+against 'Deslop.GlobPlus.Oracle' and subsumes much of the rest; the others are
 kept anyway, because a failing P6 says "a variable bound the wrong segment"
 where a failing P0 only says "the two disagree".
 -}
@@ -13,11 +13,11 @@ import Data.List qualified as L
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Deslop.Casing (render, renderings, spells)
 import Deslop.GlobPlus
+import Deslop.GlobPlus.Casing (render, renderings, spells)
 import Deslop.GlobPlus.Compiler
-import Deslop.GlobPlusOracle (OPart (..), OPattern, OSeg (..))
-import Deslop.GlobPlusOracle qualified as O
+import Deslop.GlobPlus.Oracle (OPart (..), OPattern, OSeg (..))
+import Deslop.GlobPlus.Oracle qualified as O
 import Hedgehog (Gen, MonadTest, PropertyT, annotate, annotateShow, assert, discard, failure, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range

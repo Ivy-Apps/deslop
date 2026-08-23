@@ -1,4 +1,4 @@
-[Title] 🚀 Checking project: ~/test/fixtures/ts-cycles-project
+[Title] 🚀 Checking project: ~/fixtures/ts-cycles-project
 [Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
 Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
 [Error] Found 1 problem:

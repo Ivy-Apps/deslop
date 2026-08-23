@@ -2,7 +2,8 @@ module TypeScript.ConfigSpec (spec) where
 
 import Data.Text qualified as T
 import Effectful (runEff)
-import Effects.FileSystem (encodeOsPath, runFileSystemIO)
+import Effects.FileSystem (runFileSystemIO)
+import FileSystem.Path (encodeOsPath)
 import System.OsPath (osp, (</>))
 import Test.Hspec
 import TestUtils (mkAbsolute, pathSafeGolden)
@@ -138,6 +139,6 @@ spec = describe "TypeScript.Config" $ do
                 ]
         forM_ cases $ \file ->
             it file $ do
-                cfgPath <- mkAbsolute ([osp|test/fixtures/typescript/config|] </> encodeOsPath (T.pack file))
+                cfgPath <- mkAbsolute ([osp|fixtures/typescript/config|] </> encodeOsPath (T.pack file))
                 res <- runEff . runFileSystemIO $ readTsConfig cfgPath
                 pathSafeGolden ("readTsConfig-" <> file) (ppShow res)

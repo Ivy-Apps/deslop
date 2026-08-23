@@ -3,8 +3,8 @@ module FileSystem.IteratorSpec (spec) where
 import Data.Text qualified as T
 import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, mockDirs, mockDirsWithSymlinks, runMockRoFileSystem)
 import Effectful (IOE, runEff)
-import Effects.FileSystem (AbsPath (osPath), decodeOsPath)
 import FileSystem.Iterator (Entry (..), walkDir)
+import FileSystem.Path (AbsPath (osPath), decodeOsPath)
 import Test.Hspec
 import TestUtils (ap)
 

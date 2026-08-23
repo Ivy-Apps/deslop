@@ -4,7 +4,8 @@ module FileSystem.Iterator (
 ) where
 
 import Effectful
-import Effects.FileSystem (AbsPath, RoFileSystem, fsDirectoryExists, fsIsSymlink, fsListDirectory)
+import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsIsSymlink, fsListDirectory)
+import FileSystem.Path (AbsPath)
 
 {- | A single directory listing entry, tagged with whether it is a directory.
 

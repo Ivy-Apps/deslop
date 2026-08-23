@@ -1,69 +1,90 @@
+{- | Test plumbing: golden helpers, fixture-directory access, and the small
+combinators that keep a failing assertion readable.
+
+Deliberately domain-free. A helper that builds a 'Deslop.AST.AstModule' or a
+'TypeScript.Config.TsConfig' belongs under @Fixtures.@ next to the module whose
+type it builds; a helper that only knows about hspec, Hedgehog or the
+filesystem belongs here.
+-}
 module TestUtils (
+    -- * Golden tests
     snapshot,
-    defaultParams,
-    projectFixturePath,
-    copyDir,
-    listFixtures,
-    fixturesPath,
     renderGolden,
-    defaultTsConfig,
-    emptyTsConfig,
-    mkMapping,
-    mkAbsolute,
     pathSafeGolden,
-    requireJust,
-    requireRight,
+
+    -- * Fixtures on disk
+    fixturesPath,
+    listFixtures,
+    copyDir,
+
+    -- * Paths
     ap,
     rp,
-    baselineOf,
-    mkModule,
-    mkImportNode,
-    failBeatiful,
-    mkUsesImportDto,
-    mkForbidsImportDto,
-    mkAllowsImportDto,
-    mkExistsModuleDto,
-    rulebookDto,
-    ruleDto,
+    mkAbsolute,
+
+    -- * Assertions
     prop,
-    requireEnvVar,
+    requireJust,
+    requireRight,
 ) where
 
 import Control.Exception (throwIO)
 import Control.Exception.Base (AssertionFailed (..))
-import Data.HashSet qualified as HS
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
-import Deslop.AST (AstModule (..), AstNode (..))
-import Deslop.Baseline (Baseline (..))
-import Deslop.Problem (ProblemId (..))
-import Deslop.Rulebook (RuleId (..))
-import Deslop.Rulebook.Dto (AllowsDto (AllowsImportDto), ExistsDto (ExistsModuleDto), ForbidsDto (..), GlobDto (GlobDto), RuleDto (..), RulebookDto (..), UsesDto (UsesImportDto))
 import Effectful
-import Effects.FileSystem (AbsPath (osPath), RelativePath, absPathUnsafe, encodeOsPath, encodeOsPathString, fsMkAbsolute, relativePathUnsafe, runFileSystemIO)
+import Effects.FileSystem (fsMkAbsolute, runFileSystemIO)
+import FileSystem.Path (
+    AbsPath (osPath),
+    RelativePath,
+    absPathUnsafe,
+    encodeOsPath,
+    encodeOsPathString,
+    relativePathUnsafe,
+ )
 import Hedgehog (PropertyT)
-import Params
+import Renderable (Renderable (render))
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeExtension, (</>))
 import Test.Hspec (Spec, expectationFailure, it)
 import Test.Hspec.Golden (Golden, defaultGolden)
 import Test.Hspec.Hedgehog (hedgehog)
-import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
-import TypeScript.ModuleResolver (moduleIdUnsafe)
-import Types (Renderable (render))
 
-defaultParams :: OsPath -> IO Params
-defaultParams projPath = do
-    absProjPath <- mkAbsolute projPath
-    pure
-        Params
-            { projectPath = absProjPath
-            , command = FixC
-            }
+--------------------------------------------------------------------------------
+-- Golden tests
+--------------------------------------------------------------------------------
 
-projectFixturePath :: OsPath
-projectFixturePath = [osp|test/fixtures/ts-project-1|]
+snapshot :: OsPath -> [String] -> IO String
+snapshot tmpDir filesToVerify = do
+    results <- forM filesToVerify $ \relPath -> do
+        raw <- SFO.readFile' (tmpDir </> encodeOsPathString relPath)
+        let content = TE.decodeUtf8 raw
+        let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
+        return $ header <> content
+    pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
+
+renderGolden :: (Renderable r) => String -> r -> Golden String
+renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
+
+pathSafeGolden :: String -> String -> IO (Golden String)
+pathSafeGolden name content = do
+    baseAbsPath <- T.replace "\"" "" . T.pack . show . (.osPath) <$> mkAbsolute [osp|.|]
+    let cleanContent = T.replace baseAbsPath "~" (T.pack content)
+    pure $ defaultGolden name (T.unpack cleanContent)
+
+--------------------------------------------------------------------------------
+-- Fixtures on disk
+--------------------------------------------------------------------------------
+
+fixturesPath :: OsPath
+fixturesPath = [osp|fixtures|]
+
+listFixtures :: OsPath -> String -> IO [OsPath]
+listFixtures dir ext = do
+    files <- SDO.listDirectory dir
+    let extOs = encodeOsPathString ext
+    pure $ filter (\f -> takeExtension f == extOs) files
 
 copyDir :: OsPath -> OsPath -> IO ()
 copyDir src dst = do
@@ -77,51 +98,25 @@ copyDir src dst = do
             then copyDir srcPath dstPath
             else SDO.copyFile srcPath dstPath
 
-snapshot :: OsPath -> [String] -> IO String
-snapshot tmpDir filesToVerify = do
-    results <- forM filesToVerify $ \relPath -> do
-        raw <- SFO.readFile' (tmpDir </> encodeOsPathString relPath)
-        let content = TE.decodeUtf8 raw
-        let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
-        return $ header <> content
-    pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
+--------------------------------------------------------------------------------
+-- Paths
+--------------------------------------------------------------------------------
 
-listFixtures :: OsPath -> String -> IO [OsPath]
-listFixtures dir ext = do
-    files <- SDO.listDirectory dir
-    let extOs = encodeOsPathString ext
-    pure $ filter (\f -> takeExtension f == extOs) files
+ap :: Text -> AbsPath
+ap = absPathUnsafe . encodeOsPath
 
-fixturesPath :: OsPath
-fixturesPath = [osp|test/fixtures|]
+rp :: Text -> RelativePath
+rp = relativePathUnsafe . encodeOsPath
 
 mkAbsolute :: OsPath -> IO AbsPath
 mkAbsolute = runEff . runFileSystemIO . fsMkAbsolute
 
-renderGolden :: (Renderable r) => String -> r -> Golden String
-renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
+--------------------------------------------------------------------------------
+-- Assertions
+--------------------------------------------------------------------------------
 
-pathSafeGolden :: String -> String -> IO (Golden String)
-pathSafeGolden name content = do
-    baseAbsPath <- T.replace "\"" "" . T.pack . show . (.osPath) <$> mkAbsolute [osp|.|]
-    let cleanContent = T.replace baseAbsPath "~" (T.pack content)
-    pure $ defaultGolden name (T.unpack cleanContent)
-
-defaultTsConfig :: TsConfig
-defaultTsConfig =
-    TsConfig
-        { baseUrl = absPathUnsafe [osp|/home/repo|]
-        , paths =
-            [ mkMapping (Wildcard "@test/" "") [Wildcard "test/" ""]
-            , mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]
-            ]
-        }
-
-emptyTsConfig :: TsConfig
-emptyTsConfig = TsConfig {baseUrl = absPathUnsafe [osp|/home/repo|], paths = []}
-
-mkMapping :: Pattern -> [Pattern] -> PathMapping
-mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)
+prop :: String -> PropertyT IO () -> Spec
+prop desc = it desc . hedgehog
 
 -- | Extracts the value from a Maybe or fails the test beautifully.
 requireJust :: (HasCallStack) => String -> Maybe a -> IO a
@@ -134,78 +129,3 @@ requireRight :: (HasCallStack) => (e -> String) -> Either e a -> IO a
 requireRight formatErr = \case
     Left e -> expectationFailure (formatErr e) >> throwIO (AssertionFailed "unreachable")
     Right x -> pure x
-
-failBeatiful :: (HasCallStack) => Text -> IO a
-failBeatiful msg = expectationFailure (show msg) >> throwIO (AssertionFailed "unreachable")
-
-ap :: Text -> AbsPath
-ap = absPathUnsafe . encodeOsPath
-
-rp :: Text -> RelativePath
-rp = relativePathUnsafe . encodeOsPath
-
-baselineOf :: [Text] -> Baseline
-baselineOf = Baseline . HS.fromList . fmap ProblemId
-
-{- | Constructs an AstModule from its id and import targets, giving it a source
-file under 'defaultTsConfig's baseUrl so that reported locations are predictable.
--}
-mkModule :: Text -> [Text] -> AstModule
-mkModule mid deps =
-    AstModule
-        { id = moduleIdUnsafe mid
-        , path = ap ("/home/repo/" <> mid <> ".ts")
-        , nodes = map mkImportNode deps
-        }
-
--- | Constructs an ImportNode with a realistic raw import statement.
-mkImportNode :: Text -> AstNode
-mkImportNode t =
-    ImportNode
-        { target = moduleIdUnsafe t
-        , rawStatement = "import { ... } from '" <> t <> "'"
-        }
-
-mkForbidsImportDto :: Text -> Bool -> ForbidsDto
-mkForbidsImportDto p transitive = ForbidsImportDto (GlobDto p) (Just transitive)
-
-mkAllowsImportDto :: Text -> AllowsDto
-mkAllowsImportDto p = AllowsImportDto (GlobDto p)
-
-mkUsesImportDto :: Text -> Bool -> UsesDto
-mkUsesImportDto p transitive = UsesImportDto (GlobDto p) (Just transitive)
-
-mkExistsModuleDto :: Text -> ExistsDto
-mkExistsModuleDto = ExistsModuleDto . GlobDto
-
-rulebookDto :: RulebookDto
-rulebookDto =
-    RulebookDto
-        { id = "test-rulebook"
-        , rules = []
-        , name = "Test rulebook"
-        , description = "Rulebook used for testing"
-        }
-
-ruleDto :: RuleDto
-ruleDto =
-    RuleDto
-        { id = RuleId "test-rule"
-        , description = "test"
-        , target = GlobDto ""
-        , exclude = Nothing
-        , forbids = Nothing
-        , allows = Nothing
-        , uses = Nothing
-        , exists = Nothing
-        , fix = ""
-        , example = Nothing
-        }
-
-prop :: String -> PropertyT IO () -> Spec
-prop desc = it desc . hedgehog
-
-requireEnvVar :: String -> IO Text
-requireEnvVar key =
-    lookupEnv key
-        >>= fmap T.pack . requireJust ("Test setup: Missing '" <> key <> "' env var.")

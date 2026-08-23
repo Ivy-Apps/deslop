@@ -66,13 +66,55 @@ nix run .#lint
 
 ### Test fixtures
 
-`test/fixtures/ts-gitignore-project/` contains real `.gitignore` files, which
+`fixtures/ts-gitignore-project/` contains real `.gitignore` files, which
 this repository's own git honours too. Anything they ignore must be force-added
 once, or it will silently never be committed:
 
 ```bash
-git add -f test/fixtures/ts-gitignore-project/<path>
+git add -f fixtures/ts-gitignore-project/<path>
 ```
+
+## Architecture
+
+Four layers. **Imports only ever point inward** - see
+[ADR 13](docs/adr/0013-the-source-tree-is-layered-by-dependency-direction.md).
+
+```
+Deslop.hs          orchestration - the only module that knows both a language and the core
+  └─ Deslop/       language-agnostic core: AST, CodeGraph, Problem, GlobPlus, Rule
+       └─ TypeScript/    a language frontend: bytes → Tokens → CST → Deslop.AST
+            └─ Effects/  FileSystem/  Git/  Utils  Renderable    infrastructure
+```
+
+Where new code goes:
+
+- **`Deslop/`** - anything true of every language. It must not `import
+  TypeScript`; `grep -rn "^import TypeScript" src/Deslop/` returning nothing is
+  the check.
+- **`TypeScript/`** - anything that knows the syntax, `tsconfig`, or file
+  extensions. A new language is a new top-level directory ending in a
+  `<Lang>.AST` that produces `Deslop.AST`, the seam both sides meet at.
+- **`Effects/`** - every effect declaration and its interpreter. `Effects.CLI`
+  is the only code that writes to a terminal; `UI` composes the text it prints
+  and is pure.
+- **`FileSystem/`, `Git/`, `Utils`, `Renderable`** - infrastructure. These name
+  nothing from the domain.
+- One module per pipeline stage, named for its subject. No `Types.hs`-style
+  catch-alls.
+- A built-in Rule lives with what it reads: `Deslop.Rule.Lint.*` reads only the
+  `ModuleGraph`, `TypeScript.Lint.*` touches TypeScript.
+
+Tests mirror `src/`:
+
+- `src/Deslop/Problem/Baseline.hs` → `test/Deslop/Problem/BaselineSpec.hs`, whose
+  root `describe` is `"Deslop.Problem.Baseline"`. That is what makes
+  `nix run .#test -- Deslop.GlobPlus` select what its name says. Variants suffix
+  the module name (`GlobPlusPropSpec`). `test/E2E/` is exempt - it names a scope.
+- A helper stays private in its spec until a **second** spec needs it. Then it
+  moves to `Fixtures.<full.module.path>` or `Generators.<full.module.path>`.
+  `TestUtils` holds only domain-free plumbing.
+- `fixtures/` (repo root) holds the sample TypeScript projects. It cannot live
+  under `test/` - it would collide with `test/Fixtures/` on macOS.
 
 ## Coding Conventions
 

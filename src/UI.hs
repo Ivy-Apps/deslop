@@ -1,10 +1,10 @@
+{- | Everything Deslop says to the user, as 'Text'.
+
+Pure by design: this module composes sentences and nothing else. Colouring one
+and putting it on a stream is "Effects.CLI", which is the only place in the
+codebase that writes to a terminal.
+-}
 module UI (
-    blueBold,
-    green,
-    yellowBold,
-    cyanBold,
-    redStderr,
-    plainOut,
     divider,
     summaryLine,
     coverage,
@@ -15,59 +15,14 @@ module UI (
 ) where
 
 import Data.Text qualified as T
-import Data.Text.IO qualified as TIO
 import Data.Time.Clock (NominalDiffTime)
+import Deslop.Error (DeslopError (..))
 import Deslop.Problem (Problem)
-import Deslop.ProblemFormatter (formatProblem)
-import Effects.FileSystem (decodeOsPath)
+import Deslop.Problem.Formatter (formatProblem)
+import Deslop.RunReport (ModuleCount (..), ProblemCounts (..), RuleCount (..), RunSummary (..))
+import FileSystem.Path (decodeOsPath)
 import Fmt
-import System.Console.ANSI
-import System.IO (hPutStr)
-import Types (DeslopError (..), ModuleCount (..), ProblemCounts (..), RuleCount (..), RunSummary (..))
 import Utils (pluralise)
-
---------------------------------------------------------------------------------
--- Colour primitives
---------------------------------------------------------------------------------
-
-blueBold :: Text -> IO ()
-blueBold = withSGR [SetColor Foreground Vivid Blue, SetConsoleIntensity BoldIntensity]
-
-green :: Text -> IO ()
-green = withSGR [SetColor Foreground Vivid Green]
-
-yellowBold :: Text -> IO ()
-yellowBold = withSGR [SetColor Foreground Vivid Yellow, SetConsoleIntensity BoldIntensity]
-
-cyanBold :: Text -> IO ()
-cyanBold = withSGR [SetColor Foreground Vivid Cyan, SetConsoleIntensity BoldIntensity]
-
-plainOut :: Text -> IO ()
-plainOut t = TIO.putStrLn t >> hFlush stdout
-
-withSGR :: [SGR] -> Text -> IO ()
-withSGR sgr t = do
-    setSGR sgr
-    TIO.putStrLn t
-    setSGR [Reset]
-    hFlush stdout
-
-{- | Print to stderr in red. ANSI codes are written raw rather than via 'setSGR',
-which only ever targets stdout.
--}
-redStderr :: Text -> IO ()
-redStderr t = do
-    hPutStr stderr redCode
-    hPutStr stderr (T.unpack t)
-    hPutStr stderr resetCode
-    hPutStr stderr "\n"
-  where
-    redCode = "\x1b[31m"
-    resetCode = "\x1b[0m"
-
---------------------------------------------------------------------------------
--- Pure text helpers
---------------------------------------------------------------------------------
 
 divider :: Text
 divider = "─────────────────────────────────────────"

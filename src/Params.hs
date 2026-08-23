@@ -14,7 +14,8 @@ where
 import Data.Text qualified as T
 import Data.Version (showVersion)
 import Effectful (Eff, (:>))
-import Effects.FileSystem (AbsPath, RoFileSystem, encodeOsPath, fsMkAbsolute)
+import Effects.FileSystem (RoFileSystem, fsMkAbsolute)
+import FileSystem.Path (AbsPath, encodeOsPath)
 import Options.Applicative
 import Paths_deslop (version)
 import System.OsPath (OsPath, osp)

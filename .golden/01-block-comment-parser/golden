@@ -1,6 +1,6 @@
 TsModule
   { path =
-      AbsPath { osPath = "test/fixtures/typescript/01-block-comment.ts" }
+      AbsPath { osPath = "fixtures/typescript/01-block-comment.ts" }
   , cst =
       [ Source
           { raw =

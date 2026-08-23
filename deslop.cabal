@@ -60,33 +60,37 @@ library
   exposed-modules:
     Deslop
     Deslop.AST
-    Deslop.Baseline
-    Deslop.Casing
     Deslop.CodeGraph
+    Deslop.Error
     Deslop.GlobPlus
+    Deslop.GlobPlus.Casing
     Deslop.GlobPlus.Compiler
-    Deslop.Lint.CycleDetection
-    Deslop.Lint.RelativeImports
     Deslop.Problem
-    Deslop.ProblemFormatter
-    Deslop.ProblemShrinker
-    Deslop.Rulebook
-    Deslop.Rulebook.Compiler
-    Deslop.Rulebook.Dto
-    Deslop.Rulebook.Loader
-    Deslop.RuleEnforcer
+    Deslop.Problem.Baseline
+    Deslop.Problem.Formatter
+    Deslop.Problem.Shrinker
+    Deslop.Rule.Book
+    Deslop.Rule.Book.Compiler
+    Deslop.Rule.Book.Dto
+    Deslop.Rule.Book.Loader
+    Deslop.Rule.Enforcer
+    Deslop.Rule.Lint.CycleDetection
+    Deslop.RunReport
     Effects.CLI
     Effects.FileSystem
     Effects.ReportProblem
     FileSystem.Iterator
+    FileSystem.Path
     Git.Ignore
     Params
     Prelude
-    Types
-    TypeScript.Config
+    Renderable
+    TypeScript.AST
     TypeScript.CST
+    TypeScript.Config
     TypeScript.Iterator
     TypeScript.Lexer
+    TypeScript.Lint.RelativeImports
     TypeScript.ModuleResolver
     TypeScript.Parser
     TypeScript.Tokens
@@ -139,21 +143,19 @@ test-suite deslop-test
   main-is:            Spec.hs
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
-    Deslop.ASTSpec
-    Deslop.BaselineSpec
-    Deslop.CasingSpec
     Deslop.CodeGraphSpec
-    Deslop.GlobPlusOracle
+    Deslop.GlobPlus.CasingSpec
+    Deslop.GlobPlus.Oracle
     Deslop.GlobPlusPropSpec
     Deslop.GlobPlusSemanticsSpec
     Deslop.GlobPlusSpec
-    Deslop.Lint.CycleDetectionSpec
-    Deslop.Lint.RelativeImportsSpec
-    Deslop.ProblemFormatterSpec
-    Deslop.ProblemShrinkerSpec
+    Deslop.Problem.BaselineSpec
+    Deslop.Problem.FormatterSpec
+    Deslop.Problem.ShrinkerSpec
     Deslop.ProblemSpec
-    Deslop.RulebookSpec
-    Deslop.RuleEnforcerSpec
+    Deslop.Rule.Book.LoaderSpec
+    Deslop.Rule.EnforcerSpec
+    Deslop.Rule.Lint.CycleDetectionSpec
     Doubles.CLI
     Doubles.FileSystem
     E2E.FileGoldenSpec
@@ -161,15 +163,20 @@ test-suite deslop-test
     Effects.FileSystemSpec
     Effects.ReportProblemSpec
     FileSystem.IteratorSpec
+    Fixtures.Deslop.AST
+    Fixtures.Deslop.Problem.Baseline
+    Fixtures.TypeScript.Config
     Git.IgnoreSpec
     ParamsSpec
     TestUtils
+    TypeScript.ASTSpec
+    TypeScript.CSTSpec
     TypeScript.ConfigSpec
     TypeScript.IteratorSpec
     TypeScript.LexerSpec
+    TypeScript.Lint.RelativeImportsSpec
     TypeScript.ModuleResolverSpec
     TypeScript.ParserSpec
-    TypeScript.RenderableSpec
     UISpec
     UtilsSpec
 

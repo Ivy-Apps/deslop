@@ -1,6 +1,11 @@
+{- | Turning what a TypeScript file /writes/ in an import into the module it
+actually names, and back again.
+
+The 'Deslop.AST.ModuleId' it deals in is the core's, not this module's: what
+varies per language is how a written import resolves to a module, not what a
+module is.
+-}
 module TypeScript.ModuleResolver (
-    ModuleId (text),
-    moduleIdUnsafe,
     reverseResolve,
     reverseResolveImport,
     resolve,
@@ -11,23 +16,13 @@ module TypeScript.ModuleResolver (
 ) where
 
 import Data.Text qualified as T
+import Deslop.AST (ModuleId (..), moduleIdUnsafe)
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
-import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, decodeOsPath, encodeOsPath, fsFileExists, fsMkAbsolute, withAbsBaseSafe)
+import Effects.FileSystem (RoFileSystem, fsFileExists, fsMkAbsolute)
+import FileSystem.Path (AbsPath (..), absPathUnsafe, decodeOsPath, encodeOsPath, withAbsBaseSafe)
 import System.OsPath (OsPath, dropExtension, splitDirectories, takeDirectory)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
-
-{- | Logical TS module id - e.g. @/lib/util or /src/lib/util (relative to the nearest TS config)
-or ./LoginView (relative to the current file) or ../../lib/util (relative to the current file)
-or /home/repo/src/lib/util
--}
-newtype ModuleId = ModuleId
-    { text :: Text
-    }
-    deriving stock (Show, Eq, Ord)
-
-moduleIdUnsafe :: Text -> ModuleId
-moduleIdUnsafe = ModuleId
 
 reverseResolveImport ::
     ( RoFileSystem :> es
@@ -60,7 +55,7 @@ reverseResolve absFilePath = do
     let moduleRelToCfg = T.intercalate "/" (upTraversal <> tRemainder)
     case applyPathMapping cfg.paths moduleRelToCfg of
         Just alias ->
-            let moduleId = ModuleId alias
+            let moduleId = moduleIdUnsafe alias
              in if isRelativeImport moduleId
                     then pure Nothing
                     else pure $ Just moduleId
@@ -113,13 +108,14 @@ resolve ::
     , Reader TsConfig :> es
     ) =>
     AbsPath -> ModuleId -> Eff es (Maybe AbsPath)
-resolve importingFile target@(ModuleId targetId) =
+resolve importingFile target =
     if isRelativeImport target
         then
             Just <$> resolveRelativeImport
         else
             resolveNonRelativeImport
   where
+    targetId = target.text
     tsExtensions = [".ts", ".tsx", "/index.ts", "/index.tsx"]
 
     resolveRelativeImport :: (RoFileSystem :> es) => Eff es AbsPath
@@ -172,12 +168,13 @@ resolve importingFile target@(ModuleId targetId) =
             else tryExtensions fp es
 
 isRelativeImport :: ModuleId -> Bool
-isRelativeImport (ModuleId ".") = True
-isRelativeImport (ModuleId "..") = True
-isRelativeImport (ModuleId t) =
-    "./" `T.isPrefixOf` t
-        || "../" `T.isPrefixOf` t
-        || "/" `T.isPrefixOf` t
+isRelativeImport m = case m.text of
+    "." -> True
+    ".." -> True
+    t ->
+        "./" `T.isPrefixOf` t
+            || "../" `T.isPrefixOf` t
+            || "/" `T.isPrefixOf` t
 
 data Match = ExactMatch | WildcardMatch Text deriving (Show, Eq)
 

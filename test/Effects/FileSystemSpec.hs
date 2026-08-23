@@ -1,7 +1,8 @@
 module Effects.FileSystemSpec (spec) where
 
 import Effectful (runEff)
-import Effects.FileSystem (AbsPath (..), decodeOsPath, encodeOsPath, encodeOsPathString, fsListDirectory, fsMkAbsolute, runRoFileSystemIO)
+import Effects.FileSystem (fsListDirectory, fsMkAbsolute, runRoFileSystemIO)
+import FileSystem.Path (AbsPath (..), decodeOsPath, encodeOsPath, encodeOsPathString)
 import System.Directory.OsPath qualified as SDO
 import System.OsPath (isAbsolute, osp)
 import System.OsString qualified as OS
@@ -23,7 +24,7 @@ spec = describe "Effects.FileSystem" $ do
 
     it "fsListDirectory" $ do
         -- Given
-        let path = [osp|test/fixtures/static|]
+        let path = [osp|fixtures/static|]
         absPath <- runEff . runRoFileSystemIO $ fsMkAbsolute path
 
         -- When
