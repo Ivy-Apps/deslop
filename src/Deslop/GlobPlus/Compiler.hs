@@ -38,8 +38,8 @@ module Deslop.GlobPlus.Compiler (
 import Data.Char (isAsciiUpper)
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Deslop.Casing (casingName, decode, render, spelledIn)
 import Deslop.GlobPlus
+import Deslop.GlobPlus.Casing (casingName, decode, render, spelledIn)
 import Text.Megaparsec (MonadParsec (notFollowedBy), ParseErrorBundle, Parsec, between, choice, eof, errorBundlePretty, many, noneOf, parse, some, try)
 import Text.Megaparsec.Char (char, string)
 

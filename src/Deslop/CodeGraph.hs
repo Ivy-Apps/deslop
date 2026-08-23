@@ -21,10 +21,9 @@ import Data.Sequence (Seq (..), (|>))
 import Data.Sequence qualified as Seq
 import Data.Set qualified as Set
 import Data.Tree (Tree, flatten)
-import Deslop.AST (AstModule (..), AstNode (..))
+import Deslop.AST (AstModule (..), AstNode (..), ModuleId (..))
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
-import TypeScript.ModuleResolver (ModuleId (..))
 
 {- | Represents a node in the architectural graph.
 It unifies parsed TypeScript files and unparsed 3rd-party dependencies

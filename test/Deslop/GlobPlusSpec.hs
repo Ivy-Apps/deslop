@@ -10,12 +10,12 @@ import Test.Hspec
 
 import Deslop.GlobPlus
 import Deslop.GlobPlus.Compiler
-import Deslop.GlobPlusOracle qualified as Oracle
+import Deslop.GlobPlus.Oracle qualified as Oracle
 import Test.Hspec.QuickCheck (modifyMaxSuccess)
 import TestUtils (prop, requireJust)
 
 spec :: Spec
-spec = describe "Deslop.GlobPLus" $ do
+spec = describe "Deslop.GlobPlus" $ do
     describe "matchTargetAt" $ do
         it "matches exact literal paths and derives TARGET_DIR" $ do
             let target = unsafeCompileTarget "src/app/page"

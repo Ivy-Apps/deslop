@@ -1,16 +1,12 @@
+{- | Reaching the filesystem, split read from write so that a component which
+only inspects a project cannot rewrite it.
+
+The path types themselves are "FileSystem.Path", which is pure: a module that
+merely names a path should not have to take on an effect to do it.
+-}
 module Effects.FileSystem (
-    encodeOsPath,
-    encodeOsPathString,
-    decodeOsPath,
-    absPathUnsafe,
-    withAbsBaseUnsafe,
-    withAbsBaseSafe,
     RoFileSystem (..),
     WrFileSystem (..),
-    AbsPath (osPath),
-    RelativePath (osPath),
-    relativePathUnsafe,
-    relativePathTo,
     fsFileExists,
     fsReadFile,
     fsWriteFile,
@@ -24,52 +20,12 @@ module Effects.FileSystem (
     runRoFileSystemIO,
 ) where
 
-import Control.Monad.Catch.Pure (runCatch)
-import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
+import FileSystem.Path (AbsPath (osPath), absPathUnsafe, withAbsBaseUnsafe)
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
-import System.OsPath (OsPath, decodeUtf, encodeUtf, makeRelative, (</>))
-
-encodeOsPath :: Text -> OsPath
-encodeOsPath = encodeOsPathString . T.unpack
-
-encodeOsPathString :: FilePath -> OsPath
-encodeOsPathString p =
-    case runCatch (encodeUtf p) of
-        Right path -> path
-        Left err -> error $ "encodeOsPath failed: " <> show err
-
-decodeOsPath :: OsPath -> Text
-decodeOsPath = either handleErr T.pack . runCatch . decodeUtf
-  where
-    handleErr err = error $ "decodeOsPath failed: " <> show err
-
-newtype AbsPath = AbsPath
-    { osPath :: OsPath
-    }
-    deriving (Show, Eq, Ord)
-
-absPathUnsafe :: OsPath -> AbsPath
-absPathUnsafe = AbsPath
-
-withAbsBaseUnsafe :: AbsPath -> OsPath -> AbsPath
-withAbsBaseUnsafe (AbsPath b) p = AbsPath (b </> p)
-
-withAbsBaseSafe :: AbsPath -> OsPath -> OsPath
-withAbsBaseSafe (AbsPath b) p = b </> p
-
-newtype RelativePath = RelativePath
-    { osPath :: OsPath
-    }
-    deriving (Show, Eq, Ord)
-
-relativePathUnsafe :: OsPath -> RelativePath
-relativePathUnsafe = RelativePath
-
-relativePathTo :: AbsPath -> AbsPath -> RelativePath
-relativePathTo (AbsPath base) (AbsPath target) = RelativePath $ makeRelative base target
+import System.OsPath (OsPath)
 
 data RoFileSystem :: Effect where
     ReadFile :: AbsPath -> RoFileSystem m ByteString
@@ -126,23 +82,23 @@ runFileSystemIO = runRoFileSystemIO . runWrFileSystemIO
 
 runRoFileSystemIO :: (IOE :> es) => Eff (RoFileSystem : es) a -> Eff es a
 runRoFileSystemIO = interpret $ \_env -> \case
-    ReadFile (AbsPath path) -> liftIO $ SFO.readFile' path
-    FileExists (AbsPath path) -> liftIO $ SDO.doesFileExist path
-    DirectoryExists (AbsPath path) -> liftIO $ SDO.doesDirectoryExist path
-    IsSymlink (AbsPath path) -> liftIO $ SDO.pathIsSymbolicLink path
+    ReadFile p -> liftIO $ SFO.readFile' p.osPath
+    FileExists p -> liftIO $ SDO.doesFileExist p.osPath
+    DirectoryExists p -> liftIO $ SDO.doesDirectoryExist p.osPath
+    IsSymlink p -> liftIO $ SDO.pathIsSymbolicLink p.osPath
     -- Sorted, because listDirectory's order is unspecified and every caller
     -- turns it into output a user reads: which rulebooks load first, which
     -- modules are walked first. Left to the filesystem, that order differs
     -- between machines and the same run gives two different answers.
-    ListDirectory absP@(AbsPath p) ->
+    ListDirectory p ->
         liftIO
-            . fmap (sort . fmap (withAbsBaseUnsafe absP))
+            . fmap (sort . fmap (withAbsBaseUnsafe p))
             . SDO.listDirectory
-            $ p
+            $ p.osPath
     GetHomeDirectory -> liftIO $ absPathUnsafe <$> SDO.getHomeDirectory
-    MkAbsolute path -> liftIO . fmap AbsPath . SDO.canonicalizePath $ path
+    MkAbsolute path -> liftIO . fmap absPathUnsafe . SDO.canonicalizePath $ path
 
 runWrFileSystemIO :: (IOE :> es) => Eff (WrFileSystem : es) a -> Eff es a
 runWrFileSystemIO = interpret $ \_env -> \case
-    WriteFile (AbsPath path) content -> liftIO $ SFO.writeFile' path content
-    MkDirP (AbsPath path) -> liftIO $ SDO.createDirectoryIfMissing True path
+    WriteFile p content -> liftIO $ SFO.writeFile' p.osPath content
+    MkDirP p -> liftIO $ SDO.createDirectoryIfMissing True p.osPath

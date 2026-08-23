@@ -82,7 +82,7 @@ module Deslop.GlobPlus (
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
-import Deslop.Casing (AgreedName (..), Casing (..), agree, decode, render, renderings)
+import Deslop.GlobPlus.Casing (AgreedName (..), Casing (..), agree, decode, render, renderings)
 
 --------------------------------------------------------------------------------
 -- 1. Names
@@ -355,7 +355,7 @@ widthsOf smallest text = reverse [smallest .. T.length text]
 still denote one name. 'Nothing' is a dead branch: none can, so this division
 of the path is not the intended one and the search moves on.
 
-'Deslop.Casing.agree' is asked afresh over all the occurrences so far rather
+'Deslop.GlobPlus.Casing.agree' is asked afresh over all the occurrences so far rather
 than the previous answer being narrowed, and that matters. A name only some
 occurrences /propose/ may still be spelled by all of them - @A00@ proposes
 @a00@ and @a 00@, while @A_0_0@ proposes @a 0 0@, and it is the last of those
@@ -370,7 +370,7 @@ bindOccurrence name casing value (Bindings bound) = do
     pure . Bindings $ Map.insert name (Binding agreed occurrences) bound
 
 {- | Whether a value is something this casing's capture accepts. Deliberately
-looser than 'Deslop.Casing.spelledIn': a /pattern/ token must be a well-formed
+looser than 'Deslop.GlobPlus.Casing.spelledIn': a /pattern/ token must be a well-formed
 spelling, but a /value/ read out of a codebase is taken as generously as the
 character class allows.
 -}

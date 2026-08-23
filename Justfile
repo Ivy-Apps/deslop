@@ -41,7 +41,7 @@ update-benchmark:
 @sandbox:
     rm -rf sandbox
     mkdir -p sandbox
-    cp -a test/fixtures/ts-project-1/. sandbox/
+    cp -a fixtures/ts-project-1/. sandbox/
     echo 'Sandbox generated ✅'
 
 # Update Dependencies versions by updating the Nix flake input

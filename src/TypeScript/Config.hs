@@ -13,7 +13,8 @@ import Data.Aeson (FromJSON, decode')
 import Data.Map qualified as M
 import Data.Text qualified as T
 import Effectful
-import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, encodeOsPath, fsMkAbsolute, fsReadFile, withAbsBaseSafe)
+import Effects.FileSystem (RoFileSystem, fsMkAbsolute, fsReadFile)
+import FileSystem.Path (AbsPath (..), absPathUnsafe, encodeOsPath, withAbsBaseSafe)
 import System.OsPath (takeDirectory)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)

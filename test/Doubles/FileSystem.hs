@@ -12,14 +12,8 @@ module Doubles.FileSystem (
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret)
-import Effects.FileSystem (
-    AbsPath (..),
-    RoFileSystem (..),
-    WrFileSystem (..),
-    absPathUnsafe,
-    decodeOsPath,
-    encodeOsPath,
- )
+import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
+import FileSystem.Path (AbsPath (..), absPathUnsafe, decodeOsPath, encodeOsPath)
 import System.OsPath (OsPath, (</>))
 
 runMockWrFileSystem ::

@@ -2,8 +2,8 @@ module Git.IgnoreSpec (spec) where
 
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Effects.FileSystem (AbsPath)
 import FileSystem.Iterator (Entry (..))
+import FileSystem.Path (AbsPath)
 import Git.Ignore (
     CharMatch (..),
     ClassItem (..),
@@ -24,8 +24,8 @@ import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import System.Directory (createDirectoryIfMissing)
 import System.Environment (getEnvironment)
-import System.FilePath (takeDirectory)
 import System.Exit (ExitCode (..))
+import System.FilePath (takeDirectory)
 import System.Process (CreateProcess (..), proc, readCreateProcessWithExitCode)
 import Test.Hspec
 import TestUtils (ap, prop)

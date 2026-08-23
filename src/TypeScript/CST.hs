@@ -3,8 +3,8 @@ module TypeScript.CST (
     TsNode (..),
 ) where
 
-import Effects.FileSystem (AbsPath)
-import Types (Renderable (..))
+import FileSystem.Path (AbsPath)
+import Renderable (Renderable (..))
 
 data TsProgram = TsModule
     { path :: AbsPath

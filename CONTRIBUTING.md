@@ -48,7 +48,7 @@ Inside `nix develop`, [`just`](https://github.com/casey/just) provides additiona
 | Command | What it does |
 |---------|-------------|
 | `just check` | Full local check: hlint, tests, build, plus a real run against the sandbox project |
-| `just sandbox` | Regenerate `sandbox/` from `test/fixtures/ts-project-1` for manual testing |
+| `just sandbox` | Regenerate `sandbox/` from `fixtures/ts-project-1` for manual testing |
 | `just update-golden` | Re-record the hspec-golden snapshots in `.golden/` |
 | `just update-deps` | Update the Nix flake inputs and re-freeze cabal dependencies |
 | `just update-hie` | Regenerate `hie.yaml` |
@@ -63,7 +63,7 @@ Inside `nix develop`, [`just`](https://github.com/casey/just) provides additiona
 | `src/TypeScript/` | TypeScript lexer, parser, CST, module resolver, tsconfig handling |
 | `src/Effects/` | `effectful` effects for CLI, file system, and problem reporting |
 | `test/` | hspec suites, plus `test/E2E/` golden tests |
-| `test/fixtures/` | Sample TypeScript projects and rulebooks used by tests |
+| `fixtures/` | Sample TypeScript projects and rulebooks used by tests |
 | `.golden/` | Recorded golden output for the E2E tests |
 | `npm/` | npm wrapper package and per-platform binary packages |
 | `docs/` | Internal references (e.g. the Glob+ pattern language) |

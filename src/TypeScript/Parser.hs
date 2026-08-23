@@ -4,7 +4,7 @@ module TypeScript.Parser (
 ) where
 
 import Data.Text qualified as T
-import Effects.FileSystem (AbsPath (..), decodeOsPath)
+import FileSystem.Path (AbsPath (..), decodeOsPath)
 import Text.Megaparsec
 import TypeScript.CST
 import TypeScript.Lexer

@@ -1,10 +1,10 @@
 module Deslop.ProblemSpec (spec) where
 
+import Deslop.AST (moduleIdUnsafe)
 import Deslop.Problem (LintRuleId (LintRuleId), Location (..), Problem (..), ProblemId (..), ViolationKind (..), problemId)
-import Deslop.Rulebook (RuleId (RuleId), RulebookId (RulebookId))
-import Effects.FileSystem (encodeOsPath, relativePathUnsafe)
+import Deslop.Rule.Book (RuleId (RuleId), RulebookId (RulebookId))
+import FileSystem.Path (encodeOsPath, relativePathUnsafe)
 import Test.Hspec (Spec, describe, it, shouldBe)
-import TypeScript.ModuleResolver (moduleIdUnsafe)
 
 spec :: Spec
 spec = describe "Deslop.Problem" $ do

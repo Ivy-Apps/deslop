@@ -11,6 +11,7 @@ module Bench.Harness (
 
 import Bench.Fixtures (Case (..), fixturePath)
 import Deslop (doWork)
+import Deslop.Error (DeslopError)
 import Effectful (Eff, runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Dispatch.Dynamic (interpret)
@@ -19,7 +20,6 @@ import Effects.CLI (CLI (..))
 import Effects.FileSystem (WrFileSystem (..), fsMkAbsolute, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
 import Params (Params (..))
-import Types (DeslopError)
 
 {- | Resolves a Case to the Params that run it.
 

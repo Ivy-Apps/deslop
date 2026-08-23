@@ -2,15 +2,17 @@
 
 module TypeScript.ModuleResolverSpec (spec) where
 
+import Deslop.AST (moduleIdUnsafe)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
-import Effects.FileSystem (AbsPath, absPathUnsafe)
+import FileSystem.Path (AbsPath, absPathUnsafe)
+import Fixtures.TypeScript.Config (mkMapping)
 import System.OsPath (osp)
 import Test.Hspec (Spec, describe, it, shouldBe)
-import TestUtils (ap, mkMapping)
+import TestUtils (ap)
 import TypeScript.Config (Pattern (..), TsConfig (..))
-import TypeScript.ModuleResolver (Match (..), isRelativeImport, match, moduleIdUnsafe, resolve, reverseResolve, reverseResolveImport)
+import TypeScript.ModuleResolver (Match (..), isRelativeImport, match, resolve, reverseResolve, reverseResolveImport)
 
 spec :: Spec
 spec = describe "TypeScript.ModuleResolver" $ do

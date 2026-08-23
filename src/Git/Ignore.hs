@@ -42,8 +42,9 @@ import Data.Char (isAlpha, isAlphaNum, isControl, isDigit, isHexDigit, isLower, 
 import Data.Set qualified as Set
 import Data.Text qualified as T
 import Effectful
-import Effects.FileSystem (AbsPath (..), RoFileSystem, absPathUnsafe, decodeOsPath, encodeOsPath, fsReadFile, withAbsBaseUnsafe)
+import Effects.FileSystem (RoFileSystem, fsReadFile)
 import FileSystem.Iterator (Entry (..), walkDir)
+import FileSystem.Path (AbsPath (..), absPathUnsafe, decodeOsPath, encodeOsPath, withAbsBaseUnsafe)
 import System.OsPath (OsPath, osp, splitDirectories, takeDirectory, takeFileName)
 import Text.Megaparsec
 import Text.Megaparsec.Char (char)

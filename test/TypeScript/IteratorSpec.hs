@@ -2,7 +2,7 @@ module TypeScript.IteratorSpec (spec) where
 
 import Doubles.FileSystem (mockDirs, runMockRoFileSystem)
 import Effectful (runEff)
-import Effects.FileSystem (AbsPath)
+import FileSystem.Path (AbsPath)
 import Git.Ignore (GitIgnore (..), IgnoreScope (..), emptyGitIgnore, parseIgnoreFile)
 import Test.Hspec
 import TestUtils (ap)

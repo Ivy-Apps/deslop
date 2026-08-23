@@ -1,16 +1,16 @@
 module Deslop.CodeGraphSpec (spec) where
 
 import Data.Map.Strict qualified as Map
-import Deslop.AST (AstModule (..), AstNode (..))
+import Deslop.AST (AstModule (..), AstNode (..), ModuleId (..), moduleIdUnsafe)
 import Deslop.CodeGraph (ModuleCycle (..), buildModuleGraph, findCycles, findKnownPath, hasPath, moduleExists, reachableFrom)
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
+import Fixtures.Deslop.AST (mkModule)
 import Hedgehog (Gen, PropertyT, footnote, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import Test.Hspec
-import TestUtils (mkModule, prop)
-import TypeScript.ModuleResolver (ModuleId (..), moduleIdUnsafe)
+import TestUtils (prop)
 
 runHasPath :: AstModule -> AstModule -> [AstModule] -> Bool
 runHasPath from to modules =

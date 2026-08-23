@@ -1,7 +1,7 @@
-[Title] 🚀 Checking project: ~/test/fixtures/ts-invalid-rulebook-project
+[Title] 🚀 Checking project: ~/fixtures/ts-invalid-rulebook-project
 [exit] Could not load 2 rulebooks.
 
-~/test/fixtures/ts-invalid-rulebook-project/deslop/rules/also-broken.yaml
+~/fixtures/ts-invalid-rulebook-project/deslop/rules/also-broken.yaml
   rule 'globstar-inside-a-segment'
     target: "@/widgets/**View"
       "**View" glues ** to text inside a single path segment.
@@ -26,7 +26,7 @@
         Variables bound by this rule's target: file-name
         Did you mean {{file-name}}?
 
-~/test/fixtures/ts-invalid-rulebook-project/deslop/rules/broken.yaml
+~/fixtures/ts-invalid-rulebook-project/deslop/rules/broken.yaml
   rule 'provider-components-are-isolated'
     target: "@/components/{{provider}}/**"
       {{provider}} is ambiguous: a single-word name reads as both camelCase and kebab-case.

@@ -3,23 +3,37 @@ module E2E.ProjectGoldenSpec (spec) where
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Deslop (doWork)
+import Deslop.Error (DeslopError (..))
+import Deslop.RunReport (RunReport (..), Verdict (..))
 import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, renderTranscript, runMockCLI)
 import Doubles.FileSystem (runMockWrFileSystem)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effects.FileSystem (RelativePath (osPath), decodeOsPath, encodeOsPathString, relativePathTo, runFileSystemIO, runRoFileSystemIO)
+import Effects.FileSystem (runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
+import FileSystem.Path (RelativePath (osPath), decodeOsPath, encodeOsPathString, relativePathTo)
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
-import System.OsPath ((</>))
+import System.OsPath (OsPath, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (copyDir, defaultParams, fixturesPath, mkAbsolute, pathSafeGolden, requireJust, snapshot)
+import TestUtils (copyDir, fixturesPath, mkAbsolute, pathSafeGolden, requireJust, snapshot)
 import TypeScript.Iterator (getTsFiles)
-import Types (DeslopError (..), RunReport (..), Verdict (..))
 import UI (coverage, humanReadable, problemsFoundText)
 import UnliftIO.Temporary (withSystemTempDirectory)
+
+{- | The 'Params' every golden run starts from. Only this spec runs 'doWork'
+end to end, so it is the only place that needs one.
+-}
+defaultParams :: OsPath -> IO Params
+defaultParams projPath = do
+    absProjPath <- mkAbsolute projPath
+    pure
+        Params
+            { projectPath = absProjPath
+            , command = FixC
+            }
 
 spec :: Spec
 spec = describe "E2E.Project" $ do

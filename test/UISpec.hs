@@ -1,7 +1,7 @@
 module UISpec (spec) where
 
+import Deslop.RunReport (ModuleCount (..), RuleCount (..), RunSummary (..))
 import Test.Hspec (Spec, describe, it, shouldBe)
-import Types (ModuleCount (..), RuleCount (..), RunSummary (..))
 import UI (coverage, summaryLine)
 
 spec :: Spec

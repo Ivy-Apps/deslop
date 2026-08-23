@@ -2,7 +2,7 @@
 
 {- | The projects the benchmark runs against, and the cases built from them.
 
-The list is spelled out rather than discovered by scanning @test/fixtures@ for
+The list is spelled out rather than discovered by scanning @fixtures@ for
 @tsconfig.json@ files. Discovery would silently enrol a fixture added for an
 unrelated test, which changes the set the Reference was recorded against
 without anyone deciding to.
@@ -16,11 +16,11 @@ module Bench.Fixtures (
     commandName,
 ) where
 
-import Effects.FileSystem (encodeOsPathString)
+import FileSystem.Path (encodeOsPathString)
 import Params (Command (..))
 import System.OsPath (OsPath, osp, (</>))
 
-{- | One TypeScript project under @test/fixtures@ that the benchmark measures.
+{- | One TypeScript project under @fixtures@ that the benchmark measures.
 -}
 newtype Fixture = Fixture
     { name :: Text
@@ -58,14 +58,14 @@ fixtures =
 {- | Every case, grouped by Command so the report reads group by group.
 
 @baseline@ is measured in its own right rather than only inside a combined
-total: it is the sole path through 'Deslop.Baseline.saveBaseline' and can
+total: it is the sole path through 'Deslop.Problem.Baseline.saveBaseline' and can
 regress on its own.
 -}
 cases :: [Case]
 cases = [Case f c | c <- [CheckC, FixC, BaselineC], f <- fixtures]
 
 fixturePath :: Fixture -> OsPath
-fixturePath f = [osp|test/fixtures|] </> encodeFixtureName f
+fixturePath f = [osp|fixtures|] </> encodeFixtureName f
   where
     encodeFixtureName = encodeOsPathString . toString . (.name)
 

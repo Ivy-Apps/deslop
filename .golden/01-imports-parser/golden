@@ -1,6 +1,5 @@
 TsModule
-  { path =
-      AbsPath { osPath = "test/fixtures/typescript/01-imports.ts" }
+  { path = AbsPath { osPath = "fixtures/typescript/01-imports.ts" }
   , cst =
       [ Import
           { prefix = "import { formatDate } from '"

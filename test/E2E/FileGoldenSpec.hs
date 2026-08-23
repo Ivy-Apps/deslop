@@ -1,7 +1,8 @@
 module E2E.FileGoldenSpec (spec) where
 
 import Data.Text qualified as T
-import Effects.FileSystem (absPathUnsafe, decodeOsPath)
+import FileSystem.Path (absPathUnsafe, decodeOsPath)
+import Renderable (Renderable (render))
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
@@ -14,10 +15,9 @@ import TypeScript.CST
 import TypeScript.Lexer (lexer)
 import TypeScript.Parser
 import TypeScript.Tokens
-import Types (Renderable (render))
 
 tsFixturesPath :: OsPath
-tsFixturesPath = [osp|test/fixtures/typescript|]
+tsFixturesPath = [osp|fixtures/typescript|]
 
 spec :: Spec
 spec = do

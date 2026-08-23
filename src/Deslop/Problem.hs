@@ -8,9 +8,9 @@ module Deslop.Problem (
     LintRuleId (..),
 ) where
 
-import Deslop.Rulebook (RuleId (RuleId), RulebookId (RulebookId))
-import Effects.FileSystem (RelativePath (osPath), decodeOsPath)
-import TypeScript.ModuleResolver (ModuleId (..))
+import Deslop.AST (ModuleId (..))
+import Deslop.Rule.Book (RuleId (RuleId), RulebookId (RulebookId))
+import FileSystem.Path (RelativePath (osPath), decodeOsPath)
 
 newtype ProblemId = ProblemId
     { text :: Text
@@ -38,7 +38,7 @@ data Problem
 
 {- | How a Rule was broken. The Rule's own prose says why the Rule exists; this
 says what the module actually did, and carries the facts a report is written
-from rather than the sentence itself - "Deslop.ProblemFormatter" owns that.
+from rather than the sentence itself - "Deslop.Problem.Formatter" owns that.
 -}
 data ViolationKind
     = -- | The module names the forbidden module in an import of its own.
@@ -54,7 +54,7 @@ data ViolationKind
         { chain :: NonEmpty ModuleId
         , firstImport :: Maybe Text
         , -- | The chains this violation stands in for, once duplicates have
-          -- been compacted. Empty until "Deslop.ProblemShrinker" runs, and
+          -- been compacted. Empty until "Deslop.Problem.Shrinker" runs, and
           -- empty afterwards for a violation that had no duplicates.
           alsoReached :: [NonEmpty ModuleId]
         }
