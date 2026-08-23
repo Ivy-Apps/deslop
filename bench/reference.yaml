@@ -2,151 +2,151 @@ cases:
 - command: check
   fixture: melzar-nextjs-clean-architecture
   measurement:
-    allocated: 9.084181604678473e8
-    copied: 7755815.636363637
-    cpuTime: 0.2017778011544011
-    time: 7.20990900249291e-2
-    timeStdDev: 3.0843037660966506e-3
+    allocated: 8.943552870351566e8
+    copied: 8003416.909090909
+    cpuTime: 0.19463338241833925
+    time: 6.518805331235025e-2
+    timeStdDev: 2.4439005537463964e-4
 - command: check
   fixture: ixartz-next-js-boilerplate
   measurement:
-    allocated: 2.412683790534284e8
-    copied: 2292408.695652174
-    cpuTime: 4.5185701216340225e-2
-    time: 1.777706975914325e-2
-    timeStdDev: 3.880467061381836e-4
+    allocated: 2.3806475730506432e8
+    copied: 2289626.0833333335
+    cpuTime: 4.376367598258177e-2
+    time: 1.660111448056164e-2
+    timeStdDev: 5.599183041821849e-4
 - command: check
   fixture: ts-project-1
   measurement:
-    allocated: 5.9594598543170474e7
-    copied: 639384.7368421053
-    cpuTime: 1.6659741665749402e-2
-    time: 6.038722925029688e-3
-    timeStdDev: 9.629609360620428e-5
+    allocated: 6.51166564611667e7
+    copied: 738054.4054054054
+    cpuTime: 1.826518209126666e-2
+    time: 6.4227936649655995e-3
+    timeStdDev: 5.006210888527279e-5
 - command: check
   fixture: ts-casing-project
   measurement:
-    allocated: 2.494292358967095e7
-    copied: 272560.52173913043
-    cpuTime: 9.868232098902377e-3
-    time: 3.808774232838872e-3
-    timeStdDev: 5.075340215610037e-5
+    allocated: 2.425739710729668e7
+    copied: 254131.45652173914
+    cpuTime: 9.626056026210798e-3
+    time: 3.7025076589519723e-3
+    timeStdDev: 4.356559200033866e-4
 - command: check
   fixture: ts-globplus-project
   measurement:
-    allocated: 3.207610450803606e7
-    copied: 458935.79069767444
-    cpuTime: 9.414050975471691e-3
-    time: 4.334001908042849e-3
-    timeStdDev: 4.277921331087556e-5
+    allocated: 4.134702245538683e7
+    copied: 671957.675
+    cpuTime: 1.135723865789551e-2
+    time: 5.358682828484673e-3
+    timeStdDev: 1.0768406873354335e-4
 - command: check
   fixture: ts-gitignore-project
   measurement:
-    allocated: 4843158.980771464
-    copied: 20387.626865671642
-    cpuTime: 1.8699230213453887e-3
-    time: 1.1977124538011877e-3
-    timeStdDev: 2.307616055593248e-5
+    allocated: 4580424.504224636
+    copied: 18417.5
+    cpuTime: 1.7586498353402234e-3
+    time: 1.1217270316120432e-3
+    timeStdDev: 1.0723574226229919e-5
 - command: fix
   fixture: melzar-nextjs-clean-architecture
   measurement:
-    allocated: 8.74556508279293e8
-    copied: 8230056.666666667
-    cpuTime: 0.1886815616011319
-    time: 6.394658145760672e-2
-    timeStdDev: 7.954235019052128e-4
+    allocated: 8.600131549405966e8
+    copied: 8182482.916666667
+    cpuTime: 0.18238892715848973
+    time: 6.117499134448193e-2
+    timeStdDev: 8.873059014809746e-4
 - command: fix
   fixture: ixartz-next-js-boilerplate
   measurement:
-    allocated: 2.3982169369346145e8
-    copied: 2633105.8260869565
-    cpuTime: 4.498174588879511e-2
-    time: 1.7451061892406004e-2
-    timeStdDev: 9.278849888940024e-4
+    allocated: 2.3651806317142844e8
+    copied: 2498431.75
+    cpuTime: 4.228173386274415e-2
+    time: 1.6034987048116837e-2
+    timeStdDev: 1.6554465428826942e-4
 - command: fix
   fixture: ts-project-1
   measurement:
-    allocated: 5.570464502628833e7
-    copied: 735200.95
-    cpuTime: 1.556344826246521e-2
-    time: 5.226587163119464e-3
-    timeStdDev: 6.43348812988646e-5
+    allocated: 6.094430416192877e7
+    copied: 810562
+    cpuTime: 1.7169522368297108e-2
+    time: 5.8220162801335806e-3
+    timeStdDev: 3.320292188086022e-4
 - command: fix
   fixture: ts-casing-project
   measurement:
-    allocated: 2.298669066505548e7
-    copied: 263493.9791666667
-    cpuTime: 9.314198031821078e-3
-    time: 3.2972452168603225e-3
-    timeStdDev: 4.591629613011925e-5
+    allocated: 2.2299039759414095e7
+    copied: 232656.3673469388
+    cpuTime: 8.936287610680679e-3
+    time: 3.210444724035137e-3
+    timeStdDev: 5.9350642989688375e-5
 - command: fix
   fixture: ts-globplus-project
   measurement:
-    allocated: 2.6059590940445196e7
-    copied: 346175.5918367347
-    cpuTime: 8.113891400057888e-3
-    time: 3.2145770382227697e-3
-    timeStdDev: 5.180496737413637e-5
+    allocated: 3.302713152771543e7
+    copied: 631411.2888888889
+    cpuTime: 9.779496035138772e-3
+    time: 3.987585120516069e-3
+    timeStdDev: 3.4151747684873344e-5
 - command: fix
   fixture: ts-gitignore-project
   measurement:
-    allocated: 4824998.387523401
-    copied: 18410.573529411766
-    cpuTime: 1.7894268867576363e-3
-    time: 1.1648616426529245e-3
-    timeStdDev: 8.411081941687656e-6
+    allocated: 4555521.661275451
+    copied: 16558.132352941175
+    cpuTime: 1.7886560995519665e-3
+    time: 1.1537514735046996e-3
+    timeStdDev: 3.1797370010710304e-5
 - command: baseline
   fixture: melzar-nextjs-clean-architecture
   measurement:
-    allocated: 9.083558950581135e8
-    copied: 8976970.090909092
-    cpuTime: 0.19331820393873625
-    time: 6.881007256961921e-2
-    timeStdDev: 9.014159734425382e-4
+    allocated: 8.942325865070707e8
+    copied: 9144182.454545455
+    cpuTime: 0.1893550015151517
+    time: 6.655941351023961e-2
+    timeStdDev: 7.938719109412504e-4
 - command: baseline
   fixture: ixartz-next-js-boilerplate
   measurement:
-    allocated: 2.4124791557063484e8
-    copied: 2901704.434782609
-    cpuTime: 4.409049020189915e-2
-    time: 1.738351434734638e-2
-    timeStdDev: 2.8026593897814174e-4
+    allocated: 2.3802106306778938e8
+    copied: 2838407.304347826
+    cpuTime: 4.3544992762211e-2
+    time: 1.69249548840814e-2
+    timeStdDev: 6.097956377514796e-4
 - command: baseline
   fixture: ts-project-1
   measurement:
-    allocated: 5.957010879660531e7
-    copied: 919498.5789473684
-    cpuTime: 1.6098337485905247e-2
-    time: 5.876732991740854e-3
-    timeStdDev: 8.066877692281659e-5
+    allocated: 6.48577919600806e7
+    copied: 928616.2972972973
+    cpuTime: 1.756993903289472e-2
+    time: 6.405574247068575e-3
+    timeStdDev: 1.5100357868358177e-4
 - command: baseline
   fixture: ts-casing-project
   measurement:
-    allocated: 2.4927656942574553e7
-    copied: 342305.95652173914
-    cpuTime: 9.890617187771294e-3
-    time: 3.8084509590135367e-3
-    timeStdDev: 4.7026526425350834e-5
+    allocated: 2.4248408436222106e7
+    copied: 315502
+    cpuTime: 9.473646648945866e-3
+    time: 3.7044340325405045e-3
+    timeStdDev: 5.2572462869537665e-5
 - command: baseline
   fixture: ts-globplus-project
   measurement:
-    allocated: 3.208170680584845e7
-    copied: 579238.9069767442
-    cpuTime: 9.447017630734562e-3
-    time: 4.3310595347761235e-3
-    timeStdDev: 4.7657019936187786e-5
+    allocated: 4.1307063510975435e7
+    copied: 786750.95
+    cpuTime: 1.1109031169502816e-2
+    time: 5.289932164448326e-3
+    timeStdDev: 1.6099858093189095e-4
 - command: baseline
   fixture: ts-gitignore-project
   measurement:
-    allocated: 4781921.568275414
-    copied: 17851.941176470587
-    cpuTime: 1.8023988369290477e-3
-    time: 1.1691946489197664e-3
-    timeStdDev: 2.6421167737954033e-5
+    allocated: 4518420.443598515
+    copied: 15578.347826086956
+    cpuTime: 1.681845689129298e-3
+    time: 1.085903091445683e-3
+    timeStdDev: 7.63850986715253e-6
 environment:
   arch: aarch64
   capabilities: 4
   ghc: '9.10'
   os: darwin
   processors: 12
-recorded: 2026-08-17T16:56:41.835377Z
+recorded: 2026-08-23T21:06:42.202495Z
