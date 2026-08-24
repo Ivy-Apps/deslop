@@ -8,6 +8,7 @@ module Deslop.Problem (
     LintRuleId (..),
 ) where
 
+import Data.Text qualified as T
 import Deslop.AST (ModuleId (..))
 import Deslop.Rule.Book (RuleId (RuleId), RulebookId (RulebookId))
 import FileSystem.Path (RelativePath (osPath), decodeOsPath)
@@ -85,6 +86,17 @@ isAutoFixable :: Problem -> Bool
 isAutoFixable LintProblem {autoFixable} = autoFixable
 isAutoFixable RuleViolation {} = False
 
+{- | The path part of a lint problem id, always spelled with '/'.
+
+Problem ids travel: into baselines users commit and share across machines,
+into goldens, and into `deslop fix`'s skip-list. A native decode of a Windows
+RelativePath yields backslashes, which would make every id this run produces
+unmatchable against a baseline written on any other OS - silently unsuppressing
+problems and un-fixing imports that a teammate had already accepted.
+-}
+portablePath :: RelativePath -> Text
+portablePath = T.replace "\\" "/" . decodeOsPath . (.osPath)
+
 problemId :: Problem -> ProblemId
 problemId
     LintProblem
@@ -93,7 +105,7 @@ problemId
             Location
                 { file = relPath
                 }
-        } = ProblemId $ rId <> "#" <> decodeOsPath relPath.osPath
+        } = ProblemId $ rId <> "#" <> portablePath relPath
 problemId
     p@RuleViolation
         { rulebook = RulebookId rbId
