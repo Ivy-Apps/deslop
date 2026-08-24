@@ -203,6 +203,19 @@ jobs:
           # (bundled with Git for Windows) ship strip and understand PE.
           strip --strip-unneeded dist/win32-x64/deslop.exe
 
+      # The only place any OS actually executes the binary it ships. Catches a
+      # dead build or a missing DLL at build time instead of at first install.
+      - name: Smoke test
+        shell: bash
+        run: |
+          VERSION=$(sed -n 's/^version:[[:space:]]*//p' deslop.cabal | head -1 | tr -d '[:space:]')
+          OUT=$(dist/win32-x64/deslop.exe --version)
+          echo "$OUT"
+          case "$OUT" in
+            *"v$VERSION"*|*"$VERSION"*) ;;
+            *) echo "::error::--version printed '$OUT', expected $VERSION" && exit 1 ;;
+          esac
+
       - uses: actions/upload-artifact@v7
         with:
           name: bin-win32-x64
