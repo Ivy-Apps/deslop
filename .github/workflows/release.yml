@@ -11,6 +11,15 @@ on:
 permissions:
   contents: read
 
+# The toolchain and flag set every build job shares, so bumping GHC or Cabal
+# is one edit instead of one per job. The `for PLATFORM in $PLATFORMS` loops
+# consume PLATFORMS as a word-split list, on purpose.
+env:
+  GHC_VERSION: "9.10.3"
+  CABAL_VERSION: "3.16.0.0"
+  RTS_GHC_OPTIONS: "-O2 -threaded -rtsopts -with-rtsopts=-N"
+  PLATFORMS: "darwin-arm64 linux-arm64 linux-x64 win32-x64"
+
 jobs:
   # Cheap guard that runs before the slow builds: a tag whose version does not
   # match deslop.cabal would ship a package whose `deslop --version` lies.
@@ -30,12 +39,12 @@ jobs:
           # and is rejected here. That is the policy: this project does not ship
           # prereleases, and it also stops a typo'd tag like v0.8.1-oops from
           # burning a version number that npm will not let you reuse.
-          CABAL_VERSION=$(sed -n 's/^version:[[:space:]]*//p' deslop.cabal | head -1 | tr -d '[:space:]')
-          if [ "$CABAL_VERSION" != "$VERSION" ]; then
-            echo "::error::Tag $TAG implies version $VERSION, but deslop.cabal declares $CABAL_VERSION"
+          PACKAGE_VERSION=$(sed -n 's/^version:[[:space:]]*//p' deslop.cabal | head -1 | tr -d '[:space:]')
+          if [ "$PACKAGE_VERSION" != "$VERSION" ]; then
+            echo "::error::Tag $TAG implies version $VERSION, but deslop.cabal declares $PACKAGE_VERSION"
             exit 1
           fi
-          echo "✅ deslop.cabal version $CABAL_VERSION matches tag $TAG"
+          echo "✅ deslop.cabal version $PACKAGE_VERSION matches tag $TAG"
 
   build-linux:
     name: Build (${{ matrix.npm-platform }})
@@ -69,6 +78,9 @@ jobs:
             -v "$HOME/.cabal/store:/root/.cabal/store" \
             -v "$HOME/.cabal/packages:/root/.cabal/packages" \
             -w /workspace \
+            -e GHC_VERSION \
+            -e CABAL_VERSION \
+            -e RTS_GHC_OPTIONS \
             alpine:3.20 \
             sh -c "
               apk add --no-cache \
@@ -84,10 +96,10 @@ jobs:
               fi &&
               
               # Always ensure the correct tools are installed (idempotent)
-              ghcup install ghc 9.10.3 &&
-              ghcup set ghc 9.10.3 &&
-              ghcup install cabal 3.16.0.0 &&
-              ghcup set cabal 3.16.0.0 &&
+              ghcup install ghc \$GHC_VERSION &&
+              ghcup set ghc \$GHC_VERSION &&
+              ghcup install cabal \$CABAL_VERSION &&
+              ghcup set cabal \$CABAL_VERSION &&
               
               cabal update &&
               # --flags=static turns on the deslop.cabal stanza that adds
@@ -97,7 +109,7 @@ jobs:
                 --flags=static \
                 --enable-executable-static \
                 --disable-executable-dynamic \
-                --ghc-options=\"-fexternal-interpreter -fPIC -O2 -threaded -rtsopts -with-rtsopts=-N\" &&
+                --ghc-options=\"-fexternal-interpreter -fPIC \$RTS_GHC_OPTIONS\" &&
               
               mkdir -p /workspace/dist &&
               cp \$(cabal list-bin exe:deslop) /workspace/dist/deslop &&
@@ -126,8 +138,8 @@ jobs:
 
       - uses: haskell-actions/setup@v2
         with:
-          ghc-version: "9.10.3"
-          cabal-version: "3.16.0.0"
+          ghc-version: ${{ env.GHC_VERSION }}
+          cabal-version: ${{ env.CABAL_VERSION }}
 
       - name: Cache cabal store
         uses: actions/cache@v6
@@ -141,11 +153,7 @@ jobs:
       - name: Build binary
         run: |
           cabal build exe:deslop \
-            --ghc-option=-O2 \
-            --ghc-option=-optP-Wno-nonportable-include-path \
-            --ghc-option=-threaded \
-            --ghc-option=-rtsopts \
-            --ghc-option=-with-rtsopts=-N
+            --ghc-options="$RTS_GHC_OPTIONS -optP-Wno-nonportable-include-path"
 
       - name: Collect binary
         run: |
@@ -153,10 +161,10 @@ jobs:
           cp $(cabal list-bin exe:deslop) dist/darwin-arm64/deslop
           strip -x dist/darwin-arm64/deslop
 
-    - uses: actions/upload-artifact@v7
-      with:
-        name: bin-darwin-arm64
-        path: dist/darwin-arm64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bin-darwin-arm64
+          path: dist/darwin-arm64
 
   build-windows:
     name: Build (win32-x64)
@@ -167,13 +175,15 @@ jobs:
 
       - uses: haskell-actions/setup@v2
         with:
-          ghc-version: "9.10.3"
-          cabal-version: "3.16.0.0"
+          ghc-version: ${{ env.GHC_VERSION }}
+          cabal-version: ${{ env.CABAL_VERSION }}
 
       - name: Cache cabal store
         uses: actions/cache@v6
         with:
-          path: ~\AppData\Roaming\cabal\store
+          # haskell-actions/setup rewrites cabal's store-dir to C:\sr on
+          # Windows (dodges MAX_PATH), so that is the directory to cache.
+          path: C:\sr
           key: cabal-win32-x64-${{ hashFiles('cabal.project.freeze') }}
           restore-keys: cabal-win32-x64-
 
@@ -182,17 +192,16 @@ jobs:
       - name: Build binary
         shell: bash
         run: |
-          cabal build exe:deslop \
-            --ghc-option=-O2 \
-            --ghc-option=-threaded \
-            --ghc-option=-rtsopts \
-            --ghc-option=-with-rtsopts=-N
+          cabal build exe:deslop --ghc-options="$RTS_GHC_OPTIONS"
 
       - name: Collect binary
         shell: bash
         run: |
           mkdir -p dist/win32-x64
           cp "$(cabal list-bin exe:deslop)" dist/win32-x64/deslop.exe
+          # Same treatment as the linux job. The runner's MSYS binutils
+          # (bundled with Git for Windows) ship strip and understand PE.
+          strip --strip-unneeded dist/win32-x64/deslop.exe
 
       - uses: actions/upload-artifact@v7
         with:
@@ -245,7 +254,7 @@ jobs:
 
       - name: Publish platform packages
         run: |
-          for PLATFORM in darwin-arm64 linux-arm64 linux-x64 win32-x64; do
+          for PLATFORM in $PLATFORMS; do
             PKG_DIR="npm/packages/$PLATFORM"
             mkdir -p "$PKG_DIR/bin"
 
@@ -300,7 +309,7 @@ jobs:
       - name: Package binaries
         run: |
           mkdir -p release
-          for PLATFORM in darwin-arm64 linux-arm64 linux-x64 win32-x64; do
+          for PLATFORM in $PLATFORMS; do
             if [ "$PLATFORM" = "win32-x64" ]; then
               BINARY_NAME="deslop.exe"
             else

@@ -1,6 +1,6 @@
-# @ivy-apps/deslop-darwin-arm64
+# @ivy-apps/deslop-win32-x64
 
-Prebuilt `deslop` binary for macOS on arm64.
+Prebuilt `deslop` binary for Windows on x64.
 
 **You don't need to install this package directly.** It is an optional dependency of
 [`@ivy-apps/deslop`](https://www.npmjs.com/package/@ivy-apps/deslop) and npm resolves the
