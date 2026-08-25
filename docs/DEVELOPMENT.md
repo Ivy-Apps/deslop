@@ -28,10 +28,19 @@ The upstream installer works too, but then you have to enable
 **Recommended - [direnv](https://direnv.net/):**
 
 ```bash
+curl -sfL https://direnv.net/install.sh | bash   # binary install
+```
+
+Then hook it into your shell (`~/.zshrc` for zsh, `~/.bashrc` for bash) and
+allow this project once:
+
+```bash
+eval "$(direnv hook zsh)"
 direnv allow
 ```
 
-This automatically enters the Nix dev shell whenever you `cd` into the project.
+From then on the Nix dev shell is entered automatically whenever you `cd` into
+the project.
 
 **Alternative - manual:**
 
