@@ -201,47 +201,6 @@ rules:
 
 ---
 
-## Example: Package Boundaries in a Monorepo
-
-Shared packages (`core`, `ui`, `content`) must never depend on product packages, and every product may only import the shared packages and itself. A single root `tsconfig.json` maps each package name as a path alias, so module ids are package-scoped and one Deslop run covers the whole monorepo:
-
-```json
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@scope/core/*": ["./packages/core/src/*"],
-      "@scope/ui/*": ["./packages/ui/src/*"],
-      "@scope/content/*": ["./packages/content/src/*"],
-      "@scope/alpha/*": ["./packages/alpha/src/*"]
-    }
-  }
-}
-```
-
-The whole boundary policy is **one rule**. The target captures the package name as a variable, and `allows` reuses it to permit self-imports:
-
-```yaml
-- id: package-import-boundaries
-  description: Every package may only import core, ui, content, and itself.
-  target: "@scope/{{package-name}}/**"
-  forbids:
-    - import: "@scope/**"
-  allows:
-    - import: "@scope/core/**"
-    - import: "@scope/ui/**"
-    - import: "@scope/content/**"
-    - import: "@scope/{{package-name}}/**" # itself
-  fix: >-
-    Import only from the shared packages or the package the file lives in.
-```
-
-A package added to `tsconfig.json` tomorrow is governed the moment it exists — the rulebook does not change. Without the variable this needs one rule per package, edited every time a package is added. Since `core`, `ui` and `content` are targets of the same rule, it also keeps the shared packages free of product imports.
-
-The full rulebook — including keeping the composition-root app private — is [`monorepo-package-boundaries.yaml`](./examples/rules/monorepo-package-boundaries.yaml).
-
----
-
 ## Writing Rules
 
 ### Rulebook Structure

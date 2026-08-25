@@ -20,8 +20,6 @@ description: >-
       "@scope/beta/*": ["./packages/beta/src/*"]
     }
 
-  Each rulebook in this directory is an independent example — see README.md.
-
 rules:
   # One rule for every package. The target captures the segment after the
   # scope as {{package-name}}, and the `allows` list reuses it to permit
@@ -48,7 +46,11 @@ rules:
   # The composition root is the only place allowed to wire packages together,
   # so nothing outside it may reach into it.
   - id: composition-root-is-private
-    description: Only the app that assembles the packages may import from it.
+    description: >-
+      The app is the composition root that assembles every package, so only
+      files inside the app itself may import from it. The allow clause uses
+      {{TARGET_DIR}} (the directory of the file being checked) to let app
+      files import their own app, while every other package is blocked.
     target: "@scope/**"
     forbids:
       - import: "@/app/**"
