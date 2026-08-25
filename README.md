@@ -766,9 +766,11 @@ twice, so a `forbids:` clause accepts **every** spelling of its variable, while
 
 ## Contributing
 
-PRs are welcome. There is no obligation to review or merge — decisions are subjective.
+Deslop is a small project with a high bar. No tech debt, no shortcuts, and every PR proves that it works. We don't care what tools you used to write it - we care that you understand every line, can defend it in review, and take responsibility for it.
 
-**AI-generated PRs will not be considered** because AI code is cheap to generate and expensive to review, and I'm not paying that cost for someone else - see [CONTRIBUTING.md](./CONTRIBUTING.md) for the full reasoning, along with the development setup and build/test commands.
+**Docs, [`examples/rules/`](./examples/rules/) and the [deslop.dev landing page](https://github.com/Ivy-Apps/deslop-web) are the easiest place to start** and need no issue: just open the PR. Code changes want a green-lit issue first.
+
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) before you start, and [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) for the development setup with Nix.
 
 ## License
 

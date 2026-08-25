@@ -1,0 +1,36 @@
+name: Stale
+
+# A PR only moves when its author moves it: reviews are re-requested by the
+# author, not polled by maintainers (see CONTRIBUTING.md). This keeps the PR
+# list meaning something. Issues are a backlog, not a queue, so they are exempt.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+
+jobs:
+  stale:
+    name: Sweep
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-stale: 4
+          days-before-close: 3
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+          stale-pr-label: stale
+          exempt-pr-labels: blocked,on-hold
+          remove-stale-when-updated: true
+          stale-pr-message: >
+            No activity for 4 days. If review comments are still open, address
+            them and press **Re-request review** - see
+            [CONTRIBUTING.md](https://github.com/Ivy-Apps/deslop/blob/main/CONTRIBUTING.md#re-requesting-review).
+            This PR closes in 3 days unless something happens here.
+          close-pr-message: >
+            Closing after 7 days without activity. This is not a rejection:
+            push your fixes and reopen it whenever you are ready.
