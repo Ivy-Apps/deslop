@@ -1,0 +1,31 @@
+name: Smoke test
+description: >-
+  Runs a freshly built deslop binary and asserts it reports the release version.
+  This is the only point in the release where a binary is executed on the OS it
+  was built for, so it is what catches a dead build, a missing DLL or a stale
+  cached artifact - at build time rather than at a user's first install.
+
+inputs:
+  binary:
+    description: Path to the deslop binary to run, relative to the workspace.
+    required: true
+  version:
+    description: The version the binary is expected to report.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        # Compared in full, on purpose. `deslop --version` is an optparse
+        # `infoOption` over `Paths_deslop.version` (src/Params.hs), so its
+        # output is fixed and derived from deslop.cabal - there is nothing to
+        # be lenient about. A substring match would accept 0.10.01 for 0.10.0.
+        OUT=$("${{ inputs.binary }}" --version)
+        EXPECTED="Deslop Version ${{ inputs.version }}"
+        if [ "$OUT" != "$EXPECTED" ]; then
+          echo "::error::--version printed '$OUT', expected '$EXPECTED'"
+          exit 1
+        fi
+        echo "✅ $OUT"

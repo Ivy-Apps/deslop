@@ -23,13 +23,42 @@ env:
 jobs:
   # Cheap guard that runs before the slow builds: a tag whose version does not
   # match deslop.cabal would ship a package whose `deslop --version` lies.
+  # Also the single place the release's version is decided - every job below
+  # reads `needs.verify-version.outputs.version` rather than re-deriving it.
   verify-version:
     name: Verify version
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # merge-base below needs main's history. checkout fetches only the
+          # tagged commit at the default depth of 1.
+          fetch-depth: 0
+
+      - name: Check the tag is on main
+        run: |
+          # NOT a security control, and should not be mistaken for one: a tag
+          # push runs the workflow as it exists *at the tagged commit*, so
+          # anyone able to push a tag can push a branch with this check deleted
+          # and tag that instead. Only a `v*` tag ruleset restricting who may
+          # create a release tag would actually enforce this, and the repo does
+          # not have one today.
+          #
+          # What this does buy: pushing a tag requires write access already, so
+          # the realistic failure is a mistake rather than an attack - a stale
+          # branch, a reverted PR, the wrong SHA. Those fail here in seconds
+          # instead of shipping a release nobody reviewed.
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" refs/remotes/origin/main; then
+            echo "::error::$GITHUB_SHA is not contained in main; releases are cut from main only"
+            exit 1
+          fi
+          echo "✅ $GITHUB_SHA is on main"
 
       - name: Check deslop.cabal matches the tag
+        id: version
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
@@ -44,6 +73,7 @@ jobs:
             echo "::error::Tag $TAG implies version $VERSION, but deslop.cabal declares $PACKAGE_VERSION"
             exit 1
           fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "✅ deslop.cabal version $PACKAGE_VERSION matches tag $TAG"
 
   build-linux:
@@ -67,8 +97,12 @@ jobs:
             ~/.ghcup
             ~/.cabal/store
             ~/.cabal/packages
-          key: cabal-${{ matrix.npm-platform }}-${{ hashFiles('cabal.project.freeze') }}
-          restore-keys: cabal-${{ matrix.npm-platform }}-
+          # GHC_VERSION is in the key because the store is only usable by the
+          # compiler that built it. Without it, a GHC bump that leaves
+          # cabal.project.freeze untouched restores an entry that cabal will
+          # ignore, paying the download for nothing.
+          key: cabal-${{ matrix.npm-platform }}-ghc${{ env.GHC_VERSION }}-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: cabal-${{ matrix.npm-platform }}-ghc${{ env.GHC_VERSION }}-
 
       - name: Build static binary
         run: |
@@ -87,20 +121,20 @@ jobs:
                 curl gcc g++ gmp-dev ncurses-dev ncurses-static \
                 libffi-dev make xz tar perl bash \
                 zlib-dev zlib-static linux-headers binutils-gold &&
-              
+
               export PATH=\"/root/.ghcup/bin:\$PATH\" &&
-              
+
               # Install ghcup if it is missing
               if ! command -v ghcup >/dev/null; then
                 curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_MINIMAL=1 sh;
               fi &&
-              
+
               # Always ensure the correct tools are installed (idempotent)
               ghcup install ghc \$GHC_VERSION &&
               ghcup set ghc \$GHC_VERSION &&
               ghcup install cabal \$CABAL_VERSION &&
               ghcup set cabal \$CABAL_VERSION &&
-              
+
               cabal update &&
               # --flags=static turns on the deslop.cabal stanza that adds
               # -optl-static -optl-pthread to exe:deslop. It is opt-in because
@@ -110,11 +144,11 @@ jobs:
                 --enable-executable-static \
                 --disable-executable-dynamic \
                 --ghc-options=\"-fexternal-interpreter -fPIC \$RTS_GHC_OPTIONS\" &&
-              
+
               mkdir -p /workspace/dist &&
               cp \$(cabal list-bin exe:deslop) /workspace/dist/deslop &&
               strip --strip-unneeded /workspace/dist/deslop &&
-              
+
               # Fix permissions so the GitHub Actions runner user can cache these directories
               chown -R \$(stat -c %u:%g /workspace) /root/.ghcup /root/.cabal /workspace/dist
             "
@@ -123,6 +157,13 @@ jobs:
         run: |
           mkdir -p dist/${{ matrix.npm-platform }}
           mv dist/deslop dist/${{ matrix.npm-platform }}/deslop
+
+      # Runs after strip, so it validates the exact bytes that ship. The binary
+      # is statically linked against musl, so it runs on the glibc host fine.
+      - uses: ./.github/actions/smoke-test
+        with:
+          binary: dist/${{ matrix.npm-platform }}/deslop
+          version: ${{ needs.verify-version.outputs.version }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -137,6 +178,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: haskell-actions/setup@v2
+        id: setup-haskell
         with:
           ghc-version: ${{ env.GHC_VERSION }}
           cabal-version: ${{ env.CABAL_VERSION }}
@@ -144,9 +186,13 @@ jobs:
       - name: Cache cabal store
         uses: actions/cache@v6
         with:
-          path: ~/.cabal/store
-          key: cabal-darwin-arm64-${{ hashFiles('cabal.project.freeze') }}
-          restore-keys: cabal-darwin-arm64-
+          # Taken from the action rather than spelled out: it is a declared
+          # output ("The path to the cabal store"), and the action moves the
+          # store on some platforms. A hardcoded path that stops matching does
+          # not fail - the cache just silently stops hitting.
+          path: ${{ steps.setup-haskell.outputs.cabal-store }}
+          key: cabal-darwin-arm64-ghc${{ env.GHC_VERSION }}-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: cabal-darwin-arm64-ghc${{ env.GHC_VERSION }}-
 
       - run: cabal update
 
@@ -158,8 +204,14 @@ jobs:
       - name: Collect binary
         run: |
           mkdir -p dist/darwin-arm64
-          cp $(cabal list-bin exe:deslop) dist/darwin-arm64/deslop
+          cp "$(cabal list-bin exe:deslop)" dist/darwin-arm64/deslop
           strip -x dist/darwin-arm64/deslop
+
+      # After strip, so it validates the exact bytes that ship.
+      - uses: ./.github/actions/smoke-test
+        with:
+          binary: dist/darwin-arm64/deslop
+          version: ${{ needs.verify-version.outputs.version }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -174,6 +226,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: haskell-actions/setup@v2
+        id: setup-haskell
         with:
           ghc-version: ${{ env.GHC_VERSION }}
           cabal-version: ${{ env.CABAL_VERSION }}
@@ -181,11 +234,12 @@ jobs:
       - name: Cache cabal store
         uses: actions/cache@v6
         with:
-          # haskell-actions/setup rewrites cabal's store-dir to C:\sr on
-          # Windows (dodges MAX_PATH), so that is the directory to cache.
-          path: C:\sr
-          key: cabal-win32-x64-${{ hashFiles('cabal.project.freeze') }}
-          restore-keys: cabal-win32-x64-
+          # haskell-actions/setup rewrites cabal's store-dir on Windows to dodge
+          # MAX_PATH. Read from the action's own output rather than hardcoded,
+          # for the reason given in the macOS job.
+          path: ${{ steps.setup-haskell.outputs.cabal-store }}
+          key: cabal-win32-x64-ghc${{ env.GHC_VERSION }}-${{ hashFiles('cabal.project.freeze') }}
+          restore-keys: cabal-win32-x64-ghc${{ env.GHC_VERSION }}-
 
       - run: cabal update
 
@@ -199,22 +253,15 @@ jobs:
         run: |
           mkdir -p dist/win32-x64
           cp "$(cabal list-bin exe:deslop)" dist/win32-x64/deslop.exe
-          # Same treatment as the linux job. The runner's MSYS binutils
-          # (bundled with Git for Windows) ship strip and understand PE.
+          # Same treatment as the linux job. strip comes from mingw-w64, which
+          # the runner image puts on the machine PATH; it understands PE.
           strip --strip-unneeded dist/win32-x64/deslop.exe
 
-      # The only place any OS actually executes the binary it ships. Catches a
-      # dead build or a missing DLL at build time instead of at first install.
-      - name: Smoke test
-        shell: bash
-        run: |
-          VERSION=$(sed -n 's/^version:[[:space:]]*//p' deslop.cabal | head -1 | tr -d '[:space:]')
-          OUT=$(dist/win32-x64/deslop.exe --version)
-          echo "$OUT"
-          case "$OUT" in
-            *"v$VERSION"*|*"$VERSION"*) ;;
-            *) echo "::error::--version printed '$OUT', expected $VERSION" && exit 1 ;;
-          esac
+      # After strip, so it validates the exact bytes that ship.
+      - uses: ./.github/actions/smoke-test
+        with:
+          binary: dist/win32-x64/deslop.exe
+          version: ${{ needs.verify-version.outputs.version }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -223,11 +270,17 @@ jobs:
 
   publish-npm:
     name: Publish to NPM
-    needs: [build-linux, build-macos, build-windows]
+    # verify-version is listed even though the build jobs already depend on it:
+    # `needs` outputs are only readable from a direct dependency.
+    needs: [verify-version, build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
+      # Trusted Publishing exchanges this for a registry token, and it is also
+      # what lets `npm publish --provenance` sign the SLSA attestation.
       id-token: write
       contents: read
+    env:
+      VERSION: ${{ needs.verify-version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
 
@@ -247,12 +300,8 @@ jobs:
         with:
           path: dist
 
-      - name: Prepare version
+      - name: Resolve dist-tag
         run: |
-          TAG=${{ github.ref_name }}
-          VERSION="${TAG#v}"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
           # Belt and braces. verify-version already rejects prerelease-shaped
           # tags, so this is always `latest` today. It exists because npm never
           # infers a dist-tag from a semver prerelease suffix: if that guard is
@@ -262,36 +311,31 @@ jobs:
             *-*) NPM_TAG=next ;;
             *)   NPM_TAG=latest ;;
           esac
-          echo "NPM_TAG=$NPM_TAG" >> $GITHUB_ENV
+          echo "NPM_TAG=$NPM_TAG" >> "$GITHUB_ENV"
           echo "Publishing $VERSION under dist-tag $NPM_TAG"
 
-      - name: Publish platform packages
+      - name: Stage packages
         run: |
           for PLATFORM in $PLATFORMS; do
             PKG_DIR="npm/packages/$PLATFORM"
             mkdir -p "$PKG_DIR/bin"
 
-            if [ "$PLATFORM" = "win32-x64" ]; then
-              BINARY_NAME="deslop.exe"
-            else
-              BINARY_NAME="deslop"
-            fi
-
-            BINARY_PATH=$(find "dist/bin-$PLATFORM" -type f -name "$BINARY_NAME" -print -quit)
+            # Each artifact directory holds exactly one file, so the binary's
+            # name is read off the file that is there rather than decided in
+            # advance. That keeps win32-x64's .exe suffix out of this loop and
+            # leaves PLATFORMS as the only place the platform list is written.
+            BINARY_PATH=$(find "dist/bin-$PLATFORM" -type f -print -quit)
             if [ -z "$BINARY_PATH" ]; then
-              echo "No deslop binary found for $PLATFORM in dist/bin-$PLATFORM"
+              echo "::error::No deslop binary found for $PLATFORM in dist/bin-$PLATFORM"
               exit 1
             fi
+            BINARY_NAME=$(basename "$BINARY_PATH")
             cp "$BINARY_PATH" "$PKG_DIR/bin/$BINARY_NAME"
             chmod +x "$PKG_DIR/bin/$BINARY_NAME"
-            cd "$PKG_DIR"
-            npm version "$VERSION" --no-git-tag-version --allow-same-version
-            npm publish --access public --tag "$NPM_TAG"
-            cd "$GITHUB_WORKSPACE"
+
+            (cd "$PKG_DIR" && npm version "$VERSION" --no-git-tag-version --allow-same-version)
           done
 
-      - name: Publish main package
-        run: |
           cd npm
           npm version "$VERSION" --no-git-tag-version --allow-same-version
 
@@ -301,14 +345,87 @@ jobs:
           npm pkg set optionalDependencies.@ivy-apps/deslop-linux-x64="$VERSION"
           npm pkg set optionalDependencies.@ivy-apps/deslop-win32-x64="$VERSION"
 
-          npm publish --access public --tag "$NPM_TAG"
+      - name: Preflight
+        run: |
+          # npm has no multi-package transaction and published versions are
+          # immutable, so a failure halfway down the publish loop leaves a
+          # release that can neither be completed nor redone under the same
+          # version number. This step moves every failure that does not require
+          # writing to the registry - a bad manifest, a missing bin, a file the
+          # `files` allowlist drops - ahead of the first real publish.
+          #
+          # --provenance is deliberately absent here: signing writes a public
+          # Sigstore transparency-log entry, which is not something a dry run
+          # should be doing. Packing and manifest validation are what is
+          # being checked.
+          for PLATFORM in $PLATFORMS; do
+            (cd "npm/packages/$PLATFORM" && npm publish --dry-run --access public --tag "$NPM_TAG")
+          done
+          (cd npm && npm publish --dry-run --access public --tag "$NPM_TAG")
+
+      - name: Publish platform packages
+        run: |
+          for PLATFORM in $PLATFORMS; do
+            PKG="@ivy-apps/deslop-$PLATFORM"
+
+            # Makes re-running a tag able to finish a release that died partway
+            # through. npm rejects re-publishing an existing version, so without
+            # this the retry dies on the first package that already went out.
+            if npm view "$PKG@$VERSION" version >/dev/null 2>&1; then
+              echo "$PKG@$VERSION is already published, skipping"
+              continue
+            fi
+
+            # --provenance is passed explicitly rather than left to npm. npm
+            # does auto-enable it under Trusted Publishing, but that path is
+            # wrapped in a catch-all that logs at verbose and gives up, and it
+            # depends on a live package-visibility lookup - so a transient
+            # failure ships an unattested package and still exits 0. Asking for
+            # it makes it a requirement instead of a best effort.
+            if [ "$PLATFORM" = "win32-x64" ]; then
+              # TEMPORARY - remove once Trusted Publishing is set up.
+              #
+              # npm can only enable Trusted Publishing on a package that already
+              # exists on the registry, and @ivy-apps/deslop-win32-x64 has never
+              # been published. There is no OIDC identity to exchange yet, so
+              # this first publish has to authenticate with a token.
+              #
+              # Cleanup, after this release: enable Trusted Publishing for
+              # @ivy-apps/deslop-win32-x64 on npmjs.com, delete this branch so
+              # win32-x64 falls through to the `else` arm every other package
+              # already uses, and delete the NPM_TOKEN repository secret.
+              #
+              # Scoped to this one command, not the job, so the other packages
+              # have no token in their environment at all and OIDC is the only
+              # auth path they can take.
+              (cd "npm/packages/$PLATFORM" && NODE_AUTH_TOKEN="${{ secrets.NPM_TOKEN }}" \
+                npm publish --access public --provenance --tag "$NPM_TAG")
+            else
+              (cd "npm/packages/$PLATFORM" && \
+                npm publish --access public --provenance --tag "$NPM_TAG")
+            fi
+          done
+
+      - name: Publish main package
+        run: |
+          # Published last, on purpose: the platform packages are
+          # optionalDependencies of this one, so until it goes out a partially
+          # published release is not reachable by any user.
+          if npm view "@ivy-apps/deslop@$VERSION" version >/dev/null 2>&1; then
+            echo "@ivy-apps/deslop@$VERSION is already published, skipping"
+            exit 0
+          fi
+          cd npm
+          npm publish --access public --provenance --tag "$NPM_TAG"
 
   github-release:
     name: GitHub Release
-    needs: [publish-npm]
+    needs: [verify-version, publish-npm]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      VERSION: ${{ needs.verify-version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -323,19 +440,17 @@ jobs:
         run: |
           mkdir -p release
           for PLATFORM in $PLATFORMS; do
-            if [ "$PLATFORM" = "win32-x64" ]; then
-              BINARY_NAME="deslop.exe"
-            else
-              BINARY_NAME="deslop"
-            fi
-            BINARY_PATH=$(find "dist/bin-$PLATFORM" -type f -name "$BINARY_NAME" -print -quit)
+            # As in the publish job: one file per artifact directory, so the
+            # name is read off it rather than branched on the platform.
+            BINARY_PATH=$(find "dist/bin-$PLATFORM" -type f -print -quit)
             if [ -z "$BINARY_PATH" ]; then
               echo "::error::No deslop binary found for $PLATFORM in dist/bin-$PLATFORM"
               exit 1
             fi
             # tar preserves the executable bit; a bare GitHub asset does not
             chmod +x "$BINARY_PATH"
-            tar -czf "release/deslop-$PLATFORM.tar.gz" -C "$(dirname "$BINARY_PATH")" "$BINARY_NAME"
+            tar -czf "release/deslop-$PLATFORM.tar.gz" \
+              -C "$(dirname "$BINARY_PATH")" "$(basename "$BINARY_PATH")"
           done
           cd release
           sha256sum ./*.tar.gz > checksums.txt
@@ -346,7 +461,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ github.ref_name }}"
-          VERSION="${TAG#v}"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             # Re-run of an already-released tag: refresh the assets, keep the notes
