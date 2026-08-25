@@ -23,8 +23,8 @@ Delete this section if the diff speaks for itself.
 
 - [ ] The issue is green-lit (assigned to me), or this is a free-tier change (docs, examples, typo)
 - [ ] Rebased on the latest `origin/main`, no conflicts
-- [ ] `nix run .#build`, `nix run .#test` and `nix run .#lint` pass locally
 - [ ] I understand every line of this diff, can defend it in review, and take full responsibility for it
+- [ ] The CI is passing (green).
 
 # QA & Correctness Proof
 
