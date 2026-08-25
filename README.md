@@ -201,6 +201,47 @@ rules:
 
 ---
 
+## Example: Package Boundaries in a Monorepo
+
+Shared packages (`core`, `ui`, `content`) must never depend on product packages, and every product may only import the shared packages and itself. A single root `tsconfig.json` maps each package name as a path alias, so module ids are package-scoped and one Deslop run covers the whole monorepo:
+
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@scope/core/*": ["./packages/core/src/*"],
+      "@scope/ui/*": ["./packages/ui/src/*"],
+      "@scope/content/*": ["./packages/content/src/*"],
+      "@scope/alpha/*": ["./packages/alpha/src/*"]
+    }
+  }
+}
+```
+
+The whole boundary policy is **one rule**. The target captures the package name as a variable, and `allows` reuses it to permit self-imports:
+
+```yaml
+- id: package-import-boundaries
+  description: Every package may only import core, ui, content, and itself.
+  target: "@scope/{{package-name}}/**"
+  forbids:
+    - import: "@scope/**"
+  allows:
+    - import: "@scope/core/**"
+    - import: "@scope/ui/**"
+    - import: "@scope/content/**"
+    - import: "@scope/{{package-name}}/**" # itself
+  fix: >-
+    Import only from the shared packages or the package the file lives in.
+```
+
+A package added to `tsconfig.json` tomorrow is governed the moment it exists — the rulebook does not change. Without the variable this needs one rule per package, edited every time a package is added. Since `core`, `ui` and `content` are targets of the same rule, it also keeps the shared packages free of product imports.
+
+The full rulebook — including keeping the composition-root app private — is [`monorepo-package-boundaries.yaml`](./examples/rules/monorepo-package-boundaries.yaml).
+
+---
+
 ## Writing Rules
 
 ### Rulebook Structure
@@ -590,6 +631,7 @@ Production-ready rulebooks you can copy into your own `deslop/rules/` live in [`
 | [`clean-architecture.yaml`](./examples/rules/clean-architecture.yaml) | Clean Architecture — domain/application/infrastructure/presentation layers |
 | [`feature-sliced-design.yaml`](./examples/rules/feature-sliced-design.yaml) | Feature Sliced Design — strict layer hierarchy |
 | [`nextjs-app-router.yaml`](./examples/rules/nextjs-app-router.yaml) | Next.js App Router — server/client boundary, route handlers, server actions |
+| [`monorepo-package-boundaries.yaml`](./examples/rules/monorepo-package-boundaries.yaml) | Monorepo — package boundaries with one rule per policy, not per package |
 | [`quality.yaml`](./examples/rules/quality.yaml) | Quality standards — test coverage and Storybook requirements |
 
 > [!IMPORTANT]
@@ -619,7 +661,7 @@ Production-ready rulebooks you can copy into your own `deslop/rules/` live in [`
 | Auto-fix relative imports | Built into `deslop fix` | Third-party plugin required | No |
 | Dependency graph visualization | No | No | Yes |
 | Windows support | Not yet | Yes | Yes |
-| Monorepo / multiple tsconfigs | Run per package; full support WIP | `parserOptions.project` glob array | Run per package |
+| Monorepo / multiple tsconfigs | One run with a root tsconfig mapping package aliases ([example](./examples/rules/monorepo-package-boundaries.yaml)); per-package tsconfigs need one run each (WIP) | `parserOptions.project` glob array | Run per package |
 
 ---
 
@@ -759,7 +801,7 @@ twice, so a `forbids:` clause accepts **every** spelling of its variable, while
 ### Other
 
 - **Windows is not supported yet.**
-- **Monorepos** need one run per package; full multi-tsconfig support is in progress.
+- **Monorepos with per-package tsconfigs** need one run per package. A single root tsconfig that maps every package name as a path alias covers the whole monorepo in one run — see the [monorepo example](./examples/rules/monorepo-package-boundaries.yaml). Full multi-tsconfig support is in progress.
 - **`exists:` patterns cannot contain wildcards**, since the path has to be exact.
 
 ---

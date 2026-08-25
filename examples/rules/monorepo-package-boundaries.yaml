@@ -1,0 +1,57 @@
+id: monorepo-package-boundaries
+name: Monorepo Package Boundaries
+description: >-
+  Enforces package boundaries in a TypeScript monorepo: shared packages
+  (core, ui, content) never depend on product packages, and every product
+  package may only import the shared packages and itself.
+
+  The whole policy is one rule. The target pattern captures the package name
+  with a variable, so the same rule covers every package — including ones
+  added after the rulebook was written.
+
+  Prerequisite: a single root tsconfig.json that maps each package name to
+  its source directory as a path alias, e.g.
+
+    "paths": {
+      "@scope/core/*": ["./packages/core/src/*"],
+      "@scope/ui/*": ["./packages/ui/src/*"],
+      "@scope/content/*": ["./packages/content/src/*"],
+      "@scope/alpha/*": ["./packages/alpha/src/*"],
+      "@scope/beta/*": ["./packages/beta/src/*"]
+    }
+
+  Each rulebook in this directory is an independent example — see README.md.
+
+rules:
+  # One rule for every package. The target captures the segment after the
+  # scope as {{package-name}}, and the `allows` list reuses it to permit
+  # self-imports. A package added to tsconfig.json tomorrow is governed the
+  # moment it exists; the rulebook does not change.
+  - id: package-import-boundaries
+    description: >-
+      Every package may only import the shared packages (core, ui, content)
+      and itself. This also keeps shared packages free of product imports,
+      because core, ui and content are targets of this same rule.
+    target: "@scope/{{package-name}}/**"
+    forbids:
+      - import: "@scope/**"
+    allows:
+      - import: "@scope/core/**"
+      - import: "@scope/ui/**"
+      - import: "@scope/content/**"
+      - import: "@scope/{{package-name}}/**"
+    fix: >-
+      Import only from @scope/core, @scope/ui, @scope/content, or the
+      package the file lives in. Move logic that several products need into
+      a shared package instead.
+
+  # The composition root is the only place allowed to wire packages together,
+  # so nothing outside it may reach into it.
+  - id: composition-root-is-private
+    description: Only the app that assembles the packages may import from it.
+    target: "@scope/**"
+    forbids:
+      - import: "@/app/**"
+    allows:
+      - import: "{{TARGET_DIR}}/**"
+    fix: Move the shared logic into a @scope package instead of importing from the app.

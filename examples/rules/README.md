@@ -13,4 +13,5 @@ This directory contains production-ready example rulebooks for common TypeScript
 | [`clean-architecture.yaml`](./clean-architecture.yaml) | Uncle Bob's Clean Architecture — domain/application/infrastructure/presentation layers |
 | [`feature-sliced-design.yaml`](./feature-sliced-design.yaml) | Feature Sliced Design — strict layer hierarchy |
 | [`nextjs-app-router.yaml`](./nextjs-app-router.yaml) | Next.js App Router — server/client boundary, route handlers, server actions |
+| [`monorepo-package-boundaries.yaml`](./monorepo-package-boundaries.yaml) | Monorepo — package boundaries with one rule per policy, not per package |
 | [`quality.yaml`](./quality.yaml) | Quality standards — test coverage and Storybook requirements |
