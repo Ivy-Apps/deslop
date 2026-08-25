@@ -770,7 +770,7 @@ Deslop is a small project with a high bar. No tech debt, no shortcuts, and every
 
 **Docs, [`examples/rules/`](./examples/rules/) and the [deslop.dev landing page](https://github.com/Ivy-Apps/deslop-web) are the easiest place to start** and need no issue: just open the PR. Code changes want a green-lit issue first.
 
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before you start, and [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) for the Nix setup and the build/test commands.
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) before you start, and [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md) for the development setup with Nix.
 
 ## License
 
