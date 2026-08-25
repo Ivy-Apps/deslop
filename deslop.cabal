@@ -1,6 +1,6 @@
 cabal-version:   3.0
 name:            deslop
-version:         0.10.0
+version:         0.10.1
 license:         MIT
 license-file:    LICENSE
 author:          Ivy Apps LTD
@@ -86,8 +86,8 @@ library
     Prelude
     Renderable
     TypeScript.AST
-    TypeScript.CST
     TypeScript.Config
+    TypeScript.CST
     TypeScript.Iterator
     TypeScript.Lexer
     TypeScript.Lint.RelativeImports
@@ -169,8 +169,8 @@ test-suite deslop-test
     ParamsSpec
     TestUtils
     TypeScript.ASTSpec
-    TypeScript.CSTSpec
     TypeScript.ConfigSpec
+    TypeScript.CSTSpec
     TypeScript.IteratorSpec
     TypeScript.LexerSpec
     TypeScript.Lint.RelativeImportsSpec
