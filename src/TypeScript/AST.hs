@@ -35,9 +35,7 @@ parseAst prog = do
     -- raw backslash path that no edge ever points at. reverseResolve works from
     -- the OsPath directly, which both OSes split correctly; the raw path remains
     -- the fallback for unmapped files.
-    programModuleId = do
-        maybeAlias <- reverseResolve prog.path
-        pure . fromMaybe rawPathId $ maybeAlias
+    programModuleId = fromMaybe rawPathId <$> reverseResolve prog.path
       where
         rawPathId =
             moduleIdUnsafe
