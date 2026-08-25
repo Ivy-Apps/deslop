@@ -5,13 +5,15 @@ const os = require('os');
 const platform = os.platform();
 const arch = os.arch();
 
+const isWindows = platform === 'win32';
+const binaryName = isWindows ? 'deslop.exe' : 'deslop';
 const pkgName = `@ivy-apps/deslop-${platform}-${arch}`;
 let binaryPath;
 try {
-  binaryPath = require.resolve(`${pkgName}/bin/deslop`);
+  binaryPath = require.resolve(`${pkgName}/bin/${binaryName}`);
 } catch {
   console.error(`deslop: unsupported platform ${platform}-${arch}.`);
-  console.error(`Supported: darwin-arm64, linux-arm64, linux-x64.`);
+  console.error(`Supported: darwin-arm64, linux-arm64, linux-x64, win32-x64.`);
   process.exit(1);
 }
 

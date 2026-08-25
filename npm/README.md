@@ -69,7 +69,7 @@ Rules can forbid imports (directly or transitively), whitelist exceptions, requi
 ## Requirements
 
 - Node.js >= 18
-- Prebuilt binaries for `darwin-arm64`, `linux-x64`, and `linux-arm64`. Windows is not supported yet.
+- Prebuilt binaries for `darwin-arm64`, `linux-x64`, `linux-arm64`, and `win32-x64`.
 - A `@/` path alias configured in `tsconfig.json`, so Deslop can resolve your modules
 
 Deslop is free and open source. No license key, no account required — in CI or anywhere else.

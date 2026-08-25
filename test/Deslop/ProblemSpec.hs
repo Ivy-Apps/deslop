@@ -24,6 +24,24 @@ spec = describe "Deslop.Problem" $ do
                         }
             problemId p `shouldBe` ProblemId "no-relative-imports#src/Foo.ts"
 
+        -- A Windows run decodes a native RelativePath with backslashes; the
+        -- id has to stay spellable by (and matchable against) a baseline
+        -- written on POSIX, so the separator is normalised.
+        it "lint problem id normalises windows separators" $ do
+            let p =
+                    LintProblem
+                        { lintRule = LintRuleId "no-relative-imports"
+                        , location =
+                            Location
+                                { file = relativePathUnsafe (encodeOsPath "src\\features\\home\\home.ts")
+                                , code = "import {x} from './x'"
+                                }
+                        , description = "No relative imports allowed"
+                        , fix = "Use absolute imports"
+                        , autoFixable = False
+                        }
+            problemId p `shouldBe` ProblemId "no-relative-imports#src/features/home/home.ts"
+
         it "rule violation id" $ do
             let p =
                     RuleViolation
