@@ -8,6 +8,23 @@ govern what gets reviewed and merged, see [CONTRIBUTING.md](../CONTRIBUTING.md).
 Deslop is written in Haskell (GHC 9.10.3) and uses [Nix](https://nixos.org/) for
 a reproducible dev environment.
 
+### 1. Install Nix
+
+**Recommended - the [Determinate Nix installer](https://github.com/DeterminateSystems/nix-installer):**
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+```
+
+It turns flakes on out of the box, which this project needs, and it can be
+undone with `/nix/nix-installer uninstall`. It is also what CI uses, so your
+machine matches [`quality.yaml`](../.github/workflows/quality.yaml).
+
+The upstream installer works too, but then you have to enable
+`nix-command flakes` in `nix.conf` yourself.
+
+### 2. Enter the dev shell
+
 **Recommended - [direnv](https://direnv.net/):**
 
 ```bash
