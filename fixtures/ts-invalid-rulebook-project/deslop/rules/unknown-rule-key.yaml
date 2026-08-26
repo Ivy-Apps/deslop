@@ -1,0 +1,21 @@
+id: unknown-rule-key
+name: Unknown Rule Key
+description: >-
+  Everything in this file compiles. Its target, its clauses and its variables
+  are all fine, and the one thing wrong with it is a key that was never a
+  feature - which is the whole point: one unrecognised key is enough to refuse a
+  rulebook that is otherwise perfect, because there is no way to tell a typo
+  from a feature the author believed in.
+rules:
+  - id: viewmodel-uses-its-state
+    description: >-
+      "uses-optional" reads exactly like a feature and is not one. While an
+      unknown key was ignored this rule loaded, passed, and never looked at a
+      single import listed under it - a rule enforcing less than it says, which
+      nobody notices, because nobody re-reads a run that came back clean.
+    target: "@/features/**/use{{FileName}}ViewModel"
+    uses:
+      - import: "{{TARGET_DIR}}/{{FileName}}StateEvent"
+    uses-optional:
+      - "{{TARGET_DIR}}/data/{{file-name}}-repository"
+    fix: Import the state and event types from your own feature folder.

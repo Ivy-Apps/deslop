@@ -130,9 +130,12 @@ spec = describe "E2E.Project" $ do
         pure . defaultGolden ("iterated-" <> project) . T.unpack . T.unlines . sort $
             fmap (decodeOsPath . (.osPath) . relativePathTo absProjectPath) files
 
-    -- A rulebook that does not compile must abort the run before any file is
+    -- A rulebook deslop cannot use must abort the run before any file is
     -- checked, with a message the author can act on. Goldening the transcript
     -- pins the whole path from ruleBookFromDto through to the exit line.
+    -- The fixture holds both ways a rulebook can be unusable, because the
+    -- report has to survive the mixture: two files whose patterns do not
+    -- compile, and two that never parsed at all because of an unknown key.
     itFailsToLoadRulebook project = it ("refuses to run " <> project) $ do
         -- Given
         let projectPath = fixturesPath </> encodeOsPathString project

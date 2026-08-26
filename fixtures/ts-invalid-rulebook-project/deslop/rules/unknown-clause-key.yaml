@@ -1,0 +1,22 @@
+id: unknown-clause-key
+name: Unknown Clause Key
+description: >-
+  The same refusal one level further in. A rule's keys are checked by the
+  derived parser and a clause's keys by a hand-written one, so a clause is a
+  separate piece of code that has to say no - and a rulebook whose rules all
+  spell their keys correctly can still hide one in a clause.
+rules:
+  - id: views-may-reach-the-shared-folder
+    description: >-
+      "forbids" takes a transitive and "allows" does not, which is easy to get
+      wrong by analogy: an allows carves out of every forbids the rule has, so
+      there is nothing left for it to be transitive about. Guessing that it
+      works used to cost the clause nothing and mean nothing.
+    target: "@/client/**/{{FileName}}View"
+    forbids:
+      - import: "@/server/**"
+        transitive: true
+    allows:
+      - import: "@/shared/**"
+        transitive: true
+    fix: Drop the transitive, or say what you meant in a forbids clause.
