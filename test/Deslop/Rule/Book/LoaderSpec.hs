@@ -3,7 +3,7 @@ module Deslop.Rule.Book.LoaderSpec (spec) where
 import Data.Text qualified as T
 import Deslop.Rule.Book.Compiler (CompileError, compileRulebook, renderCompileError)
 import Deslop.Rule.Book.Dto (parseRulebookYaml)
-import Deslop.Rule.Book.Loader (rulebookFromFile)
+import Deslop.Rule.Book.Loader (loadRulebookFromFile)
 import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
 import FileSystem.Path (decodeOsPath)
@@ -18,17 +18,17 @@ rbFixturesPath = [osp|fixtures/rulebook|]
 
 spec :: Spec
 spec = describe "Deslop.Rule.Book.Loader" $ do
-    describe "rulebookFromFile" $
-        runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ rulebookFromFileTest
+    describe "loadRulebookFromFile" $
+        runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ loadRulebookFromFileTest
     shippedExamplesSpec
     globCompilationSpec
   where
-    rulebookFromFileTest :: OsPath -> Spec
-    rulebookFromFileTest fpath = do
+    loadRulebookFromFileTest :: OsPath -> Spec
+    loadRulebookFromFileTest fpath = do
         let testName = T.unpack $ "rulebook-from-file--" <> decodeOsPath (takeBaseName fpath)
         it ("case: " <> testName) $ do
             rbPath <- mkAbsolute (rbFixturesPath </> fpath)
-            res <- runEff . runFileSystemIO $ rulebookFromFile rbPath
+            res <- runEff . runFileSystemIO $ loadRulebookFromFile rbPath
             return $ defaultGolden testName (ppShow res)
 
 --------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ shippedExamplesSpec =
     loadsTest fpath =
         it (T.unpack ("loads " <> decodeOsPath fpath)) $ do
             rbPath <- mkAbsolute (examplesPath </> fpath)
-            res <- runEff . runFileSystemIO $ rulebookFromFile rbPath
+            res <- runEff . runFileSystemIO $ loadRulebookFromFile rbPath
             res `shouldSatisfy` isRight
 
 examplesPath :: OsPath

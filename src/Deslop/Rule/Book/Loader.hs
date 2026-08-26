@@ -14,9 +14,9 @@ It is named apart from @Types.RulebookError@, which is the error the whole run
 fails with once this one has been rendered.
 -}
 module Deslop.Rule.Book.Loader (
-    loadRulebook,
-    loadRulebookFrom,
-    rulebookFromFile,
+    loadRulebooks,
+    loadRulebooksFromDir,
+    loadRulebookFromFile,
     RulebookLoadError (..),
     renderRulebookErrors,
 ) where
@@ -34,35 +34,35 @@ import Utils (pluralise)
 -- | Why one rulebook file could not become a 'Rulebook'.
 data RulebookLoadError
     = -- | Not well-formed YAML, or not shaped like a rulebook at all.
-      UnreadableYaml Text
+      UnreadableYaml !Text
     | -- | A rulebook, but some of its patterns do not compile.
-      UncompilablePatterns (NonEmpty CompileError)
+      UncompilablePatterns !(NonEmpty CompileError)
     deriving stock (Show, Eq)
 
 rulesDir :: OsPath
 rulesDir = [osp|deslop/rules|]
 
-loadRulebook :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
-loadRulebook projectPath = loadRulebookFrom (withAbsBaseUnsafe projectPath rulesDir)
+loadRulebooks :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
+loadRulebooks projectPath = loadRulebooksFromDir (withAbsBaseUnsafe projectPath rulesDir)
 
 {- | Loads every rulebook in a directory. A failure anywhere means none is
 returned: enforcing half a rulebook would report problems its author never
 asked for and miss the ones they did.
 -}
-loadRulebookFrom :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
-loadRulebookFrom dir = fsDirectoryExists dir >>= bool (pure (Right [])) loadAll
+loadRulebooksFromDir :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
+loadRulebooksFromDir dir = fsDirectoryExists dir >>= bool (pure (Right [])) loadAll
   where
     loadAll = do
         paths <- fsListDirectory dir
-        results <- traverse (\path -> (nameOf path,) <$> rulebookFromFile path) paths
+        results <- traverse (\path -> (nameOf path,) <$> loadRulebookFromFile path) paths
         pure $ case nonEmpty [(name, err) | (name, Left err) <- results] of
             Just failures -> Left (renderRulebookErrors failures)
             Nothing -> Right [rulebook | (_, Right rulebook) <- results]
 
     nameOf path = decodeOsPath path.osPath
 
-rulebookFromFile :: (RoFileSystem :> es) => AbsPath -> Eff es (Either RulebookLoadError Rulebook)
-rulebookFromFile path = compile <$> fsReadFile path
+loadRulebookFromFile :: (RoFileSystem :> es) => AbsPath -> Eff es (Either RulebookLoadError Rulebook)
+loadRulebookFromFile path = compile <$> fsReadFile path
   where
     compile bytes = do
         dto <- first UnreadableYaml (parseRulebookYaml bytes)
@@ -95,6 +95,7 @@ same rule are the groups - no sorting, which would scramble that order.
 byRule :: [CompileError] -> [[CompileError]]
 byRule = foldr step []
   where
+    step :: CompileError -> [[CompileError]] -> [[CompileError]]
     step err (sameRule@(next : _) : rest)
         | next.rule == err.rule = (err : sameRule) : rest
     step err groups = [err] : groups
