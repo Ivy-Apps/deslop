@@ -185,19 +185,106 @@ spec = describe "Deslop.GlobPlus semantics" $ do
             deep "{{TARGET_DIR}}/../shared/**" "@/client/home/shared/Icon" `shouldBe` True
             deep "{{TARGET_DIR}}/../shared/**" "@/client/shared/Button" `shouldBe` False
 
+    describe "H. ..* goes zero or many directories back" $ do
+        let featureTarget = "@/client/{{feature-name}}/{{FileName}}View"
+        let allows = clauseMatches featureTarget "@/client/billing/InvoiceView"
+
+        {- {{TARGET_DIR}} is @/client/billing here, so the ancestors are that,
+        @/client, @, and then nothing. A shared/ under any of them is reached. -}
+        it "reaches the named directory under any ancestor, including its own" $ do
+            allows "{{TARGET_DIR}}/..*/shared/**" "@/client/billing/shared/Button" `shouldBe` True
+            allows "{{TARGET_DIR}}/..*/shared/**" "@/client/shared/Button" `shouldBe` True
+            allows "{{TARGET_DIR}}/..*/shared/**" "@/shared/Button" `shouldBe` True
+
+        it "reaches nothing that is not under an ancestor" $ do
+            allows "{{TARGET_DIR}}/..*/shared/**" "@/client/home/shared/Button" `shouldBe` False
+            allows "{{TARGET_DIR}}/..*/shared/**" "@/server/shared/Button" `shouldBe` False
+
+        it "says what a whole ladder of .. says, and no more" $ do
+            for_ ["@/client/billing/shared/x", "@/client/shared/x", "@/shared/x", "@/other/shared/x"] $
+                \candidate ->
+                    allows "{{TARGET_DIR}}/..*/shared/**" candidate
+                        `shouldBe` or
+                            [ allows "{{TARGET_DIR}}/shared/**" candidate
+                            , allows "{{TARGET_DIR}}/../shared/**" candidate
+                            , allows "{{TARGET_DIR}}/../../shared/**" candidate
+                            , allows "{{TARGET_DIR}}/../../../shared/**" candidate
+                            ]
+
+        it "clamps at the root rather than running off it" $
+            allows "{{TARGET_DIR}}/..*/shared/**" "shared/Button" `shouldBe` True
+
+        it "means a deeper ladder for a file that sits deeper" $ do
+            let deep = clauseMatches "@/client/{{feature-name}}/**/{{FileName}}View" "@/client/billing/invoices/CardView"
+            deep "{{TARGET_DIR}}/..*/shared/**" "@/client/billing/invoices/shared/Icon" `shouldBe` True
+            deep "{{TARGET_DIR}}/..*/shared/**" "@/client/billing/shared/Icon" `shouldBe` True
+            deep "{{TARGET_DIR}}/..*/shared/**" "@/client/shared/Icon" `shouldBe` True
+
+        {- A module with no directory at all has {{TARGET_DIR}} of ".", which is
+        one segment like any other: ..* may cancel it, and the pattern it leaves
+        matches nothing real, because no module id begins with "./". -}
+        it "resolves against a root-level file without going wrong" $ do
+            let atRoot = clauseMatches "{{FileName}}View" "HomeView"
+            atRoot "{{TARGET_DIR}}/..*/shared/**" "shared/Button" `shouldBe` True
+            atRoot "{{TARGET_DIR}}/..*/shared/**" "@/shared/Button" `shouldBe` False
+
+        it "reads a dotted segment that is not exactly ..* as ordinary text" $ do
+            clauseError "@/client/..*shared/x" `shouldBe` Nothing
+            clauseError "@/client/a..*b/x" `shouldBe` Nothing
+
+    describe "..* may only go back past segments the pattern determines" $ do
+        it "rejects a ** immediately behind it, which it could not climb at all" $
+            clauseError "@/client/**/..*/shared" `shouldBe` Just (ParentDirPastWildcard "..*" "**")
+
+        {- Unlike a single .., a ..* is checked against everything behind it -
+        it may cancel any prefix, so any of them could be what it reaches. -}
+        it "rejects a ** further back, which it could still have reached" $
+            clauseError "@/**/a/b/..*/shared" `shouldBe` Just (ParentDirPastWildcard "..*" "**")
+
+        it "rejects a segment merely containing a *" $
+            clauseError "@/client/*View/..*/shared" `shouldBe` Just (ParentDirPastWildcard "..*" "*View")
+
+        it "accepts a ladder of literals, variables and TARGET_DIR" $ do
+            clauseError "@/client/home/..*/shared" `shouldBe` Nothing
+            clauseError "@/client/{{provider-name}}/..*/shared" `shouldBe` Nothing
+            clauseError "{{TARGET_DIR}}/..*/shared" `shouldBe` Nothing
+
+        it "leaves a ** alone when it is ahead of the ..*, not behind it" $
+            clauseError "{{TARGET_DIR}}/..*/shared/**" `shouldBe` Nothing
+
+    describe "..* belongs to a clause, like .. does" $ do
+        it "rejects ..* in a target pattern" $
+            compileError "@/client/..*/shared/**" `shouldBe` Just (ParentDirInTargetPattern "..*")
+
+        it "rejects ..* in an exclude pattern" $
+            excludeError "@/client/..*/shared/**" `shouldBe` Just (ParentDirInExcludePattern "..*")
+
+    describe "an exists pattern must name exactly one module" $ do
+        it "rejects ..*, which names one module per ancestor" $
+            existsError "{{TARGET_DIR}}/..*/registry" `shouldBe` Just (NondeterministicPattern "..*")
+
+        it "rejects the wildcards, for the same reason" $ do
+            existsError "{{TARGET_DIR}}/**/registry" `shouldBe` Just (NondeterministicPattern "**")
+            existsError "{{TARGET_DIR}}/*Registry" `shouldBe` Just (NondeterministicPattern "*Registry")
+
+        it "accepts a pattern that names one module, .. and all" $ do
+            existsError "{{TARGET_DIR}}/registry" `shouldBe` Nothing
+            existsError "{{TARGET_DIR}}/../registry" `shouldBe` Nothing
+            existsError "{{TARGET_DIR}}/{{FileName}}.spec" `shouldBe` Nothing
+
     describe ".. may only go back past a segment the pattern determines" $ do
         it "rejects going back past a **, which is zero or many segments" $
-            clauseError "@/client/**/../shared" `shouldBe` Just (ParentDirPastWildcard "**")
+            clauseError "@/client/**/../shared" `shouldBe` Just (ParentDirPastWildcard ".." "**")
 
         it "rejects going back past a bare *, which names no directory" $
-            clauseError "@/client/*/../shared" `shouldBe` Just (ParentDirPastWildcard "*")
+            clauseError "@/client/*/../shared" `shouldBe` Just (ParentDirPastWildcard ".." "*")
 
         it "rejects going back past a segment that merely contains a *" $
-            clauseError "@/client/*View/../shared" `shouldBe` Just (ParentDirPastWildcard "*View")
+            clauseError "@/client/*View/../shared" `shouldBe` Just (ParentDirPastWildcard ".." "*View")
 
         it "checks each .. of a chain against what it would actually reach" $ do
             clauseError "@/a*/b/../shared" `shouldBe` Nothing
-            clauseError "@/a*/b/../../shared" `shouldBe` Just (ParentDirPastWildcard "a*")
+            clauseError "@/a*/b/../../shared" `shouldBe` Just (ParentDirPastWildcard ".." "a*")
 
         it "accepts going back past a literal, a variable or TARGET_DIR" $ do
             clauseError "@/client/home/../shared" `shouldBe` Nothing
@@ -209,10 +296,10 @@ spec = describe "Deslop.GlobPlus semantics" $ do
 
     describe ".. belongs to a clause, which is the only pattern with a directory" $ do
         it "rejects .. in a target pattern" $
-            compileError "@/client/../shared/**" `shouldBe` Just ParentDirInTargetPattern
+            compileError "@/client/../shared/**" `shouldBe` Just (ParentDirInTargetPattern "..")
 
         it "rejects .. in an exclude pattern" $
-            excludeError "@/client/../shared/**" `shouldBe` Just ParentDirInExcludePattern
+            excludeError "@/client/../shared/**" `shouldBe` Just (ParentDirInExcludePattern "..")
 
         it "reads a dotted segment that is not exactly .. as ordinary text" $ do
             compileError "@/client/..shared/x" `shouldBe` Nothing
@@ -248,7 +335,7 @@ clauseMatches targetPattern targetPath clause candidate =
     compiledTarget = case compileTargetPattern targetPattern of
         Right compiled -> compiled
         Left err -> error $ "target pattern did not compile: " <> renderGlobPlusError err
-    compiledClause bound = case compileClausePattern Narrow bound clause of
+    compiledClause bound = case compileClausePattern Narrow Nondeterministic bound clause of
         Right compiled -> compiled
         Left err -> error $ "clause pattern did not compile: " <> renderGlobPlusError err
     env = case matchTarget compiledTarget (segmentsOf targetPath) of
@@ -259,9 +346,14 @@ clauseMatches targetPattern targetPath clause candidate =
 that a failure is about the pattern's shape rather than about its scope.
 -}
 clauseError :: Text -> Maybe GlobPlusError
-clauseError =
-    leftToMaybe
-        . compileClausePattern Narrow (fromList [VarName "provider-name", VarName "service-type", VarName "file-name"])
+clauseError = leftToMaybe . compileClausePattern Narrow Nondeterministic clauseScope
+
+-- | As 'clauseError', for the one clause that must name exactly one module.
+existsError :: Text -> Maybe GlobPlusError
+existsError = leftToMaybe . compileClausePattern Narrow Deterministic clauseScope
+
+clauseScope :: Set VarName
+clauseScope = fromList [VarName "provider-name", VarName "service-type", VarName "file-name"]
 
 kebabOf :: Text -> MatchEnv -> Maybe Text
 kebabOf name env = casedAs KebabCase <$> Map.lookup (VarName name) env.variables

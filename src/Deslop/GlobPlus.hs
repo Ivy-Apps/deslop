@@ -21,6 +21,12 @@ before either search runs. It cancels the segment to its left rather than
 moving a cursor over the path being tested, because the thing being navigated
 from is @{{TARGET_DIR}}@ - concrete text by then, and the pattern's own.
 
+Its zero-or-many form, @..*@, cancels /a prefix of unknown length/, so one
+written clause stands for one resolution per ancestor of @{{TARGET_DIR}}@.
+'resolveSteps' is therefore the same fold in a nondeterminism monad, and a
+'ResolvedClause' is the alternation of what it produces. A pattern with no
+@..*@ yields exactly one resolution, so nothing else here changed meaning.
+
 Agreement between repeated occurrences is carried /through/ the walk rather
 than checked after it. Each variable holds the set of names still able to
 spell every occurrence seen so far; when that set empties, the branch dies
@@ -46,6 +52,7 @@ module Deslop.GlobPlus (
     TargetVar (..),
     ClauseVar (..),
     Polarity (..),
+    Determinism (..),
 
     -- * Compiled patterns
     CompiledTargetPattern (..),
@@ -64,7 +71,7 @@ module Deslop.GlobPlus (
     matchExclude,
 
     -- * Clause hydration (hot path)
-    ResolvedClause,
+    ResolvedClause (..),
     hydrate,
     matchResolved,
 
@@ -74,6 +81,7 @@ module Deslop.GlobPlus (
     valueOf,
     spellVar,
     targetDirKeyword,
+    parentDirStar,
 
     -- * Shared with the compiler
     minSegments,
@@ -159,6 +167,8 @@ unrepresentable in them rather than merely rejected.
 data Step a
     = -- | @..@: cancels the segment to its left.
       ParentDir
+    | -- | @..*@: cancels zero or many segments to its left.
+      ParentDirStar
     | Step a
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
@@ -170,12 +180,20 @@ Cancellation happens /after/ expansion because @{{TARGET_DIR}}@ is the thing
 usually being navigated from, and it is one step that becomes many segments.
 Compilation guarantees no @..@ can reach a @**@ or a segment holding a @*@, so
 'drop' is the whole of it and it cannot fail.
+
+@..*@ makes the fold nondeterministic: it may cancel any prefix, so it returns
+every ancestor rather than one. Nothing else about the fold changes, and a
+pattern without a @..*@ takes 'pure' at every step and so yields exactly one
+resolution. The count is bounded by how many segments are actually to the left
+by then - the real depth, never a constant.
 -}
-resolveSteps :: (a -> [b]) -> [Step a] -> [b]
-resolveSteps expand = reverse . foldl' cancel []
+resolveSteps :: (a -> [b]) -> [Step a] -> NonEmpty [b]
+resolveSteps expand = fmap reverse . foldlM cancel []
   where
-    cancel done ParentDir = drop 1 done
-    cancel done (Step step) = reverse (expand step) <> done
+    cancel done ParentDir = pure (drop 1 done)
+    -- Cancelling nothing is always one of the choices, so this is never empty.
+    cancel done ParentDirStar = done :| [drop taken done | taken <- [1 .. length done]]
+    cancel done (Step step) = pure (reverse (expand step) <> done)
 
 -- | A variable occurrence in a target pattern. Strictly no @{{TARGET_DIR}}@.
 data TargetVar = TargetVar VarName Casing
@@ -204,6 +222,21 @@ data Polarity
       Widen
     | -- | Accept the canonical spelling only: @uses@, @exists@, @allows@.
       Narrow
+    deriving (Show, Eq)
+
+{- | Whether a pattern is allowed to name more than one path.
+
+Orthogonal to 'Polarity', which is about which /direction/ it is safe to guess
+wrong. This is about how many answers there may be at all: a clause that asks
+whether some module exists has to name exactly one, because there is no module
+to look up otherwise, while every other clause is a test that any number of
+candidates may be run against.
+-}
+data Determinism
+    = -- | Names exactly one module: @exists@. No @*@, no @**@, no @..*@.
+      Deterministic
+    | -- | May name many: @forbids@, @allows@, @uses@.
+      Nondeterministic
     deriving (Show, Eq)
 
 --------------------------------------------------------------------------------
@@ -426,14 +459,24 @@ casedNameFrom name =
 -- 7. Clause and exclude matching
 --------------------------------------------------------------------------------
 
-{- | A clause pattern with its variables already substituted. Built once per
-matched target and reused for every candidate path, which is the difference
-between resolving a variable once and resolving it per import.
+{- | One way a clause pattern resolved, with its variables already substituted
+and its @..@ already cancelled.
 -}
-data ResolvedClause = ResolvedClause
+data ResolvedPattern = ResolvedPattern
     { segments :: [Seg [ResolvedPart]]
     , minLength :: Int
     }
+    deriving (Show, Eq)
+
+{- | A hydrated clause: every way its @..*@ could have resolved. A clause
+without one is a single alternative, so this is the ordinary case in a wrapper.
+
+Built once per matched target and reused for every candidate path, which is the
+difference between resolving a variable once and resolving it per import.
+Holding the alternation here rather than handing it to callers is what keeps
+\"the alternatives combine by disjunction\" decided in one place.
+-}
+newtype ResolvedClause = ResolvedClause (NonEmpty ResolvedPattern)
     deriving (Show, Eq)
 
 -- | One piece of a hydrated segment: no variables left, only text to match.
@@ -458,9 +501,11 @@ matchExclude exclude (Segments path)
     plainPart (VarPart v) = absurd v
 
 matchResolved :: ResolvedClause -> Segments -> Bool
-matchResolved clause (Segments path)
-    | length path < clause.minLength = False
-    | otherwise = isJust (walkSegments matchParts clause.segments path ())
+matchResolved (ResolvedClause alternatives) path = any (`matchesOne` path) alternatives
+  where
+    matchesOne resolved (Segments segments)
+        | length segments < resolved.minLength = False
+        | otherwise = isJust (walkSegments matchParts resolved.segments segments ())
 
 -- | Whether the parts can divide this segment's text at all.
 matchParts :: [ResolvedPart] -> Text -> () -> [()]
@@ -478,13 +523,13 @@ that can introduce a @\/@, so a hydrated segment may become several - which is
 why hydration produces the segment list rather than editing it in place.
 -}
 hydrate :: MatchEnv -> CompiledClausePattern -> ResolvedClause
-hydrate env clause =
-    ResolvedClause
-        { segments = hydrated
-        , minLength = minSegments hydrated
-        }
+hydrate env clause = ResolvedClause (resolved <$> resolveSteps hydrateSegment clause.steps)
   where
-    hydrated = resolveSteps hydrateSegment clause.steps
+    resolved hydrated =
+        ResolvedPattern
+            { segments = hydrated
+            , minLength = minSegments hydrated
+            }
 
     hydrateSegment GlobStar = [GlobStar]
     hydrateSegment (Segment parts) = Segment <$> splitOnSlash (mergeLits (hydratePart =<< parts))
@@ -544,16 +589,22 @@ splitOnSlash = go []
 --------------------------------------------------------------------------------
 
 {- | Expands a clause pattern into a concrete module path by substituting
-variables and resolving @..@. Returns Nothing if the pattern contains wildcards,
-which cannot be deterministically expanded.
+variables and resolving @..@. Returns Nothing if the pattern could name more
+than one module - a wildcard, or a @..*@ that resolved to several ancestors.
 
 Every step is expanded before any @..@ is resolved, so a substitution that
 introduces a @\/@ is several segments by the time one is cancelled - a @..@
 after @{{TARGET_DIR}}@ drops one directory of it rather than all of it.
+
+A pattern compiled 'Deterministic' cannot reach either Nothing, which is what
+lets @exists:@ be checked when the rulebook loads rather than mid-run.
 -}
 moduleFromGlob :: MatchEnv -> CompiledClausePattern -> Maybe Text
-moduleFromGlob env clause =
-    T.intercalate "/" . resolveSteps id <$> traverse (traverse expandSegment) clause.steps
+moduleFromGlob env clause = do
+    expanded <- traverse (traverse expandSegment) clause.steps
+    case resolveSteps id expanded of
+        resolution :| [] -> Just (T.intercalate "/" resolution)
+        _ -> Nothing
   where
     expandSegment GlobStar = Nothing
     expandSegment (Segment parts) = T.splitOn "/" . T.concat <$> traverse expandPart parts
@@ -565,11 +616,18 @@ moduleFromGlob env clause =
 {- | Renders a clause pattern for a human, substituting what is bound, resolving
 @..@ and keeping the wildcards literally. The author is shown the module id they
 need, not one they would have to resolve in their head.
+
+@..*@ is a wildcard, so it is kept literally too, exactly as @**@ is. Turning it
+into a literal step before the fold also leaves nothing nondeterministic behind,
+so there is exactly one rendering.
 -}
 renderClausePattern :: MatchEnv -> CompiledClausePattern -> Text
 renderClausePattern env clause =
-    T.intercalate "/" (resolveSteps (T.splitOn "/" . renderSegment) clause.steps)
+    T.intercalate "/" . head . resolveSteps (T.splitOn "/") $ literalise <$> clause.steps
   where
+    literalise ParentDirStar = Step parentDirStar
+    literalise step = renderSegment <$> step
+
     renderSegment GlobStar = "**"
     renderSegment (Segment parts) = T.concat (renderPart <$> parts)
 
@@ -591,3 +649,9 @@ spellVar name casing = render casing (decode KebabCase name.text)
 
 targetDirKeyword :: Text
 targetDirKeyword = "TARGET_DIR"
+
+{- | @..*@. Unlike @..@, which is always resolved away, this token survives into
+a rendering, so the text of it lives here rather than in the compiler alone.
+-}
+parentDirStar :: Text
+parentDirStar = "..*"

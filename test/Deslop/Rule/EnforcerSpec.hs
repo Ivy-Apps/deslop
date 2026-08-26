@@ -1,12 +1,12 @@
 module Deslop.Rule.EnforcerSpec (spec) where
 
-import Data.Text qualified as T
 import Deslop.AST (AstModule (..), moduleIdUnsafe)
 import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Error (DeslopError (..))
 import Deslop.Problem (Problem (..), ViolationKind (..))
 import Deslop.Rule.Book (RuleId (..), Rulebook, RulebookId (..))
-import Deslop.Rule.Book.Compiler (compileRulebook)
+import Deslop.Rule.Book.Compiler (CompileError (..), Field (..), compileRulebook)
+import Deslop.Rule.Book.Desugar (desugarRulebook)
 import Deslop.Rule.Book.Dto (
     AllowsDto (AllowsImportDto),
     ExistsDto (ExistsModuleDto),
@@ -22,7 +22,7 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Fixtures.Deslop.AST (mkModule)
-import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe, shouldReturn, shouldSatisfy)
+import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn, shouldSatisfy)
 import TestUtils (requireRight)
 
 --------------------------------------------------------------------------------
@@ -44,7 +44,13 @@ mkUsesImportDto p transitive = UsesImportDto (GlobDto p) (Just transitive)
 mkExistsModuleDto :: Text -> ExistsDto
 mkExistsModuleDto = ExistsModuleDto . GlobDto
 
-rulebookDto :: RulebookDto
+{- | Fixtures here are written in the surface language, exactly as an author
+would write them, so they reach the compiler the way a real rulebook does.
+-}
+compileRulebookDto :: RulebookDto RuleDto -> Either (NonEmpty CompileError) Rulebook
+compileRulebookDto = compileRulebook . desugarRulebook
+
+rulebookDto :: RulebookDto RuleDto
 rulebookDto =
     RulebookDto
         { id = "test-rulebook"
@@ -62,6 +68,7 @@ ruleDto =
         , exclude = Nothing
         , forbids = Nothing
         , allows = Nothing
+        , allowsOnly = Nothing
         , uses = Nothing
         , exists = Nothing
         , fix = ""
@@ -71,7 +78,7 @@ ruleDto =
 testRulebook :: Rulebook
 testRulebook =
     fromRight (error "testRulebook: invalid fixture") $
-        compileRulebook
+        compileRulebookDto
             rulebookDto
                 { rules =
                     [ ruleDto
@@ -87,7 +94,7 @@ testRulebook =
 testTransitiveRulebook :: Rulebook
 testTransitiveRulebook =
     fromRight (error "testTransitiveRulebook: invalid fixture") $
-        compileRulebook
+        compileRulebookDto
             rulebookDto
                 { rules =
                     [ ruleDto
@@ -130,7 +137,7 @@ runTransitiveTest = runTransitiveTestWith [testTransitiveRulebook]
 domainRulebook :: Rulebook
 domainRulebook =
     fromRight (error "domainRulebook: invalid fixture") $
-        compileRulebook
+        compileRulebookDto
             rulebookDto
                 { id = "domain-rules"
                 , name = "Domain Rules"
@@ -149,7 +156,7 @@ domainRulebook =
 existsRulebook :: Rulebook
 existsRulebook =
     fromRight (error "existsRulebook: invalid fixture") $
-        compileRulebook
+        compileRulebookDto
             rulebookDto
                 { id = "exists-rules"
                 , name = "Exists Rules"
@@ -179,7 +186,7 @@ runExistsTest rulebooks allModules m =
 usesRulebook :: Rulebook
 usesRulebook =
     fromRight (error "usesRulebook: invalid fixture") $
-        compileRulebook
+        compileRulebookDto
             rulebookDto
                 { id = "uses-rules"
                 , name = "Uses Rules"
@@ -217,7 +224,7 @@ that produced it without any of the others joining in.
 multiVarRulebook :: Rulebook
 multiVarRulebook =
     fromRight (error "multiVarRulebook: invalid fixture") $
-        compileRulebook
+        compileRulebookDto
             rulebookDto
                 { id = "multi-var-rules"
                 , name = "Multi Variable Rules"
@@ -304,7 +311,7 @@ validated at load, so a name nothing captured has to survive being reported.
 proseRulebook :: Rulebook
 proseRulebook =
     fromRight (error "proseRulebook: invalid fixture") $
-        compileRulebook
+        compileRulebookDto
             rulebookDto
                 { id = "prose-rules"
                 , name = "Prose Rules"
@@ -660,31 +667,29 @@ spec = describe "Deslop.Rule.Enforcer" $ do
             result <- runExistsTest [existsRulebook] [notAViewModel] notAViewModel
             result `shouldBe` Right []
 
-        it "throws InvalidRuleConfig when an exists pattern contains wildcards" $ do
+        {- An exists pattern holding a wildcard has no single module to look up,
+        and that is now settled when the rulebook is compiled - so the enforcer
+        can never be handed one, and the rule never reaches a run at all. -}
+        it "never reaches enforcement, because a wildcard exists pattern does not compile" $ do
             let wildcardRulebook =
-                    fromRight (error "wildcardRulebook: invalid fixture") $
-                        compileRulebook
-                            rulebookDto
-                                { id = "bad-rules"
-                                , name = "Bad Rules"
-                                , description = "bad rules"
-                                , rules =
-                                    [ ruleDto
-                                        { id = RuleId "wildcard-exists"
-                                        , description = "wildcard exists"
-                                        , target = GlobDto "@/features/**/*"
-                                        , exists = Just [mkExistsModuleDto "{{TARGET_DIR}}/**/*.spec"]
-                                        , fix = "Fix it."
-                                        }
-                                    ]
-                                }
-                m = mkModule "@/features/home/HomeView" []
-            result <- runExistsTest [wildcardRulebook] [m] m
-            case result of
-                Left (InvalidRuleConfig msg) ->
-                    msg `shouldSatisfy` T.isInfixOf "wildcard-exists"
-                other ->
-                    expectationFailure $ "expected InvalidRuleConfig, got: " <> show other
+                    compileRulebookDto
+                        rulebookDto
+                            { id = "bad-rules"
+                            , name = "Bad Rules"
+                            , description = "bad rules"
+                            , rules =
+                                [ ruleDto
+                                    { id = RuleId "wildcard-exists"
+                                    , description = "wildcard exists"
+                                    , target = GlobDto "@/features/**/*"
+                                    , exists = Just [mkExistsModuleDto "{{TARGET_DIR}}/**/*.spec"]
+                                    , fix = "Fix it."
+                                    }
+                                ]
+                            }
+
+            fmap (fmap (.field)) (leftToMaybe wildcardRulebook)
+                `shouldBe` Just (one ExistsField)
 
     describe "uses enforcement" $ do
         it "no violation when module imports a matching module" $ do
@@ -730,7 +735,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         it "reports one violation per unmatched uses pattern" $ do
             let multiUsesRulebook =
                     fromRight (error "multiUsesRulebook: invalid fixture") $
-                        compileRulebook
+                        compileRulebookDto
                             rulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
@@ -774,7 +779,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         it "wildcard uses pattern matches any qualifying import" $ do
             let wildcardUsesRulebook =
                     fromRight (error "wildcardUsesRulebook: invalid fixture") $
-                        compileRulebook
+                        compileRulebookDto
                             rulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
@@ -796,7 +801,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
     describe "transitive uses enforcement" $ do
         let usesTransitiveRulebook =
                 fromRight (error "usesTransitiveRulebook: invalid fixture") $
-                    compileRulebook
+                    compileRulebookDto
                         rulebookDto
                             { id = "uses-rules"
                             , name = "Uses Rules"
@@ -871,7 +876,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         it "wildcard transitive uses pattern matches a reachable module" $ do
             let wildcardTransitiveRulebook =
                     fromRight (error "wildcardTransitiveRulebook: invalid fixture") $
-                        compileRulebook
+                        compileRulebookDto
                             rulebookDto
                                 { id = "uses-rules"
                                 , name = "Uses Rules"
@@ -906,7 +911,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         describe "direct forbids with allows" $ do
             let directAllowsRulebook =
                     fromRight (error "directAllowsRulebook: invalid fixture") $
-                        compileRulebook
+                        compileRulebookDto
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -921,7 +926,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                                 }
                 sharedOnlyRulebook =
                     fromRight (error "sharedOnlyRulebook: invalid fixture") $
-                        compileRulebook
+                        compileRulebookDto
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -936,7 +941,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                                 }
                 domainPurityRulebook =
                     fromRight (error "domainPurityRulebook: invalid fixture") $
-                        compileRulebook
+                        compileRulebookDto
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -1048,7 +1053,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         describe "transitive forbids with allows" $ do
             let storeAllowsRulebook =
                     fromRight (error "storeAllowsRulebook: invalid fixture") $
-                        compileRulebook
+                        compileRulebookDto
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -1063,7 +1068,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                                 }
                 domainPurityTransitiveRulebook =
                     fromRight (error "domainPurityTransitiveRulebook: invalid fixture") $
-                        compileRulebook
+                        compileRulebookDto
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -1131,7 +1136,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
             -- own directory (and any subdirectories, since ** spans segments).
             let dirIsolationRulebook =
                     fromRight (error "dirIsolationRulebook: invalid fixture") $
-                        compileRulebook
+                        compileRulebookDto
                             rulebookDto
                                 { rules =
                                     [ ruleDto
@@ -1147,7 +1152,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 -- Relaxed variant: also permits @/shared/** imports
                 dirIsolationWithSharedRulebook =
                     fromRight (error "dirIsolationWithSharedRulebook: invalid fixture") $
-                        compileRulebook
+                        compileRulebookDto
                             rulebookDto
                                 { rules =
                                     [ ruleDto

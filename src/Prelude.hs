@@ -2,6 +2,7 @@
 
 module Prelude (
     module Relude,
+    todo,
 ) where
 
 import Relude hiding (
@@ -41,3 +42,6 @@ import Relude hiding (
     tryPutTMVar,
     writeTVar,
  )
+
+todo :: a
+todo = error "TODO"

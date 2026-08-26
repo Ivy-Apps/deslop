@@ -24,6 +24,7 @@ module Deslop.Rule.Book.Loader (
 import Data.Text qualified as T
 import Deslop.Rule.Book (Rulebook)
 import Deslop.Rule.Book.Compiler (CompileError (..), compileRulebook, renderCompileError)
+import Deslop.Rule.Book.Desugar (desugarRulebook)
 import Deslop.Rule.Book.Dto (parseRulebookYaml)
 import Effectful
 import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile)
@@ -66,7 +67,7 @@ loadRulebookFromFile path = compile <$> fsReadFile path
   where
     compile bytes = do
         dto <- first UnreadableYaml (parseRulebookYaml bytes)
-        first UncompilablePatterns (compileRulebook dto)
+        first UncompilablePatterns . compileRulebook . desugarRulebook $ dto
 
 {- | Every failure of a run, grouped by file and then by rule, in source order
 throughout - the author reads their file top to bottom and the report should

@@ -15,36 +15,49 @@ module Deslop.Rule.Book.Dto (
     parseRulebookYaml,
 ) where
 
-import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
+import Data.Aeson (FromJSON (..), Options (..), camelTo2, defaultOptions, genericParseJSON, withObject, (.:), (.:?))
 import Data.Yaml (decodeEither')
 import Deslop.Rule.Book (RuleId)
 
-data RulebookDto = RulebookDto
-    { id :: Text
-    , name :: Text
-    , description :: Text
-    , rules :: [RuleDto]
+{- | A rulebook, parameterised over what one of its rules is.
+
+The envelope is the same before and after desugaring - only a /rule/ has sugar
+in it - so it is written once and the phase is read off the parameter:
+@RulebookDto RuleDto@ is what an author wrote, @RulebookDto DesugaredRuleDto@ is
+what the compiler is given. Desugaring the whole file is then the 'Functor'
+instance, which is why there is one.
+-}
+data RulebookDto rule = RulebookDto
+    { id :: !Text
+    , name :: !Text
+    , description :: !Text
+    , rules :: ![rule]
     }
-    deriving stock (Show, Eq, Generic)
-    deriving anyclass (FromJSON)
+    deriving stock (Show, Eq, Generic, Functor)
+
+instance (FromJSON rule) => FromJSON (RulebookDto rule) where
+    parseJSON = genericParseJSON kebabOptions
 
 data RuleDto = RuleDto
-    { id :: RuleId
-    , description :: Text
-    , target :: GlobDto
+    { id :: !RuleId
+    , description :: !Text
+    , target :: !GlobDto
     , exclude :: Maybe [GlobDto]
     , forbids :: Maybe [ForbidsDto]
     , allows :: Maybe [AllowsDto]
+    , allowsOnly :: Maybe [AllowsDto]
     , uses :: Maybe [UsesDto]
     , exists :: Maybe [ExistsDto]
     , example :: Maybe Text
-    , fix :: Text
+    , fix :: !Text
     }
     deriving stock (Show, Eq, Generic)
-    deriving anyclass (FromJSON)
+
+instance FromJSON RuleDto where
+    parseJSON = genericParseJSON kebabOptions
 
 data ForbidsDto = ForbidsImportDto
-    { target :: GlobDto
+    { target :: !GlobDto
     , transitive :: Maybe Bool
     }
     deriving stock (Show, Eq)
@@ -86,5 +99,13 @@ newtype GlobDto = GlobDto Text
     deriving stock (Show, Eq)
     deriving newtype (FromJSON)
 
-parseRulebookYaml :: ByteString -> Either Text RulebookDto
+{- | A field of two or more words is one kebab-case key: @allowsOnly@ is written
+@allows-only@. Every single-word key is left exactly as it was, so this changes
+nothing about the rulebooks already in the wild - but it settles the spelling
+for every multi-word key added after this one.
+-}
+kebabOptions :: Options
+kebabOptions = defaultOptions {fieldLabelModifier = camelTo2 '-'}
+
+parseRulebookYaml :: ByteString -> Either Text (RulebookDto RuleDto)
 parseRulebookYaml = first show . decodeEither'

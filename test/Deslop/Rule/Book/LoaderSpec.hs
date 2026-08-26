@@ -2,7 +2,8 @@ module Deslop.Rule.Book.LoaderSpec (spec) where
 
 import Data.Text qualified as T
 import Deslop.Rule.Book.Compiler (CompileError, compileRulebook, renderCompileError)
-import Deslop.Rule.Book.Dto (parseRulebookYaml)
+import Deslop.Rule.Book.Desugar (DesugaredRuleDto (..), desugarRulebook)
+import Deslop.Rule.Book.Dto (ForbidsDto (..), GlobDto (..), RulebookDto (..), parseRulebookYaml)
 import Deslop.Rule.Book.Loader (loadRulebookFromFile)
 import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
@@ -22,6 +23,7 @@ spec = describe "Deslop.Rule.Book.Loader" $ do
         runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ loadRulebookFromFileTest
     shippedExamplesSpec
     globCompilationSpec
+    kebabKeySpec
   where
     loadRulebookFromFileTest :: OsPath -> Spec
     loadRulebookFromFileTest fpath = do
@@ -130,7 +132,31 @@ globCompilationSpec = describe "Glob+ compilation" $ do
         err `shouldSatisfy` T.isInfixOf "target:"
         err `shouldNotSatisfy` T.isInfixOf "uses.import"
 
+{- | A rulebook key of two or more words is kebab-case. Worth pinning because
+the failure is silent: aeson ignores a key it does not recognise, so a rule
+spelled the other way loses its clause without a word of complaint.
+-}
+kebabKeySpec :: Spec
+kebabKeySpec = describe "multi-word keys" $ do
+    it "reads allows-only, and desugars it" $
+        forbidsOf (rulebook ["    target: \"@/x/**\"", allowsOnlyImport "allows-only" "@/shared/**"])
+            `shouldBe` Just ["**"]
+
+    it "does not read the camelCase spelling of it" $
+        forbidsOf (rulebook ["    target: \"@/x/**\"", allowsOnlyImport "allowsOnly" "@/shared/**"])
+            `shouldBe` Just []
+
+-- | Every @forbids@ glob of a one-rule rulebook, after desugaring.
+forbidsOf :: ByteString -> Maybe [Text]
+forbidsOf bytes = do
+    book <- rightToMaybe (parseRulebookYaml bytes)
+    rule <- viaNonEmpty head (desugarRulebook book).rules
+    pure [glob | ForbidsImportDto (GlobDto glob) _ <- fromMaybe [] rule.forbids]
+
 -- Helpers
+
+allowsOnlyImport :: Text -> Text -> Text
+allowsOnlyImport key glob = "    " <> key <> ":\n      - import: \"" <> glob <> "\""
 
 usesImport :: Text -> Text
 usesImport glob = "    uses:\n      - import: \"" <> glob <> "\""
@@ -164,7 +190,7 @@ twoRules firstTarget secondTarget =
 file heading the loader adds.
 -}
 compileErrorOf :: ByteString -> Maybe Text
-compileErrorOf = leftToMaybe . (first renderAll . compileRulebook <=< parseRulebookYaml)
+compileErrorOf = leftToMaybe . (first renderAll . compileRulebook . desugarRulebook <=< parseRulebookYaml)
   where
     renderAll :: NonEmpty CompileError -> Text
     renderAll = T.intercalate "\n" . fmap renderCompileError . toList

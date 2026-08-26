@@ -48,6 +48,7 @@ of one.
 | `**` | a whole segment | zero or many segments |
 | `*` | inside a segment | zero or more characters, never a `/` |
 | `..` | a whole segment | one directory back - **clause patterns only** |
+| `..*` | a whole segment | zero or many directories back - **clause patterns only** |
 
 `**` must stand alone as a segment. `@/a/**View` does not compile, because a
 globstar glued to text would make the number of segments a pattern consumes
@@ -268,6 +269,90 @@ If you want the *feature root* regardless of the file's depth, name it rather
 than counting back from the file: `@/client/{{feature-name}}/../shared/**` - or,
 equivalently, `@/client/shared/**`.
 
+### `..*` goes zero or many directories back
+
+`..*` is `..` repeated as many times as it can be. One written clause stands for
+one resolution per ancestor of what is behind it, and the clause matches if
+**any** of them matches.
+
+```yaml
+target: "@/client/**/{{FileName}}View"
+allows-only:
+  - import: "{{TARGET_DIR}}/**"
+  - import: "{{TARGET_DIR}}/..*/shared/**"   # a shared/ at or above me
+```
+
+Matched at `@/client/billing/invoices/InvoiceView`, `{{TARGET_DIR}}` is
+`@/client/billing/invoices` and the second clause stands for all of:
+
+```
+@/client/billing/invoices/shared/**
+@/client/billing/shared/**
+@/client/shared/**
+@/shared/**
+shared/**                    (clamped past the root; matches no module id)
+```
+
+This is the answer to *"`..` is relative to the file, not to the rule"* above.
+A fixed `../shared/**` names a different folder at each depth and holds at only
+one of them; `..*` names them all, so the rule means the same thing however deep
+the matched file sits.
+
+How many resolutions there are is decided by how deep `{{TARGET_DIR}}` actually
+is, when the clause is hydrated. There is no depth limit to configure and no
+constant to tune.
+
+`..*` is a whole segment or it is nothing, exactly like `..`: `..*shared` and
+`a..*b` are plain text.
+
+#### It may only go back past directories the pattern names
+
+A single `..` is checked against the one segment it would cancel. A `..*` may
+cancel **any** prefix, so *every* segment behind it has to be one it could
+legally reach.
+
+```
+{{TARGET_DIR}}/..*/shared/**      ✅
+@/client/..*/shared/**            ✅ literals all the way back
+@/client/{{feature-name}}/..*/x   ✅ a variable is literal text once substituted
+
+@/client/**/..*/shared/**         ❌ ** is zero or many segments: which one?
+@/**/a/b/..*/shared/**            ❌ the ..* could reach that ** too
+@/client/*View/..*/shared         ❌ a segment holding * names no directory
+```
+
+Neither rejected case costs you anything. In the first the `..*` could climb
+nothing at all and would be a silent no-op; in the second the widest resolution
+is `@/**/shared/**`, which already subsumes every narrower one - write that
+instead, it is clearer.
+
+A `**` *ahead* of the `..*` is fine: `{{TARGET_DIR}}/..*/shared/**` is the
+motivating example.
+
+#### `..*` cannot be used where exactly one module is required
+
+An `exists:` clause looks a module up, so it must name exactly one. `..*` names
+one per ancestor, and is rejected there for the same reason `*` and `**` are:
+
+```yaml
+exists:
+  - module: "{{TARGET_DIR}}/..*/registry"   # ❌ which registry?
+  - module: "{{TARGET_DIR}}/../registry"    # ✅ exactly one
+```
+
+This is settled when the rulebook is compiled, so the failure arrives with every
+other error in the file rather than part-way through a run.
+
+#### In a `uses:` message, `..*` is printed as written
+
+There is no single module to name, so the reported message keeps the token, the
+way `**` is already kept:
+
+```
+Module '@/client/billing/invoices/InvoiceContainer' must import
+  '@/client/billing/invoices/..*/shared/registry'.
+```
+
 ---
 
 ## Where a variable may stand
@@ -486,11 +571,14 @@ Used in the `target:` field. Matches a file path and **captures variables**.
 
 Used in `uses:`, `exists:`, `forbids:` and `allows:`. Matches a file path against a **hydrated** environment.
 
-- Supports `*`, `**`, `{{TARGET_DIR}}`, `..` and any variable **bound by its rule's target pattern**.
+- Supports `*`, `**`, `{{TARGET_DIR}}`, `..`, `..*` and any variable **bound by
+  its rule's target pattern**.
 - Referencing an unbound variable is a compilation error, not a wildcard.
 - The anchoring rule does not apply: a clause substitutes rather than captures.
-- The only pattern that may use `..`, because it is the only one with a
+- The only pattern that may use `..` or `..*`, because it is the only one with a
   directory - `{{TARGET_DIR}}` - to be relative to.
+- `exists:` is the one clause that must name **exactly one** module, so it
+  rejects `*`, `**` and `..*`. The other three may name any number.
 
 ### ExcludePattern
 
@@ -585,7 +673,7 @@ deslop/rules/widgets.yaml
         Did you mean {{provider-name}}?
 ```
 
-The three errors `..` can raise:
+The errors `..` and `..*` can raise:
 
 ```
   rule 'target-goes-back-a-directory'
@@ -606,6 +694,16 @@ The three errors `..` can raise:
         "**" stands for zero or many segments, so there is no one
         directory to go back from.
         Write the directory you mean, or start from {{TARGET_DIR}}.
+  rule 'clause-climbs-past-a-globstar'
+    allows.import: "@/client/**/..*/shared/**"
+      "..*" cannot go back past "**".
+        ...
+  rule 'exists-cannot-name-one-module'
+    exists.module: "{{TARGET_DIR}}/..*/registry"
+      "..*" cannot be used here: this pattern must name exactly one module.
+        "*", "**" and "..*" each stand for more than one path, so there
+        would be no single module to require. Write the module you mean, or
+        reach it from {{TARGET_DIR}}.
 ```
 
 A rule whose **target** does not compile stays quiet about its clauses: they are

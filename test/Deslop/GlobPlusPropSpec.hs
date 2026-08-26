@@ -309,7 +309,85 @@ tier7 = describe "tier 7 - parent directories" $ do
         annotate (toString rendered)
         isLeft (compileTargetPattern rendered) === elem ".." segments
         isLeft (compileExcludePattern rendered) === elem ".." segments
-        isRight (compileClausePattern Narrow mempty rendered) === O.parentDirsLegal segments
+        isRight (compileClausePattern Narrow Nondeterministic mempty rendered) === O.parentDirsLegal segments
+
+    {- The oracle for @..*@ is repeated @..@, which is shipped and pinned by
+    P23-P26 above. There is no model to write: the feature's whole claim is that
+    it says what some number of @..@ says, so the property is that claim. -}
+    prop "P27 ..* decides exactly as the ladder of .. it stands for" $ do
+        (env, bound, segments) <- forAllClause
+        path <- forAll (Gen.list (Range.linear 0 6) O.genOpaqueSegment)
+        {- A ..* may climb everything behind it, so it may only be placed where
+        everything behind it is climbable. Choosing the index that way tests the
+        same ground as generating freely and discarding, without the discards. -}
+        index <- forAll (Gen.int (Range.linear 0 (length (takeWhile climbable segments))))
+
+        let withStar = spliceInto index ["..*"] segments
+            ladder rungs = spliceInto index (replicate rungs "..") segments
+        annotate (toString (T.intercalate "/" withStar))
+
+        star <- decides env bound withStar path
+        rungs <- traverse (\n -> decides env bound (ladder n) path) [0 .. length segments + length path]
+        star === or rungs
+
+    prop "P28 a pattern with no ..* resolves to exactly one thing" $ do
+        rest <- forAll (Gen.list (Range.linear 0 6) genSegmentOrParentDir)
+        directory <- forAll (Gen.list (Range.linear 1 4) O.genOpaqueSegment)
+        let env = MatchEnv {targetDir = T.intercalate "/" directory, variables = Map.empty}
+        clause <- compileClauseOrFail (braced "TARGET_DIR" : rest)
+
+        -- One resolution, and the same one 'resolveParentDirs' has always given.
+        moduleFromGlob env clause
+            === Just (T.intercalate "/" (O.resolveParentDirs (directory <> rest)))
+
+    prop "P29 ..* stands for as many resolutions as there are segments behind it" $ do
+        directory <- forAll (Gen.list (Range.linear 1 5) O.genOpaqueSegment)
+        leading <- forAll (Gen.list (Range.linear 0 4) O.genOpaqueSegment)
+        trailing <- forAll (Gen.list (Range.linear 0 3) O.genOpaqueSegment)
+
+        let segments = braced "TARGET_DIR" : leading <> ["..*"] <> trailing
+            behind = length directory + length leading
+        annotate (toString (T.intercalate "/" segments))
+        clause <- compileClauseOrFail segments
+
+        let env = MatchEnv {targetDir = T.intercalate "/" directory, variables = Map.empty}
+            ResolvedClause alternatives = hydrate env clause
+
+        -- Bounded by how deep the thing actually is, never by a constant.
+        length alternatives === behind + 1
+
+        -- And the resolutions themselves are the ones the oracle names.
+        let raw = directory <> leading <> ["..*"] <> trailing
+        toList (resolveSteps id (stepOf <$> raw)) === toList (O.resolveParentDirStars raw)
+
+    prop "P30 ..* compiles in a clause alone, and only past segments naming one directory" $ do
+        segments <- forAll (Gen.list (Range.linear 1 6) genStructuralSegmentOrStar)
+        let rendered = T.intercalate "/" segments
+        annotate (toString rendered)
+        isLeft (compileTargetPattern rendered) === any navigates segments
+        isLeft (compileExcludePattern rendered) === any navigates segments
+        isRight (compileClausePattern Narrow Nondeterministic mempty rendered)
+            === O.parentDirStarsLegal segments
+
+    prop "P31 a deterministic pattern is one with no wildcard and no ..*" $ do
+        segments <- forAll (Gen.list (Range.linear 1 6) genStructuralSegmentOrStar)
+        let rendered = T.intercalate "/" segments
+            deterministic = compileClausePattern Narrow Deterministic mempty rendered
+            nondeterministic = compileClausePattern Narrow Nondeterministic mempty rendered
+        annotate (toString rendered)
+
+        isRight deterministic === (isRight nondeterministic && not (any nondetermines segments))
+
+        -- Whatever Deterministic accepts, Nondeterministic accepts too.
+        when (isRight deterministic) (assert (isRight nondeterministic))
+
+        {- And what it accepts always names a module, which is what lets the
+        enforcer's unreachable branch stay unreachable. -}
+        directory <- forAll (Gen.list (Range.linear 1 4) O.genOpaqueSegment)
+        let env = MatchEnv {targetDir = T.intercalate "/" directory, variables = Map.empty}
+        for_ (rightToMaybe deterministic) (assert . isJust . moduleFromGlob env)
+      where
+        nondetermines segment = segment == "..*" || "*" `T.isInfixOf` segment
 
 --------------------------------------------------------------------------------
 -- Assertions
@@ -413,11 +491,38 @@ genStructuralSegment :: Gen Text
 genStructuralSegment =
     Gen.frequency [(2, O.genOpaqueSegment), (1, pure ".."), (1, pure "*"), (1, pure "**")]
 
+-- | As 'genStructuralSegment', with the zero-or-many form in the mix too.
+genStructuralSegmentOrStar :: Gen Text
+genStructuralSegmentOrStar =
+    Gen.frequency [(2, O.genOpaqueSegment), (1, pure ".."), (1, pure "..*"), (1, pure "*"), (1, pure "**")]
+
+-- | Whether a segment is one of the tokens only a clause pattern may carry.
+navigates :: Text -> Bool
+navigates segment = segment == ".." || segment == "..*"
+
+-- | Whether a @..@ or a @..*@ may go back past a segment: it must name one.
+climbable :: Text -> Bool
+climbable segment = not ("*" `T.isInfixOf` segment)
+
+-- | One raw segment as the step it stands for, so 'resolveSteps' can be
+-- measured against an oracle that works on plain text.
+stepOf :: Text -> Step [Text]
+stepOf ".." = ParentDir
+stepOf "..*" = ParentDirStar
+stepOf segment = Step [segment]
+
+{- | Splices segments in at an index, keeping what was there. Unlike 'spliceAt',
+which replaces, and unlike inserting one - a @..*@ or a ladder of @..@ has to go
+in at the same place for the two to be comparable.
+-}
+spliceInto :: Int -> [a] -> [a] -> [a]
+spliceInto index xs ys = take index ys <> xs <> drop index ys
+
 compileClauseOrFail :: (MonadTest m) => [Text] -> m CompiledClausePattern
 compileClauseOrFail = compileClauseIn mempty
 
 compileClauseIn :: (MonadTest m) => Set VarName -> [Text] -> m CompiledClausePattern
-compileClauseIn bound segments = case compileClausePattern Narrow bound (T.intercalate "/" segments) of
+compileClauseIn bound segments = case compileClausePattern Narrow Nondeterministic bound (T.intercalate "/" segments) of
     Right compiled -> pure compiled
     Left err -> do
         annotate (toString (T.intercalate "/" segments))
@@ -518,6 +623,6 @@ boundOf :: MatchEnv -> Set VarName
 boundOf env = Map.keysSet env.variables
 
 unsafeClause :: Polarity -> Set VarName -> Text -> CompiledClausePattern
-unsafeClause polarity bound text = case compileClausePattern polarity bound text of
+unsafeClause polarity bound text = case compileClausePattern polarity Nondeterministic bound text of
     Right compiled -> compiled
     Left err -> error ("clause did not compile: " <> renderGlobPlusError err)

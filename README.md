@@ -328,6 +328,34 @@ a `*` or a `**` - and one with nothing left to go back past does nothing.
 `target:` and `exclude:` reject `..`: both are matched against whole module ids,
 so there is nothing for it to be relative to. Write the path out instead.
 
+#### `..*`
+
+Zero or many directories back. One clause, one resolution per ancestor, matching
+if any of them matches - which is how a rule reaches "a `shared/` at or above me"
+without caring how deep the matched file sits.
+
+```yaml
+target: "@/client/**/{{FileName}}View"
+allows-only:
+  - import: "{{TARGET_DIR}}/**"
+  - import: "{{TARGET_DIR}}/..*/shared/**"
+```
+
+```
+target matched:                 @/client/billing/invoices/InvoiceView
+{{TARGET_DIR}}/..*/shared/** →  @/client/billing/invoices/shared/**
+                                @/client/billing/shared/**
+                                @/client/shared/**
+                                @/shared/**
+```
+
+How far it climbs is decided by how deep the file actually is, so there is no
+depth limit to configure. Every segment behind a `..*` must be one it could
+legally reach, so a `**` behind it is rejected - one ahead of it is fine.
+
+`..*` cannot be used in `target:` or `exclude:` for the same reason `..` cannot,
+nor in `exists:`, which must name exactly one module.
+
 > For the full pattern-matching semantics, see [`docs/GLOB+.md`](./docs/GLOB+.md).
 
 ---
@@ -375,6 +403,47 @@ Whitelists imports that would otherwise be caught by a `forbids` clause. Use `al
     - import: "{{TARGET_DIR}}/**"    # from own feature folder is fine
   fix: Remove the cross-feature import. Only @/features/auth is allowed.
 ```
+
+---
+
+#### `allows-only`
+
+Syntax sugar for `forbids: "**"` plus `allows:`. These two rules are the same rule:
+
+```yaml
+# with allows-only                    # written out longhand
+target: "@/features/**"               target: "@/features/**"
+allows-only:                          forbids:
+  - import: "{{TARGET_DIR}}/**"         - import: "**"
+                                      allows:
+                                        - import: "{{TARGET_DIR}}/**"
+```
+
+Use it when the allowance is the point and the `forbids: "**"` is just how you
+say "and nothing else". It may be combined with a hand-written `forbids` or
+`allows`, which it appends to rather than replaces - useful when you want the
+blanket rule *and* a transitive one:
+
+```yaml
+target: "@/client/**"
+forbids:
+  - import: "@/server/**"
+    transitive: true       # allows-only's generated forbid is direct-only
+allows-only:
+  - import: "{{TARGET_DIR}}/**"
+```
+
+> **`**` means everything, including npm packages.** An unresolved import such as
+> `react` is a module like any other, so `allows-only` forbids it too. This is
+> the same behaviour a hand-written `forbids: "**"` has always had, but
+> `allows-only` reads as though it were narrower. List what you need:
+>
+> ```yaml
+> allows-only:
+>   - import: "{{TARGET_DIR}}/**"
+>   - import: "react"
+>   - import: "next/*"
+> ```
 
 ---
 
@@ -737,7 +806,8 @@ allows:
 
 Nothing warns about this. The clause is simply dead for the shallow file, which
 in an `allows:` means extra violations and in a `forbids:` means silence. Count
-the `..` against the shallowest file your target can match.
+the `..` against the shallowest file your target can match, or use `..*`, which
+climbs as far as there is anything to climb and so has nothing to count.
 
 ### `..` is relative to the file, not to the rule
 
@@ -745,8 +815,8 @@ the `..` against the shallowest file your target can match.
 containing `**` the same `..` clause reaches a different folder for a file at
 depth 1 than for one at depth 2. That is `..` behaving as it does on a
 filesystem, but it means an allowance can move under you as the tree grows. Pin
-the depth by writing a target without `**`, or name the folder you mean instead
-of counting back to it. See
+the depth by writing a target without `**`, name the folder you mean instead of
+counting back to it, or use `..*` to mean every ancestor at once. See
 [`..` is relative to the file](docs/GLOB+.md#-is-relative-to-the-file-not-to-the-rule).
 
 ### `forbids:` accepts more spellings than `uses:`

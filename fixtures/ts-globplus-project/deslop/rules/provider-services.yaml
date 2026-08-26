@@ -142,6 +142,22 @@ rules:
       Import the format-money module from the shared folder beside your own,
       or move this View up to the depth where that folder is its sibling.
 
+  - id: views-reach-shared-at-any-depth
+    description: >-
+      A View may import from its own folder, from a shared folder at any level
+      at or above it, and from config. Written with allows-only and ..*, which
+      is what makes it hold at every depth: the fixed ../shared/** of
+      nested-view-uses-its-shared-formatter above names a different folder for a
+      View one level deeper, while ..* names all of them.
+    target: "@/components/{{provider-name}}/**/{{FileName}}View"
+    allows-only:
+      - import: "{{TARGET_DIR}}/**"
+      - import: "{{TARGET_DIR}}/..*/shared/**"
+      - import: "@/config/**"
+    fix: >-
+      Import from your own folder, or move the code into a shared folder at or
+      above this View.
+
   - id: use-case-has-a-view-model
     description: >-
       Every use case is driven by a ViewModel named after it, in camelCase this

@@ -31,9 +31,11 @@ module Deslop.GlobPlus.Oracle (
     unanchoredVars,
     unboundedSegments,
     parentDirsLegal,
+    parentDirStarsLegal,
 
     -- * Parent directories
     resolveParentDirs,
+    resolveParentDirStars,
 
     -- * Generators
     genOPattern,
@@ -266,6 +268,40 @@ resolveParentDirs = reverse . foldl' back []
   where
     back done ".." = drop 1 done
     back done segment = segment : done
+
+{- | Whether every @..*@ in a clause, written as raw segments, could legally
+climb every segment behind it. A @..*@ cancels a prefix of unknown length, so
+anything behind it is something it might reach, and a @..@ it has already
+climbed past is not - the star having consumed it.
+
+Written over the text, like 'parentDirsLegal', so it is a second opinion rather
+than a restatement of the fold production runs.
+-}
+parentDirStarsLegal :: [Text] -> Bool
+parentDirStarsLegal = isRight . foldlM back []
+  where
+    back behind ".." = case behind of
+        [] -> Right []
+        (segment : earlier) -> earlier <$ climbable segment
+    back behind "..*" = [] <$ traverse_ climbable behind
+    back behind segment = Right (segment : behind)
+
+    climbable segment
+        | "*" `T.isInfixOf` segment = Left ()
+        | otherwise = Right ()
+
+{- | Resolving @..*@ over plain segments as the set of every ancestor it stands
+for, written the obvious way: cancel a prefix of every possible length.
+
+Production has to do this over a pattern whose steps expand to varying numbers
+of segments, which is the difference a differential property is measuring.
+-}
+resolveParentDirStars :: [Text] -> NonEmpty [Text]
+resolveParentDirStars = fmap reverse . foldlM back []
+  where
+    back done ".." = pure (drop 1 done)
+    back done "..*" = done :| [drop taken done | taken <- [1 .. length done]]
+    back done segment = pure (segment : done)
 
 -- | Every segment holding two variables with no literal between them.
 unboundedSegments :: OPattern -> [[OPart]]
