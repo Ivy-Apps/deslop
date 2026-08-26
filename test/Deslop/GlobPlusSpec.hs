@@ -632,6 +632,16 @@ spec = describe "Deslop.GlobPlus" $ do
             let pat = unsafeCompileClause "{{TARGET_DIR}}/../../shared/registry"
             renderClausePattern env pat `shouldBe` "@/shared/registry"
 
+        {- Unlike .., a ..* stands for a module per ancestor, so there is no one
+        id to show. It is kept as written, the way ** already is. -}
+        it "keeps ..* literally, having no single module to name" $ do
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/..*/shared/registry"
+            renderClausePattern env pat `shouldBe` "@/features/auth/..*/shared/registry"
+
+        it "still resolves a .. that sits beside a ..*" $ do
+            let pat = unsafeCompileClause "{{TARGET_DIR}}/../shared/..*/registry"
+            renderClausePattern env pat `shouldBe` "@/features/shared/..*/registry"
+
         it "keeps a ** that no .. cancels" $ do
             let pat = unsafeCompileClause "{{TARGET_DIR}}/../**/*.spec"
             renderClausePattern env pat `shouldBe` "@/features/**/*.spec"
@@ -1298,10 +1308,10 @@ compilationErrorSpec = describe "compilation errors" $ do
         bound "{{Http2Client}}" `shouldBe` bound "{{HTTP2_CLIENT}}"
 
     it "reserves TARGET_DIR under every casing of its name" $ do
-        errorOf (compileClausePattern Narrow mempty "{{target-dir}}/x") `shouldBe` Just (ReservedTargetDir "target-dir")
-        errorOf (compileClausePattern Narrow mempty "{{targetDir}}/x") `shouldBe` Just (ReservedTargetDir "targetDir")
-        errorOf (compileClausePattern Narrow mempty "{{TargetDir}}/x") `shouldBe` Just (ReservedTargetDir "TargetDir")
-        errorOf (compileClausePattern Narrow mempty "{{TARGET_DIR}}/x") `shouldBe` Nothing
+        errorOf (compileClausePattern Narrow Nondeterministic mempty "{{target-dir}}/x") `shouldBe` Just (ReservedTargetDir "target-dir")
+        errorOf (compileClausePattern Narrow Nondeterministic mempty "{{targetDir}}/x") `shouldBe` Just (ReservedTargetDir "targetDir")
+        errorOf (compileClausePattern Narrow Nondeterministic mempty "{{TargetDir}}/x") `shouldBe` Just (ReservedTargetDir "TargetDir")
+        errorOf (compileClausePattern Narrow Nondeterministic mempty "{{TARGET_DIR}}/x") `shouldBe` Nothing
 
     it "rejects TARGET_DIR in a target pattern, where it cannot be captured" $ do
         errorOf (compileTargetPattern "{{TARGET_DIR}}/x") `shouldBe` Just (TargetDirInTargetPattern "TARGET_DIR")
@@ -1317,11 +1327,11 @@ compilationErrorSpec = describe "compilation errors" $ do
             `shouldBe` Just (NoBoundaryBetween "FileName" "ServiceType")
 
     it "allows adjacent variables in a clause, where they are substituted" $
-        errorOf (compileClausePattern Narrow (Set.fromList [VarName "file-name", VarName "service-type"]) "@/x/{{FileName}}{{ServiceType}}")
+        errorOf (compileClausePattern Narrow Nondeterministic (Set.fromList [VarName "file-name", VarName "service-type"]) "@/x/{{FileName}}{{ServiceType}}")
             `shouldBe` Nothing
 
     it "rejects a clause variable the target never captures" $
-        errorOf (compileClausePattern Narrow fileName "{{TARGET_DIR}}/{{provider-name}}")
+        errorOf (compileClausePattern Narrow Nondeterministic fileName "{{TARGET_DIR}}/{{provider-name}}")
             `shouldBe` Just (UnboundVariable (VarName "provider-name") fileName)
 
     it "reports malformed patterns as a syntax error" $
@@ -1336,12 +1346,12 @@ compilationErrorSpec = describe "compilation errors" $ do
 
         it "lists the bound variables and suggests the nearest match" $ do
             let scope = Set.fromList [VarName "provider-name", VarName "file-name"]
-            let message = renderError (compileClausePattern Narrow scope "{{TARGET_DIR}}/{{provider-nam}}")
+            let message = renderError (compileClausePattern Narrow Nondeterministic scope "{{TARGET_DIR}}/{{provider-nam}}")
             message `shouldSatisfy` T.isInfixOf "file-name, provider-name"
             message `shouldSatisfy` T.isInfixOf "Did you mean {{provider-name}}?"
 
         it "points at the only accepted spelling of TARGET_DIR" $
-            renderError (compileClausePattern Narrow mempty "{{target-dir}}/x")
+            renderError (compileClausePattern Narrow Nondeterministic mempty "{{target-dir}}/x")
                 `shouldSatisfy` T.isInfixOf "{{TARGET_DIR}}"
 
         it "tells a target to write the path out, and where .. does belong" $ do
@@ -1356,19 +1366,19 @@ compilationErrorSpec = describe "compilation errors" $ do
             message `shouldSatisfy` T.isInfixOf "{{TARGET_DIR}}/../shared/**"
 
         it "names the ** a .. tried to go back past, and why it cannot" $ do
-            let message = renderError (compileClausePattern Narrow mempty "@/client/**/../shared")
+            let message = renderError (compileClausePattern Narrow Nondeterministic mempty "@/client/**/../shared")
             message `shouldSatisfy` T.isInfixOf "\"..\" cannot go back past \"**\"."
             message `shouldSatisfy` T.isInfixOf "zero or many segments"
 
         it "names the wildcard segment a .. tried to go back past" $ do
-            let message = renderError (compileClausePattern Narrow mempty "@/client/*View/../shared")
+            let message = renderError (compileClausePattern Narrow Nondeterministic mempty "@/client/*View/../shared")
             message `shouldSatisfy` T.isInfixOf "\"..\" cannot go back past \"*View\"."
             message `shouldSatisfy` T.isInfixOf "does not say which directory it is"
 
         it "accepts a .. that goes back past a segment the pattern determines" $ do
-            compileClausePattern Narrow mempty "@/client/home/../shared" `shouldSatisfy` isRight
-            compileClausePattern Narrow mempty "{{TARGET_DIR}}/../shared" `shouldSatisfy` isRight
-            compileClausePattern Narrow mempty "../../shared" `shouldSatisfy` isRight
+            compileClausePattern Narrow Nondeterministic mempty "@/client/home/../shared" `shouldSatisfy` isRight
+            compileClausePattern Narrow Nondeterministic mempty "{{TARGET_DIR}}/../shared" `shouldSatisfy` isRight
+            compileClausePattern Narrow Nondeterministic mempty "../../shared" `shouldSatisfy` isRight
 
 --------------------------------------------------------------------------------
 -- Properties
@@ -1580,7 +1590,7 @@ unsafeCompileClauseIn :: Set VarName -> Text -> CompiledClausePattern
 unsafeCompileClauseIn = unsafeCompileClauseAs Narrow
 
 unsafeCompileClauseAs :: Polarity -> Set VarName -> Text -> CompiledClausePattern
-unsafeCompileClauseAs polarity bound t = case compileClausePattern polarity bound t of
+unsafeCompileClauseAs polarity bound t = case compileClausePattern polarity Nondeterministic bound t of
     Right compiled -> compiled
     Left err -> error $ "Failed to compile clause pattern: " <> renderGlobPlusError err
 

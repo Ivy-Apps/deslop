@@ -1,6 +1,6 @@
 [Title] 🚀 Checking project: ~/fixtures/ts-globplus-project
-[Plain] 📚 Loaded 1 rulebook, 12 rules
-[Error] Found 17 problems:
+[Plain] 📚 Loaded 1 rulebook, 13 rules
+[Error] Found 19 problems:
 [Error] ─────────────────────────────────────────
 [Error] # provider-services#adapter-imports-its-provider-config#@/adapters/stripe-connect/stripe-connect-payment-gateway
 An adapter names its provider twice: once as the folder it sits in, and once as the prefix of its own file name, before the service type. The greedy split of that file segment gives the provider one word too many, and the folder above has already ruled it out - so the split has to be chosen by what is already bound rather than merely checked against it.
@@ -131,7 +131,27 @@ A service View is pure UI. It must delegate its state and behaviour to the ViewM
 
 Module '@/components/paypal/payment/RefundView' must import '@/components/paypal/payment/useRefundViewModel'.
 FIX: Import useRefundViewModel from the same directory and drive the View from the state it returns.
+---------
+
+# provider-services#views-reach-shared-at-any-depth#@/components/paypal/payment/RefundView
+A View may import from its own folder, from a shared folder at any level at or above it, and from config. Written with allows-only and ..*, which is what makes it hold at every depth: the fixed ../shared/** of nested-view-uses-its-shared-formatter above names a different folder for a View one level deeper, while ..* names all of them.
+
+Module '@/components/paypal/payment/RefundView' directly imports '@/components/stripe-connect/payment/CheckoutView'.
+```ts
+import { CheckoutView } from '@/components/stripe-connect/payment/CheckoutView';
+```
+FIX: Import from your own folder, or move the code into a shared folder at or above this View.
+---------
+
+# provider-services#views-reach-shared-at-any-depth#@/components/stripe-connect/payout/TransferView
+A View may import from its own folder, from a shared folder at any level at or above it, and from config. Written with allows-only and ..*, which is what makes it hold at every depth: the fixed ../shared/** of nested-view-uses-its-shared-formatter above names a different folder for a View one level deeper, while ..* names all of them.
+
+Module '@/components/stripe-connect/payout/TransferView' directly imports '@/components/stripe-connect/payment/CheckoutView'.
+```ts
+import { CheckoutView } from '@/components/stripe-connect/payment/CheckoutView';
+```
+FIX: Import from your own folder, or move the code into a shared folder at or above this View.
 [Error] ─────────────────────────────────────────
-[summary] Checked 28 modules enforcing 14 rules
-[exit] Found 17 problems, none auto-fixable.
-   Run `deslop baseline` to silence all 17 problems.
+[summary] Checked 28 modules enforcing 15 rules
+[exit] Found 19 problems, none auto-fixable.
+   Run `deslop baseline` to silence all 19 problems.

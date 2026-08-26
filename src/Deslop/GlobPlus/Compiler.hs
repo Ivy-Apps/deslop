@@ -15,7 +15,10 @@ the path it is matched against:
   see @docs/adr/0006@.
 * @..@ may only go back past a segment whose text the pattern determines, and
   only in a clause - the one pattern with a directory to be relative to. See
-  @docs/adr/0012@.
+  @docs/adr/0012@. @..*@ may cancel any prefix, so /every/ segment behind it
+  must be one it could legally reach. See @docs/adr/0015@.
+* A pattern that must name exactly one module - @exists:@ - may hold no @*@,
+  @**@ or @..*@. Checked here so the failure lands when the rulebook loads.
 
 The pattern is split on @\/@ before anything else, which is sound because a
 variable token may not contain one. Each piece is then parsed on its own, so a
@@ -62,13 +65,18 @@ data GlobPlusError
       TargetDirInTargetPattern Text
     | -- | Any variable in an exclude pattern, which binds nothing.
       VariableInExcludePattern Text
-    | -- | @..@ in a target pattern, which is matched against whole module ids.
-      ParentDirInTargetPattern
-    | -- | @..@ in an exclude pattern, for the same reason.
-      ParentDirInExcludePattern
-    | -- | @**\/..@ or @*\/..@ - the segment it would cancel names no one
-      -- directory. Carries that segment as written.
-      ParentDirPastWildcard Text
+    | -- | @..@ or @..*@ in a target pattern, which is matched against whole
+      -- module ids. Carries the token as written.
+      ParentDirInTargetPattern Text
+    | -- | @..@ or @..*@ in an exclude pattern, for the same reason.
+      ParentDirInExcludePattern Text
+    | -- | @**\/..@ or @*\/..*@ - the segment it would cancel names no one
+      -- directory. Carries the navigation token and that segment, both as
+      -- written.
+      ParentDirPastWildcard Text Text
+    | -- | @*@, @**@ or @..*@ where the pattern must name exactly one module.
+      -- Carries the offending token or segment as written.
+      NondeterministicPattern Text
     | -- | A clause variable the rule's target pattern never captures.
       UnboundVariable VarName (Set VarName)
     | -- | @\/**View@ - a globstar glued to text inside a segment.
@@ -120,25 +128,25 @@ renderGlobPlusError (VariableInExcludePattern raw) =
         <> " cannot be used in an exclude pattern.\n"
         <> "  An exclude pattern filters the target and binds no variables.\n"
         <> "  Use a wildcard instead, e.g. * or **."
-renderGlobPlusError ParentDirInTargetPattern =
-    quoted parentDir
+renderGlobPlusError (ParentDirInTargetPattern token) =
+    quoted token
         <> " cannot be used in a target pattern.\n"
         <> "  A target is matched against whole module ids, so there is nothing\n"
         <> "  for "
-        <> quoted parentDir
+        <> quoted token
         <> " to be relative to. Write the path you mean, e.g. \"@/shared/**\".\n"
         <> relativeToTargetDir
-renderGlobPlusError ParentDirInExcludePattern =
-    quoted parentDir
+renderGlobPlusError (ParentDirInExcludePattern token) =
+    quoted token
         <> " cannot be used in an exclude pattern.\n"
         <> "  An exclude pattern filters the target and is matched against whole\n"
         <> "  module ids, so there is nothing for "
-        <> quoted parentDir
+        <> quoted token
         <> " to be relative to. Write\n"
         <> "  the path you mean, e.g. \"@/shared/**\".\n"
         <> relativeToTargetDir
-renderGlobPlusError (ParentDirPastWildcard segment) =
-    quoted parentDir
+renderGlobPlusError (ParentDirPastWildcard token segment) =
+    quoted token
         <> " cannot go back past "
         <> quoted segment
         <> ".\n"
@@ -159,6 +167,16 @@ renderGlobPlusError (ParentDirPastWildcard segment) =
         | otherwise =
             "A segment containing \"*\" does not say which directory it is,\n"
                 <> "  so there is no one directory to go back from."
+renderGlobPlusError (NondeterministicPattern offender) =
+    quoted offender
+        <> " cannot be used here: this pattern must name exactly one module.\n"
+        <> "  \"*\", \"**\" and "
+        <> quoted parentDirStar
+        <> " each stand for more than one path, so there\n"
+        <> "  would be no single module to require. Write the module you mean, or\n"
+        <> "  reach it from "
+        <> braced targetDirKeyword
+        <> "."
 renderGlobPlusError (UnboundVariable name bound) =
     "unknown variable "
         <> braced name.text
@@ -254,14 +272,20 @@ A clause variable is /substituted/ rather than captured, so it is a literal by
 the time anything is matched - which is why the anchoring rule does not apply
 here and a clause may say @**\/{{provider-name}}\/**@ quite safely.
 
-This is also the only pattern that may carry @..@, since it is the only one
-with a directory - @{{TARGET_DIR}}@ - to be relative to.
+This is also the only pattern that may carry @..@ or @..*@, since it is the only
+one with a directory - @{{TARGET_DIR}}@ - to be relative to.
+
+'Determinism' says whether this clause is allowed to name more than one module.
+Only @exists:@ is not, and like 'Polarity' it is fixed by the clause the pattern
+came from rather than chosen freely - see "Deslop.Rule.Book.Compiler".
 -}
-compileClausePattern :: Polarity -> Set VarName -> Text -> Either GlobPlusError CompiledClausePattern
-compileClausePattern polarity bound input = do
+compileClausePattern ::
+    Polarity -> Determinism -> Set VarName -> Text -> Either GlobPlusError CompiledClausePattern
+compileClausePattern polarity determinism bound input = do
     steps <- traverse (traverse (resolveVars resolveClauseVar)) =<< parseSegments input
     traverse_ (checkBound bound) (partsOf steps)
     checkParentDirs steps
+    checkDeterminism determinism steps
     pure
         CompiledClausePattern
             { steps = steps
@@ -302,13 +326,15 @@ looks at one part at a time has no use for the structure above it.
 partsOf :: [Step (PatternSegment var)] -> [SegPart var]
 partsOf steps = [part | Step (Segment parts) <- steps, part <- parts]
 
-{- | Drops the step wrapper from a pattern that may not carry @..@, naming the
-error to report if one does.
+{- | Drops the step wrapper from a pattern that may not navigate at all, naming
+the error to report if one does. The token is handed to the error so the message
+quotes what the author actually wrote.
 -}
-noParentDirs :: GlobPlusError -> [Step a] -> Either GlobPlusError [a]
+noParentDirs :: (Text -> GlobPlusError) -> [Step a] -> Either GlobPlusError [a]
 noParentDirs cause = traverse unwrap
   where
-    unwrap ParentDir = Left cause
+    unwrap ParentDir = Left (cause parentDir)
+    unwrap ParentDirStar = Left (cause parentDirStar)
     unwrap (Step step) = Right step
 
 {- | Splits on @\/@ and parses each piece on its own. A variable token cannot
@@ -317,13 +343,15 @@ contain a @\/@, so splitting first can never cut one in half.
 parseSegments :: Text -> Either GlobPlusError [Step (PatternSegment Text)]
 parseSegments input = traverse (parseStep input) (T.splitOn "/" input)
 
-{- | @..@ is a whole segment or it is nothing. Unlike @**@, a dotted name has an
-obvious ordinary reading - @..foo@, @a..b@ and @*.spec@ are all just text - so
-only the exact token is structural, and nothing else about a dot is an error.
+{- | @..@ and @..*@ are whole segments or they are nothing. Unlike @**@, a
+dotted name has an obvious ordinary reading - @..foo@, @a..b@ and @*.spec@ are
+all just text - so only the exact tokens are structural, and nothing else about
+a dot is an error.
 -}
 parseStep :: Text -> Text -> Either GlobPlusError (Step (PatternSegment Text))
 parseStep input piece
     | piece == parentDir = Right ParentDir
+    | piece == parentDirStar = Right ParentDirStar
     | otherwise = Step <$> parseSegment input piece
 
 parseSegment :: Text -> Text -> Either GlobPlusError (PatternSegment Text)
@@ -469,12 +497,37 @@ checkParentDirs = void . foldlM cancel []
   where
     cancel behind ParentDir = case behind of
         [] -> Right []
-        (segment : earlier) -> earlier <$ namesOneDirectory segment
+        (segment : earlier) -> earlier <$ namesOneDirectory parentDir segment
+    {- A @..*@ may cancel any prefix, so every segment behind it has to be one
+    it could legally reach - and having verified that, it may be treated as
+    having cancelled them all. That leaves a later @..@ clamping against an
+    empty stack, which is sound precisely because everything it could have
+    reached instead was just checked. -}
+    cancel behind ParentDirStar = [] <$ traverse_ (namesOneDirectory parentDirStar) behind
     cancel behind (Step segment) = Right (segment : behind)
 
-    namesOneDirectory GlobStar = Left (ParentDirPastWildcard globStar)
-    namesOneDirectory (Segment parts)
-        | AnyChars `elem` parts = Left (ParentDirPastWildcard (spellSegment parts))
+    namesOneDirectory token GlobStar = Left (ParentDirPastWildcard token globStar)
+    namesOneDirectory token (Segment parts)
+        | AnyChars `elem` parts = Left (ParentDirPastWildcard token (spellSegment parts))
+        | otherwise = Right ()
+
+{- | A pattern that must name exactly one module may hold nothing standing for
+more than one path: no @*@, no @**@, and no @..*@.
+
+Checked here rather than where the module is looked up, so a rulebook that asks
+for something unanswerable fails when it loads - beside every other error in the
+file - instead of part-way through a run, and only for the files that happened
+to match.
+-}
+checkDeterminism :: Determinism -> [Step (PatternSegment ClauseVar)] -> Either GlobPlusError ()
+checkDeterminism Nondeterministic _ = Right ()
+checkDeterminism Deterministic steps = traverse_ namesOneModule steps
+  where
+    namesOneModule ParentDir = Right ()
+    namesOneModule ParentDirStar = Left (NondeterministicPattern parentDirStar)
+    namesOneModule (Step GlobStar) = Left (NondeterministicPattern globStar)
+    namesOneModule (Step (Segment parts))
+        | AnyChars `elem` parts = Left (NondeterministicPattern (spellSegment parts))
         | otherwise = Right ()
 
 -- | Writes a compiled segment back out the way its author wrote it.

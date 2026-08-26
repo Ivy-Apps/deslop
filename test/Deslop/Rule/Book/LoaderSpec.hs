@@ -2,11 +2,13 @@ module Deslop.Rule.Book.LoaderSpec (spec) where
 
 import Data.Text qualified as T
 import Deslop.Rule.Book.Compiler (CompileError, compileRulebook, renderCompileError)
-import Deslop.Rule.Book.Dto (parseRulebookYaml)
-import Deslop.Rule.Book.Loader (rulebookFromFile)
+import Deslop.Rule.Book.Desugar (DesugaredRuleDto (..), desugarRulebook)
+import Deslop.Rule.Book.Dto (ForbidsDto (..), GlobDto (..), RulebookDto (..), parseRulebookYaml)
+import Deslop.Rule.Book.Loader (loadRulebookFromFile)
 import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
 import FileSystem.Path (decodeOsPath)
+import Fixtures.Deslop.Rule.Book.Dto (rulebookYaml)
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
@@ -18,17 +20,18 @@ rbFixturesPath = [osp|fixtures/rulebook|]
 
 spec :: Spec
 spec = describe "Deslop.Rule.Book.Loader" $ do
-    describe "rulebookFromFile" $
-        runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ rulebookFromFileTest
+    describe "loadRulebookFromFile" $
+        runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ loadRulebookFromFileTest
     shippedExamplesSpec
     globCompilationSpec
+    kebabKeySpec
   where
-    rulebookFromFileTest :: OsPath -> Spec
-    rulebookFromFileTest fpath = do
+    loadRulebookFromFileTest :: OsPath -> Spec
+    loadRulebookFromFileTest fpath = do
         let testName = T.unpack $ "rulebook-from-file--" <> decodeOsPath (takeBaseName fpath)
         it ("case: " <> testName) $ do
             rbPath <- mkAbsolute (rbFixturesPath </> fpath)
-            res <- runEff . runFileSystemIO $ rulebookFromFile rbPath
+            res <- runEff . runFileSystemIO $ loadRulebookFromFile rbPath
             return $ defaultGolden testName (ppShow res)
 
 --------------------------------------------------------------------------------
@@ -47,7 +50,7 @@ shippedExamplesSpec =
     loadsTest fpath =
         it (T.unpack ("loads " <> decodeOsPath fpath)) $ do
             rbPath <- mkAbsolute (examplesPath </> fpath)
-            res <- runEff . runFileSystemIO $ rulebookFromFile rbPath
+            res <- runEff . runFileSystemIO $ loadRulebookFromFile rbPath
             res `shouldSatisfy` isRight
 
 examplesPath :: OsPath
@@ -64,54 +67,54 @@ and the field it came from, so the author can find it.
 globCompilationSpec :: Spec
 globCompilationSpec = describe "Glob+ compilation" $ do
     it "compiles a rule with several variables" $
-        compileErrorOf (rulebook ["    target: \"@/components/{{provider-name}}/{{service-type}}/{{FileName}}View\"", usesImport "{{TARGET_DIR}}/use{{FileName}}ViewModel"])
+        compileErrorOf (rulebookYaml ["    target: \"@/components/{{provider-name}}/{{service-type}}/{{FileName}}View\"", usesImport "{{TARGET_DIR}}/use{{FileName}}ViewModel"])
             `shouldBe` Nothing
 
     it "still compiles the legacy single-variable syntax" $
-        compileErrorOf (rulebook ["    target: \"@/features/**/{{FileName}}Container\"", usesImport "{{TARGET_DIR}}/{{file-name}}-repository"])
+        compileErrorOf (rulebookYaml ["    target: \"@/features/**/{{FileName}}Container\"", usesImport "{{TARGET_DIR}}/{{file-name}}-repository"])
             `shouldBe` Nothing
 
     it "rejects a clause variable the target never captures" $ do
-        let err = compileError (rulebook ["    target: \"@/features/{{FileName}}View\"", usesImport "{{TARGET_DIR}}/{{provider-name}}"])
+        let err = compileError (rulebookYaml ["    target: \"@/features/{{FileName}}View\"", usesImport "{{TARGET_DIR}}/{{provider-name}}"])
         err `shouldSatisfy` T.isInfixOf "rule 'a-rule'"
         err `shouldSatisfy` T.isInfixOf "uses.import"
         err `shouldSatisfy` T.isInfixOf "unknown variable {{provider-name}}"
         err `shouldSatisfy` T.isInfixOf "bound by this rule's target: file-name"
 
     it "rejects an ambiguous single-word variable in a target" $ do
-        let err = compileError (rulebook ["    target: \"@/components/{{provider}}/index\""])
+        let err = compileError (rulebookYaml ["    target: \"@/components/{{provider}}/index\""])
         err `shouldSatisfy` T.isInfixOf "rule 'a-rule'"
         err `shouldSatisfy` T.isInfixOf "target:"
         err `shouldSatisfy` T.isInfixOf "camelCase and kebab-case"
 
     it "rejects a variable in an exclude pattern" $ do
-        let err = compileError (rulebook ["    target: \"@/features/**\"", "    exclude:", "      - \"@/features/**/{{FileName}}.spec\""])
+        let err = compileError (rulebookYaml ["    target: \"@/features/**\"", "    exclude:", "      - \"@/features/**/{{FileName}}.spec\""])
         err `shouldSatisfy` T.isInfixOf "rule 'a-rule'"
         err `shouldSatisfy` T.isInfixOf "exclude:"
         err `shouldSatisfy` T.isInfixOf "exclude pattern"
 
     it "rejects {{TARGET_DIR}} in a target pattern" $
-        compileError (rulebook ["    target: \"{{TARGET_DIR}}/index\""])
+        compileError (rulebookYaml ["    target: \"{{TARGET_DIR}}/index\""])
             `shouldSatisfy` T.isInfixOf "cannot be used in a target pattern"
 
     it "rejects a misspelled {{TARGET_DIR}} in a clause" $
-        compileError (rulebook ["    target: \"@/features/**\"", usesImport "{{targetDir}}/index"])
+        compileError (rulebookYaml ["    target: \"@/features/**\"", usesImport "{{targetDir}}/index"])
             `shouldSatisfy` T.isInfixOf "is reserved"
 
     it "rejects two adjacent variables in a target" $
-        compileError (rulebook ["    target: \"@/x/{{FileName}}{{ServiceType}}\""])
+        compileError (rulebookYaml ["    target: \"@/x/{{FileName}}{{ServiceType}}\""])
             `shouldSatisfy` T.isInfixOf "no literal between the two variables"
 
     it "rejects two variables separated only by a star, which can match nothing" $
-        compileError (rulebook ["    target: \"@/x/{{FileName}}*{{ServiceType}}\""])
+        compileError (rulebookYaml ["    target: \"@/x/{{FileName}}*{{ServiceType}}\""])
             `shouldSatisfy` T.isInfixOf "no literal between the two variables"
 
     it "rejects a variable standing between two globstars" $
-        compileError (rulebook ["    target: \"@/**/{{provider-name}}/**\""])
+        compileError (rulebookYaml ["    target: \"@/**/{{provider-name}}/**\""])
             `shouldSatisfy` T.isInfixOf "has ** on both sides"
 
     it "rejects a globstar glued to text inside a segment" $
-        compileError (rulebook ["    target: \"@/x/**View\""])
+        compileError (rulebookYaml ["    target: \"@/x/**View\""])
             `shouldSatisfy` T.isInfixOf "glues ** to text"
 
     it "names the failing rule among rules that compile" $
@@ -126,22 +129,40 @@ globCompilationSpec = describe "Glob+ compilation" $ do
     it "stays quiet about a rule's clauses when its target did not compile" $ do
         -- There is no scope to check them against, so blaming each clause for a
         -- variable the target never got to bind would be noise.
-        let err = compileError (rulebook ["    target: \"@/x/{{provider}}\"", usesImport "{{TARGET_DIR}}/{{FileName}}"])
+        let err = compileError (rulebookYaml ["    target: \"@/x/{{provider}}\"", usesImport "{{TARGET_DIR}}/{{FileName}}"])
         err `shouldSatisfy` T.isInfixOf "target:"
         err `shouldNotSatisfy` T.isInfixOf "uses.import"
 
+{- | A rulebook key of two or more words is kebab-case, and the camelCase
+spelling is a parse error rather than a clause quietly dropped - see
+"Deslop.Rule.Book.DtoSpec". Pinned from this end too, because what the rest of
+the pipeline sees is the whole point: the right spelling has to reach the
+desugarer, and the wrong one has to never reach it at all.
+-}
+kebabKeySpec :: Spec
+kebabKeySpec = describe "multi-word keys" $ do
+    it "reads allows-only, and desugars it" $
+        forbidsOf (rulebookYaml ["    target: \"@/x/**\"", allowsOnlyImport "allows-only" "@/shared/**"])
+            `shouldBe` Just ["**"]
+
+    it "does not read the camelCase spelling of it" $
+        forbidsOf (rulebookYaml ["    target: \"@/x/**\"", allowsOnlyImport "allowsOnly" "@/shared/**"])
+            `shouldBe` Nothing
+
+-- | Every @forbids@ glob of a one-rule rulebook, after desugaring.
+forbidsOf :: ByteString -> Maybe [Text]
+forbidsOf bytes = do
+    book <- rightToMaybe (parseRulebookYaml bytes)
+    rule <- viaNonEmpty head (desugarRulebook book).rules
+    pure [glob | ForbidsImportDto (GlobDto glob) _ <- fromMaybe [] rule.forbids]
+
 -- Helpers
+
+allowsOnlyImport :: Text -> Text -> Text
+allowsOnlyImport key glob = "    " <> key <> ":\n      - import: \"" <> glob <> "\""
 
 usesImport :: Text -> Text
 usesImport glob = "    uses:\n      - import: \"" <> glob <> "\""
-
--- | A one-rule rulebook whose target and clauses are supplied by the caller.
-rulebook :: [Text] -> ByteString
-rulebook ruleLines =
-    encodeUtf8 . T.unlines $
-        ["id: rb", "name: Rulebook", "description: d", "rules:", "  - id: a-rule", "    description: d"]
-            <> ruleLines
-            <> ["    fix: f"]
 
 twoRules :: Text -> Text -> ByteString
 twoRules firstTarget secondTarget =
@@ -164,7 +185,7 @@ twoRules firstTarget secondTarget =
 file heading the loader adds.
 -}
 compileErrorOf :: ByteString -> Maybe Text
-compileErrorOf = leftToMaybe . (first renderAll . compileRulebook <=< parseRulebookYaml)
+compileErrorOf = leftToMaybe . (first renderAll . compileRulebook . desugarRulebook <=< parseRulebookYaml)
   where
     renderAll :: NonEmpty CompileError -> Text
     renderAll = T.intercalate "\n" . fmap renderCompileError . toList

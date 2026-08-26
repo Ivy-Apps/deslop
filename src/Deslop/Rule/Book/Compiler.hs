@@ -10,7 +10,12 @@ its excludes - which bind nothing and so need no scope - and stays quiet about
 its clauses rather than blaming each of them for a variable the target never
 got to define.
 
-Polarity is fixed here, at the six sites below, and is never a caller's choice.
+Polarity and determinism are both fixed here, at the six sites below, and are
+never a caller's choice.
+
+What arrives has already been through "Deslop.Rule.Book.Desugar", so there is no
+@allows-only@ to handle: the surface language is large and this end of it is
+small, deliberately.
 -}
 module Deslop.Rule.Book.Compiler (
     compileRulebook,
@@ -20,9 +25,10 @@ module Deslop.Rule.Book.Compiler (
 ) where
 
 import Data.Text qualified as T
-import Deslop.GlobPlus (CompiledTargetPattern (..), Polarity (..))
+import Deslop.GlobPlus (CompiledTargetPattern (..), Determinism (..), Polarity (..))
 import Deslop.GlobPlus.Compiler (GlobPlusError, compileClausePattern, compileExcludePattern, compileTargetPattern, renderGlobPlusError)
 import Deslop.Rule.Book
+import Deslop.Rule.Book.Desugar (DesugaredRuleDto (..))
 import Deslop.Rule.Book.Dto
 import Utils (Validation (..), invalid, validate)
 
@@ -79,7 +85,7 @@ renderCompileError err =
 -- Compiling
 --------------------------------------------------------------------------------
 
-compileRulebook :: RulebookDto -> Either (NonEmpty CompileError) Rulebook
+compileRulebook :: RulebookDto DesugaredRuleDto -> Either (NonEmpty CompileError) Rulebook
 compileRulebook dto = (.either') $ build <$> traverse compileRule dto.rules
   where
     build rules =
@@ -94,7 +100,7 @@ compileRulebook dto = (.either') $ build <$> traverse compileRule dto.rules
 its clauses compile in. That dependency is the one place a rule cannot
 accumulate, so it is written as a case rather than hidden behind an operator.
 -}
-compileRule :: RuleDto -> Validation (NonEmpty CompileError) Rule
+compileRule :: DesugaredRuleDto -> Validation (NonEmpty CompileError) Rule
 compileRule dto = case compileTargetPattern glob of
     Left cause -> invalid (one (CompileError dto.id TargetField glob cause)) <* excludes
     Right target -> assemble target <$> excludes <*> clauses target.boundVars
@@ -128,17 +134,17 @@ compileRule dto = case compileTargetPattern glob of
 
     forbidsClause bound (ForbidsImportDto glob' transitive) =
         (\target -> ForbidsImport target (fromMaybe False transitive))
-            <$> clause bound Widen ForbidsField glob'
+            <$> clause bound Widen Nondeterministic ForbidsField glob'
     allowsClause bound (AllowsImportDto glob') =
-        AllowsImport <$> clause bound Narrow AllowsField glob'
+        AllowsImport <$> clause bound Narrow Nondeterministic AllowsField glob'
     usesClause bound (UsesImportDto glob' transitive) =
         (\target -> UsesImport target (fromMaybe False transitive))
-            <$> clause bound Narrow UsesField glob'
+            <$> clause bound Narrow Nondeterministic UsesField glob'
     existsClause bound (ExistsModuleDto glob') =
-        ExistsModule <$> clause bound Narrow ExistsField glob'
+        ExistsModule <$> clause bound Narrow Deterministic ExistsField glob'
 
-    clause bound polarity field (GlobDto text) =
-        compiled dto.id field (compileClausePattern polarity bound) text
+    clause bound polarity determinism field (GlobDto text) =
+        compiled dto.id field (compileClausePattern polarity determinism bound) text
 
 -- | Compiles one pattern, labelling any failure with the rule and field.
 compiled ::

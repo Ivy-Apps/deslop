@@ -1,5 +1,5 @@
 [Title] 🚀 Checking project: ~/fixtures/ts-invalid-rulebook-project
-[exit] Could not load 2 rulebooks.
+[exit] Could not load 4 rulebooks.
 
 ~/fixtures/ts-invalid-rulebook-project/deslop/rules/also-broken.yaml
   rule 'globstar-inside-a-segment'
@@ -62,3 +62,9 @@
         ".." belongs in a clause, where it is relative to the directory
         of the file the target matched:
           allows: "{{TARGET_DIR}}/../shared/**"
+
+~/fixtures/ts-invalid-rulebook-project/deslop/rules/unknown-clause-key.yaml
+  AesonException "Error in $.rules[0].allows[0]: unknown fields: [\"transitive\"]"
+
+~/fixtures/ts-invalid-rulebook-project/deslop/rules/unknown-rule-key.yaml
+  AesonException "Error in $.rules[0]: parsing Deslop.Rule.Book.Dto.RuleDto(RuleDto) failed, unknown fields: [\"uses-optional\"]"

@@ -3,7 +3,6 @@ module Utils (
     Validation (..),
     validate,
     invalid,
-    todo,
     hush,
     safeHead,
     safePop,
@@ -42,10 +41,6 @@ validate = Validation
 
 invalid :: e -> Validation e a
 invalid = Validation . Left
-
-
-todo :: a
-todo = error "TODO"
 
 hush :: Either e a -> Maybe a
 hush = either (const Nothing) Just

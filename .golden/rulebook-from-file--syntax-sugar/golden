@@ -1,0 +1,232 @@
+Right
+  Rulebook
+    { id = RulebookId "syntax-sugar"
+    , name = "Syntax sugar"
+    , description =
+        "Every convenience the surface language has, so the golden shows what each one compiles down to. Nothing here is enforced against a project - the point is the desugared, compiled shape, which is this repository's answer to -ddump-ds."
+    , rules =
+        [ Rule
+            { id = RuleId "allows-only-alone"
+            , description =
+                "A feature may import from its own folder and nothing else."
+            , target =
+                CompiledTargetPattern
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "client" ]
+                      , Segment
+                          [ VarPart (TargetVar VarName { text = "feature-name" } KebabCase) ]
+                      , GlobStar
+                      ]
+                  , minLength = 3
+                  , boundVars = fromList [ VarName { text = "feature-name" } ]
+                  , source = "@/client/{{feature-name}}/**"
+                  }
+            , exclude = Nothing
+            , forbids =
+                Just
+                  (ForbidsImport
+                     { target =
+                         CompiledClausePattern
+                           { steps = [ Step GlobStar ] , polarity = Widen , source = "**" }
+                     , transitive = False
+                     } :|
+                     [])
+            , allows =
+                Just
+                  (AllowsImport
+                     { target =
+                         CompiledClausePattern
+                           { steps = [ Step (Segment [ VarPart CTargetDir ]) , Step GlobStar ]
+                           , polarity = Narrow
+                           , source = "{{TARGET_DIR}}/**"
+                           }
+                     } :|
+                     [])
+            , uses = Nothing
+            , exists = Nothing
+            , example = Nothing
+            , fix =
+                "Import from your own feature folder, or promote the code to a shared place."
+            }
+        , Rule
+            { id = RuleId "allows-only-beside-hand-written-clauses"
+            , description =
+                "allows-only appends rather than replaces, so a hand-written forbids can still say something the generated one cannot - here, a transitive reach."
+            , target =
+                CompiledTargetPattern
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "client" ]
+                      , Segment
+                          [ VarPart (TargetVar VarName { text = "feature-name" } KebabCase) ]
+                      , Segment
+                          [ VarPart (TargetVar VarName { text = "file-name" } PascalCase)
+                          , Lit "View"
+                          ]
+                      ]
+                  , minLength = 4
+                  , boundVars =
+                      fromList
+                        [ VarName { text = "feature-name" }
+                        , VarName { text = "file-name" }
+                        ]
+                  , source = "@/client/{{feature-name}}/{{FileName}}View"
+                  }
+            , exclude = Nothing
+            , forbids =
+                Just
+                  (ForbidsImport
+                     { target =
+                         CompiledClausePattern
+                           { steps =
+                               [ Step (Segment [ Lit "@" ])
+                               , Step (Segment [ Lit "server" ])
+                               , Step GlobStar
+                               ]
+                           , polarity = Widen
+                           , source = "@/server/**"
+                           }
+                     , transitive = True
+                     } :|
+                     [ ForbidsImport
+                         { target =
+                             CompiledClausePattern
+                               { steps = [ Step GlobStar ] , polarity = Widen , source = "**" }
+                         , transitive = False
+                         }
+                     ])
+            , allows =
+                Just
+                  (AllowsImport
+                     { target =
+                         CompiledClausePattern
+                           { steps =
+                               [ Step (Segment [ Lit "@" ])
+                               , Step (Segment [ Lit "lib" ])
+                               , Step GlobStar
+                               ]
+                           , polarity = Narrow
+                           , source = "@/lib/**"
+                           }
+                     } :|
+                     [ AllowsImport
+                         { target =
+                             CompiledClausePattern
+                               { steps = [ Step (Segment [ VarPart CTargetDir ]) , Step GlobStar ]
+                               , polarity = Narrow
+                               , source = "{{TARGET_DIR}}/**"
+                               }
+                         }
+                     ])
+            , uses = Nothing
+            , exists = Nothing
+            , example = Nothing
+            , fix =
+                "Drop the import, or add it to allows-only if it belongs there."
+            }
+        , Rule
+            { id = RuleId "parent-dir-star-reaches-any-ancestor"
+            , description =
+                "A view may import shared code from its own folder or any folder above it, however deep the file happens to sit."
+            , target =
+                CompiledTargetPattern
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "client" ]
+                      , GlobStar
+                      , Segment
+                          [ VarPart (TargetVar VarName { text = "file-name" } PascalCase)
+                          , Lit "View"
+                          ]
+                      ]
+                  , minLength = 3
+                  , boundVars = fromList [ VarName { text = "file-name" } ]
+                  , source = "@/client/**/{{FileName}}View"
+                  }
+            , exclude = Nothing
+            , forbids =
+                Just
+                  (ForbidsImport
+                     { target =
+                         CompiledClausePattern
+                           { steps = [ Step GlobStar ] , polarity = Widen , source = "**" }
+                     , transitive = False
+                     } :|
+                     [])
+            , allows =
+                Just
+                  (AllowsImport
+                     { target =
+                         CompiledClausePattern
+                           { steps = [ Step (Segment [ VarPart CTargetDir ]) , Step GlobStar ]
+                           , polarity = Narrow
+                           , source = "{{TARGET_DIR}}/**"
+                           }
+                     } :|
+                     [ AllowsImport
+                         { target =
+                             CompiledClausePattern
+                               { steps =
+                                   [ Step (Segment [ VarPart CTargetDir ])
+                                   , ParentDirStar
+                                   , Step (Segment [ Lit "shared" ])
+                                   , Step GlobStar
+                                   ]
+                               , polarity = Narrow
+                               , source = "{{TARGET_DIR}}/..*/shared/**"
+                               }
+                         }
+                     ])
+            , uses = Nothing
+            , exists = Nothing
+            , example = Nothing
+            , fix =
+                "Move the code into a shared/ folder at or above the importing file."
+            }
+        , Rule
+            { id = RuleId "parent-dir-star-in-a-uses-clause"
+            , description =
+                "A ..* stays a wildcard in the reported message, exactly as ** does, since there is no single module to name."
+            , target =
+                CompiledTargetPattern
+                  { segments =
+                      [ Segment [ Lit "@" ]
+                      , Segment [ Lit "client" ]
+                      , GlobStar
+                      , Segment
+                          [ VarPart (TargetVar VarName { text = "file-name" } PascalCase)
+                          , Lit "Container"
+                          ]
+                      ]
+                  , minLength = 3
+                  , boundVars = fromList [ VarName { text = "file-name" } ]
+                  , source = "@/client/**/{{FileName}}Container"
+                  }
+            , exclude = Nothing
+            , forbids = Nothing
+            , allows = Nothing
+            , uses =
+                Just
+                  (UsesImport
+                     { target =
+                         CompiledClausePattern
+                           { steps =
+                               [ Step (Segment [ VarPart CTargetDir ])
+                               , ParentDirStar
+                               , Step (Segment [ Lit "shared" ])
+                               , Step (Segment [ Lit "registry" ])
+                               ]
+                           , polarity = Narrow
+                           , source = "{{TARGET_DIR}}/..*/shared/registry"
+                           }
+                     , transitive = False
+                     } :|
+                     [])
+            , exists = Nothing
+            , example = Nothing
+            , fix =
+                "Import the registry from a shared/ folder at or above this file."
+            }
+        ]
+    }

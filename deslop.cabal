@@ -71,6 +71,7 @@ library
     Deslop.Problem.Shrinker
     Deslop.Rule.Book
     Deslop.Rule.Book.Compiler
+    Deslop.Rule.Book.Desugar
     Deslop.Rule.Book.Dto
     Deslop.Rule.Book.Loader
     Deslop.Rule.Enforcer
@@ -152,6 +153,8 @@ test-suite deslop-test
     Deslop.Problem.FormatterSpec
     Deslop.Problem.ShrinkerSpec
     Deslop.ProblemSpec
+    Deslop.Rule.Book.DesugarSpec
+    Deslop.Rule.Book.DtoSpec
     Deslop.Rule.Book.LoaderSpec
     Deslop.Rule.EnforcerSpec
     Deslop.Rule.Lint.CycleDetectionSpec
@@ -164,6 +167,7 @@ test-suite deslop-test
     FileSystem.IteratorSpec
     Fixtures.Deslop.AST
     Fixtures.Deslop.Problem.Baseline
+    Fixtures.Deslop.Rule.Book.Dto
     Fixtures.TypeScript.Config
     Git.IgnoreSpec
     ParamsSpec

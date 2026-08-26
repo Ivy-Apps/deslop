@@ -16,7 +16,7 @@ import Deslop.Problem (Problem, isAutoFixable)
 import Deslop.Problem.Baseline (Baseline, applyBaseline, emptyBaseline, loadBaseline, saveBaseline)
 import Deslop.Problem.Shrinker (compactProblems)
 import Deslop.Rule.Book (Rulebook (..))
-import Deslop.Rule.Book.Loader (loadRulebook)
+import Deslop.Rule.Book.Loader (loadRulebooks)
 import Deslop.Rule.Enforcer (enforceRulebooks)
 import Deslop.Rule.Lint.CycleDetection (noImportCycles)
 import Deslop.RunReport
@@ -164,7 +164,7 @@ deslopProject ::
     Baseline ->
     Eff es RunSummary
 deslopProject params baseline = do
-    rulebookRes <- loadRulebook params.projectPath
+    rulebookRes <- loadRulebooks params.projectPath
     rulebook <- case rulebookRes of
         Right rb -> pure rb
         Left e -> throwError . RulebookError $ e

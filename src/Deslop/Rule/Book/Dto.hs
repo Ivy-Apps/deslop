@@ -15,42 +15,57 @@ module Deslop.Rule.Book.Dto (
     parseRulebookYaml,
 ) where
 
-import Data.Aeson (FromJSON (..), withObject, (.:), (.:?))
+import Data.Aeson (FromJSON (..), Key, Object, Options (..), Value, camelTo2, defaultOptions, genericParseJSON, withObject, (.:), (.:?))
+import Data.Aeson.KeyMap qualified as KeyMap
+import Data.Aeson.Types (Parser)
 import Data.Yaml (decodeEither')
 import Deslop.Rule.Book (RuleId)
 
-data RulebookDto = RulebookDto
-    { id :: Text
-    , name :: Text
-    , description :: Text
-    , rules :: [RuleDto]
+{- | A rulebook, parameterised over what one of its rules is.
+
+The envelope is the same before and after desugaring - only a /rule/ has sugar
+in it - so it is written once and the phase is read off the parameter:
+@RulebookDto RuleDto@ is what an author wrote, @RulebookDto DesugaredRuleDto@ is
+what the compiler is given. Desugaring the whole file is then the 'Functor'
+instance, which is why there is one.
+-}
+data RulebookDto rule = RulebookDto
+    { id :: !Text
+    , name :: !Text
+    , description :: !Text
+    , rules :: ![rule]
     }
-    deriving stock (Show, Eq, Generic)
-    deriving anyclass (FromJSON)
+    deriving stock (Show, Eq, Generic, Functor)
+
+instance (FromJSON rule) => FromJSON (RulebookDto rule) where
+    parseJSON = genericParseJSON rulebookOptions
 
 data RuleDto = RuleDto
-    { id :: RuleId
-    , description :: Text
-    , target :: GlobDto
+    { id :: !RuleId
+    , description :: !Text
+    , target :: !GlobDto
     , exclude :: Maybe [GlobDto]
     , forbids :: Maybe [ForbidsDto]
     , allows :: Maybe [AllowsDto]
+    , allowsOnly :: Maybe [AllowsDto]
     , uses :: Maybe [UsesDto]
     , exists :: Maybe [ExistsDto]
     , example :: Maybe Text
-    , fix :: Text
+    , fix :: !Text
     }
     deriving stock (Show, Eq, Generic)
-    deriving anyclass (FromJSON)
+
+instance FromJSON RuleDto where
+    parseJSON = genericParseJSON rulebookOptions
 
 data ForbidsDto = ForbidsImportDto
-    { target :: GlobDto
+    { target :: !GlobDto
     , transitive :: Maybe Bool
     }
     deriving stock (Show, Eq)
 
 instance FromJSON ForbidsDto where
-    parseJSON = withObject "ForbidsDto" $ \v ->
+    parseJSON = withExactObject "ForbidsDto" ["import", "transitive"] $ \v ->
         ForbidsImportDto <$> v .: "import" <*> v .:? "transitive"
 
 newtype AllowsDto = AllowsImportDto
@@ -59,7 +74,7 @@ newtype AllowsDto = AllowsImportDto
     deriving stock (Show, Eq)
 
 instance FromJSON AllowsDto where
-    parseJSON = withObject "AllowsDto" $ \v ->
+    parseJSON = withExactObject "AllowsDto" ["import"] $ \v ->
         AllowsImportDto <$> v .: "import"
 
 data UsesDto = UsesImportDto
@@ -69,7 +84,7 @@ data UsesDto = UsesImportDto
     deriving stock (Show, Eq)
 
 instance FromJSON UsesDto where
-    parseJSON = withObject "UsesDto" $ \v ->
+    parseJSON = withExactObject "UsesDto" ["import", "transitive"] $ \v ->
         UsesImportDto <$> v .: "import" <*> v .:? "transitive"
 
 newtype ExistsDto = ExistsModuleDto
@@ -78,7 +93,7 @@ newtype ExistsDto = ExistsModuleDto
     deriving stock (Show, Eq)
 
 instance FromJSON ExistsDto where
-    parseJSON = withObject "ExistsDto" $ \v ->
+    parseJSON = withExactObject "ExistsDto" ["module"] $ \v ->
         ExistsModuleDto <$> v .: "module"
 
 -- | A Glob+ pattern as written. Unchecked: it may not compile.
@@ -86,5 +101,34 @@ newtype GlobDto = GlobDto Text
     deriving stock (Show, Eq)
     deriving newtype (FromJSON)
 
-parseRulebookYaml :: ByteString -> Either Text RulebookDto
+{- | How every rulebook key is spelled, and what happens to one that is spelled
+wrong.
+
+A field of two or more words is one kebab-case key: @allowsOnly@ is written
+@allows-only@. Every single-word key is left exactly as it was, so this changes
+nothing about the rulebooks already in the wild - but it settles the spelling
+for every multi-word key added after this one.
+
+A key that is not one of those is an error rather than a shrug. Aeson's default
+is to ignore what it does not recognise, which for a rulebook is the worst
+possible answer: @allowsOnly@ instead of @allows-only@, or a @uses-optional@
+that was never a feature, and the rule loads, passes, and enforces less than it
+says it does. Nobody reads a clean run twice.
+-}
+rulebookOptions :: Options
+rulebookOptions = defaultOptions {fieldLabelModifier = camelTo2 '-', rejectUnknownFields = True}
+
+{- | 'withObject', for the instances written by hand rather than derived, and
+strict about unknown keys in the same way 'rulebookOptions' makes the derived
+ones strict. The permitted keys are listed because a hand-written parser has no
+field names to read them off; keeping that list in step with the parser below
+it is what "Deslop.Rule.Book.DtoSpec" is checking.
+-}
+withExactObject :: String -> [Key] -> (Object -> Parser a) -> Value -> Parser a
+withExactObject name permitted parse = withObject name $ \v ->
+    case filter (`notElem` permitted) (KeyMap.keys v) of
+        [] -> parse v
+        unknown -> fail ("unknown fields: " <> show unknown)
+
+parseRulebookYaml :: ByteString -> Either Text (RulebookDto RuleDto)
 parseRulebookYaml = first show . decodeEither'

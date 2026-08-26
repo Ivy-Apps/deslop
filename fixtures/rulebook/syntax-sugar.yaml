@@ -1,0 +1,46 @@
+id: syntax-sugar
+name: Syntax sugar
+description: >-
+  Every convenience the surface language has, so the golden shows what each one
+  compiles down to. Nothing here is enforced against a project - the point is
+  the desugared, compiled shape, which is this repository's answer to -ddump-ds.
+rules:
+  - id: allows-only-alone
+    description: A feature may import from its own folder and nothing else.
+    target: "@/client/{{feature-name}}/**"
+    allows-only:
+      - import: "{{TARGET_DIR}}/**"
+    fix: Import from your own feature folder, or promote the code to a shared place.
+
+  - id: allows-only-beside-hand-written-clauses
+    description: >-
+      allows-only appends rather than replaces, so a hand-written forbids can
+      still say something the generated one cannot - here, a transitive reach.
+    target: "@/client/{{feature-name}}/{{FileName}}View"
+    forbids:
+      - import: "@/server/**"
+        transitive: true
+    allows:
+      - import: "@/lib/**"
+    allows-only:
+      - import: "{{TARGET_DIR}}/**"
+    fix: Drop the import, or add it to allows-only if it belongs there.
+
+  - id: parent-dir-star-reaches-any-ancestor
+    description: >-
+      A view may import shared code from its own folder or any folder above it,
+      however deep the file happens to sit.
+    target: "@/client/**/{{FileName}}View"
+    allows-only:
+      - import: "{{TARGET_DIR}}/**"
+      - import: "{{TARGET_DIR}}/..*/shared/**"
+    fix: Move the code into a shared/ folder at or above the importing file.
+
+  - id: parent-dir-star-in-a-uses-clause
+    description: >-
+      A ..* stays a wildcard in the reported message, exactly as ** does, since
+      there is no single module to name.
+    target: "@/client/**/{{FileName}}Container"
+    uses:
+      - import: "{{TARGET_DIR}}/..*/shared/registry"
+    fix: Import the registry from a shared/ folder at or above this file.
