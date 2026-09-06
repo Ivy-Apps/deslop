@@ -76,6 +76,18 @@
             '';
           };
 
+          aiUpdateGoldenRunner = pkgs.writeShellApplication {
+            name = "ai-update-golden";
+            # `hgold` is carried here rather than added to the `ci` shell,
+            # because CI never re-records goldens and would realise the closure
+            # for nothing. `nix develop` inherits the caller's PATH, which is
+            # what puts it in front of the recipe.
+            runtimeInputs = [ pkgs.nix hgold ];
+            text = ''
+              nix develop ".#ci" --no-warn-dirty --quiet -c just update-golden
+            '';
+          };
+
           # The ghcid daemon behind `nix run .#quick-typecheck`, and the tool
           # `just stop-ghcid` uses to retire every session on the machine.
           ghcidTools = import ./nix/ghcid.nix { inherit pkgs; };
@@ -89,6 +101,10 @@
             quick-typecheck = {
               type = "app";
               program = "${ghcidTools.quickTypecheck}/bin/ai-quick-typecheck";
+            };
+            update-golden = {
+              type = "app";
+              program = "${aiUpdateGoldenRunner}/bin/ai-update-golden";
             };
           };
 
