@@ -1,0 +1,8 @@
+Left
+  (TsConfigUnparseable
+     AbsPath
+       { osPath =
+           "~/fixtures/typescript/config/invalid.json"
+       }
+     []
+     "Unexpected \"}\\n\", expecting :")

@@ -688,7 +688,7 @@ Production-ready rulebooks you can copy into your own `deslop/rules/` live in [`
 | Auto-fix relative imports | Built into `deslop fix` | Third-party plugin required | No |
 | Dependency graph visualization | No | No | Yes |
 | Windows support | `win32-x64` (arm64 needs upstream Windows ARM64 runners) | Yes | Yes |
-| Monorepo / multiple tsconfigs | Run per package; full support WIP | `parserOptions.project` glob array | Run per package |
+| Monorepo / multiple tsconfigs | Follows `extends` chains; one run per package | `parserOptions.project` glob array | Run per package |
 
 ---
 
@@ -829,7 +829,11 @@ twice, so a `forbids:` clause accepts **every** spelling of its variable, while
 ### Other
 
 - **`win32-x64`** — Windows x64 is supported via GitHub Actions `windows-latest`. Windows ARM64 (`win32-arm64`) will be added when GitHub Actions provides native Windows ARM64 runners.
-- **Monorepos** need one run per package; full multi-tsconfig support is in progress.
+- **Monorepos**: Deslop resolves the root `tsconfig.json`'s `extends` chain, so aliases
+  declared in a shared base config are picked up. Bases named by a relative or rooted
+  path are followed; a package specifier such as `@repo/typescript-config/base.json` is
+  skipped with a warning. Deslop still uses one config per run, so a workspace with a
+  `tsconfig.json` per package needs one run per package.
 - **`exists:` patterns cannot contain wildcards**, since the path has to be exact.
 
 ---

@@ -20,7 +20,6 @@ import Deslop.Error (DeslopError (..))
 import Deslop.Problem (Problem)
 import Deslop.Problem.Formatter (formatProblem)
 import Deslop.RunReport (ModuleCount (..), ProblemCounts (..), RuleCount (..), RunSummary (..))
-import FileSystem.Path (decodeOsPath)
 import Fmt
 import Utils (pluralise)
 
@@ -64,12 +63,10 @@ problemsLogText :: [Problem] -> Text
 problemsLogText = T.pack . pretty . ProblemsLog
 
 humanReadable :: DeslopError -> Text
-humanReadable (TsConfigNotFoundError path) =
-    "tsconfig.json not found in '" <> decodeOsPath path <> "'"
-humanReadable (TsConfigParseError path) =
-    "Could not parse TS config, check: '" <> path <> "'"
--- The loader's report already names every file, rule and field, and counts
--- them, so a prefix here would only say it twice.
+-- Both loaders' reports already name every file they are about - and the
+-- rulebook one every rule and field too - so a prefix here would only say it
+-- twice.
+humanReadable (TsConfigError msg) = msg
 humanReadable (RulebookError msg) = msg
 humanReadable (InvalidRuleConfig msg) =
     "Invalid rule configuration: " <> msg

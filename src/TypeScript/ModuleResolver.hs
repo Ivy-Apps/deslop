@@ -47,8 +47,8 @@ reverseResolve absFilePath = do
     cfg <- ask @TsConfig
     let noExtAbsFp = dropTypeScriptExtension absFilePath.osPath
     let targetSegs = splitDirectories noExtAbsFp
-    let baseUrlSegs = splitDirectories cfg.baseUrl.osPath
-    let (tRemainderOsp, bRemainderOsp) = dropCommonSegments targetSegs baseUrlSegs
+    let pathsBaseSegs = splitDirectories cfg.pathsBase.osPath
+    let (tRemainderOsp, bRemainderOsp) = dropCommonSegments targetSegs pathsBaseSegs
     let tRemainder = decodeOsPath <$> tRemainderOsp
 
     let upTraversal = replicate (length bRemainderOsp) ".."
@@ -151,7 +151,7 @@ resolve importingFile target =
                 (WildcardMatch _, Exact t) -> Just t
                 (WildcardMatch capture, Wildcard pre suf) -> Just (pre <> capture <> suf)
         let cleanRelToCfg = T.dropWhileEnd (== '/') <$> maybeRelToCfg
-        let maybeFilePath = withAbsBaseSafe cfg.baseUrl . encodeOsPath <$> cleanRelToCfg
+        let maybeFilePath = withAbsBaseSafe cfg.pathsBase . encodeOsPath <$> cleanRelToCfg
         case maybeFilePath of
             Nothing -> tryValues cfg keyMatch vs
             Just filePath ->

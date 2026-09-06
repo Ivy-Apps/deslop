@@ -1,0 +1,9 @@
+{
+  // Its own aliases replace the base's outright - that is what tsc does.
+  "extends": "./extends-base.json",
+  "compilerOptions": {
+    "paths": {
+      "@app/*": ["./app/*"]
+    }
+  }
+}

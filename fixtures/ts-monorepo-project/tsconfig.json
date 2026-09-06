@@ -1,0 +1,7 @@
+{
+  // The shared compiler settings and the workspace aliases both live under
+  // config/, so the alias targets resolve relative to that directory.
+  "extends": ["./config/base.json", "./config/aliases.json"],
+  "include": ["packages/**/*.ts"],
+  "exclude": ["node_modules"]
+}

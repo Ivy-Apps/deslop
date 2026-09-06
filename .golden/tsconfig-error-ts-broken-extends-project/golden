@@ -1,0 +1,5 @@
+[Title] 🚀 Checking project: ~/fixtures/ts-broken-extends-project
+[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
+Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
+[exit] TS config not found: '~/fixtures/ts-broken-extends-project/config/tsconfig.base.json'
+   extended from: '~/fixtures/ts-broken-extends-project/tsconfig.json'

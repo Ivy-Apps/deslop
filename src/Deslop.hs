@@ -29,7 +29,6 @@ import Effects.CLI (CLI, LogStyle (..), cliLog, runCLI)
 import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
-    fsFileExists,
     fsReadFile,
     fsWriteFile,
     runFileSystemIO,
@@ -41,8 +40,9 @@ import Params
 import Renderable (Renderable (render))
 import System.OsPath (osp)
 import TypeScript.AST (parseAst)
-import TypeScript.Config (TsConfig (..), readTsConfig)
 import TypeScript.CST
+import TypeScript.Config (TsConfig (..))
+import TypeScript.Config.Loader (loadTsConfig, renderSkippedExtends, renderTsConfigLoadError)
 import TypeScript.Iterator (getTsFiles)
 import TypeScript.Lint.RelativeImports (noRelativeImports)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
@@ -184,7 +184,7 @@ deslopProject params baseline = do
         (params.command /= FixC)
         $ do
             let mg = buildModuleGraph asts
-            runReader @ProjectRoot (ProjectRoot cfg.baseUrl)
+            runReader @ProjectRoot (ProjectRoot cfg.pathsBase)
                 . runReader @ModuleGraph mg
                 $ do
                     noImportCycles
@@ -282,16 +282,22 @@ lintFile p c =
   where
     deslop = foldr (>=>) pure [noRelativeImports]
 
+{- | The project's effective TypeScript configuration, @extends@ chain and all.
+
+An @extends@ Deslop declines to follow is a warning rather than a failure: the
+project is not broken, we simply cannot see what that package declares.
+-}
 tsConfig ::
     ( RoFileSystem :> es
     , Error DeslopError :> es
+    , CLI :> es
     ) =>
     AbsPath ->
     Eff es TsConfig
-tsConfig projPath = loadConfig (withAbsBaseUnsafe projPath [osp|tsconfig.json|])
+tsConfig projPath = do
+    res <- loadTsConfig $ withAbsBaseUnsafe projPath [osp|tsconfig.json|]
+    case res of
+        Left err -> throwError . TsConfigError . renderTsConfigLoadError $ err
+        Right (cfg, skipped) -> cfg <$ traverse_ logSkipped skipped
   where
-    loadConfig fp = fsFileExists fp >>= bool (handleMissing fp) (handleFound fp)
-    handleFound fp = readTsConfig fp >>= either handleInvalid pure
-
-    handleMissing = throwError . TsConfigNotFoundError . (.osPath)
-    handleInvalid = throwError . TsConfigParseError
+    logSkipped = cliLog Warning . ("WARNING: " <>) . renderSkippedExtends

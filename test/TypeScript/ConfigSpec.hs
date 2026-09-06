@@ -1,14 +1,24 @@
 module TypeScript.ConfigSpec (spec) where
 
-import Data.Text qualified as T
-import Effectful (runEff)
-import Effects.FileSystem (runFileSystemIO)
-import FileSystem.Path (encodeOsPath)
-import System.OsPath (osp, (</>))
+import FileSystem.Path (AbsPath)
+import Fixtures.TypeScript.Config (mkMapping)
+import Hedgehog (Gen, forAll, (===))
+import Hedgehog.Gen qualified as Gen
+import Hedgehog.Range qualified as Range
 import Test.Hspec
-import TestUtils (mkAbsolute, pathSafeGolden)
-import Text.Show.Pretty (ppShow)
-import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), ValuePattern (..), parsePathMapping, parsePattern, readTsConfig)
+import TestUtils (ap, prop)
+import TypeScript.Config (
+    Declared (..),
+    DeclaredPaths (..),
+    KeyPattern (..),
+    PathMapping (..),
+    Pattern (..),
+    TsConfig (..),
+    ValuePattern (..),
+    effectiveConfig,
+    parsePathMapping,
+    parsePattern,
+ )
 
 spec :: Spec
 spec = describe "TypeScript.Config" $ do
@@ -128,17 +138,103 @@ spec = describe "TypeScript.Config" $ do
                 parsePattern "a*b*c" `shouldBe` Nothing
                 parsePattern "*/utils/*" `shouldBe` Nothing
 
-    describe "readTsConfig from file (E2E)" $ do
-        let cases =
-                [ "simple.json"
-                , "invalid.json"
-                , "complex.json"
-                , "minimal.json"
-                , "base-url.json"
-                , "sorting-and-comments.json"
-                ]
-        forM_ cases $ \file ->
-            it file $ do
-                cfgPath <- mkAbsolute ([osp|fixtures/typescript/config|] </> encodeOsPath (T.pack file))
-                res <- runEff . runFileSystemIO $ readTsConfig cfgPath
-                pathSafeGolden ("readTsConfig-" <> file) (ppShow res)
+    describe "effectiveConfig" $ do
+        it "resolves paths against a declared baseUrl rather than the declaring file's directory" $ do
+            let declared = declaredBaseUrl "/repo/src" <> declaredPaths "/repo/config"
+
+            effectiveConfig (ap "/repo") declared
+                `shouldBe` TsConfig {pathsBase = ap "/repo/src", paths = [aliasMapping]}
+
+        it "falls back to the directory of the config that declared the paths" $ do
+            let declared = declaredPaths "/repo/config"
+
+            effectiveConfig (ap "/repo") declared
+                `shouldBe` TsConfig {pathsBase = ap "/repo/config", paths = [aliasMapping]}
+
+        it "falls back to the root config's directory when nothing was declared" $ do
+            effectiveConfig (ap "/repo") mempty
+                `shouldBe` TsConfig {pathsBase = ap "/repo", paths = []}
+
+        it "keeps a declared baseUrl even when no config declared any paths" $ do
+            effectiveConfig (ap "/repo") (declaredBaseUrl "/repo/src")
+                `shouldBe` TsConfig {pathsBase = ap "/repo/src", paths = []}
+
+        it "lets a config's paths replace, never union, the ones it extends" $ do
+            let base = Declared {baseUrl = mempty, paths = pure (DeclaredPaths (ap "/repo") [otherMapping])}
+            let child = declaredPaths "/repo"
+
+            (effectiveConfig (ap "/repo") (base <> child)).paths `shouldBe` [aliasMapping]
+
+    describe "merging what each config declares" $ do
+        prop "is associative" $ do
+            (a, b, c) <- forAll $ (,,) <$> genDeclared <*> genDeclared <*> genDeclared
+
+            (a <> b) <> c === a <> (b <> c)
+
+        prop "leaves a config that declares nothing without effect" $ do
+            declared <- forAll genDeclared
+
+            (mempty <> declared, declared <> mempty) === (declared, declared)
+
+        prop "gives every option to its last declaration" $ do
+            declareds <- forAll . Gen.list (Range.linear 1 8) $ genDeclared
+
+            let merged = fold declareds
+            ( getLast merged.baseUrl
+                , getLast merged.paths
+                )
+                === ( lastDeclared (getLast . (.baseUrl) <$> declareds)
+                    , lastDeclared (getLast . (.paths) <$> declareds)
+                    )
+
+        prop "ignores the root directory whenever anything declared a base" $ do
+            declared <- forAll genDeclaringSomething
+            (rootDir, otherRootDir) <- forAll $ (,) <$> genAbsPath <*> genAbsPath
+
+            effectiveConfig rootDir declared === effectiveConfig otherRootDir declared
+
+--------------------------------------------------------------------------------
+-- Generators
+--------------------------------------------------------------------------------
+
+genDeclared :: Gen Declared
+genDeclared =
+    Declared
+        <$> fmap Last (Gen.maybe genAbsPath)
+        <*> fmap Last (Gen.maybe genDeclaredPaths)
+
+-- | A config that declares at least one of the two options, so the fallback cannot apply.
+genDeclaringSomething :: Gen Declared
+genDeclaringSomething = Gen.filter declaresSomething genDeclared
+  where
+    declaresSomething d = isJust (getLast d.baseUrl) || isJust (getLast d.paths)
+
+genDeclaredPaths :: Gen DeclaredPaths
+genDeclaredPaths =
+    DeclaredPaths
+        <$> genAbsPath
+        <*> Gen.subsequence [aliasMapping, otherMapping]
+
+-- | Distinct enough to tell apart, and never the directory a fallback would pick.
+genAbsPath :: Gen AbsPath
+genAbsPath = ap . ("/declared/" <>) <$> Gen.element ["a", "b", "c", "d"]
+
+lastDeclared :: [Maybe a] -> Maybe a
+lastDeclared = listToMaybe . reverse . catMaybes
+
+--------------------------------------------------------------------------------
+-- Fixtures
+--------------------------------------------------------------------------------
+
+declaredBaseUrl :: Text -> Declared
+declaredBaseUrl dir = Declared {baseUrl = pure (ap dir), paths = mempty}
+
+declaredPaths :: Text -> Declared
+declaredPaths dir =
+    Declared {baseUrl = mempty, paths = pure (DeclaredPaths (ap dir) [aliasMapping])}
+
+aliasMapping :: PathMapping
+aliasMapping = mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]
+
+otherMapping :: PathMapping
+otherMapping = mkMapping (Wildcard "~/" "") [Wildcard "lib/" ""]

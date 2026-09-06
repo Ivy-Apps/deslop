@@ -11,11 +11,11 @@ import Effects.FileSystem (RoFileSystem)
 import Effects.ReportProblem (ReportProblem, report)
 import FileSystem.Path (AbsPath (..), relativePathTo)
 import Renderable (Renderable (render))
-import TypeScript.Config (TsConfig (..))
 import TypeScript.CST (
     TsNode (Import, target),
     TsProgram (cst, path),
  )
+import TypeScript.Config (TsConfig (..))
 import TypeScript.ModuleResolver (reverseResolveImport)
 
 relativeImport :: (TsNode, TsNode) -> AbsPath -> AbsPath -> Problem
@@ -44,7 +44,7 @@ noRelativeImports prog = do
         if t /= t'
             then do
                 let new = old {target = t'}
-                projPath <- asks @TsConfig (.baseUrl)
+                projPath <- asks @TsConfig (.pathsBase)
                 let problem = relativeImport (old, new) projPath prog.path
                 report problem
                 baseline <- ask @Baseline

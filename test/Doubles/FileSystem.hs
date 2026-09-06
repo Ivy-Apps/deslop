@@ -4,6 +4,7 @@ module Doubles.FileSystem (
     runMockRoFileSystem,
     runMockWrFileSystem,
     mockFiles,
+    mockFileSystem,
     mockDirs,
     mockDirsWithSymlinks,
     mockFileAt,
@@ -94,6 +95,17 @@ mockFileAt path content =
     defaultMockRoFileSystem
         { mockFileExists = \p -> pure (p == path)
         , mockReadFile = \_ -> pure content
+        }
+
+{- | An in-memory filesystem: exactly these paths exist, holding exactly these
+bytes. A fake rather than a stub, so a component that reads several files - a
+@tsconfig.json@ and everything it extends - runs its real codepath.
+-}
+mockFileSystem :: [(AbsPath, ByteString)] -> MockRoFileSystem es
+mockFileSystem files =
+    defaultMockRoFileSystem
+        { mockFileExists = \p -> pure . any ((== p) . fst) $ files
+        , mockReadFile = \p -> pure . maybe mempty snd . find ((== p) . fst) $ files
         }
 
 -- | Build a mock that knows which paths are directories and what they contain.

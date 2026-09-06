@@ -20,7 +20,7 @@ runNoImportCycles :: [AstModule] -> IO [Problem]
 runNoImportCycles modules =
     runEff
         . runReportProblem
-        . runReader @ProjectRoot (ProjectRoot defaultTsConfig.baseUrl)
+        . runReader @ProjectRoot (ProjectRoot defaultTsConfig.pathsBase)
         . runReader (buildModuleGraph modules)
         $ noImportCycles >> getProblems
 

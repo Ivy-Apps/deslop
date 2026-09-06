@@ -37,6 +37,31 @@ friends. Distinct from a gitignored path in that no Ignore Rule can re-include
 it, and it is not even scanned for `.gitignore` files.
 _Avoid_: Hardcoded ignore, skip list, excluded directory
 
+### TypeScript configuration
+
+**TsConfig**:
+The effective TypeScript configuration a run resolves to: a Paths Base and its
+path mappings, after the whole Extends Chain has been merged. Not a file.
+_Avoid_: tsconfig.json (that is one file), compiler options
+
+**TsConfig File**:
+One `tsconfig.json` exactly as authored, holding only what it itself declares.
+Several of them make one TsConfig.
+_Avoid_: TsConfig, config
+
+**Extends Chain**:
+The TsConfig Files reachable from the project's root config through `extends`,
+in precedence order: a file always outranks the ones it extends, and a later
+entry of an array `extends` outranks an earlier one. Two branches reaching one
+shared file is a diamond and is legal; a file reaching itself is an error.
+_Avoid_: Inheritance, config hierarchy
+
+**Paths Base**:
+The directory a TsConfig Pattern's values resolve against. A declared `baseUrl`
+wherever the Extends Chain has one, otherwise the directory of the TsConfig File
+that declared the winning mappings.
+_Avoid_: baseUrl (it is only sometimes one), project root, config dir
+
 ### Rules and problems
 
 **Rulebook**:

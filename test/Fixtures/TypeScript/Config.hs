@@ -14,7 +14,7 @@ import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsCon
 defaultTsConfig :: TsConfig
 defaultTsConfig =
     TsConfig
-        { baseUrl = absPathUnsafe [osp|/home/repo|]
+        { pathsBase = absPathUnsafe [osp|/home/repo|]
         , paths =
             [ mkMapping (Wildcard "@test/" "") [Wildcard "test/" ""]
             , mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]
@@ -22,7 +22,7 @@ defaultTsConfig =
         }
 
 emptyTsConfig :: TsConfig
-emptyTsConfig = TsConfig {baseUrl = absPathUnsafe [osp|/home/repo|], paths = []}
+emptyTsConfig = TsConfig {pathsBase = absPathUnsafe [osp|/home/repo|], paths = []}
 
 mkMapping :: Pattern -> [Pattern] -> PathMapping
 mkMapping k vs = PathMapping (KeyPattern k) (ValuePattern <$> fromList vs)

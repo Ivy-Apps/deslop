@@ -44,8 +44,10 @@ spec = describe "E2E.Project" $ do
     itChecks "ts-gitignore-project"
     itChecks "ts-globplus-project"
     itChecks "ts-casing-project"
+    itChecks "ts-monorepo-project"
 
     itFailsToLoadRulebook "ts-invalid-rulebook-project"
+    itFailsToLoadTsConfig "ts-broken-extends-project"
 
     itBaselines "ts-project-1"
     itBaselines "ixartz-next-js-boilerplate"
@@ -54,6 +56,7 @@ spec = describe "E2E.Project" $ do
     itBaselines "ts-gitignore-project"
     itBaselines "ts-globplus-project"
     itBaselines "ts-casing-project"
+    itBaselines "ts-monorepo-project"
 
     itIterates "ts-gitignore-project"
 
@@ -97,6 +100,12 @@ spec = describe "E2E.Project" $ do
         , "tsconfig.json"
         , "src/middleware.ts"
         , "src/app/page.tsx"
+        ]
+
+    itFixes
+        "ts-monorepo-project"
+        [ "packages/app/src/main.ts"
+        , "packages/app/src/checkout.ts"
         ]
   where
     -- The closing summary and the check verdict are rendered by runDeslop,
@@ -161,6 +170,36 @@ spec = describe "E2E.Project" $ do
         written `shouldBe` Nothing
         logs <- readIORef logsRef
         pathSafeGolden ("rulebook-error-" <> project) . T.unpack $
+            renderTranscript logs <> renderResult res
+
+    -- A tsconfig Deslop cannot resolve - here an `extends` naming a file that
+    -- is not there - must abort the run before any file is checked, naming the
+    -- missing file and the chain that reached it.
+    itFailsToLoadTsConfig project = it ("refuses to run " <> project) $ do
+        -- Given
+        let projectPath = fixturesPath </> encodeOsPathString project
+        filesRef <- newIORef Nothing
+        logsRef <- newIORef (TestLogs [])
+        defParams <- defaultParams projectPath
+        let params = defParams {command = CheckC}
+
+        -- When
+        res <-
+            runEff
+                . runMockWrFileSystem filesRef
+                . runRoFileSystemIO
+                . runErrorNoCallStack @DeslopError
+                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
+                . runReportProblem
+                . runConcurrent
+                $ doWork params
+
+        -- Then
+        res `shouldSatisfy` isLeft
+        written <- readIORef filesRef
+        written `shouldBe` Nothing
+        logs <- readIORef logsRef
+        pathSafeGolden ("tsconfig-error-" <> project) . T.unpack $
             renderTranscript logs <> renderResult res
 
     itChecks project = it ("checks " <> project) $ do

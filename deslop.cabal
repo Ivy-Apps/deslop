@@ -88,6 +88,8 @@ library
     Renderable
     TypeScript.AST
     TypeScript.Config
+    TypeScript.Config.Dto
+    TypeScript.Config.Loader
     TypeScript.CST
     TypeScript.Iterator
     TypeScript.Lexer
@@ -173,6 +175,8 @@ test-suite deslop-test
     ParamsSpec
     TestUtils
     TypeScript.ASTSpec
+    TypeScript.Config.DtoSpec
+    TypeScript.Config.LoaderSpec
     TypeScript.ConfigSpec
     TypeScript.CSTSpec
     TypeScript.IteratorSpec

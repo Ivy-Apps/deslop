@@ -1,0 +1,80 @@
+Right
+  ( TsConfig
+      { pathsBase =
+          AbsPath
+            { osPath =
+                "~/fixtures/typescript/config"
+            }
+      , paths =
+          [ PathMapping
+              { key =
+                  KeyPattern { pattern = Exact "a-very-very-long-exact-match" }
+              , values = ValuePattern { pattern = Exact "exact/long.ts" } :| []
+              }
+          , PathMapping
+              { key = KeyPattern { pattern = Exact "a-short-exact" }
+              , values = ValuePattern { pattern = Exact "exact/short.ts" } :| []
+              }
+          , PathMapping
+              { key =
+                  KeyPattern
+                    { pattern = Wildcard { pre = "@app/features/" , suff = "" } }
+              , values =
+                  ValuePattern
+                    { pattern = Wildcard { pre = "src/app/features/" , suff = "" } } :|
+                    []
+              }
+          , PathMapping
+              { key =
+                  KeyPattern
+                    { pattern = Wildcard { pre = "module-" , suff = "-longest" } }
+              , values =
+                  ValuePattern
+                    { pattern = Wildcard { pre = "modules/long/" , suff = "" } } :|
+                    []
+              }
+          , PathMapping
+              { key =
+                  KeyPattern
+                    { pattern = Wildcard { pre = "module-" , suff = "-short" } }
+              , values =
+                  ValuePattern
+                    { pattern = Wildcard { pre = "modules/short/" , suff = "" } } :|
+                    []
+              }
+          , PathMapping
+              { key =
+                  KeyPattern { pattern = Wildcard { pre = "@app/" , suff = "" } }
+              , values =
+                  ValuePattern
+                    { pattern = Wildcard { pre = "src/app/" , suff = "" } } :|
+                    []
+              }
+          , PathMapping
+              { key =
+                  KeyPattern
+                    { pattern = Wildcard { pre = "same" , suff = "longer" } }
+              , values =
+                  ValuePattern
+                    { pattern = Wildcard { pre = "/longer/" , suff = "" } } :|
+                    []
+              }
+          , PathMapping
+              { key =
+                  KeyPattern { pattern = Wildcard { pre = "same" , suff = "short" } }
+              , values =
+                  ValuePattern
+                    { pattern = Wildcard { pre = "/short/" , suff = "" } } :|
+                    []
+              }
+          , PathMapping
+              { key = KeyPattern { pattern = Wildcard { pre = "" , suff = "" } }
+              , values =
+                  ValuePattern
+                    { pattern = Wildcard { pre = "vendor/" , suff = "" } } :|
+                    []
+              }
+          ]
+      }
+  , []
+  )
