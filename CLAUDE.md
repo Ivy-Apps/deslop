@@ -64,6 +64,23 @@ nix run .#test -- Parser
 nix run .#lint
 ```
 
+### Updating golden tests
+
+```bash
+nix run .#update-golden
+```
+
+Re-records every hspec-golden snapshot in `.golden/` from the current CLI
+output, and stages the result.
+
+**A failing golden test is not a reason to run this.** It means the output
+changed. Work out whether that change was intended first; only then re-record,
+and read the resulting `git diff` before committing it. Re-recording to make a
+red test green throws away the only thing the snapshot was protecting.
+
+Note that it starts by emptying `.golden/`, so a run that fails to compile
+leaves the directory empty. `git checkout .golden` restores it.
+
 ### Test fixtures
 
 `fixtures/ts-gitignore-project/` contains real `.gitignore` files, which
