@@ -15,8 +15,8 @@ import Hedgehog.Range qualified as Range
 import System.OsPath (osp)
 import Test.Hspec
 import TestUtils (ap, prop)
-import TypeScript.Config (Pattern (..), TsConfig (..))
 import TypeScript.CST (TsNode (..), TsProgram (..))
+import TypeScript.Config (Pattern (..), TsConfig (..))
 import TypeScript.Lint.RelativeImports (noRelativeImports)
 
 repoRoot :: ProjectRoot
@@ -217,8 +217,8 @@ spec = describe "TypeScript.Lint.RelativeImports" $ do
                 prog = mkProg (encodeOsPath (dir <> "/main.ts")) [mkImport "./helper"]
 
             (_, problems) <-
-                evalIO
-                    $ runTestIn
+                evalIO $
+                    runTestIn
                         (ProjectRoot (ap (joinAbs rootSegs)))
                         cfg
                         (baselineOf [])

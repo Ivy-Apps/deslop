@@ -13,8 +13,8 @@ import Effectful
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (RoFileSystem)
 import FileSystem.Path (AbsPath (..), ProjectRoot, absPathUnsafe, portablePath, relativePathTo)
-import TypeScript.Config (TsConfig)
 import TypeScript.CST (TsNode (..), TsProgram (cst, path))
+import TypeScript.Config (TsConfig)
 import TypeScript.ModuleResolver (dropTypeScriptExtension, reverseResolve)
 
 parseAst ::

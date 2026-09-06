@@ -8,7 +8,7 @@ import FileSystem.Path (
     decodeOsPath,
     relativePathTo,
  )
-import Hedgehog (Gen, forAll, assert, (===))
+import Hedgehog (Gen, assert, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import System.OsPath (isRelative)

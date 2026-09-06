@@ -10,8 +10,8 @@ import Fixtures.TypeScript.Config (defaultTsConfig, emptyTsConfig)
 import System.OsPath (osp)
 import Test.Hspec
 import TypeScript.AST (parseAst)
-import TypeScript.Config
 import TypeScript.CST (TsNode (..), TsProgram (..))
+import TypeScript.Config
 
 repoRoot :: ProjectRoot
 repoRoot = ProjectRoot (absPathUnsafe [osp|/home/repo|])
