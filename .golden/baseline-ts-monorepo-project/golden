@@ -1,9 +1,9 @@
-[Title] 🚀 Baselining project: ~/fixtures/ts-monorepo-project
-[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
-Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
-[Success] ✅ Success: Baseline generated with 2 problems.
-[summary] Baselined 4 modules enforcing 2 rules
+[Title] 🚀 Baselining project: ts-monorepo-project
+[Plain] 📚 Loaded 1 rulebook, 1 rule
+[Success] ✅ Success: Baseline generated with 3 problems.
+[summary] Baselined 5 modules enforcing 3 rules
 
 >>> baseline.yaml
-- no-relative-imports#~/fixtures/ts-monorepo-project/packages/app/src/checkout.ts
-- no-relative-imports#~/fixtures/ts-monorepo-project/packages/app/src/main.ts
+- no-relative-imports#packages/app/src/checkout.ts
+- no-relative-imports#packages/app/src/main.ts
+- workspace-boundaries#scripts-keep-out-of-the-packages#/scripts/release

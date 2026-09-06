@@ -167,6 +167,7 @@ test-suite deslop-test
     Effects.FileSystemSpec
     Effects.ReportProblemSpec
     FileSystem.IteratorSpec
+    FileSystem.PathSpec
     Fixtures.Deslop.AST
     Fixtures.Deslop.Problem.Baseline
     Fixtures.Deslop.Rule.Book.Dto

@@ -104,7 +104,11 @@ visited-set would reject it.
   fold.
 - `TsConfig.baseUrl` becomes `TsConfig.pathsBase`. In three of its four cases
   the value is not a declared `baseUrl`, and the field is read for exactly one
-  purpose: the directory a `ValuePattern` resolves against.
+  purpose: the directory a `ValuePattern` resolves against. It is emphatically
+  not the directory a Problem is reported relative to - that is the Project
+  Root, and in the layout this ADR exists to support the two are different
+  directories. `relativePathTo` takes a `ProjectRoot` so the confusion cannot
+  be spelled.
 - `DeslopError` loses `TsConfigNotFoundError` and `TsConfigParseError` for a
   single `TsConfigError Text`. The loader renders its own failures, as
   `Deslop.Rule.Book.Loader` already does, because they name files that only it

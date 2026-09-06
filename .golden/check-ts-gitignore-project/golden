@@ -1,4 +1,4 @@
-[Title] 🚀 Checking project: ~/fixtures/ts-gitignore-project
+[Title] 🚀 Checking project: ts-gitignore-project
 [Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
 Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
 [Error] Found 4 problems:

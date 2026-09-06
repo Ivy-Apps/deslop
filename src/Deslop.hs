@@ -24,7 +24,7 @@ import Effectful (Eff, IOE, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
-import Effectful.Reader.Static (Reader, asks, runReader)
+import Effectful.Reader.Static (Reader, ask, asks, runReader)
 import Effects.CLI (CLI, LogStyle (..), cliLog, runCLI)
 import Effects.FileSystem (
     RoFileSystem,
@@ -34,11 +34,18 @@ import Effects.FileSystem (
     runFileSystemIO,
  )
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
-import FileSystem.Path (AbsPath (osPath), ProjectRoot (..), decodeOsPath, withAbsBaseUnsafe)
+import FileSystem.Path (
+    AbsPath (osPath),
+    ProjectRoot (..),
+    RelativePath (osPath),
+    decodeOsPath,
+    relativePathTo,
+    withAbsBaseUnsafe,
+ )
 import Git.Ignore (loadGitIgnore)
 import Params
 import Renderable (Renderable (render))
-import System.OsPath (osp)
+import System.OsPath (osp, takeFileName)
 import TypeScript.AST (parseAst)
 import TypeScript.CST
 import TypeScript.Config (TsConfig (..))
@@ -126,7 +133,7 @@ logTitle params = do
         "🚀 "
             <> commandTitle params.command
             <> " project: "
-            <> decodeOsPath params.projectPath.osPath
+            <> decodeOsPath (takeFileName params.projectPath.osPath)
     case params.command of
         FixC -> cliLog Plain "Changelog:"
         _ -> pure ()
@@ -164,38 +171,39 @@ deslopProject ::
     Baseline ->
     Eff es RunSummary
 deslopProject params baseline = do
-    rulebookRes <- loadRulebooks params.projectPath
+    rulebookRes <- loadRulebooks projectRoot
     rulebook <- case rulebookRes of
         Right rb -> pure rb
         Left e -> throwError . RulebookError $ e
     logRulebooks params.command rulebook
 
-    cfg <- tsConfig params.projectPath
+    cfg <- tsConfig projectRoot
     gitIgnore <- loadGitIgnore params.projectPath
     files <- getTsFiles gitIgnore params.projectPath
-    (lintErrors, asts) <-
-        fmap partitionEithers
-            . runReader @TsConfig cfg
-            . runReader @Params params
-            . runReader @Baseline baseline
-            $ pooledMapConcurrentlyN 32 deslopFile files
-    traverse_ (cliLog Error . ("❌ Error: " <>) . T.pack) lintErrors
-    when
-        (params.command /= FixC)
-        $ do
-            let mg = buildModuleGraph asts
-            runReader @ProjectRoot (ProjectRoot cfg.pathsBase)
-                . runReader @ModuleGraph mg
-                $ do
+    runReader @ProjectRoot projectRoot $ do
+        (lintErrors, asts) <-
+            fmap partitionEithers
+                . runReader @TsConfig cfg
+                . runReader @Params params
+                . runReader @Baseline baseline
+                $ pooledMapConcurrentlyN 32 deslopFile files
+        traverse_ (cliLog Error . ("❌ Error: " <>) . T.pack) lintErrors
+        when
+            (params.command /= FixC)
+            $ do
+                let mg = buildModuleGraph asts
+                runReader @ModuleGraph mg $ do
                     noImportCycles
                     runReader @[Rulebook] rulebook
                         . traverse_ enforceRulebooks
                         $ asts
-    pure $
-        summaryOf
-            params.command
-            (ModuleCount . length $ asts)
-            (enforcedRules rulebook)
+        pure $
+            summaryOf
+                params.command
+                (ModuleCount . length $ asts)
+                (enforcedRules rulebook)
+  where
+    projectRoot = ProjectRoot params.projectPath
 
 {- | What the command covered. @fix@ enforces no Rulebook Rules, so it reports
 only the modules it went through.
@@ -248,6 +256,7 @@ deslopFile ::
     ( RoFileSystem :> es
     , WrFileSystem :> es
     , Reader TsConfig :> es
+    , Reader ProjectRoot :> es
     , Reader Params :> es
     , Reader Baseline :> es
     , CLI :> es
@@ -262,13 +271,16 @@ deslopFile src = do
     cmd <- asks @Params (.command)
     when (c /= c' && cmd == FixC) $ do
         fsWriteFile src c'
-        cliLog Change $ "  modified  " <> decodeOsPath src.osPath
+        projectRoot <- ask @ProjectRoot
+        cliLog Change $
+            "  modified  " <> decodeOsPath (relativePathTo projectRoot src).osPath
     traverse parseAst cstRes
   where
     renderProgram = TE.encodeUtf8 . render . (.cst)
 
 lintFile ::
     ( Reader TsConfig :> es
+    , Reader ProjectRoot :> es
     , Reader Baseline :> es
     , ReportProblem :> es
     , RoFileSystem :> es
@@ -292,12 +304,12 @@ tsConfig ::
     , Error DeslopError :> es
     , CLI :> es
     ) =>
-    AbsPath ->
+    ProjectRoot ->
     Eff es TsConfig
-tsConfig projPath = do
-    res <- loadTsConfig $ withAbsBaseUnsafe projPath [osp|tsconfig.json|]
+tsConfig projectRoot = do
+    res <- loadTsConfig $ withAbsBaseUnsafe projectRoot.path [osp|tsconfig.json|]
     case res of
-        Left err -> throwError . TsConfigError . renderTsConfigLoadError $ err
+        Left err -> throwError . TsConfigError . renderTsConfigLoadError projectRoot $ err
         Right (cfg, skipped) -> cfg <$ traverse_ logSkipped skipped
   where
-    logSkipped = cliLog Warning . ("WARNING: " <>) . renderSkippedExtends
+    logSkipped = cliLog Warning . ("WARNING: " <>) . renderSkippedExtends projectRoot

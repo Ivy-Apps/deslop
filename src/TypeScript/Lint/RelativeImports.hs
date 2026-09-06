@@ -6,23 +6,23 @@ import Deslop.AST (ModuleId (..), moduleIdUnsafe)
 import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
 import Deslop.Problem.Baseline (Baseline, inBaseline)
 import Effectful (Eff, type (:>))
-import Effectful.Reader.Static (Reader, ask, asks)
+import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (RoFileSystem)
 import Effects.ReportProblem (ReportProblem, report)
-import FileSystem.Path (AbsPath (..), relativePathTo)
+import FileSystem.Path (AbsPath, ProjectRoot, relativePathTo)
 import Renderable (Renderable (render))
 import TypeScript.CST (
     TsNode (Import, target),
     TsProgram (cst, path),
  )
-import TypeScript.Config (TsConfig (..))
+import TypeScript.Config (TsConfig)
 import TypeScript.ModuleResolver (reverseResolveImport)
 
-relativeImport :: (TsNode, TsNode) -> AbsPath -> AbsPath -> Problem
-relativeImport (old, new) projectPath modulePath =
+relativeImport :: (TsNode, TsNode) -> ProjectRoot -> AbsPath -> Problem
+relativeImport (old, new) projectRoot modulePath =
     LintProblem
         { lintRule = LintRuleId "no-relative-imports"
-        , location = Location {file = relativePathTo projectPath modulePath, code = render old}
+        , location = Location {file = relativePathTo projectRoot modulePath, code = render old}
         , description = "Relative imports are not allowed. Use aliased ones."
         , fix = "Use ```" <> render new <> "``` instead."
         , autoFixable = True
@@ -30,6 +30,7 @@ relativeImport (old, new) projectPath modulePath =
 
 noRelativeImports ::
     ( Reader TsConfig :> es
+    , Reader ProjectRoot :> es
     , Reader Baseline :> es
     , ReportProblem :> es
     , RoFileSystem :> es
@@ -44,8 +45,8 @@ noRelativeImports prog = do
         if t /= t'
             then do
                 let new = old {target = t'}
-                projPath <- asks @TsConfig (.pathsBase)
-                let problem = relativeImport (old, new) projPath prog.path
+                projectRoot <- ask @ProjectRoot
+                let problem = relativeImport (old, new) projectRoot prog.path
                 report problem
                 baseline <- ask @Baseline
                 if inBaseline baseline problem

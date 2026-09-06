@@ -8,20 +8,20 @@ import Deslop.AST (AstModule (..), AstNode (..), ModuleId (..))
 import Deslop.CodeGraph (ModuleCycle (..), ModuleGraph, findCycles)
 import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
 import Effectful (Eff, type (:>))
-import Effectful.Reader.Static (Reader, asks)
+import Effectful.Reader.Static (Reader, ask)
 import Effects.ReportProblem (ReportProblem, report)
-import FileSystem.Path (AbsPath, ProjectRoot (..), relativePathTo)
+import FileSystem.Path (ProjectRoot, relativePathTo)
 
 {- | Reports the cycle against its start module, showing the loop it forms and
 the import statement that enters it.
 -}
-importCycle :: AbsPath -> ModuleCycle -> Problem
-importCycle projectPath (ModuleCycle loop) =
+importCycle :: ProjectRoot -> ModuleCycle -> Problem
+importCycle projectRoot (ModuleCycle loop) =
     LintProblem
         { lintRule = LintRuleId "no-import-cycles"
         , location =
             Location
-                { file = relativePathTo projectPath start.path
+                { file = relativePathTo projectRoot start.path
                 , code = enteringImport start nextHop.id
                 }
         , description = "Circular dependency (import cycle) detected: " <> renderLoop loop
@@ -49,8 +49,8 @@ noImportCycles ::
     ) =>
     Eff es ()
 noImportCycles = do
-    projectPath <- asks @ProjectRoot (.path)
-    findCycles >>= traverse_ (report . importCycle projectPath)
+    projectRoot <- ask @ProjectRoot
+    findCycles >>= traverse_ (report . importCycle projectRoot)
 
 -- | Renders the loop as a closed walk, repeating the start to show it closing.
 renderLoop :: NonEmpty AstModule -> Text

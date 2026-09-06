@@ -30,7 +30,16 @@ import Data.Text qualified as T
 import Effectful (Eff, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effects.FileSystem (RoFileSystem, fsFileExists, fsMkAbsolute, fsReadFile)
-import FileSystem.Path (AbsPath (..), absPathUnsafe, decodeOsPath, encodeOsPath, withAbsBaseSafe)
+import FileSystem.Path (
+    AbsPath (..),
+    ProjectRoot,
+    RelativePath (..),
+    absPathUnsafe,
+    decodeOsPath,
+    encodeOsPath,
+    relativePathTo,
+    withAbsBaseSafe,
+ )
 import System.OsPath (OsPath, isAbsolute, takeDirectory)
 import TypeScript.Config (Declared (..), DeclaredPaths (..), TsConfig, effectiveConfig, pathMappings)
 import TypeScript.Config.Dto (CompilerOptionsDto (..), ExtendsDto (..), TsConfigDto (..), parseTsConfigJson)
@@ -169,33 +178,38 @@ extendsTarget dir t
 dirOf :: AbsPath -> AbsPath
 dirOf = absPathUnsafe . takeDirectory . (.osPath)
 
-renderTsConfigLoadError :: TsConfigLoadError -> Text
-renderTsConfigLoadError (TsConfigUnreadable path chain) =
-    "TS config not found: " <> quoted path <> extendedFrom chain
-renderTsConfigLoadError (TsConfigUnparseable path chain err) =
-    "Could not parse " <> quoted path <> ": " <> err <> extendedFrom chain
-renderTsConfigLoadError (TsConfigCycle path chain) =
-    "Circular \"extends\": " <> quoted path <> " extends itself" <> extendedFrom chain
-renderTsConfigLoadError (TsConfigExtendsNotText path chain) =
+renderTsConfigLoadError :: ProjectRoot -> TsConfigLoadError -> Text
+renderTsConfigLoadError root (TsConfigUnreadable path chain) =
+    "TS config not found: " <> quoted root path <> extendedFrom root chain
+renderTsConfigLoadError root (TsConfigUnparseable path chain err) =
+    "Could not parse " <> quoted root path <> ": " <> err <> extendedFrom root chain
+renderTsConfigLoadError root (TsConfigCycle path chain) =
+    "Circular \"extends\": " <> quoted root path <> " extends itself" <> extendedFrom root chain
+renderTsConfigLoadError root (TsConfigExtendsNotText path chain) =
     "Invalid \"extends\" in "
-        <> quoted path
+        <> quoted root path
         <> ": expected a string or an array of strings"
-        <> extendedFrom chain
+        <> extendedFrom root chain
 
-renderSkippedExtends :: SkippedExtends -> Text
-renderSkippedExtends skipped =
+renderSkippedExtends :: ProjectRoot -> SkippedExtends -> Text
+renderSkippedExtends root skipped =
     "Ignoring \"extends\": \""
         <> skipped.specifier
         <> "\" in "
-        <> quoted skipped.inFile
+        <> quoted root skipped.inFile
         <> ".\n"
         <> "Deslop resolves only relative and rooted paths, not package specifiers,\n"
         <> "so any path alias declared in that package is not applied."
 
 -- | The @extends@ trail that reached a file, silent when there was none.
-extendedFrom :: [AbsPath] -> Text
-extendedFrom [] = ""
-extendedFrom chain = "\n   extended from: " <> T.intercalate " -> " (quoted <$> chain)
+extendedFrom :: ProjectRoot -> [AbsPath] -> Text
+extendedFrom _ [] = ""
+extendedFrom root chain =
+    "\n   extended from: " <> T.intercalate " -> " (quoted root <$> chain)
 
-quoted :: AbsPath -> Text
-quoted path = "'" <> decodeOsPath path.osPath <> "'"
+{- | A config file named from the project root. A base outside the project is
+spelled with @..@ rather than absolutely, so the message reads the same on
+every machine that runs the check.
+-}
+quoted :: ProjectRoot -> AbsPath -> Text
+quoted root path = "'" <> decodeOsPath (relativePathTo root path).osPath <> "'"

@@ -67,6 +67,16 @@ snapshot tmpDir filesToVerify = do
 renderGolden :: (Renderable r) => String -> r -> Golden String
 renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
 
+{- | Goldens a value that holds an absolute path /by design/, with the
+directory the suite runs from replaced so the snapshot is the same on every
+machine.
+
+For internal domain values only - a 'TypeScript.Config.TsConfig' carries an
+absolute paths base because the resolver has to open files with it. Never for
+what Deslop prints: every path a run reports is relative to the project root,
+and scrubbing that output would hide an absolute one rather than fail on it,
+which is exactly how one reached a committed baseline.
+-}
 pathSafeGolden :: String -> String -> IO (Golden String)
 pathSafeGolden name content = do
     baseAbsPath <- T.replace "\"" "" . T.pack . show . (.osPath) <$> mkAbsolute [osp|.|]

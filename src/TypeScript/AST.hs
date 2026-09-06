@@ -10,14 +10,19 @@ module TypeScript.AST (parseAst) where
 
 import Deslop.AST (AstModule (..), AstNode (..), moduleIdUnsafe)
 import Effectful
-import Effectful.Reader.Static (Reader)
+import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (RoFileSystem)
-import FileSystem.Path (AbsPath (..), decodeOsPath)
+import FileSystem.Path (AbsPath (..), ProjectRoot, absPathUnsafe, portablePath, relativePathTo)
 import TypeScript.Config (TsConfig)
 import TypeScript.CST (TsNode (..), TsProgram (cst, path))
 import TypeScript.ModuleResolver (dropTypeScriptExtension, reverseResolve)
 
-parseAst :: (Reader TsConfig :> es, RoFileSystem :> es) => TsProgram -> Eff es AstModule
+parseAst ::
+    ( Reader TsConfig :> es
+    , Reader ProjectRoot :> es
+    , RoFileSystem :> es
+    ) =>
+    TsProgram -> Eff es AstModule
 parseAst prog = do
     moduleId <- programModuleId
     pure
@@ -35,11 +40,19 @@ parseAst prog = do
     -- raw backslash path that no edge ever points at. reverseResolve works from
     -- the OsPath directly, which both OSes split correctly; the raw path remains
     -- the fallback for unmapped files.
-    programModuleId = fromMaybe rawPathId <$> reverseResolve prog.path
+    programModuleId = do
+        root <- ask @ProjectRoot
+        fromMaybe (rawPathId root) <$> reverseResolve prog.path
       where
-        rawPathId =
+        -- Relative to the project root, never to this machine: the id is what
+        -- a Rulebook pattern matches and what a Rule Violation's Problem Id is
+        -- built from, and both travel to other checkouts.
+        rawPathId root =
             moduleIdUnsafe
-                . decodeOsPath
+                . ("/" <>)
+                . portablePath
+                . relativePathTo root
+                . absPathUnsafe
                 . dropTypeScriptExtension
                 $ prog.path.osPath
     parseNode :: TsNode -> Maybe AstNode

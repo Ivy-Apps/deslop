@@ -4,7 +4,7 @@ import Data.Text qualified as T
 import Doubles.FileSystem (mockFileSystem, runMockRoFileSystem)
 import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
-import FileSystem.Path (encodeOsPath)
+import FileSystem.Path (ProjectRoot (..), encodeOsPath)
 import Hedgehog (Gen, evalIO, forAll, success)
 import Hedgehog.Gen qualified as Gen
 import System.OsPath (osp, (</>))
@@ -168,7 +168,7 @@ spec = describe "TypeScript.Config.Loader" $ do
                 load
                     [("/repo/tsconfig.json", extendingWithAlias "@repo/typescript-config/base.json" "@")]
 
-            (cfg, skipped) <- requireRight (T.unpack . renderTsConfigLoadError) res
+            (cfg, skipped) <- requireRight (T.unpack . renderTsConfigLoadError mockRepoRoot) res
             aliases cfg `shouldBe` ["@/"]
             skipped
                 `shouldBe` [ SkippedExtends
@@ -212,10 +212,14 @@ load files =
         . loadTsConfig
         $ ap "/repo/tsconfig.json"
 
+-- | The root the in-memory filesystem's @\/repo@ project is rooted at.
+mockRepoRoot :: ProjectRoot
+mockRepoRoot = ProjectRoot (ap "/repo")
+
 loadConfig :: [(Text, Text)] -> IO TsConfig
 loadConfig files = do
     res <- load files
-    fst <$> requireRight (T.unpack . renderTsConfigLoadError) res
+    fst <$> requireRight (T.unpack . renderTsConfigLoadError mockRepoRoot) res
 
 -- | The alias each path mapping is keyed by, in the order the resolver tries them.
 aliases :: TsConfig -> [Text]

@@ -28,7 +28,14 @@ import Deslop.Rule.Book.Desugar (desugarRulebook)
 import Deslop.Rule.Book.Dto (parseRulebookYaml)
 import Effectful
 import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile)
-import FileSystem.Path (AbsPath (..), decodeOsPath, withAbsBaseUnsafe)
+import FileSystem.Path (
+    AbsPath,
+    ProjectRoot (..),
+    RelativePath (..),
+    decodeOsPath,
+    relativePathTo,
+    withAbsBaseUnsafe,
+ )
 import System.OsPath (OsPath, osp)
 import Utils (pluralise)
 
@@ -43,15 +50,17 @@ data RulebookLoadError
 rulesDir :: OsPath
 rulesDir = [osp|deslop/rules|]
 
-loadRulebooks :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
-loadRulebooks projectPath = loadRulebooksFromDir (withAbsBaseUnsafe projectPath rulesDir)
+loadRulebooks :: (RoFileSystem :> es) => ProjectRoot -> Eff es (Either Text [Rulebook])
+loadRulebooks projectRoot =
+    loadRulebooksFromDir projectRoot (withAbsBaseUnsafe projectRoot.path rulesDir)
 
 {- | Loads every rulebook in a directory. A failure anywhere means none is
 returned: enforcing half a rulebook would report problems its author never
 asked for and miss the ones they did.
 -}
-loadRulebooksFromDir :: (RoFileSystem :> es) => AbsPath -> Eff es (Either Text [Rulebook])
-loadRulebooksFromDir dir = fsDirectoryExists dir >>= bool (pure (Right [])) loadAll
+loadRulebooksFromDir ::
+    (RoFileSystem :> es) => ProjectRoot -> AbsPath -> Eff es (Either Text [Rulebook])
+loadRulebooksFromDir projectRoot dir = fsDirectoryExists dir >>= bool (pure (Right [])) loadAll
   where
     loadAll = do
         paths <- fsListDirectory dir
@@ -60,7 +69,9 @@ loadRulebooksFromDir dir = fsDirectoryExists dir >>= bool (pure (Right [])) load
             Just failures -> Left (renderRulebookErrors failures)
             Nothing -> Right [rulebook | (_, Right rulebook) <- results]
 
-    nameOf path = decodeOsPath path.osPath
+    -- Named from the project root: the report is read on whatever machine ran
+    -- the check, and where the repository happens to sit on that disk is noise.
+    nameOf = decodeOsPath . (.osPath) . relativePathTo projectRoot
 
 loadRulebookFromFile :: (RoFileSystem :> es) => AbsPath -> Eff es (Either RulebookLoadError Rulebook)
 loadRulebookFromFile path = compile <$> fsReadFile path

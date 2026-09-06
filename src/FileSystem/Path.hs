@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 {- | The path vocabulary, and the encoding between 'OsPath' and 'Text'.
 
 Nominal rather than a bare 'OsPath': a path that has been made absolute and a
@@ -22,6 +24,8 @@ module FileSystem.Path (
     RelativePath (osPath),
     relativePathUnsafe,
     relativePathTo,
+    dropCommonSegments,
+    portablePath,
 
     -- * The project under inspection
     ProjectRoot (..),
@@ -29,7 +33,7 @@ module FileSystem.Path (
 
 import Control.Monad.Catch.Pure (runCatch)
 import Data.Text qualified as T
-import System.OsPath (OsPath, decodeUtf, encodeUtf, makeRelative, (</>))
+import System.OsPath (OsPath, decodeUtf, encodeUtf, joinPath, osp, splitDirectories, (</>))
 
 encodeOsPath :: Text -> OsPath
 encodeOsPath = encodeOsPathString . T.unpack
@@ -67,8 +71,51 @@ newtype RelativePath = RelativePath
 relativePathUnsafe :: OsPath -> RelativePath
 relativePathUnsafe = RelativePath
 
-relativePathTo :: AbsPath -> AbsPath -> RelativePath
-relativePathTo (AbsPath base) (AbsPath target) = RelativePath $ makeRelative base target
+{- | Where @target@ sits, spelled from @root@.
+
+Goes back out of the root with @..@ where it has to, rather than
+'System.OsPath.makeRelative', which hands the target back unchanged whenever
+the root is not a prefix of it. Every reported path and therefore every Problem
+Id is built from this, and a Baseline is committed and read back on another
+machine and in CI, so an answer that quietly stayed absolute would name the
+machine that wrote it and match nothing anywhere else.
+
+The one target it cannot answer for is one sharing no segment at all with the
+root - a different Windows drive, and nothing else - where no relative path
+exists and the target is returned as it stands.
+-}
+relativePathTo :: ProjectRoot -> AbsPath -> RelativePath
+relativePathTo (ProjectRoot (AbsPath base)) (AbsPath target) =
+    case (splitDirectories base, splitDirectories target) of
+        (b : baseSegs, t : targetSegs)
+            | b == t -> spelledFrom $ dropCommonSegments baseSegs targetSegs
+        _ -> RelativePath target
+  where
+    spelledFrom (baseRest, targetRest) =
+        RelativePath . spell $ replicate (length baseRest) [osp|..|] <> targetRest
+
+    -- joinPath of nothing is "", which names no file; the root itself is ".".
+    spell [] = [osp|.|]
+    spell segs = joinPath segs
+
+{- | A path spelled with @/@, whatever separator this OS writes.
+
+Paths travel: into Baselines users commit and share across machines, into
+goldens, and into @deslop fix@'s skip-list. A native decode of a Windows
+'RelativePath' yields backslashes, which would make every id this run produces
+unmatchable against a Baseline written on any other OS - silently
+unsuppressing problems and un-fixing imports that a teammate had already
+accepted.
+-}
+portablePath :: RelativePath -> Text
+portablePath = T.replace "\\" "/" . decodeOsPath . (.osPath)
+
+{- | The two paths with their shared leading segments removed, left as the part
+of each that the other does not have.
+-}
+dropCommonSegments :: (Eq a) => [a] -> [a] -> ([a], [a])
+dropCommonSegments (x : xs) (y : ys) | x == y = dropCommonSegments xs ys
+dropCommonSegments xs ys = (xs, ys)
 
 {- | The directory a run reports paths relative to.
 

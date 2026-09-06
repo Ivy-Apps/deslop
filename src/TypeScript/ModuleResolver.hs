@@ -20,7 +20,14 @@ import Deslop.AST (ModuleId (..), moduleIdUnsafe)
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (RoFileSystem, fsFileExists, fsMkAbsolute)
-import FileSystem.Path (AbsPath (..), absPathUnsafe, decodeOsPath, encodeOsPath, withAbsBaseSafe)
+import FileSystem.Path (
+    AbsPath (..),
+    absPathUnsafe,
+    decodeOsPath,
+    dropCommonSegments,
+    encodeOsPath,
+    withAbsBaseSafe,
+ )
 import System.OsPath (OsPath, dropExtension, splitDirectories, takeDirectory)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 
@@ -61,10 +68,6 @@ reverseResolve absFilePath = do
                     else pure $ Just moduleId
         Nothing -> pure Nothing
   where
-    dropCommonSegments :: (Eq a) => [a] -> [a] -> ([a], [a])
-    dropCommonSegments (x : xs) (y : ys) | x == y = dropCommonSegments xs ys
-    dropCommonSegments xs ys = (xs, ys)
-
     applyPathMapping :: [PathMapping] -> Text -> Maybe Text
     applyPathMapping [] _ = Nothing
     applyPathMapping (x : xs) moduleRelToCfg
