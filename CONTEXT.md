@@ -37,6 +37,37 @@ friends. Distinct from a gitignored path in that no Ignore Rule can re-include
 it, and it is not even scanned for `.gitignore` files.
 _Avoid_: Hardcoded ignore, skip list, excluded directory
 
+### TypeScript configuration
+
+**TsConfig**:
+The effective TypeScript configuration a run resolves to: a Paths Base and its
+path mappings, after the whole Extends Chain has been merged. Not a file.
+_Avoid_: tsconfig.json (that is one file), compiler options
+
+**TsConfig File**:
+One `tsconfig.json` exactly as authored, holding only what it itself declares.
+Several of them make one TsConfig.
+_Avoid_: TsConfig, config
+
+**Extends Chain**:
+The TsConfig Files reachable from the project's root config through `extends`,
+in precedence order: a file always outranks the ones it extends, and a later
+entry of an array `extends` outranks an earlier one. Two branches reaching one
+shared file is a diamond and is legal; a file reaching itself is an error.
+_Avoid_: Inheritance, config hierarchy
+
+**Paths Base**:
+The directory a TsConfig Pattern's values resolve against. A declared `baseUrl`
+wherever the Extends Chain has one, otherwise the directory of the TsConfig File
+that declared the winning mappings.
+_Avoid_: baseUrl (it is only sometimes one), project root, config dir
+
+**Project Root**:
+The directory the run was pointed at, and the base every path Deslop reports is
+relative to. Not the Paths Base: a project whose aliases live in a `config/`
+subdirectory has the two in different places.
+_Avoid_: Paths Base, baseUrl, source root, working directory
+
 ### Rules and problems
 
 **Rulebook**:
@@ -53,7 +84,9 @@ Something Deslop reports — either a Lint Problem (from a built-in check like
 
 **Baseline**:
 The set of Problem IDs in `deslop/baseline.yaml` that a project has accepted, so
-they are suppressed from future checks.
+they are suppressed from future checks. Committed, so every ID in it is
+portable: paths are relative to the Project Root and spelled with `/`, and
+nothing in one names the machine that wrote it.
 
 **Auto-Fixable**:
 A Problem that `deslop fix` can resolve without human input. Only some Lint

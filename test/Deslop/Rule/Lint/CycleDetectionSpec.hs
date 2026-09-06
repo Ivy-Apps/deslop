@@ -9,18 +9,23 @@ import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import FileSystem.Path (ProjectRoot (..))
-import Fixtures.Deslop.AST (mkModule)
+import Fixtures.Deslop.AST (mkModule, mkModuleAt)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
-import Fixtures.TypeScript.Config (defaultTsConfig)
 import Test.Hspec
-import TestUtils (rp)
-import TypeScript.Config (TsConfig (..))
+import TestUtils (ap, rp)
+
+-- | The root 'Fixtures.Deslop.AST.mkModule' places its source files under.
+repoRoot :: ProjectRoot
+repoRoot = ProjectRoot (ap "/home/repo")
 
 runNoImportCycles :: [AstModule] -> IO [Problem]
-runNoImportCycles modules =
+runNoImportCycles = runNoImportCyclesIn repoRoot
+
+runNoImportCyclesIn :: ProjectRoot -> [AstModule] -> IO [Problem]
+runNoImportCyclesIn root modules =
     runEff
         . runReportProblem
-        . runReader @ProjectRoot (ProjectRoot defaultTsConfig.baseUrl)
+        . runReader @ProjectRoot root
         . runReader (buildModuleGraph modules)
         $ noImportCycles >> getProblems
 
@@ -108,3 +113,11 @@ spec = describe "Deslop.Rule.Lint.CycleDetection" $ do
             b = mkModule "b" ["a"]
         problems <- runNoImportCycles [a, b]
         applyBaseline (baselineOf ["no-import-cycles#b.ts"]) problems `shouldBe` problems
+
+    it "reports a file outside the project root by going back out of it" $ do
+        -- makeRelative would hand the absolute path straight back here, and a
+        -- Problem Id carrying one matches nothing on another checkout.
+        let a = mkModuleAt "/home/other/a.ts" "a" ["b"]
+            b = mkModuleAt "/home/other/b.ts" "b" ["a"]
+        problems <- runNoImportCyclesIn repoRoot [a, b]
+        map (.location.file) problems `shouldBe` [rp "../other/a.ts"]

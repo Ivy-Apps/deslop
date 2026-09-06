@@ -12,13 +12,20 @@ import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.FileSystem (runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
-import FileSystem.Path (RelativePath (osPath), decodeOsPath, encodeOsPathString, relativePathTo)
+import FileSystem.Path (
+    AbsPath (osPath),
+    ProjectRoot (..),
+    RelativePath (osPath),
+    decodeOsPath,
+    encodeOsPathString,
+    relativePathTo,
+ )
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
 import System.OsPath (OsPath, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (copyDir, fixturesPath, mkAbsolute, pathSafeGolden, requireJust, snapshot)
+import TestUtils (copyDir, fixturesPath, mkAbsolute, requireJust, snapshot)
 import TypeScript.Iterator (getTsFiles)
 import UI (coverage, humanReadable, problemsFoundText)
 import UnliftIO.Temporary (withSystemTempDirectory)
@@ -44,8 +51,10 @@ spec = describe "E2E.Project" $ do
     itChecks "ts-gitignore-project"
     itChecks "ts-globplus-project"
     itChecks "ts-casing-project"
+    itChecks "ts-monorepo-project"
 
     itFailsToLoadRulebook "ts-invalid-rulebook-project"
+    itFailsToLoadTsConfig "ts-broken-extends-project"
 
     itBaselines "ts-project-1"
     itBaselines "ixartz-next-js-boilerplate"
@@ -54,6 +63,7 @@ spec = describe "E2E.Project" $ do
     itBaselines "ts-gitignore-project"
     itBaselines "ts-globplus-project"
     itBaselines "ts-casing-project"
+    itBaselines "ts-monorepo-project"
 
     itIterates "ts-gitignore-project"
 
@@ -98,7 +108,27 @@ spec = describe "E2E.Project" $ do
         , "src/middleware.ts"
         , "src/app/page.tsx"
         ]
+
+    itFixes
+        "ts-monorepo-project"
+        [ "packages/app/src/main.ts"
+        , "packages/app/src/checkout.ts"
+        ]
   where
+    -- A baseline is committed and read back on another machine and in CI, so
+    -- an entry naming the machine that wrote it matches nothing there: the
+    -- problem it was meant to suppress comes back, and `deslop fix` rewrites
+    -- an import a teammate had already accepted. Asserted on every fixture
+    -- rather than goldened, because a golden only shows the path - it cannot
+    -- object to it. A '/'-rooted Module Id is fine and expected; what must
+    -- never appear is where the project happens to sit on this disk.
+    baselineEntries :: ByteString -> [Text]
+    baselineEntries =
+        mapMaybe (T.stripPrefix "- " . T.strip) . lines . TE.decodeUtf8
+
+    namesNoMachine :: AbsPath -> Text -> Bool
+    namesNoMachine projectPath = not . T.isInfixOf (decodeOsPath projectPath.osPath)
+
     -- The closing summary and the check verdict are rendered by runDeslop,
     -- outside doWork, so the transcript alone would not cover them. Appending
     -- them goldens the wording together with the counts that produced it. Only
@@ -128,7 +158,7 @@ spec = describe "E2E.Project" $ do
 
         -- Then
         pure . defaultGolden ("iterated-" <> project) . T.unpack . T.unlines . sort $
-            fmap (decodeOsPath . (.osPath) . relativePathTo absProjectPath) files
+            fmap (decodeOsPath . (.osPath) . relativePathTo (ProjectRoot absProjectPath)) files
 
     -- A rulebook deslop cannot use must abort the run before any file is
     -- checked, with a message the author can act on. Goldening the transcript
@@ -160,7 +190,37 @@ spec = describe "E2E.Project" $ do
         written <- readIORef filesRef
         written `shouldBe` Nothing
         logs <- readIORef logsRef
-        pathSafeGolden ("rulebook-error-" <> project) . T.unpack $
+        pure . defaultGolden ("rulebook-error-" <> project) . T.unpack $
+            renderTranscript logs <> renderResult res
+
+    -- A tsconfig Deslop cannot resolve - here an `extends` naming a file that
+    -- is not there - must abort the run before any file is checked, naming the
+    -- missing file and the chain that reached it.
+    itFailsToLoadTsConfig project = it ("refuses to run " <> project) $ do
+        -- Given
+        let projectPath = fixturesPath </> encodeOsPathString project
+        filesRef <- newIORef Nothing
+        logsRef <- newIORef (TestLogs [])
+        defParams <- defaultParams projectPath
+        let params = defParams {command = CheckC}
+
+        -- When
+        res <-
+            runEff
+                . runMockWrFileSystem filesRef
+                . runRoFileSystemIO
+                . runErrorNoCallStack @DeslopError
+                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
+                . runReportProblem
+                . runConcurrent
+                $ doWork params
+
+        -- Then
+        res `shouldSatisfy` isLeft
+        written <- readIORef filesRef
+        written `shouldBe` Nothing
+        logs <- readIORef logsRef
+        pure . defaultGolden ("tsconfig-error-" <> project) . T.unpack $
             renderTranscript logs <> renderResult res
 
     itChecks project = it ("checks " <> project) $ do
@@ -186,7 +246,7 @@ spec = describe "E2E.Project" $ do
         written <- readIORef filesRef
         written `shouldBe` Nothing
         logs <- readIORef logsRef
-        pathSafeGolden ("check-" <> project) . T.unpack $
+        pure . defaultGolden ("check-" <> project) . T.unpack $
             renderTranscript logs <> renderResult res
 
     itBaselines project = it ("baselines " <> project) $ do
@@ -211,8 +271,11 @@ spec = describe "E2E.Project" $ do
         -- Then
         fmap (.verdict) res `shouldBe` Right Clean
         content <- requireJust "Expected baseline.yaml to be written" =<< readIORef filesRef
+        traverse_ (`shouldSatisfy` namesNoMachine params.projectPath)
+            . baselineEntries
+            $ content
         logs <- readIORef logsRef
-        pathSafeGolden ("baseline-" <> project) . T.unpack $
+        pure . defaultGolden ("baseline-" <> project) . T.unpack $
             renderTranscript logs
                 <> renderResult res
                 <> "\n>>> baseline.yaml\n"

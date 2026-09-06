@@ -20,7 +20,14 @@ import Deslop.AST (ModuleId (..), moduleIdUnsafe)
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (RoFileSystem, fsFileExists, fsMkAbsolute)
-import FileSystem.Path (AbsPath (..), absPathUnsafe, decodeOsPath, encodeOsPath, withAbsBaseSafe)
+import FileSystem.Path (
+    AbsPath (..),
+    absPathUnsafe,
+    decodeOsPath,
+    dropCommonSegments,
+    encodeOsPath,
+    withAbsBaseSafe,
+ )
 import System.OsPath (OsPath, dropExtension, splitDirectories, takeDirectory)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 
@@ -47,8 +54,8 @@ reverseResolve absFilePath = do
     cfg <- ask @TsConfig
     let noExtAbsFp = dropTypeScriptExtension absFilePath.osPath
     let targetSegs = splitDirectories noExtAbsFp
-    let baseUrlSegs = splitDirectories cfg.baseUrl.osPath
-    let (tRemainderOsp, bRemainderOsp) = dropCommonSegments targetSegs baseUrlSegs
+    let pathsBaseSegs = splitDirectories cfg.pathsBase.osPath
+    let (tRemainderOsp, bRemainderOsp) = dropCommonSegments targetSegs pathsBaseSegs
     let tRemainder = decodeOsPath <$> tRemainderOsp
 
     let upTraversal = replicate (length bRemainderOsp) ".."
@@ -61,10 +68,6 @@ reverseResolve absFilePath = do
                     else pure $ Just moduleId
         Nothing -> pure Nothing
   where
-    dropCommonSegments :: (Eq a) => [a] -> [a] -> ([a], [a])
-    dropCommonSegments (x : xs) (y : ys) | x == y = dropCommonSegments xs ys
-    dropCommonSegments xs ys = (xs, ys)
-
     applyPathMapping :: [PathMapping] -> Text -> Maybe Text
     applyPathMapping [] _ = Nothing
     applyPathMapping (x : xs) moduleRelToCfg
@@ -151,7 +154,7 @@ resolve importingFile target =
                 (WildcardMatch _, Exact t) -> Just t
                 (WildcardMatch capture, Wildcard pre suf) -> Just (pre <> capture <> suf)
         let cleanRelToCfg = T.dropWhileEnd (== '/') <$> maybeRelToCfg
-        let maybeFilePath = withAbsBaseSafe cfg.baseUrl . encodeOsPath <$> cleanRelToCfg
+        let maybeFilePath = withAbsBaseSafe cfg.pathsBase . encodeOsPath <$> cleanRelToCfg
         case maybeFilePath of
             Nothing -> tryValues cfg keyMatch vs
             Just filePath ->

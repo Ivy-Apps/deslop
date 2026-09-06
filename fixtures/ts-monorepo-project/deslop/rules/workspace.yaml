@@ -1,0 +1,19 @@
+id: workspace-boundaries
+name: Workspace boundaries
+description: >-
+  The build scripts sit outside every workspace, so no `paths` entry covers
+  them and their module id is the file's own location. That id is what this
+  rule's target matches and what a violation is keyed on in deslop/baseline.yaml,
+  which is committed and read back on every other checkout - so it has to be
+  the path relative to the project root, never an absolute one.
+rules:
+  - id: scripts-keep-out-of-the-packages
+    description: >-
+      A release script wires the workspaces together; it must not depend on
+      what any one of them renders.
+    target: "/scripts/**"
+    forbids:
+      - import: "@ui/**"
+    fix: >-
+      Move the shared code into a module both the script and the package can
+      import, rather than reaching into the UI package from a script.

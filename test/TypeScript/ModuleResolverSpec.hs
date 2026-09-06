@@ -79,7 +79,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
 
     describe "reverseResolve (Reverse Path Resolution)" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
-        let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
+        let baseCfg = TsConfig {pathsBase = dummyBaseUrl, paths = []}
 
         let runReverseResolveTest cfg pathStr =
                 let path = absPathUnsafe pathStr
@@ -203,7 +203,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
         it "returns Nothing for a monorepo sibling package that is not mapped in TSConfig" $ do
             -- Imagine baseUrl is deeply nested in a workspace
             let webBaseUrl = absPathUnsafe [osp|/home/repo/packages/web|]
-            let webCfg = TsConfig {baseUrl = webBaseUrl, paths = []}
+            let webCfg = TsConfig {pathsBase = webBaseUrl, paths = []}
 
             -- Importing from a sibling package
             let result = runReverseResolveTest webCfg [osp|/home/repo/packages/ui/button.tsx|]
@@ -346,7 +346,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
 
     describe "resolve (Forward Path Resolution)" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
-        let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
+        let baseCfg = TsConfig {pathsBase = dummyBaseUrl, paths = []}
 
         -- Helper to run the resolve function from a specific importing file
         let runResolveTestFrom importerAbsPath cfg existingFiles mId =
@@ -565,7 +565,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
 
     describe "reverseResolveImport" $ do
         let dummyBaseUrl = absPathUnsafe [osp|/home/repo|]
-        let baseCfg = TsConfig {baseUrl = dummyBaseUrl, paths = []}
+        let baseCfg = TsConfig {pathsBase = dummyBaseUrl, paths = []}
 
         let runRRTest importerAbsPath cfg existingFiles mIdStr =
                 runPureEff
@@ -803,7 +803,7 @@ spec = describe "TypeScript.ModuleResolver" $ do
             -- baseUrl is at the app level
             let cfg =
                     TsConfig
-                        { baseUrl = absPathUnsafe [osp|/home/repo/apps/web|]
+                        { pathsBase = absPathUnsafe [osp|/home/repo/apps/web|]
                         , paths = [mkMapping (Wildcard "@repo/shared/" "") [Wildcard "../../packages/shared/src/" ""]]
                         }
             let existingFiles = [[osp|/home/repo/packages/shared/src/api.ts|]]

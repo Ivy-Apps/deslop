@@ -6,3 +6,8 @@
 
 - ignore: {name: "Use <&>"}
 - ignore: {name: "Redundant id"}
+
+# Merging what each config declares is a hand-written Monoid instance, so its
+# identity law is worth a property test. hlint reads that test as redundant.
+- ignore: {name: "Monoid law, left identity", within: [TypeScript.ConfigSpec]}
+- ignore: {name: "Monoid law, right identity", within: [TypeScript.ConfigSpec]}

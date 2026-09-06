@@ -1,0 +1,16 @@
+>>> FILE: packages/app/src/main.ts
+import { Button } from '@ui/Button';
+import { formatMoney } from '@app/helpers/format';
+
+export function main(): string {
+  return Button(formatMoney(42));
+}
+
+
+
+>>> FILE: packages/app/src/checkout.ts
+import { Button } from '@ui/Button';
+
+export function checkout(): string {
+  return Button('Checkout');
+}

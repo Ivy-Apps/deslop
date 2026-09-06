@@ -1,0 +1,19 @@
+Right
+  ( TsConfig
+      { pathsBase =
+          AbsPath
+            { osPath =
+                "~/fixtures/typescript/config"
+            }
+      , paths =
+          [ PathMapping
+              { key =
+                  KeyPattern { pattern = Wildcard { pre = "@/" , suff = "" } }
+              , values =
+                  ValuePattern { pattern = Wildcard { pre = "src/" , suff = "" } } :|
+                    []
+              }
+          ]
+      }
+  , []
+  )
