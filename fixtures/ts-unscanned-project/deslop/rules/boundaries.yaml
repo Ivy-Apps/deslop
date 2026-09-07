@@ -1,0 +1,18 @@
+id: boundaries
+name: Boundaries
+description: >-
+  A rule against a module Deslop resolves but never reads. The vendor tree is
+  generated and gitignored, so the chain through it stops there and nothing it
+  depends on is checked. The module still has to be named, and named the same
+  way whichever spelling reached it.
+rules:
+  - id: app-must-not-use-vendor
+    description: >-
+      No app module may depend on @/vendor/**. It is reached here under two
+      spellings - an alias and a relative path - and a relative specifier is a
+      direction rather than a name, so a report that used one would be naming
+      the module by where one of its importers happens to sit.
+    target: "@/app/*"
+    forbids:
+      - import: "@/vendor/**"
+    fix: Depend on a module that is actually in the repository.

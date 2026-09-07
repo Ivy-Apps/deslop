@@ -1,0 +1,38 @@
+[Title] 🚀 Checking project: ts-unscanned-project
+[Plain] 📚 Loaded 1 rulebook, 1 rule
+[Error] Found 3 problems:
+[Error] ─────────────────────────────────────────
+[Error] [AUTO-FIXABLE] # no-relative-imports#src/app/legacy.ts
+src/app/legacy.ts:4
+Relative imports are not allowed. Use aliased ones.
+```ts
+import { client } from "../vendor/client";
+```
+FIX: Use ```import { client } from "@/vendor/client";``` instead.
+---------
+
+# boundaries#app-must-not-use-vendor#@/app/legacy
+src/app/legacy.ts:4
+No app module may depend on @/vendor/**. It is reached here under two spellings - an alias and a relative path - and a relative specifier is a direction rather than a name, so a report that used one would be naming the module by where one of its importers happens to sit.
+
+Module '@/app/legacy' directly imports '@/vendor/client'.
+```ts
+import { client } from "@/vendor/client";
+```
+FIX: Depend on a module that is actually in the repository.
+---------
+
+# boundaries#app-must-not-use-vendor#@/app/page
+src/app/page.ts:2
+No app module may depend on @/vendor/**. It is reached here under two spellings - an alias and a relative path - and a relative specifier is a direction rather than a name, so a report that used one would be naming the module by where one of its importers happens to sit.
+
+Module '@/app/page' directly imports '@/vendor/client'.
+```ts
+import { client } from "@/vendor/client";
+```
+FIX: Depend on a module that is actually in the repository.
+[Error] ─────────────────────────────────────────
+[summary] Checked 3 modules enforcing 4 rules
+[exit] Found 3 problems, 1 of them auto-fixable.
+   Run `deslop fix` to fix the 1 auto-fixable problem.
+   Run `deslop baseline` to silence all 3 problems.

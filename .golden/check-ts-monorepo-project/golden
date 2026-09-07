@@ -3,6 +3,7 @@
 [Error] Found 3 problems:
 [Error] ─────────────────────────────────────────
 [Error] [AUTO-FIXABLE] # no-relative-imports#packages/app/src/checkout.ts
+packages/app/src/checkout.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Button } from '../../ui/src/Button';
@@ -11,6 +12,7 @@ FIX: Use ```import { Button } from '@ui/Button';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#packages/app/src/main.ts
+packages/app/src/main.ts:2
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { formatMoney } from './helpers/format';
@@ -19,6 +21,7 @@ FIX: Use ```import { formatMoney } from '@app/helpers/format';``` instead.
 ---------
 
 # workspace-boundaries#scripts-keep-out-of-the-packages#/scripts/release
+scripts/release.ts:1
 A release script wires the workspaces together; it must not depend on what any one of them renders.
 
 Module '/scripts/release' directly imports '@ui/Button'.

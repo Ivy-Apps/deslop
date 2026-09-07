@@ -1,8 +1,8 @@
 module Deslop.Problem.BaselineSpec (spec) where
 
 import Data.HashSet qualified as HS
-import Deslop.AST (moduleNameUnsafe)
-import Deslop.Problem (LintRuleId (..), Location (..), Problem (..), ViolationKind (..), problemId)
+import Deslop.Module (Location (..), moduleNameUnsafe)
+import Deslop.Problem (LintRuleId (..), Problem (..), ViolationKind (..), problemId)
 import Deslop.Problem.Baseline (Baseline (..), applyBaseline, inBaseline, loadBaselineFromFile, saveBaseline)
 import Deslop.Rule.Book (RuleId (..), RulebookId (..))
 import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, mockFileAt, runMockRoFileSystem, runMockWrFileSystem)
@@ -42,6 +42,7 @@ problemA =
         { rulebook = RulebookId "rb"
         , rule = RuleId "rule"
         , badModule = moduleNameUnsafe "modA"
+        , modulePath = relativePathUnsafe (encodeOsPath "src/modA.ts")
         , prose = "problem A"
         , kind = MissingModule {requiredModule = moduleNameUnsafe "modA.spec"}
         , fix = "fix A"
@@ -53,6 +54,7 @@ problemB =
         { rulebook = RulebookId "rb"
         , rule = RuleId "rule"
         , badModule = moduleNameUnsafe "modB"
+        , modulePath = relativePathUnsafe (encodeOsPath "src/modB.ts")
         , prose = "problem B"
         , kind = MissingModule {requiredModule = moduleNameUnsafe "modB.spec"}
         , fix = "fix B"
@@ -67,7 +69,7 @@ problemC :: Problem
 problemC =
     LintProblem
         { lintRule = LintRuleId "lint-rule"
-        , location = Location {file = relativePathUnsafe (encodeOsPath "src/file.ts"), code = "bad code"}
+        , location = Location {file = relativePathUnsafe (encodeOsPath "src/file.ts"), line = 1, code = "bad code"}
         , description = "problem C"
         , fix = "fix C"
         , autoFixable = False

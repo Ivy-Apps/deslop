@@ -27,36 +27,51 @@ import Data.Sequence (Seq (..), (|>))
 import Data.Sequence qualified as Seq
 import Data.Set qualified as Set
 import Data.Tree (Tree, flatten)
-import Deslop.AST (AstModule (..), AstNode (..), EdgeTarget (..), ModuleId, ModuleName)
+import Deslop.Module (
+    DependencyEdge (..),
+    EdgeTarget (..),
+    Module (..),
+    ModuleId,
+    ModuleName,
+    Specifier (..),
+    moduleNameUnsafe,
+ )
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
 
-{- | What a vertex is keyed by. Identity for anything a frontend parsed, and
-the written specifier for anything it did not, which is the only thing we know
-about @react@.
+{- | What a vertex is keyed by. Identity for anything a specifier resolved to,
+and the written specifier for anything it did not, which is the only thing we
+know about @react@.
 -}
 data GraphKey
-    = InternalKey ModuleId
-    | ForeignKey ModuleName
+    = ModuleKey ModuleId
+    | ExternalKey Specifier
     deriving stock (Show, Eq, Ord)
 
 {- | The vertex a dependency leads to. Pure, because the frontend already did
-the resolving - see "Deslop.AST".
+the resolving - see "Deslop.Module".
 -}
-graphKeyOf :: AstNode -> GraphKey
-graphKeyOf node = case node.target of
-    ToModule mid -> InternalKey mid
-    Unresolved -> ForeignKey node.specifier
+graphKeyOf :: DependencyEdge -> GraphKey
+graphKeyOf edge = case edge.target of
+    Resolved mid _ -> ModuleKey mid
+    External spec -> ExternalKey spec
 
-{- | Represents a node in the architectural graph.
-It unifies parsed modules and everything else they reach so both can exist as
-addressable vertices in the underlying integer array.
+{- | A vertex in the architectural graph. Three situations, kept apart because
+they are three different facts about a dependency and only the first can be
+followed any further.
 -}
 data ModuleNode
-    = InternalModule AstModule
-    | -- | Not parsed: a third-party package, or a file outside what was
-      -- scanned. Named by the specifier that reached it, which is all we know.
-      ForeignModule ModuleName
+    = -- | Lowered by a frontend, so its own dependencies are known.
+      ParsedModule Module
+    | -- | Resolved to something real that nobody read: gitignored, outside the
+      -- scanned tree, or not a source file at all. Its names come from the
+      -- edge that reached it, because the frontend minted them when it
+      -- resolved the specifier. It has no outgoing edges, so a chain through
+      -- it stops here - a blind spot, and one worth being able to name.
+      UnscannedModule (NonEmpty ModuleName)
+    | -- | @react@: nothing in the project answers to it. A chain ending here
+      -- has genuinely ended.
+      ExternalModule Specifier
     deriving stock (Show, Eq)
 
 {- | A vertex as the rest of Deslop sees it: how to find it again, and every
@@ -75,8 +90,8 @@ data ModuleGraph = ModuleGraph
     { graph :: Graph
     , nodeFromV :: Vertex -> (ModuleNode, GraphKey, [GraphKey])
     , vertexFromKey :: GraphKey -> Maybe Vertex
-    , internalNames :: Set ModuleName
-    -- ^ Every name of every module actually parsed. What @exists@ asks about,
+    , parsedNames :: Set ModuleName
+    -- ^ Every name of every module actually lowered. What @exists@ asks about,
     -- so that a name nothing on disk answers to cannot satisfy it.
     }
 
@@ -85,46 +100,58 @@ canonical start. Every module appears exactly once - the closing edge from the
 last module back to the start is implicit.
 -}
 newtype ModuleCycle = ModuleCycle
-    { modules :: NonEmpty AstModule
+    { modules :: NonEmpty Module
     }
     deriving stock (Show, Eq)
 
-{- | Constructs the ModuleGraph from a list of parsed AST modules.
+{- | Constructs the ModuleGraph from the modules a frontend lowered.
 
-A dependency that resolved to a file nobody parsed - one that is gitignored, or
-outside the scanned tree - still gets a vertex, named by the smallest specifier
-that reached it. Without it 'graphFromEdges' would drop that edge silently, and
-a chain would end without saying so.
+Everything those modules reach also gets a vertex, or 'graphFromEdges' would
+drop the edge silently and a chain would end without saying so. Nothing here
+invents a name for one: an edge to something unparsed carries the names the
+frontend minted when it resolved the specifier, and an edge to @react@ carries
+only the specifier, which is all anyone knows.
+
+Which is why 'Map.fromList' may keep whichever entry it likes when two edges
+reach one vertex. They agree: both carry what the frontend made of the same
+resolved target. Deslop used to pick the smallest specifier that reached a
+file, and that was a choice between disagreeing answers - a gitignored file
+reached as both @..\/shared\/x@ and @\@\/shared\/x@ came out under the
+first, which is not a name at all.
 -}
-buildModuleGraph :: [AstModule] -> ModuleGraph
+buildModuleGraph :: [Module] -> ModuleGraph
 buildModuleGraph modules =
     let
-        internalKeys = Set.fromList [InternalKey m.id | m <- modules]
-        reachedNames =
-            Map.fromListWith
-                min
-                [ (graphKeyOf node, node.specifier)
+        parsedKeys = Set.fromList [ModuleKey m.id | m <- modules]
+        reached =
+            Map.fromList
+                [ (graphKeyOf edge, reachedNode edge)
                 | m <- modules
-                , node <- m.nodes
+                , edge <- m.edges
                 ]
-        foreignNames = Map.withoutKeys reachedNames internalKeys
+        unparsed = Map.withoutKeys reached parsedKeys
 
-        internalEdges =
-            [ (InternalModule m, InternalKey m.id, map graphKeyOf m.nodes)
+        parsedEdges =
+            [ (ParsedModule m, ModuleKey m.id, map graphKeyOf m.edges)
             | m <- modules
             ]
-        foreignEdges =
-            [ (ForeignModule name, key, [])
-            | (key, name) <- Map.toList foreignNames
+        unparsedEdges =
+            [ (node, key, [])
+            | (key, node) <- Map.toList unparsed
             ]
-        (g, nodeV, keyV) = graphFromEdges (internalEdges ++ foreignEdges)
+        (g, nodeV, keyV) = graphFromEdges (parsedEdges ++ unparsedEdges)
      in
         ModuleGraph
             { graph = g
             , nodeFromV = nodeV
             , vertexFromKey = keyV
-            , internalNames = Set.fromList [n | m <- modules, n <- toList m.names]
+            , parsedNames = Set.fromList [n | m <- modules, n <- toList m.names]
             }
+  where
+    reachedNode :: DependencyEdge -> ModuleNode
+    reachedNode edge = case edge.target of
+        Resolved _ names -> UnscannedModule names
+        External spec -> ExternalModule spec
 
 -- | What the graph knows about the vertex a key leads to, if it has one.
 refOfKey :: (Reader ModuleGraph :> es) => GraphKey -> Eff es (Maybe ModuleRef)
@@ -136,7 +163,7 @@ refOfKey key = do
 moduleExists :: (Reader ModuleGraph :> es) => ModuleName -> Eff es Bool
 moduleExists name = do
     mg <- ask @ModuleGraph
-    pure $ Set.member name mg.internalNames
+    pure $ Set.member name mg.parsedNames
 
 hasPath :: (Reader ModuleGraph :> es) => GraphKey -> GraphKey -> Eff es Bool
 hasPath from to = do
@@ -191,14 +218,14 @@ findCycles = do
     pure . mapMaybe (cycleOf mg) . scc $ mg.graph
 
 {- | Reduces a strongly connected component to the shortest cycle through its
-canonical start. Foreign modules cannot occur here - they are built without
-outgoing edges - so a component holding one is not a cycle.
+canonical start. Only a parsed module can occur here - everything else is built
+without outgoing edges - so a component holding one is not a cycle.
 -}
 cycleOf :: ModuleGraph -> Tree Vertex -> Maybe ModuleCycle
 cycleOf mg component = do
     vertices <- nonEmpty . flatten $ component
     loop <- shortestLoop mg (IntSet.fromList . toList $ vertices) (canonicalStart vertices)
-    ModuleCycle <$> traverse (astModuleOf mg) loop
+    ModuleCycle <$> traverse (moduleOf mg) loop
   where
     canonicalStart :: NonEmpty Vertex -> Vertex
     canonicalStart = NE.head . NE.sortWith (nameOf mg)
@@ -233,14 +260,21 @@ refOf mg v =
     let (node, key, _) = mg.nodeFromV v
      in ModuleRef {key = key, names = namesOf node}
 
+{- | The names a vertex answers to. This is the one place a 'Specifier' becomes
+a 'ModuleName', and it is legitimate here and nowhere else: a Rule saying
+@forbids: react@ has to have something to match against, and an external
+specifier is never relative, so it does name the same thing to every reader.
+-}
 namesOf :: ModuleNode -> NonEmpty ModuleName
-namesOf (InternalModule m) = m.names
-namesOf (ForeignModule name) = name :| []
+namesOf (ParsedModule m) = m.names
+namesOf (UnscannedModule names) = names
+namesOf (ExternalModule spec) = moduleNameUnsafe spec.text :| []
 
-astModuleOf :: ModuleGraph -> Vertex -> Maybe AstModule
-astModuleOf mg v = case mg.nodeFromV v of
-    (InternalModule m, _, _) -> Just m
-    (ForeignModule _, _, _) -> Nothing
+moduleOf :: ModuleGraph -> Vertex -> Maybe Module
+moduleOf mg v = case mg.nodeFromV v of
+    (ParsedModule m, _, _) -> Just m
+    (UnscannedModule _, _, _) -> Nothing
+    (ExternalModule _, _, _) -> Nothing
 
 -- | The canonical name of a vertex, which is what orderings here are taken on.
 nameOf :: ModuleGraph -> Vertex -> ModuleName

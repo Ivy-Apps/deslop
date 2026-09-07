@@ -1,0 +1,4 @@
+# Generated at build time and never committed, so Deslop resolves imports of it
+# but never reads it. The file still has to be named, and named the same way
+# whichever spelling reached it.
+src/vendor/

@@ -4,6 +4,7 @@ Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
 [Error] Found 1 problem:
 [Error] ─────────────────────────────────────────
 [Error] # no-import-cycles#src/a.ts
+src/a.ts:1
 Circular dependency (import cycle) detected: @/a → @/b → @/c → @/a
 ```ts
 import { b } from '@/b';

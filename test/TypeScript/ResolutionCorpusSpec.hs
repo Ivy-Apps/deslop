@@ -14,7 +14,7 @@ module TypeScript.ResolutionCorpusSpec (spec) where
 
 import Data.Aeson (FromJSON, Value, eitherDecodeFileStrict', encode)
 import Data.Map.Strict qualified as Map
-import Deslop.AST (moduleNameUnsafe)
+import Deslop.Module (specifierUnsafe)
 import Doubles.FileSystem (mockFileSystem, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
@@ -66,7 +66,7 @@ resolveCase c = do
         runEff
             . runMockRoFileSystem (mockFileSystem (caseFileSystem c))
             . runReader @TsConfig cfg
-            $ resolve (pathIn c.from) (moduleNameUnsafe c.specifier)
+            $ resolve (pathIn c.from) (specifierUnsafe c.specifier)
     pure $ do
         absPath <- resolved
         -- resolve answers for a path whether or not anything is there, so a

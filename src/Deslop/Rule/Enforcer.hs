@@ -1,7 +1,6 @@
 module Deslop.Rule.Enforcer (enforceRulebooks) where
 
 import Data.Text qualified as T
-import Deslop.AST (AstModule (..), AstNode (..), ModuleName (..), canonicalName, moduleNameUnsafe)
 import Deslop.CodeGraph (
     GraphKey (..),
     ModuleGraph,
@@ -16,6 +15,15 @@ import Deslop.CodeGraph (
 import Deslop.Error (DeslopError (..))
 import Deslop.GlobPlus (MatchEnv, ResolvedClause, Segments, hydrate, matchExclude, matchResolved, matchTarget, moduleFromGlob, renderClausePattern, segmentsOf)
 import Deslop.GlobPlus.Compiler (interpolate)
+import Deslop.Module (
+    DependencyEdge (..),
+    Location (..),
+    Module (..),
+    ModuleName (..),
+    Specifier (..),
+    canonicalName,
+    moduleNameUnsafe,
+ )
 import Deslop.Problem (Problem (..), ViolationKind (..))
 import Deslop.Rule.Book (AllowsClause (..), ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Effectful (Eff, (:>))
@@ -30,7 +38,7 @@ ruleViolation ::
     ( Reader RulebookId :> es
     , Reader Rule :> es
     ) =>
-    MatchEnv -> AstModule -> ViolationKind -> Eff es Problem
+    MatchEnv -> Module -> ViolationKind -> Eff es Problem
 ruleViolation env m violationKind = do
     rbId <- ask @RulebookId
     rule <- ask @Rule
@@ -39,6 +47,7 @@ ruleViolation env m violationKind = do
             { rulebook = rbId
             , rule = rule.id
             , badModule = canonicalName m
+            , modulePath = m.path
             , prose = interpolate env rule.description
             , kind = violationKind
             , fix = interpolate env rule.fix
@@ -59,7 +68,7 @@ data Candidates = Candidates
     }
 
 data ImportCandidate = ImportCandidate
-    { node :: AstNode
+    { edge :: DependencyEdge
     , ref :: ModuleRef
     , segments :: [Segments]
     }
@@ -75,11 +84,11 @@ enforceRulebooks ::
     , ReportProblem :> es
     , Error DeslopError :> es
     ) =>
-    AstModule -> Eff es ()
+    Module -> Eff es ()
 enforceRulebooks m = do
     rulebooks <- ask @[Rulebook]
-    reached <- reachableFrom (InternalKey m.id)
-    imported <- traverse importCandidate m.nodes
+    reached <- reachableFrom (ModuleKey m.id)
+    imported <- traverse importCandidate m.edges
     let candidates =
             Candidates
                 { self = segmentsOfName <$> m.names
@@ -88,11 +97,14 @@ enforceRulebooks m = do
                 }
     runReader candidates $ traverse_ (enforceRulebook m) rulebooks
   where
-    importCandidate node = do
-        let key = graphKeyOf node
+    -- Every edge's target has a vertex, so the lookup always finds one; the
+    -- fallback exists only so this is total, and names the edge by what the
+    -- source wrote, which is the sole thing known without the graph.
+    importCandidate edge = do
+        let key = graphKeyOf edge
         found <- refOfKey key
-        let r = fromMaybe ModuleRef {key = key, names = node.specifier :| []} found
-        pure ImportCandidate {node = node, ref = r, segments = segmentsOfRef r}
+        let r = fromMaybe ModuleRef {key = key, names = moduleNameUnsafe edge.specifier.text :| []} found
+        pure ImportCandidate {edge = edge, ref = r, segments = segmentsOfRef r}
 
 segmentsOfRef :: ModuleRef -> [Segments]
 segmentsOfRef = map segmentsOfName . toList . (.names)
@@ -106,7 +118,7 @@ enforceRulebook ::
     , ReportProblem :> es
     , Error DeslopError :> es
     ) =>
-    AstModule -> Rulebook -> Eff es ()
+    Module -> Rulebook -> Eff es ()
 enforceRulebook m rulebook =
     runReader rulebook.id $
         traverse_ (enforceRule m) rulebook.rules
@@ -118,7 +130,7 @@ enforceRule ::
     , ReportProblem :> es
     , Error DeslopError :> es
     ) =>
-    AstModule -> Rule -> Eff es ()
+    Module -> Rule -> Eff es ()
 enforceRule m rule = do
     candidates <- ask @Candidates
     case isTarget candidates.self rule of
@@ -167,7 +179,7 @@ enforceForbids ::
     , Reader Rule :> es
     , ReportProblem :> es
     ) =>
-    AstModule -> MatchEnv -> ForbidsClause -> Eff es ()
+    Module -> MatchEnv -> ForbidsClause -> Eff es ()
 enforceForbids m env (ForbidsImport target transitive) = do
     candidates <- ask @Candidates
     allowed <- asks @Rule (fmap (hydrate env . (.target)) . foldMap toList . (.allows))
@@ -186,25 +198,25 @@ enforceForbids m env (ForbidsImport target transitive) = do
                     m
                     DirectImport
                         { imported = refName candidate.ref
-                        , edge = candidate.node.kind
-                        , importStatement = T.strip candidate.node.rawStatement
+                        , edge = candidate.edge.kind
+                        , location = stripped candidate.edge.location
                         }
         | otherwise = pure ()
 
     transitiveForbiddenImport breaks candidate
         | breaks candidate.segments = do
-            p <- findKnownPath (InternalKey m.id) candidate.ref.key
+            p <- findKnownPath (ModuleKey m.id) candidate.ref.key
             let firstHop = listToMaybe . drop 1 . toList $ p
                 -- Found by what the edge resolved to, not by the text it was
                 -- written with: one module answers to several names.
-                importRaw hop = T.strip . (.rawStatement) <$> find ((== hop.key) . graphKeyOf) m.nodes
+                edgeInto hop = stripped . (.location) <$> find ((== hop.key) . graphKeyOf) m.edges
             report
                 =<< ruleViolation
                     env
                     m
                     TransitiveImport
                         { chain = refName <$> p
-                        , firstImport = firstHop >>= importRaw
+                        , firstImport = firstHop >>= edgeInto
                         , alsoReached = []
                         }
         | otherwise = pure ()
@@ -215,7 +227,7 @@ enforceUses ::
     , Reader Candidates :> es
     , ReportProblem :> es
     ) =>
-    AstModule -> MatchEnv -> UsesClause -> Eff es ()
+    Module -> MatchEnv -> UsesClause -> Eff es ()
 enforceUses m env (UsesImport usesPattern transitive) = do
     candidates <- ask @Candidates
     let required = hydrate env usesPattern
@@ -239,7 +251,7 @@ enforceExists ::
     , ReportProblem :> es
     , Error DeslopError :> es
     ) =>
-    AstModule -> MatchEnv -> ExistsClause -> Eff es ()
+    Module -> MatchEnv -> ExistsClause -> Eff es ()
 enforceExists m env (ExistsModule pat) = do
     name <- case moduleFromGlob env pat of
         Just t -> pure (moduleNameUnsafe t)
@@ -256,3 +268,7 @@ enforceExists m env (ExistsModule pat) = do
     exists <- moduleExists name
     unless exists $
         report =<< ruleViolation env m MissingModule {requiredModule = name}
+
+-- | A quoted statement without the newlines the CST carried around it.
+stripped :: Location -> Location
+stripped loc = loc {code = T.strip loc.code}

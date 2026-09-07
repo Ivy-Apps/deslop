@@ -84,7 +84,9 @@ _Avoid_: Module Name (see Overloaded terms), path, key
 **Module Name**:
 What a Module is called, in the vocabulary Rulebook Rules and reports are
 written in - `@/features/home`. A Module has several whenever several names
-resolve to it, and a Glob+ Pattern matching any one matches the Module.
+resolve to it, and a Glob+ Pattern matching any one matches the Module. Always
+spelled with `/`, whatever separator the language itself writes - a Haskell
+frontend mints `Data/List/NonEmpty` (ADR 19).
 _Avoid_: Module Id, alias, import path
 
 **Canonical Name**:
@@ -95,11 +97,33 @@ _Avoid_: Primary name, main alias
 **Specifier**:
 The text a source file actually writes to name what it depends on - `"@/a"`,
 `"./helper"`, `"react"`. What the author typed, before anything resolves it.
+Not a Module Name however alike the two look: `./helper` denotes a different
+Module in every file that writes it. A built-in lint rule judges the Specifier;
+a Rulebook Rule judges what it resolved to.
 _Avoid_: Import path, module id, target
 
+**Unscanned Module**:
+A Module a Specifier resolved to that Deslop never read - gitignored, outside
+the tree it was pointed at, or not a source file. It is a vertex like any other
+and carries the names the frontend minted for it, but it has no dependencies of
+its own, so a transitive chain stops there.
+_Avoid_: External module (that is `react`, which resolved to nothing at all)
+
+**Location**:
+Where something was written and what the source says there: a Project Relative
+Path, a 1-based line, and the statement verbatim. The line is for the reader
+only and never enters a Problem ID.
+_Avoid_: Position, span, source range
+
+**Project Relative Path**:
+A path spelled from the Project Root and from nothing else. Every path Deslop
+reports or writes into a Baseline is one, which is what lets a Baseline be
+committed and read back on another machine.
+_Avoid_: Relative path (relative to what is the whole of its meaning)
+
 **Dependency Edge**:
-One Module depending on another: the Specifier as written, what it resolved to,
-its Edge Kind, and the statement verbatim so a report can quote it.
+One Module depending on another: the Specifier as written, what it resolved to
+(with every name that thing answers to), its Edge Kind, and its Location.
 _Avoid_: Import (that is one kind of edge), link
 
 **Edge Kind**:
@@ -272,7 +296,8 @@ the word, and each has its own syntax and matching rules:
 - **Ignore Pattern** (`Git.Ignore.IgnorePattern`) — a `.gitignore` glob, per
   gitignore(5).
 
-**Module Id** and **Module Name** both sound like identity. Only one is:
+**Module Id**, **Module Name** and **Specifier** all name a module. Only one of
+them identifies it, and only one of them is a name:
 
 - A **Module Id** identifies. One per Module, opaque to everything outside the
   language frontend that minted it, and never rendered - it names this machine,
@@ -282,6 +307,11 @@ the word, and each has its own syntax and matching rules:
   a Barrel's directory and index forms, plus every alias resolving to it. These
   are what Rules match and what reports print.
 
-A pattern matches a Module when *any* of its Names does, so the two must not be
+- A **Specifier** is neither. It is what one file typed. Usually it looks
+  exactly like a Name - `@/features/home` is both - and that coincidence is why
+  the two were one type for so long. `./helper` is the case that breaks it.
+
+A pattern matches a Module when *any* of its Names does, so these must not be
 confused: matching on the Id would make the same Module answer under one
-spelling and not another.
+spelling and not another, and matching on a Specifier would make a Module's
+identity depend on who imported it.

@@ -3,8 +3,10 @@ module TypeScript.CST (
     TsNode (..),
     specifierOf,
     withSpecifier,
+    onLines,
 ) where
 
+import Data.Text qualified as T
 import FileSystem.Path (AbsPath)
 import Renderable (Renderable (..))
 
@@ -52,3 +54,15 @@ instance Renderable TsNode where
     render (Source r) = r
     render (Import p t s) = p <> t <> s
     render (ReExport p t s) = p <> t <> s
+
+{- | Each node paired with the 1-based line its first character sits on.
+
+Derived rather than lexed. Rendering reproduces the source byte for byte -
+pinned by P1 in "TypeScript.ParserPropSpec" - so counting newlines across the
+nodes before one gives the same answer the lexer would have, and costs the
+lexer nothing to carry.
+-}
+onLines :: [TsNode] -> [(Int, TsNode)]
+onLines nodes = zip (scanl step 1 nodes) nodes
+  where
+    step line = (line +) . T.count "\n" . render

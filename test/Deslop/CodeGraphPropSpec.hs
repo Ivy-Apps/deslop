@@ -17,8 +17,9 @@ module Deslop.CodeGraphPropSpec (spec) where
 
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
-import Deslop.AST (AstModule)
+import Deslop.Module (Module)
 import Generators.TypeScript.Project (
+    Naming (..),
     Project (..),
     ProjectModule (..),
     Spelling (..),
@@ -64,13 +65,13 @@ spec = describe "Deslop.CodeGraph properties" $ do
     prop "P11 swapping one alias for another onto the same file changes nothing" $ do
         project <- forAll genProject
         byPrimary <- reachabilityUnder asImports project
-        bySecondary <- reachabilityUnder asImports {alias = secondaryAlias} project
+        bySecondary <- reachabilityUnder asImports {naming = Aliased secondaryAlias} project
         bySecondary === byPrimary
 
 reachabilityUnder :: Spelling -> Project -> PropertyT IO (Map Text [Text])
 reachabilityUnder spelling project = reachability <$> astsUnder spelling project
 
-astsUnder :: Spelling -> Project -> PropertyT IO [AstModule]
+astsUnder :: Spelling -> Project -> PropertyT IO [Module]
 astsUnder spelling project = liftIO . projectAsts project $ renderProject spelling project
 
 {- | What the project says it reaches, by brute force over its declared

@@ -13,7 +13,7 @@ module Deslop.Problem.Shrinker (compactProblems) where
 
 import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as Map
-import Deslop.AST (ModuleName)
+import Deslop.Module (ModuleName)
 import Deslop.Problem (Problem (..), ViolationKind (..), problemId)
 
 {- | One Problem per @(ProblemId, kind)@ for transitive imports, every other

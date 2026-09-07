@@ -20,8 +20,8 @@ module FileSystem.Path (
     withAbsBaseUnsafe,
     withAbsBaseSafe,
 
-    -- * Relative paths
-    RelativePath (osPath),
+    -- * Paths within the project
+    ProjectRelativePath (osPath),
     relativePathUnsafe,
     relativePathTo,
     dropCommonSegments,
@@ -63,13 +63,25 @@ withAbsBaseUnsafe (AbsPath b) p = AbsPath (b </> p)
 withAbsBaseSafe :: AbsPath -> OsPath -> OsPath
 withAbsBaseSafe (AbsPath b) p = b </> p
 
-newtype RelativePath = RelativePath
+{- | A path spelled from the 'ProjectRoot', and never from anywhere else.
+
+Named for the thing it is relative to rather than for being relative, because
+which base a path is spelled from is the whole of its meaning. Every one of
+these travels: into a report, into a Problem Id, into a Baseline a team
+commits. A path spelled from any other base - this machine's root, or the
+Paths Base a @tsconfig@ resolves aliases against - would name a place only its
+author can find.
+
+'relativePathTo' is the only way to mint one outside of tests, which is what
+keeps that true.
+-}
+newtype ProjectRelativePath = ProjectRelativePath
     { osPath :: OsPath
     }
     deriving (Show, Eq, Ord)
 
-relativePathUnsafe :: OsPath -> RelativePath
-relativePathUnsafe = RelativePath
+relativePathUnsafe :: OsPath -> ProjectRelativePath
+relativePathUnsafe = ProjectRelativePath
 
 {- | Where @target@ sits, spelled from @root@.
 
@@ -84,15 +96,15 @@ The one target it cannot answer for is one sharing no segment at all with the
 root - a different Windows drive, and nothing else - where no relative path
 exists and the target is returned as it stands.
 -}
-relativePathTo :: ProjectRoot -> AbsPath -> RelativePath
+relativePathTo :: ProjectRoot -> AbsPath -> ProjectRelativePath
 relativePathTo (ProjectRoot (AbsPath base)) (AbsPath target) =
     case (splitDirectories base, splitDirectories target) of
         (b : baseSegs, t : targetSegs)
             | b == t -> spelledFrom $ dropCommonSegments baseSegs targetSegs
-        _ -> RelativePath target
+        _ -> ProjectRelativePath target
   where
     spelledFrom (baseRest, targetRest) =
-        RelativePath . spell $ replicate (length baseRest) [osp|..|] <> targetRest
+        ProjectRelativePath . spell $ replicate (length baseRest) [osp|..|] <> targetRest
 
     -- joinPath of nothing is "", which names no file; the root itself is ".".
     spell [] = [osp|.|]
@@ -102,12 +114,12 @@ relativePathTo (ProjectRoot (AbsPath base)) (AbsPath target) =
 
 Paths travel: into Baselines users commit and share across machines, into
 goldens, and into @deslop fix@'s skip-list. A native decode of a Windows
-'RelativePath' yields backslashes, which would make every id this run produces
+'ProjectRelativePath' yields backslashes, which would make every id this run produces
 unmatchable against a Baseline written on any other OS - silently
 unsuppressing problems and un-fixing imports that a teammate had already
 accepted.
 -}
-portablePath :: RelativePath -> Text
+portablePath :: ProjectRelativePath -> Text
 portablePath = T.replace "\\" "/" . decodeOsPath . (.osPath)
 
 {- | The two paths with their shared leading segments removed, left as the part

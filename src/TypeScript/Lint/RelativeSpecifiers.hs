@@ -11,23 +11,24 @@ module TypeScript.Lint.RelativeSpecifiers (
     noRelativeSpecifiers,
 ) where
 
-import Deslop.AST (ModuleName (..), moduleNameUnsafe)
-import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
+import Deslop.Module (Location (..), Specifier (..), specifierUnsafe)
+import Deslop.Problem (LintRuleId (..), Problem (..))
 import Deslop.Problem.Baseline (Baseline, inBaseline)
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (RoFileSystem)
 import Effects.ReportProblem (ReportProblem, report)
-import FileSystem.Path (AbsPath, ProjectRoot, relativePathTo)
+import FileSystem.Path (ProjectRelativePath, ProjectRoot, relativePathTo)
 import Renderable (Renderable (render))
 import TypeScript.Config (TsConfig)
 import TypeScript.CST (
     TsNode (..),
     TsProgram (cst, path),
+    onLines,
     specifierOf,
     withSpecifier,
  )
-import TypeScript.ModuleResolver (isRelativeImport, reverseResolveImport)
+import TypeScript.ModuleResolver (isRelativeSpecifier, reverseResolveImport)
 
 -- | Which built-in rule a node answers to, and what it says when broken.
 data SpecifierRule = SpecifierRule
@@ -50,11 +51,11 @@ ruleFor ReExport {} =
             }
 ruleFor Source {} = Nothing
 
-relativeSpecifier :: SpecifierRule -> (TsNode, TsNode) -> ProjectRoot -> AbsPath -> Problem
-relativeSpecifier rule (old, new) projectRoot modulePath =
+relativeSpecifier :: SpecifierRule -> (TsNode, TsNode) -> Int -> ProjectRelativePath -> Problem
+relativeSpecifier rule (old, new) line file =
     LintProblem
         { lintRule = rule.ruleId
-        , location = Location {file = relativePathTo projectRoot modulePath, code = render old}
+        , location = Location {file = file, line = line, code = render old}
         , description = rule.description
         , fix = "Use ```" <> render new <> "``` instead."
         , autoFixable = True
@@ -69,21 +70,22 @@ noRelativeSpecifiers ::
     ) =>
     TsProgram -> Eff es TsProgram
 noRelativeSpecifiers prog = do
-    cst' <- traverse fixSpecifier prog.cst
+    projectRoot <- ask @ProjectRoot
+    let file = relativePathTo projectRoot prog.path
+    cst' <- traverse (fixSpecifier file) (onLines prog.cst)
     pure prog {cst = cst'}
   where
     -- Only a specifier that is actually relative is this rule's business. One
     -- module answers to several names, so a written alias differing from the
     -- canonical one - '~/server/db' where '@/server/db' is canonical - is the
     -- same module named another way, not a relative import.
-    fixSpecifier old = case (ruleFor old, specifierOf old) of
-        (Just rule, Just t) | isRelativeImport (moduleNameUnsafe t) -> do
-            t' <- (.text) <$> reverseResolveImport prog.path (moduleNameUnsafe t)
+    fixSpecifier file (line, old) = case (ruleFor old, specifierOf old) of
+        (Just rule, Just t) | isRelativeSpecifier (specifierUnsafe t) -> do
+            t' <- (.text) <$> reverseResolveImport prog.path (specifierUnsafe t)
             if t /= t'
                 then do
                     let new = withSpecifier t' old
-                    projectRoot <- ask @ProjectRoot
-                    let problem = relativeSpecifier rule (old, new) projectRoot prog.path
+                    let problem = relativeSpecifier rule (old, new) line file
                     report problem
                     baseline <- ask @Baseline
                     if inBaseline baseline problem

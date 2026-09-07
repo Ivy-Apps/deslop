@@ -4,7 +4,7 @@ import Data.Text qualified as T
 import FileSystem.Path (
     AbsPath (..),
     ProjectRoot (..),
-    RelativePath (..),
+    ProjectRelativePath (..),
     decodeOsPath,
     relativePathTo,
  )
@@ -18,7 +18,7 @@ import TestUtils (ap, prop, rp)
 {- | A path spelled the way a golden or a Problem Id spells it, so a failure
 reads as the string a user would see rather than as an 'OsPath'.
 -}
-shown :: RelativePath -> Text
+shown :: ProjectRelativePath -> Text
 shown = decodeOsPath . (.osPath)
 
 root :: Text -> ProjectRoot

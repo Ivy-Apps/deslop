@@ -115,8 +115,8 @@ Four layers. **Imports only ever point inward** - see
 
 ```
 Deslop.hs          orchestration - the only module that knows both a language and the core
-  └─ Deslop/       language-agnostic core: AST, CodeGraph, Problem, GlobPlus, Rule
-       └─ TypeScript/    a language frontend: bytes → Tokens → CST → Deslop.AST
+  └─ Deslop/       language-agnostic core: Module, CodeGraph, Problem, GlobPlus, Rule
+       └─ TypeScript/    a language frontend: bytes → Tokens → CST → Deslop.Module
             └─ Effects/  FileSystem/  Git/  Utils  Renderable    infrastructure
 ```
 
@@ -124,10 +124,15 @@ Where new code goes:
 
 - **`Deslop/`** - anything true of every language. It must not `import
   TypeScript`; `grep -rn "^import TypeScript" src/Deslop/` returning nothing is
-  the check.
+  the check. It holds nothing machine-specific either: paths crossing the seam
+  are `ProjectRelativePath`, and `ModuleId` is opaque and never rendered.
 - **`TypeScript/`** - anything that knows the syntax, `tsconfig`, or file
   extensions. A new language is a new top-level directory ending in a
-  `<Lang>.AST` that produces `Deslop.AST`, the seam both sides meet at.
+  `<Lang>.Module` that produces `Deslop.Module`, the seam both sides meet at.
+  Nothing crossing it is a tree: a frontend hands over a flat list of modules
+  and the edges between them, having already resolved every specifier and named
+  what it resolved to. Module Names are spelled with `/` in every language
+  (ADR 19).
 - **`Effects/`** - every effect declaration and its interpreter. `Effects.CLI`
   is the only code that writes to a terminal; `UI` composes the text it prints
   and is pure.

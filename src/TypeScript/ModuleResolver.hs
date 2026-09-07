@@ -1,9 +1,11 @@
 {- | Turning what a TypeScript file /writes/ in an import into the module it
 actually names, and back again.
 
-The 'Deslop.AST.ModuleName' it deals in is the core's, not this module's: what
-varies per language is how a written import resolves to a module, not what a
-module is.
+The 'Deslop.Module.Specifier' and 'Deslop.Module.ModuleName' it deals in are
+the core's, not this module's: what varies per language is how a written import
+resolves to a module, not what a module is. Which way round they go is the
+whole of this module's job - a 'Specifier' goes in and a 'ModuleName' comes
+out, and the two are never interchangeable.
 
 A file answers to more than one name - the directory and index forms of a
 barrel, and every @paths@ alias that maps to it - and 'moduleNames' produces all
@@ -17,12 +19,12 @@ module TypeScript.ModuleResolver (
     resolve,
     match,
     Match (..),
-    isRelativeImport,
+    isRelativeSpecifier,
     dropTypeScriptExtension,
 ) where
 
 import Data.Text qualified as T
-import Deslop.AST (ModuleName (..), moduleNameUnsafe)
+import Deslop.Module (ModuleName (..), Specifier (..), moduleNameUnsafe, specifierUnsafe)
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (RoFileSystem, fsFileExists, fsMkAbsolute)
@@ -45,7 +47,7 @@ come the remaining aliases, and then the directory form of a barrel - kept only
 when the alias that produced it would accept the shortened text, so that
 @src\/index.ts@ under @\@\/*@ does not claim the name @\@@.
 
-Empty when no mapping names the file; "TypeScript.AST" supplies the fallback,
+Empty when no mapping names the file; "TypeScript.Module" supplies the fallback,
 because only it knows the project root the fallback is spelled from.
 -}
 moduleNames :: (Reader TsConfig :> es) => AbsPath -> Eff es [ModuleName]
@@ -60,11 +62,15 @@ moduleNames absFilePath = do
             ]
     pure . fmap moduleNameUnsafe . ordNub $ fmap snd aliased <> directoryForms
 
+{- | The specifier a file /should/ have written to name what it actually
+reached. Specifier in, specifier out: this is what @deslop fix@ substitutes
+back into the source, so it has to be something an author could have typed.
+-}
 reverseResolveImport ::
     ( RoFileSystem :> es
     , Reader TsConfig :> es
     ) =>
-    AbsPath -> ModuleName -> Eff es ModuleName
+    AbsPath -> Specifier -> Eff es Specifier
 reverseResolveImport importingFile target = do
     maybeAbsPath <- resolve importingFile target
     case maybeAbsPath of
@@ -75,7 +81,7 @@ reverseResolveImport importingFile target = do
                 Just resolved ->
                     if resolved.text == target.text <> "/index"
                         then target -- original already names the index implicitly
-                        else resolved
+                        else specifierUnsafe resolved.text
         Nothing -> pure target -- keep the original target
 
 -- | The canonical name of a file: the first alias that maps to it, if any.
@@ -94,7 +100,7 @@ aliasNames cfg absFilePath =
     [ (mapping.key.pattern, name)
     | mapping <- cfg.paths
     , Just name <- [applyPathMapping mapping moduleRelToCfg]
-    , not . isRelativeImport . moduleNameUnsafe $ name
+    , not . isRelativeSpecifier . specifierUnsafe $ name
     ]
   where
     moduleRelToCfg = T.intercalate "/" (upTraversal <> tRemainder)
@@ -146,9 +152,9 @@ resolve ::
     ( RoFileSystem :> es
     , Reader TsConfig :> es
     ) =>
-    AbsPath -> ModuleName -> Eff es (Maybe AbsPath)
+    AbsPath -> Specifier -> Eff es (Maybe AbsPath)
 resolve importingFile target =
-    if isRelativeImport target
+    if isRelativeSpecifier target
         then
             Just <$> resolveRelativeImport
         else
@@ -206,8 +212,12 @@ resolve importingFile target =
             then pure $ Just absFilePath
             else tryExtensions fp es
 
-isRelativeImport :: ModuleName -> Bool
-isRelativeImport m = case m.text of
+{- | Whether a specifier points from where its writer stood rather than naming
+something. Such a specifier can never become a 'ModuleName': the same text
+denotes a different module in every file that writes it.
+-}
+isRelativeSpecifier :: Specifier -> Bool
+isRelativeSpecifier m = case m.text of
     "." -> True
     ".." -> True
     t ->

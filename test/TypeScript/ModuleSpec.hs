@@ -1,40 +1,42 @@
-module TypeScript.ASTSpec (spec) where
+module TypeScript.ModuleSpec (spec) where
 
-import Deslop.AST (
-    AstModule (..),
-    AstNode (..),
+import Deslop.Module (
+    DependencyEdge (..),
     EdgeKind (..),
     EdgeTarget (..),
+    Location (..),
+    Module (..),
     canonicalName,
     moduleIdUnsafe,
     moduleNameUnsafe,
+    specifierUnsafe,
  )
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful
 import Effectful.Reader.Static (runReader)
-import Effects.FileSystem (runFileSystemIO)
 import FileSystem.Path (ProjectRoot (..), absPathUnsafe)
 import Fixtures.TypeScript.Config (defaultTsConfig, emptyTsConfig)
 import System.OsPath (OsPath, osp)
 import Test.Hspec
-import TypeScript.AST (parseAst)
+import TestUtils (rp)
 import TypeScript.Config
 import TypeScript.CST (TsNode (..), TsProgram (..))
+import TypeScript.Module (parseModule)
 import TypeScript.Parser (TsFile (..), parseTs)
 
 repoRoot :: ProjectRoot
 repoRoot = ProjectRoot (absPathUnsafe [osp|/home/repo|])
 
-runParseAst :: TsConfig -> [OsPath] -> TsProgram -> IO AstModule
+runParseAst :: TsConfig -> [OsPath] -> TsProgram -> IO Module
 runParseAst cfg existingFiles prog =
     runEff
         . runMockRoFileSystem (mockFiles existingFiles)
         . runReader @TsConfig cfg
         . runReader @ProjectRoot repoRoot
-        $ parseAst prog
+        $ parseModule prog
 
 spec :: Spec
-spec = describe "TypeScript.AST" $ do
+spec = describe "TypeScript.Module" $ do
     it "simple happy path" $ do
         let existingFiles = [[osp|/home/repo/src/lib/demo.ts|]]
         let prog =
@@ -50,16 +52,21 @@ spec = describe "TypeScript.AST" $ do
                     }
         ast <- runParseAst defaultTsConfig existingFiles prog
         ast
-            `shouldBe` AstModule
+            `shouldBe` Module
                 { id = moduleIdUnsafe "/home/repo/src/lib/demo.ts"
                 , names = moduleNameUnsafe "@/lib/demo" :| []
-                , path = absPathUnsafe [osp|/home/repo/src/lib/demo.ts|]
-                , nodes =
+                , path = rp "src/lib/demo.ts"
+                , edges =
                     [ DependencyEdge
-                        { specifier = moduleNameUnsafe "@/types/errors"
-                        , target = Unresolved
+                        { specifier = specifierUnsafe "@/types/errors"
+                        , target = External (specifierUnsafe "@/types/errors")
                         , kind = ImportEdge
-                        , rawStatement = "import * from'@/types/errors';"
+                        , location =
+                            Location
+                                { file = rp "src/lib/demo.ts"
+                                , line = 1
+                                , code = "import * from'@/types/errors';"
+                                }
                         }
                     ]
                 }
@@ -81,31 +88,36 @@ spec = describe "TypeScript.AST" $ do
                             }
                         ]
                     }
-        ast <-
-            runEff
-                . runReader @TsConfig emptyTsConfig
-                . runReader @ProjectRoot repoRoot
-                . runFileSystemIO
-                $ parseAst prog
+        ast <- runParseAst emptyTsConfig [] prog
         -- The id is deliberately not asserted: it is the canonical path of the
-        -- file, which this test reaches through the real filesystem, and
-        -- canonicalising is what makes it machine-specific. Nothing renders it.
-        (ast.names, ast.path, ast.nodes)
+        -- file, and canonicalising is what makes it machine-specific. Nothing
+        -- renders it.
+        (ast.names, ast.path, ast.edges)
             `shouldBe`
                 ( moduleNameUnsafe "/src/main" :| []
-                , absPathUnsafe [osp|/home/repo/src/main.ts|]
+                , rp "src/main.ts"
                 ,
                     [ DependencyEdge
-                        { specifier = moduleNameUnsafe "react"
-                        , target = Unresolved
+                        { specifier = specifierUnsafe "react"
+                        , target = External (specifierUnsafe "react")
                         , kind = ImportEdge
-                        , rawStatement = "import { useEffect } from 'react';\n"
+                        , location =
+                            Location
+                                { file = rp "src/main.ts"
+                                , line = 1
+                                , code = "import { useEffect } from 'react';\n"
+                                }
                         }
                     , DependencyEdge
-                        { specifier = moduleNameUnsafe "src/types/errors"
-                        , target = Unresolved
+                        { specifier = specifierUnsafe "src/types/errors"
+                        , target = External (specifierUnsafe "src/types/errors")
                         , kind = ImportEdge
-                        , rawStatement = "import type { Error } from 'src/types/errors';"
+                        , location =
+                            Location
+                                { file = rp "src/main.ts"
+                                , line = 2
+                                , code = "import type { Error } from 'src/types/errors';"
+                                }
                         }
                     ]
                 )
@@ -157,12 +169,20 @@ spec = describe "TypeScript.AST" $ do
                         ]
                     }
         ast <- runParseAst defaultTsConfig existingFiles barrel
-        ast.nodes
+        ast.edges
             `shouldBe` [ DependencyEdge
-                            { specifier = moduleNameUnsafe "@/features/home/service"
-                            , target = ToModule (moduleIdUnsafe "/home/repo/src/features/home/service.ts")
+                            { specifier = specifierUnsafe "@/features/home/service"
+                            , target =
+                                Resolved
+                                    (moduleIdUnsafe "/home/repo/src/features/home/service.ts")
+                                    (moduleNameUnsafe "@/features/home/service" :| [])
                             , kind = ReExportEdge
-                            , rawStatement = "export * from \"@/features/home/service\";"
+                            , location =
+                                Location
+                                    { file = rp "src/features/home/index.ts"
+                                    , line = 1
+                                    , code = "export * from \"@/features/home/service\";"
+                                    }
                             }
                        ]
 
@@ -183,8 +203,11 @@ spec = describe "TypeScript.AST" $ do
                         ]
                     }
         ast <- runParseAst defaultTsConfig existingFiles page
-        map (.target) ast.nodes
-            `shouldBe` [ToModule (moduleIdUnsafe "/home/repo/src/features/home/index.ts")]
+        map (.target) ast.edges
+            `shouldBe` [ Resolved
+                            (moduleIdUnsafe "/home/repo/src/features/home/index.ts")
+                            (moduleNameUnsafe "@/features/home/index" :| [moduleNameUnsafe "@/features/home"])
+                       ]
 
     -- An import's alias and a re-export's run in opposite directions: in
     -- `import { A as B } from './m'`, `A` is what './m' exports; in
@@ -209,10 +232,10 @@ spec = describe "TypeScript.AST" $ do
         importAst <- runParseAst defaultTsConfig existingFiles imported
         reExportAst <- runParseAst defaultTsConfig existingFiles reExported
 
-        map (.target) reExportAst.nodes `shouldBe` map (.target) importAst.nodes
-        map (.specifier) reExportAst.nodes `shouldBe` map (.specifier) importAst.nodes
-        map (.kind) importAst.nodes `shouldBe` [ImportEdge]
-        map (.kind) reExportAst.nodes `shouldBe` [ReExportEdge]
+        map (.target) reExportAst.edges `shouldBe` map (.target) importAst.edges
+        map (.specifier) reExportAst.edges `shouldBe` map (.specifier) importAst.edges
+        map (.kind) importAst.edges `shouldBe` [ImportEdge]
+        map (.kind) reExportAst.edges `shouldBe` [ReExportEdge]
 
     it "a re-export of a relative specifier is an edge to the same file" $ do
         let existingFiles =
@@ -226,5 +249,8 @@ spec = describe "TypeScript.AST" $ do
                 . parseTs
                 $ TsFile {path = path, content = "export { svc } from './service';\n"}
         ast <- runParseAst defaultTsConfig existingFiles prog
-        map (.target) ast.nodes
-            `shouldBe` [ToModule (moduleIdUnsafe "/home/repo/src/features/home/service.ts")]
+        map (.target) ast.edges
+            `shouldBe` [ Resolved
+                            (moduleIdUnsafe "/home/repo/src/features/home/service.ts")
+                            (moduleNameUnsafe "@/features/home/service" :| [])
+                       ]

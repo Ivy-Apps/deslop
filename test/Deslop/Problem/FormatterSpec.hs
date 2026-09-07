@@ -1,7 +1,7 @@
 module Deslop.Problem.FormatterSpec (spec) where
 
-import Deslop.AST (EdgeKind (..), ModuleName (..), moduleNameUnsafe)
-import Deslop.Problem (LintRuleId (LintRuleId), Location (..), Problem (..), ViolationKind (..))
+import Deslop.Module (EdgeKind (..), Location (..), ModuleName (..), moduleNameUnsafe)
+import Deslop.Problem (LintRuleId (LintRuleId), Problem (..), ViolationKind (..))
 import Deslop.Problem.Formatter (formatProblem)
 import Deslop.Rule.Book (RuleId (RuleId), RulebookId (RulebookId))
 import FileSystem.Path (encodeOsPath, relativePathUnsafe)
@@ -14,6 +14,7 @@ lintProblem =
         , location =
             Location
                 { file = relativePathUnsafe (encodeOsPath "src/Foo.ts")
+                , line = 1
                 , code = "   import {bar} from './bar'   \n"
                 }
         , description = "No relative imports allowed"
@@ -22,7 +23,7 @@ lintProblem =
         }
 
 ruleViolation :: Problem
-ruleViolation = violationOf DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/lib/index", importStatement = "import { x } from '@/lib/index'"}
+ruleViolation = violationOf DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/lib/index", location = statementAt 3 "import { x } from '@/lib/index'"}
 
 violationOf :: ViolationKind -> Problem
 violationOf violationKind =
@@ -30,9 +31,20 @@ violationOf violationKind =
         { rulebook = RulebookId "architecture"
         , rule = RuleId "no-barrel-imports"
         , badModule = moduleNameUnsafe "@/lib/util"
+        , modulePath = relativePathUnsafe (encodeOsPath "src/lib/util.ts")
         , prose = "Barrel imports are forbidden"
         , kind = violationKind
         , fix = "Import directly from the module"
+        }
+
+-- | A statement written at a given line of the module every violation here is
+-- reported against.
+statementAt :: Int -> Text -> Location
+statementAt line code =
+    Location
+        { file = relativePathUnsafe (encodeOsPath "src/lib/util.ts")
+        , line = line
+        , code = code
         }
 
 -- | @@/lib/util -> @/lib/a -> @/forbids/store@, the chain most cases start from.
@@ -44,7 +56,7 @@ transitiveVia hop forbidden absorbed =
     violationOf
         TransitiveImport
             { chain = moduleNameUnsafe "@/lib/util" :| [moduleNameUnsafe hop, forbidden]
-            , firstImport = Just $ "import { x } from '" <> hop <> "'"
+            , firstImport = Just . statementAt 7 $ "import { x } from '" <> hop <> "'"
             , alsoReached = absorbed
             }
 
@@ -56,6 +68,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
                 let result = formatProblem lintProblem
                 result
                     `shouldBe` "# no-relative-imports#src/Foo.ts\n"
+                        <> "src/Foo.ts:1\n"
                         <> "No relative imports allowed\n"
                         <> "```ts\nimport {bar} from './bar'\n```\n"
                         <> "FIX: Use absolute imports"
@@ -65,6 +78,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
                 let result = formatProblem p
                 result
                     `shouldBe` "# no-relative-imports#src/Foo.ts\n"
+                        <> "src/Foo.ts:1\n"
                         <> "No relative imports allowed\n"
                         <> "```ts\nimport {bar} from './bar'\n```\n"
                         <> "FIX: Use absolute imports"
@@ -76,6 +90,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
                             , location =
                                 Location
                                     { file = relativePathUnsafe (encodeOsPath "src/Foo.ts")
+                                    , line = 1
                                     , code = "   import {bar} from './bar'   \n"
                                     }
                             , description = "No relative imports allowed"
@@ -85,6 +100,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
                 let result = formatProblem p
                 result
                     `shouldBe` "[AUTO-FIXABLE] # no-relative-imports#src/Foo.ts\n"
+                        <> "src/Foo.ts:1\n"
                         <> "No relative imports allowed\n"
                         <> "```ts\nimport {bar} from './bar'\n```\n"
                         <> "FIX: Use absolute imports"
@@ -94,6 +110,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
                 let result = formatProblem ruleViolation
                 result
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
+                        <> "src/lib/util.ts:3\n"
                         <> "Barrel imports are forbidden\n\n"
                         <> "Module '@/lib/util' directly imports '@/lib/index'.\n"
                         <> "```ts\nimport { x } from '@/lib/index'\n```\n"
@@ -104,16 +121,18 @@ spec = describe "Deslop.Problem.Formatter" $ do
                 let result = formatProblem p
                 result
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
+                        <> "src/lib/util.ts:3\n"
                         <> "Barrel imports are forbidden\n\n"
                         <> "Module '@/lib/util' directly imports '@/lib/index'.\n"
                         <> "```ts\nimport { x } from '@/lib/index'\n```\n"
                         <> "FIX: Import directly from the module"
 
             it "spells out the chain of a transitive import" $ do
-                let p = violationOf TransitiveImport {chain = twoHopChain, firstImport = Just "import { x } from '@/lib/a'", alsoReached = []}
+                let p = violationOf TransitiveImport {chain = twoHopChain, firstImport = Just (statementAt 7 "import { x } from '@/lib/a'"), alsoReached = []}
 
                 formatProblem p
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
+                        <> "src/lib/util.ts:7\n"
                         <> "Barrel imports are forbidden\n\n"
                         <> "Module '@/lib/util' transitively imports '@/forbids/store' (2 hops) via: "
                         <> "@/lib/util → @/lib/a → @/forbids/store.\n"
@@ -131,6 +150,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
 
                 formatProblem p
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
+                        <> "src/lib/util.ts\n"
                         <> "Barrel imports are forbidden\n\n"
                         <> "Module '@/lib/util' transitively imports '@/forbids/store' (1 hop) via: "
                         <> "@/lib/util → @/forbids/store.\n"
@@ -145,6 +165,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
 
                 formatProblem p
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
+                        <> "src/lib/util.ts:7\n"
                         <> "Barrel imports are forbidden\n\n"
                         <> "Module '@/lib/util' transitively imports '@/forbids/store' (2 hops) via: "
                         <> "@/lib/util → @/lib/a → @/forbids/store.\n"
@@ -161,6 +182,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
 
                 formatProblem p
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
+                        <> "src/lib/util.ts:7\n"
                         <> "Barrel imports are forbidden\n\n"
                         <> "Module '@/lib/util' transitively imports '@/forbids/store' (2 hops) via: "
                         <> "@/lib/util → @/lib/a → @/forbids/store.\n"
@@ -174,6 +196,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
 
                 formatProblem p
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
+                        <> "src/lib/util.ts:7\n"
                         <> "Barrel imports are forbidden\n\n"
                         <> "Module '@/lib/util' transitively imports '@/forbids/store' (2 hops) via: "
                         <> "@/lib/util → @/lib/a → @/forbids/store.\n"
@@ -187,10 +210,12 @@ spec = describe "Deslop.Problem.Formatter" $ do
 
                 (formatProblem direct, formatProblem transitive)
                     `shouldBe` ( "# architecture#no-barrel-imports#@/lib/util\n"
+                                    <> "src/lib/util.ts\n"
                                     <> "Barrel imports are forbidden\n\n"
                                     <> "Module '@/lib/util' must import '@/lib/logger'.\n"
                                     <> "FIX: Import directly from the module"
                                , "# architecture#no-barrel-imports#@/lib/util\n"
+                                    <> "src/lib/util.ts\n"
                                     <> "Barrel imports are forbidden\n\n"
                                     <> "Module '@/lib/util' must transitively import '@/lib/logger'.\n"
                                     <> "FIX: Import directly from the module"
@@ -201,6 +226,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
 
                 formatProblem p
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
+                        <> "src/lib/util.ts\n"
                         <> "Barrel imports are forbidden\n\n"
                         <> "Module '@/lib/util' requires '@/lib/util.spec' to exist.\n"
                         <> "FIX: Import directly from the module"

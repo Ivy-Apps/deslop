@@ -4,26 +4,21 @@ module Deslop.Rule.Lint.CycleDetection (
 
 import Data.List.NonEmpty qualified as NE
 import Data.Text qualified as T
-import Deslop.AST (AstModule (..), AstNode (..), ModuleName (..), canonicalName)
 import Deslop.CodeGraph (GraphKey (..), ModuleCycle (..), ModuleGraph, findCycles, graphKeyOf)
-import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
+import Deslop.Module (DependencyEdge (..), Location (..), Module (..), ModuleName (..), canonicalName)
+import Deslop.Problem (LintRuleId (..), Problem (..))
 import Effectful (Eff, type (:>))
-import Effectful.Reader.Static (Reader, ask)
+import Effectful.Reader.Static (Reader)
 import Effects.ReportProblem (ReportProblem, report)
-import FileSystem.Path (ProjectRoot, relativePathTo)
 
 {- | Reports the cycle against its start module, showing the loop it forms and
 the import statement that enters it.
 -}
-importCycle :: ProjectRoot -> ModuleCycle -> Problem
-importCycle projectRoot (ModuleCycle loop) =
+importCycle :: ModuleCycle -> Problem
+importCycle (ModuleCycle loop) =
     LintProblem
         { lintRule = LintRuleId "no-import-cycles"
-        , location =
-            Location
-                { file = relativePathTo projectRoot start.path
-                , code = enteringImport start nextHop
-                }
+        , location = enteringImport start nextHop
         , description = "Circular dependency (import cycle) detected: " <> renderLoop loop
         , fix =
             "Import cycles are not allowed. Break the loop by removing one of its"
@@ -36,26 +31,33 @@ importCycle projectRoot (ModuleCycle loop) =
     -- a module that imports itself is its own next hop
     nextHop = fromMaybe start . listToMaybe . NE.tail $ loop
 
-    -- The edge is found by the identity of what it resolved to, not by the
-    -- text it was written with: the same module can be named several ways.
-    enteringImport :: AstModule -> AstModule -> Text
+    {- | Where the loop is entered from. Taken from the edge itself, so the
+    line is the statement's own rather than the module's first.
+
+    The edge is found by the identity of what it resolved to, not by the text
+    it was written with: the same module can be named several ways. A cycle is
+    built only from parsed modules, so the edge is always there; the fallback
+    names the target rather than inventing a line for it.
+    -}
+    enteringImport :: Module -> Module -> Location
     enteringImport importer target =
-        maybe (canonicalName target).text (T.strip . (.rawStatement))
-            . find ((== InternalKey target.id) . graphKeyOf)
-            $ importer.nodes
+        maybe (whole importer target) (strip . (.location))
+            . find ((== ModuleKey target.id) . graphKeyOf)
+            $ importer.edges
+
+    strip loc = loc {code = T.strip loc.code}
+    whole importer target =
+        Location {file = importer.path, line = 1, code = (canonicalName target).text}
 
 noImportCycles ::
     ( Reader ModuleGraph :> es
-    , Reader ProjectRoot :> es
     , ReportProblem :> es
     ) =>
     Eff es ()
-noImportCycles = do
-    projectRoot <- ask @ProjectRoot
-    findCycles >>= traverse_ (report . importCycle projectRoot)
+noImportCycles = findCycles >>= traverse_ (report . importCycle)
 
 -- | Renders the loop as a closed walk, repeating the start to show it closing.
-renderLoop :: NonEmpty AstModule -> Text
+renderLoop :: NonEmpty Module -> Text
 renderLoop loop =
     T.intercalate " → "
         . map ((.text) . canonicalName)

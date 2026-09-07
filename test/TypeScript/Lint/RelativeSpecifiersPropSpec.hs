@@ -12,7 +12,7 @@ edges from whatever this pass left behind.
 -}
 module TypeScript.Lint.RelativeSpecifiersPropSpec (spec) where
 
-import Deslop.AST (AstModule)
+import Deslop.Module (Module)
 import Deslop.Problem (Problem, ProblemId (..), problemId)
 import Deslop.Problem.Baseline (Baseline, emptyBaseline)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
@@ -24,6 +24,7 @@ import Fixtures.Deslop.Problem.Baseline (baselineOf)
 import Generators.TypeScript.CST (genTsProgram)
 import Generators.TypeScript.Project (
     Project,
+    Naming (..),
     Spelling (..),
     asImports,
     genProject,
@@ -79,7 +80,7 @@ spec = describe "TypeScript.Lint.RelativeSpecifiers properties" $ do
 statement in them is something the fixer wants to rewrite.
 -}
 aliasedSources :: Project -> [(AbsPath, Text)]
-aliasedSources = renderProject asImports {alias = secondaryAlias}
+aliasedSources = renderProject asImports {naming = Aliased secondaryAlias}
 
 -- | A node with its specifier blanked: everything a fix must leave alone.
 anonymise :: TsNode -> TsNode
@@ -112,7 +113,7 @@ lintReporting cfg baseline files path nodes =
             pure (result.cst, problems)
 
 -- | Every module of the project, linted under one baseline and then lowered.
-lintedAsts :: Project -> Baseline -> PropertyT IO [AstModule]
+lintedAsts :: Project -> Baseline -> PropertyT IO [Module]
 lintedAsts project baseline = do
     linted <- traverse lintSource (aliasedSources project)
     liftIO . projectAsts project $ linted

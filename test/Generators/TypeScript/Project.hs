@@ -14,8 +14,10 @@ module Generators.TypeScript.Project (
     Project (..),
     ProjectModule (..),
     Spelling (..),
+    Naming (..),
     genProject,
     asImports,
+    asRelative,
     asReExports,
     indexForm,
     directoryForm,
@@ -29,22 +31,23 @@ module Generators.TypeScript.Project (
     reachability,
 ) where
 
+import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
-import Deslop.AST (AstModule (..), ModuleName (..), canonicalName)
 import Deslop.CodeGraph (GraphKey (..), ModuleRef (..), buildModuleGraph, reachableFrom)
+import Deslop.Module (Module (..), ModuleName (..), canonicalName)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff, runPureEff)
 import Effectful.Reader.Static (runReader)
-import Fixtures.TypeScript.Config (mkMapping)
 import FileSystem.Path (AbsPath, ProjectRoot (..), absPathUnsafe, encodeOsPath)
+import Fixtures.TypeScript.Config (mkMapping)
 import Hedgehog (Gen)
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import System.OsPath (OsPath, osp)
-import TypeScript.AST (parseAst)
 import TypeScript.Config (Pattern (..), TsConfig (..))
 import TypeScript.CST (TsProgram (..))
+import TypeScript.Module (parseModule)
 import TypeScript.Parser (TsFile (..), parseTs)
 
 {- | A module named by where it lives, relative to @src\/@ and without the
@@ -67,14 +70,27 @@ data Spelling = Spelling
     -- ^ Write dependencies as @export ... from@ rather than @import@.
     , directory :: Bool
     -- ^ Name a barrel by its directory rather than by its index file.
-    , alias :: Text
-    -- ^ Which of the two aliases mapping to @src\/@ to write.
+    , naming :: Naming
+    -- ^ How a dependency is named.
     }
     deriving stock (Show, Eq)
 
-asImports, asReExports, indexForm, directoryForm :: Spelling
-asImports = Spelling {reExport = False, directory = False, alias = primaryAlias}
+{- | The two ways a TypeScript file can name what it depends on.
+
+'Relative' is not a third alias: it is a direction from wherever the importing
+file sits, so the same text names a different module in every file that writes
+it. That is what makes it the interesting case for anything asserting that a
+Module Name means one thing.
+-}
+data Naming
+    = Aliased Text
+    | Relative
+    deriving stock (Show, Eq)
+
+asImports, asReExports, asRelative, indexForm, directoryForm :: Spelling
+asImports = Spelling {reExport = False, directory = False, naming = Aliased primaryAlias}
 asReExports = asImports {reExport = True}
+asRelative = asImports {naming = Relative}
 indexForm = asImports
 directoryForm = asImports {directory = True}
 
@@ -136,20 +152,36 @@ renderModule spelling m = T.concat [statement d <> "\n" | d <- m.deps]
         | spelling.reExport = "export * from \"" <> specifier dep <> "\";"
         | otherwise = "import { x } from \"" <> specifier dep <> "\";"
 
-    specifier dep = spelling.alias <> shorten dep
+    specifier dep = case spelling.naming of
+        Aliased alias -> alias <> shorten dep
+        Relative -> relativeTo m.name (shorten dep)
 
     shorten dep
         | spelling.directory, Just shortened <- T.stripSuffix "/index" dep = shortened
         | otherwise = dep
 
+{- | @dep@ spelled from the file that @importer@ names, as a TypeScript author
+would write it: @..\/..\/lib\/util@, or @.\/sibling@ for a module alongside.
+-}
+relativeTo :: Text -> Text -> Text
+relativeTo importer dep =
+    case (drop (length shared) importerDir, drop (length shared) depSegs) of
+        ([], rest) -> T.intercalate "/" ("." : rest)
+        (up, rest) -> T.intercalate "/" (replicate (length up) ".." <> rest)
+  where
+    -- the directory the importing file sits in: its name minus the file part
+    importerDir = fromMaybe [] . viaNonEmpty NE.init . T.splitOn "/" $ importer
+    depSegs = T.splitOn "/" dep
+    shared = map fst . takeWhile (uncurry (==)) $ zip importerDir depSegs
+
 -- | Lowers a rendered project to the modules Deslop reasons about.
-projectAsts :: Project -> [(AbsPath, Text)] -> IO [AstModule]
+projectAsts :: Project -> [(AbsPath, Text)] -> IO [Module]
 projectAsts project sources =
     runEff
         . runMockRoFileSystem (mockFiles (projectFiles project))
         . runReader projectConfig
         . runReader projectRoot
-        $ traverse (parseAst . program) sources
+        $ traverse (parseModule . program) sources
   where
     program (path, content) = case parseTs TsFile {path = path, content = content} of
         Left err -> TsModule {path = path, cst = error (toText err)}
@@ -158,12 +190,12 @@ projectAsts project sources =
 {- | What every module can reach, by name. The relation a Rulebook Rule is
 judged against, and the thing respelling a project must leave alone.
 -}
-reachability :: [AstModule] -> Map Text [Text]
+reachability :: [Module] -> Map Text [Text]
 reachability asts =
     runPureEff
         . runReader (buildModuleGraph asts)
         $ Map.fromList <$> traverse reached asts
   where
     reached m = do
-        refs <- reachableFrom (InternalKey m.id)
+        refs <- reachableFrom (ModuleKey m.id)
         pure ((canonicalName m).text, sort [(head r.names).text | r <- refs])

@@ -3,6 +3,7 @@
 [Error] Found 10 problems:
 [Error] ─────────────────────────────────────────
 [Error] [AUTO-FIXABLE] # no-relative-exports#src/lib/index.ts
+src/lib/index.ts:2
 Relative re-exports are not allowed. Use aliased ones.
 ```ts
 export * from "./helper";
@@ -11,6 +12,7 @@ FIX: Use ```export * from "@/lib/helper";``` instead.
 ---------
 
 # barrels#aliased-re-export-is-an-edge#@/app/explicit
+src/app/explicit.ts:3
 No app module may reach @/server/audit. The only route is `export { formatTitle as title } from`, whose alias names what the barrel exposes rather than what it depends on.
 
 Module '@/app/explicit' transitively imports '@/server/audit' (3 hops) via: @/app/explicit → @/features/home/index → @/features/home/home-view → @/server/audit.
@@ -21,6 +23,7 @@ FIX: Do not reach @/server/audit through the home barrel.
 ---------
 
 # barrels#aliased-re-export-is-an-edge#@/app/page
+src/app/page.ts:3
 No app module may reach @/server/audit. The only route is `export { formatTitle as title } from`, whose alias names what the barrel exposes rather than what it depends on.
 
 Module '@/app/page' transitively imports '@/server/audit' (3 hops) via: @/app/page → @/features/home/index → @/features/home/home-view → @/server/audit.
@@ -31,6 +34,7 @@ FIX: Do not reach @/server/audit through the home barrel.
 ---------
 
 # barrels#barrel-exposes-its-view#@/features/settings/index
+src/features/settings/index.ts
 A feature's barrel is its public surface, so it must re-export the View that feature is for. Naming the barrel by its directory form is what people write, and the rule has to be able to say it.
 
 Module '@/features/settings/index' must import '@/features/settings/settings-view'.
@@ -38,6 +42,7 @@ FIX: Re-export the feature's View from its barrel.
 ---------
 
 # barrels#star-as-re-export-is-an-edge#@/app/explicit
+src/app/explicit.ts:3
 No app module may reach @/server/cache. The only route is `export * as widgets from`, a star re-export with a namespace bound to it.
 
 Module '@/app/explicit' transitively imports '@/server/cache' (3 hops) via: @/app/explicit → @/features/home/index → @/features/home/home-widgets → @/server/cache.
@@ -48,6 +53,7 @@ FIX: Do not reach @/server/cache through the home barrel.
 ---------
 
 # barrels#star-as-re-export-is-an-edge#@/app/page
+src/app/page.ts:3
 No app module may reach @/server/cache. The only route is `export * as widgets from`, a star re-export with a namespace bound to it.
 
 Module '@/app/page' transitively imports '@/server/cache' (3 hops) via: @/app/page → @/features/home/index → @/features/home/home-widgets → @/server/cache.
@@ -58,6 +64,7 @@ FIX: Do not reach @/server/cache through the home barrel.
 ---------
 
 # barrels#star-re-export-is-an-edge#@/app/explicit
+src/app/explicit.ts:3
 No app module may reach @/server/db. The only route is `export * from`, which carries no specifier list at all and so can only ever be a module-level edge.
 
 Module '@/app/explicit' transitively imports '@/server/db' (4 hops) via: @/app/explicit → @/features/home/index → @/features/home/home-service → @/lib/helper → @/server/db.
@@ -68,6 +75,7 @@ FIX: Do not reach @/server/db through the home barrel.
 ---------
 
 # barrels#star-re-export-is-an-edge#@/app/page
+src/app/page.ts:3
 No app module may reach @/server/db. The only route is `export * from`, which carries no specifier list at all and so can only ever be a module-level edge.
 
 Module '@/app/page' transitively imports '@/server/db' (4 hops) via: @/app/page → @/features/home/index → @/features/home/home-service → @/lib/helper → @/server/db.
@@ -78,6 +86,7 @@ FIX: Do not reach @/server/db through the home barrel.
 ---------
 
 # barrels#type-only-re-export-is-an-edge#@/app/explicit
+src/app/explicit.ts:3
 No app module may reach @/server/schema. The only route is `export type { HomeProps } from`, which erases at runtime but is still a dependency an architecture rule is about.
 
 Module '@/app/explicit' transitively imports '@/server/schema' (3 hops) via: @/app/explicit → @/features/home/index → @/features/home/home-types → @/server/schema.
@@ -88,6 +97,7 @@ FIX: Do not reach @/server/schema through the home barrel.
 ---------
 
 # barrels#type-only-re-export-is-an-edge#@/app/page
+src/app/page.ts:3
 No app module may reach @/server/schema. The only route is `export type { HomeProps } from`, which erases at runtime but is still a dependency an architecture rule is about.
 
 Module '@/app/page' transitively imports '@/server/schema' (3 hops) via: @/app/page → @/features/home/index → @/features/home/home-types → @/server/schema.

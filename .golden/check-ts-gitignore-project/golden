@@ -4,6 +4,7 @@ Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
 [Error] Found 4 problems:
 [Error] ─────────────────────────────────────────
 [Error] [AUTO-FIXABLE] # no-relative-imports#src/bad.ts
+src/bad.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { app } from './app';
@@ -12,6 +13,7 @@ FIX: Use ```import { app } from '@/app';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/sub/scratch.ts
+src/features/sub/scratch.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { app } from '../../app';
@@ -20,6 +22,7 @@ FIX: Use ```import { app } from '@/app';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/keep.gen.ts
+src/keep.gen.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { app } from './app';
@@ -28,6 +31,7 @@ FIX: Use ```import { app } from '@/app';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/other.gen.ts
+src/other.gen.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { app } from './app';

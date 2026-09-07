@@ -15,7 +15,7 @@ import Effects.ReportProblem (runReportProblem)
 import FileSystem.Path (
     AbsPath (osPath),
     ProjectRoot (..),
-    RelativePath (osPath),
+    ProjectRelativePath (osPath),
     decodeOsPath,
     encodeOsPathString,
     relativePathTo,
@@ -53,6 +53,7 @@ spec = describe "E2E.Project" $ do
     itChecks "ts-casing-project"
     itChecks "ts-monorepo-project"
     itChecks "ts-barrel-project"
+    itChecks "ts-unscanned-project"
 
     itFailsToLoadRulebook "ts-invalid-rulebook-project"
     itFailsToLoadTsConfig "ts-broken-extends-project"
@@ -66,6 +67,7 @@ spec = describe "E2E.Project" $ do
     itBaselines "ts-casing-project"
     itBaselines "ts-monorepo-project"
     itBaselines "ts-barrel-project"
+    itBaselines "ts-unscanned-project"
 
     itIterates "ts-gitignore-project"
 

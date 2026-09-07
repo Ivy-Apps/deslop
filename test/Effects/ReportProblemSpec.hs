@@ -1,6 +1,7 @@
 module Effects.ReportProblemSpec (spec) where
 
-import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
+import Deslop.Module (Location (..))
+import Deslop.Problem (LintRuleId (..), Problem (..))
 import Effectful
 import Effects.ReportProblem
 import Test.Hspec
@@ -24,7 +25,7 @@ spec = describe "Effects.ReportProblem" $ do
             let problem =
                     LintProblem
                         { lintRule = LintRuleId "P001"
-                        , location = Location {file = rp "src/Foo.ts", code = "x"}
+                        , location = Location {file = rp "src/Foo.ts", line = 1, code = "x"}
                         , description = "Something wrong"
                         , fix = "Do this"
                         , autoFixable = False
@@ -41,7 +42,7 @@ spec = describe "Effects.ReportProblem" $ do
             let p1 =
                     LintProblem
                         { lintRule = LintRuleId "P1"
-                        , location = Location {file = rp "a.ts", code = "1"}
+                        , location = Location {file = rp "a.ts", line = 1, code = "1"}
                         , description = "First"
                         , fix = "fix1"
                         , autoFixable = False
@@ -49,7 +50,7 @@ spec = describe "Effects.ReportProblem" $ do
             let p2 =
                     LintProblem
                         { lintRule = LintRuleId "P2"
-                        , location = Location {file = rp "b.ts", code = "2"}
+                        , location = Location {file = rp "b.ts", line = 1, code = "2"}
                         , description = "Second"
                         , fix = "fix2"
                         , autoFixable = False
@@ -67,7 +68,7 @@ spec = describe "Effects.ReportProblem" $ do
             let problem =
                     LintProblem
                         { lintRule = LintRuleId "P"
-                        , location = Location {file = rp "f", code = "c"}
+                        , location = Location {file = rp "f", line = 1, code = "c"}
                         , description = "desc"
                         , fix = "fix"
                         , autoFixable = True

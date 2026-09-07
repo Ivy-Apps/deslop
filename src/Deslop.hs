@@ -9,9 +9,9 @@ module Deslop (
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
-import Deslop.AST (AstModule)
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
 import Deslop.Error (DeslopError (..))
+import Deslop.Module (Module)
 import Deslop.Problem (Problem, isAutoFixable)
 import Deslop.Problem.Baseline (Baseline, applyBaseline, emptyBaseline, loadBaseline, saveBaseline)
 import Deslop.Problem.Shrinker (compactProblems)
@@ -37,7 +37,7 @@ import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import FileSystem.Path (
     AbsPath (osPath),
     ProjectRoot (..),
-    RelativePath (osPath),
+    ProjectRelativePath (osPath),
     decodeOsPath,
     relativePathTo,
     withAbsBaseUnsafe,
@@ -46,12 +46,12 @@ import Git.Ignore (loadGitIgnore)
 import Params
 import Renderable (Renderable (render))
 import System.OsPath (osp, takeFileName)
-import TypeScript.AST (parseAst)
-import TypeScript.CST
 import TypeScript.Config (TsConfig (..))
 import TypeScript.Config.Loader (loadTsConfig, renderSkippedExtends, renderTsConfigLoadError)
+import TypeScript.CST
 import TypeScript.Iterator (getTsFiles)
 import TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers)
+import TypeScript.Module (parseModule)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import UI (divider, humanReadable, problemsFoundText, problemsLogText, summaryLine)
 import Utils (pluralise)
@@ -263,7 +263,7 @@ deslopFile ::
     , ReportProblem :> es
     ) =>
     AbsPath ->
-    Eff es (Either String AstModule)
+    Eff es (Either String Module)
 deslopFile src = do
     c <- fsReadFile src
     cstRes <- lintFile src c
@@ -274,7 +274,7 @@ deslopFile src = do
         projectRoot <- ask @ProjectRoot
         cliLog Change $
             "  modified  " <> decodeOsPath (relativePathTo projectRoot src).osPath
-    traverse parseAst cstRes
+    traverse parseModule cstRes
   where
     renderProgram = TE.encodeUtf8 . render . (.cst)
 
@@ -309,7 +309,7 @@ tsConfig ::
 tsConfig projectRoot = do
     res <- loadTsConfig $ withAbsBaseUnsafe projectRoot.path [osp|tsconfig.json|]
     case res of
-        Left err -> throwError . TsConfigError . renderTsConfigLoadError projectRoot $ err
+        Left err -> throwError . FrontendError . renderTsConfigLoadError projectRoot $ err
         Right (cfg, skipped) -> cfg <$ traverse_ logSkipped skipped
   where
     logSkipped = cliLog Warning . ("WARNING: " <>) . renderSkippedExtends projectRoot

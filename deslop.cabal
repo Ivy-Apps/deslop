@@ -59,12 +59,12 @@ library
   import:          shared-properties
   exposed-modules:
     Deslop
-    Deslop.AST
     Deslop.CodeGraph
     Deslop.Error
     Deslop.GlobPlus
     Deslop.GlobPlus.Casing
     Deslop.GlobPlus.Compiler
+    Deslop.Module
     Deslop.Problem
     Deslop.Problem.Baseline
     Deslop.Problem.Formatter
@@ -86,7 +86,6 @@ library
     Params
     Prelude
     Renderable
-    TypeScript.AST
     TypeScript.Config
     TypeScript.Config.Dto
     TypeScript.Config.Loader
@@ -94,6 +93,7 @@ library
     TypeScript.Iterator
     TypeScript.Lexer
     TypeScript.Lint.RelativeSpecifiers
+    TypeScript.Module
     TypeScript.ModuleResolver
     TypeScript.Parser
     TypeScript.Tokens
@@ -169,7 +169,7 @@ test-suite deslop-test
     Effects.ReportProblemSpec
     FileSystem.IteratorSpec
     FileSystem.PathSpec
-    Fixtures.Deslop.AST
+    Fixtures.Deslop.Module
     Fixtures.Deslop.Problem.Baseline
     Fixtures.Deslop.Rule.Book.Dto
     Fixtures.TypeScript.Config
@@ -178,7 +178,6 @@ test-suite deslop-test
     Git.IgnoreSpec
     ParamsSpec
     TestUtils
-    TypeScript.ASTSpec
     TypeScript.Config.DtoSpec
     TypeScript.Config.LoaderSpec
     TypeScript.ConfigSpec
@@ -187,10 +186,12 @@ test-suite deslop-test
     TypeScript.LexerSpec
     TypeScript.Lint.RelativeSpecifiersPropSpec
     TypeScript.Lint.RelativeSpecifiersSpec
+    TypeScript.ModulePropSpec
     TypeScript.ModuleResolverSpec
+    TypeScript.ModuleSpec
     TypeScript.ParserPropSpec
-    TypeScript.ResolutionCorpusSpec
     TypeScript.ParserSpec
+    TypeScript.ResolutionCorpusSpec
     UISpec
     UtilsSpec
 

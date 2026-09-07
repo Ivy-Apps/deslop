@@ -65,8 +65,9 @@ problemsLogText = T.pack . pretty . ProblemsLog
 humanReadable :: DeslopError -> Text
 -- Both loaders' reports already name every file they are about - and the
 -- rulebook one every rule and field too - so a prefix here would only say it
--- twice.
-humanReadable (TsConfigError msg) = msg
+-- twice. A frontend's error arrives rendered for the same reason: the
+-- vocabulary is its own.
+humanReadable (FrontendError msg) = msg
 humanReadable (RulebookError msg) = msg
 humanReadable (InvalidRuleConfig msg) =
     "Invalid rule configuration: " <> msg

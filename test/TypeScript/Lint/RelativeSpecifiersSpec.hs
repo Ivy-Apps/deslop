@@ -1,12 +1,13 @@
 module TypeScript.Lint.RelativeSpecifiersSpec (spec) where
 
 import Data.Text qualified as T
-import Deslop.Problem (LintRuleId (..), Location (..), Problem (..), ProblemId (..), problemId)
+import Deslop.Module (Location (..))
+import Deslop.Problem (LintRuleId (..), Problem (..), ProblemId (..), problemId)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
-import FileSystem.Path (ProjectRoot (..), RelativePath (..), absPathUnsafe, decodeOsPath, encodeOsPath)
+import FileSystem.Path (ProjectRoot (..), ProjectRelativePath (..), absPathUnsafe, decodeOsPath, encodeOsPath)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
 import Fixtures.TypeScript.Config (defaultTsConfig, mkMapping)
 import Hedgehog (Gen, evalIO, forAll, (===))
@@ -15,8 +16,8 @@ import Hedgehog.Range qualified as Range
 import System.OsPath (osp)
 import Test.Hspec
 import TestUtils (ap, prop)
-import TypeScript.CST (TsNode (..), TsProgram (..))
 import TypeScript.Config (Pattern (..), TsConfig (..))
+import TypeScript.CST (TsNode (..), TsProgram (..))
 import TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers)
 
 repoRoot :: ProjectRoot
