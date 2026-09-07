@@ -1,6 +1,6 @@
 module Deslop.Rule.EnforcerSpec (spec) where
 
-import Deslop.AST (AstModule (..), moduleIdUnsafe)
+import Deslop.AST (AstModule (..), EdgeKind (..), moduleNameUnsafe)
 import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Error (DeslopError (..))
 import Deslop.Problem (Problem (..), ViolationKind (..))
@@ -450,7 +450,7 @@ multiVariableSpec = describe "several variables in one rule" $ do
             problems <- runMultiVarTest [view] view
             ruleIdsOf problems `shouldBe` ["view-has-a-spec-named-by-all-three"]
             kindsOf problems
-                `shouldSatisfy` elem MissingModule {requiredModule = moduleIdUnsafe "@/specs/stripe-connect/PaymentCheckoutView.spec"}
+                `shouldSatisfy` elem MissingModule {requiredModule = moduleNameUnsafe "@/specs/stripe-connect/PaymentCheckoutView.spec"}
 
         it "is not satisfied by another provider's spec" $ do
             let view = mkModule "@/exists/stripe-connect/payment/CheckoutView" []
@@ -480,7 +480,7 @@ multiVariableSpec = describe "several variables in one rule" $ do
                 problems <- runMultiVarTest [widget, config] widget
                 ruleIdsOf problems `shouldBe` ["widget-has-a-config"]
                 kindsOf problems
-                    `shouldSatisfy` elem MissingModule {requiredModule = moduleIdUnsafe "@/config/awss3"}
+                    `shouldSatisfy` elem MissingModule {requiredModule = moduleNameUnsafe "@/config/awss3"}
 
             it "is exact when the target names the folder in kebab-case too" $ do
                 let view = mkModule "@/pair/http-client/HTTPClientView" []
@@ -492,7 +492,7 @@ multiVariableSpec = describe "several variables in one rule" $ do
                 problems <- runMultiVarTest [view] view
                 ruleIdsOf problems `shouldBe` ["provider-view-has-a-config"]
                 kindsOf problems
-                    `shouldSatisfy` elem MissingModule {requiredModule = moduleIdUnsafe "@/config/aws-s3"}
+                    `shouldSatisfy` elem MissingModule {requiredModule = moduleNameUnsafe "@/config/aws-s3"}
 
             it "does not apply when the folder and the file are different names" $ do
                 let view = mkModule "@/pair/stripe-connect/PaypalView" []
@@ -509,13 +509,13 @@ multiVariableSpec = describe "several variables in one rule" $ do
                 problems <- runMultiVarTest [useCase] useCase
                 ruleIdsOf problems `shouldBe` ["use-case-has-a-view-model"]
                 kindsOf problems
-                    `shouldSatisfy` elem MissingModule {requiredModule = moduleIdUnsafe "@/app/archive-order/useArchiveOrderViewModel"}
+                    `shouldSatisfy` elem MissingModule {requiredModule = moduleNameUnsafe "@/app/archive-order/useArchiveOrderViewModel"}
 
             it "keeps the captured acronym spelling in the module it asks for" $ do
                 let useCase = mkModule "@/app/http-client-retry/HTTPClientRetryUseCase" []
                 problems <- runMultiVarTest [useCase] useCase
                 kindsOf problems
-                    `shouldSatisfy` elem MissingModule {requiredModule = moduleIdUnsafe "@/app/http-client-retry/useHTTPClientRetryViewModel"}
+                    `shouldSatisfy` elem MissingModule {requiredModule = moduleNameUnsafe "@/app/http-client-retry/useHTTPClientRetryViewModel"}
 
     describe "allows over a broad forbids" $ do
         it "exempts the service all three variables name" $ do
@@ -549,9 +549,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
-                                , badModule = moduleIdUnsafe "@/components/Button"
+                                , badModule = moduleNameUnsafe "@/components/Button"
                                 , prose = "Forbids modules must not be imported."
-                                , kind = DirectImport {imported = moduleIdUnsafe "@/forbids/module", importStatement = "import { ... } from '@/forbids/module'"}
+                                , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/forbids/module", importStatement = "import { ... } from '@/forbids/module'"}
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -571,9 +571,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
-                                , badModule = moduleIdUnsafe "@/components/Button"
+                                , badModule = moduleNameUnsafe "@/components/Button"
                                 , prose = "Forbids modules must not be transitively imported."
-                                , kind = TransitiveImport {chain = moduleIdUnsafe "@/components/Button" :| [moduleIdUnsafe "@/forbids/store"], firstImport = Just "import { ... } from '@/forbids/store'", alsoReached = []}
+                                , kind = TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/forbids/store"], firstImport = Just "import { ... } from '@/forbids/store'", alsoReached = []}
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -587,9 +587,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
-                                , badModule = moduleIdUnsafe "@/components/Button"
+                                , badModule = moduleNameUnsafe "@/components/Button"
                                 , prose = "Forbids modules must not be transitively imported."
-                                , kind = TransitiveImport {chain = moduleIdUnsafe "@/components/Button" :| [moduleIdUnsafe "@/lib/util", moduleIdUnsafe "@/forbids/store"], firstImport = Just "import { ... } from '@/lib/util'", alsoReached = []}
+                                , kind = TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/util", moduleNameUnsafe "@/forbids/store"], firstImport = Just "import { ... } from '@/lib/util'", alsoReached = []}
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -608,17 +608,17 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
-                                , badModule = moduleIdUnsafe "@/components/Button"
+                                , badModule = moduleNameUnsafe "@/components/Button"
                                 , prose = "Forbids modules must not be transitively imported."
-                                , kind = TransitiveImport {chain = moduleIdUnsafe "@/components/Button" :| [moduleIdUnsafe "@/lib/helpers", moduleIdUnsafe "@/forbids/storeB"], firstImport = Just "import { ... } from '@/lib/helpers'", alsoReached = []}
+                                , kind = TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/helpers", moduleNameUnsafe "@/forbids/storeB"], firstImport = Just "import { ... } from '@/lib/helpers'", alsoReached = []}
                                 , fix = "Remove the import"
                                 }
                            , RuleViolation
                                 { rulebook = RulebookId "test-rulebook"
                                 , rule = RuleId "no-forbids-import"
-                                , badModule = moduleIdUnsafe "@/components/Button"
+                                , badModule = moduleNameUnsafe "@/components/Button"
                                 , prose = "Forbids modules must not be transitively imported."
-                                , kind = TransitiveImport {chain = moduleIdUnsafe "@/components/Button" :| [moduleIdUnsafe "@/lib/util", moduleIdUnsafe "@/forbids/storeA"], firstImport = Just "import { ... } from '@/lib/util'", alsoReached = []}
+                                , kind = TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/util", moduleNameUnsafe "@/forbids/storeA"], firstImport = Just "import { ... } from '@/lib/util'", alsoReached = []}
                                 , fix = "Remove the import"
                                 }
                            ]
@@ -633,9 +633,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "domain-rules"
                                 , rule = RuleId "no-react-in-domain"
-                                , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
+                                , badModule = moduleNameUnsafe "@/domain/LoginUseCase"
                                 , prose = "Domain layer must not depend on React."
-                                , kind = TransitiveImport {chain = moduleIdUnsafe "@/domain/LoginUseCase" :| [moduleIdUnsafe "@/domain/UserRepository", moduleIdUnsafe "@/infrastructure/HttpClient", moduleIdUnsafe "react"], firstImport = Just "import { ... } from '@/domain/UserRepository'", alsoReached = []}
+                                , kind = TransitiveImport {chain = moduleNameUnsafe "@/domain/LoginUseCase" :| [moduleNameUnsafe "@/domain/UserRepository", moduleNameUnsafe "@/infrastructure/HttpClient", moduleNameUnsafe "react"], firstImport = Just "import { ... } from '@/domain/UserRepository'", alsoReached = []}
                                 , fix = "Move React dependencies out of the domain layer."
                                 }
                            ]
@@ -655,9 +655,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     [ RuleViolation
                         { rulebook = RulebookId "exists-rules"
                         , rule = RuleId "requires-spec"
-                        , badModule = moduleIdUnsafe "@/features/home/useHomeViewModel"
+                        , badModule = moduleNameUnsafe "@/features/home/useHomeViewModel"
                         , prose = "Every ViewModel must have a spec file."
-                        , kind = MissingModule {requiredModule = moduleIdUnsafe "@/features/home/useHomeViewModel.spec"}
+                        , kind = MissingModule {requiredModule = moduleNameUnsafe "@/features/home/useHomeViewModel.spec"}
                         , fix = "Create the spec file."
                         }
                     ]
@@ -705,7 +705,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     [ RuleViolation
                         { rulebook = RulebookId "uses-rules"
                         , rule = RuleId "container-wires-state-event"
-                        , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                        , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
                         , prose = "Containers must wire their StateEvent."
                         , kind = MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = False}
                         , fix = "Import the StateEvent."
@@ -720,7 +720,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     [ RuleViolation
                         { rulebook = RulebookId "uses-rules"
                         , rule = RuleId "container-wires-state-event"
-                        , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                        , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
                         , prose = "Containers must wire their StateEvent."
                         , kind = MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = False}
                         , fix = "Import the StateEvent."
@@ -761,7 +761,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     [ RuleViolation
                         { rulebook = RulebookId "uses-rules"
                         , rule = RuleId "container-wires-all"
-                        , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                        , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
                         , prose = "Containers must wire all their dependencies."
                         , kind = MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = False}
                         , fix = "Wire the Container."
@@ -769,7 +769,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     , RuleViolation
                         { rulebook = RulebookId "uses-rules"
                         , rule = RuleId "container-wires-all"
-                        , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                        , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
                         , prose = "Containers must wire all their dependencies."
                         , kind = MissingUse {requiredImport = "@/features/home/HomeView", transitive = False}
                         , fix = "Wire the Container."
@@ -847,7 +847,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "uses-rules"
                                 , rule = RuleId "container-wires-state-event-transitively"
-                                , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
                                 , prose = "Containers must transitively wire their StateEvent."
                                 , kind = MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = True}
                                 , fix = "Import the StateEvent."
@@ -861,7 +861,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 `shouldBe` [ RuleViolation
                                 { rulebook = RulebookId "uses-rules"
                                 , rule = RuleId "container-wires-state-event-transitively"
-                                , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
                                 , prose = "Containers must transitively wire their StateEvent."
                                 , kind = MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = True}
                                 , fix = "Import the StateEvent."
@@ -967,9 +967,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "no-forbidden-imports"
-                                    , badModule = moduleIdUnsafe "@/components/Button"
+                                    , badModule = moduleNameUnsafe "@/components/Button"
                                     , prose = "Forbidden imports not allowed."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "@/forbids/store", importStatement = "import { ... } from '@/forbids/store'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/forbids/store", importStatement = "import { ... } from '@/forbids/store'"}
                                     , fix = "Remove the import."
                                     }
                                ]
@@ -986,9 +986,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "shared-only"
-                                    , badModule = moduleIdUnsafe "@/components/Button"
+                                    , badModule = moduleNameUnsafe "@/components/Button"
                                     , prose = "Only shared imports allowed."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "react", importStatement = "import { ... } from 'react'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "react", importStatement = "import { ... } from 'react'"}
                                     , fix = "Use shared modules only."
                                     }
                                ]
@@ -1015,9 +1015,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "domain-purity"
-                                    , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
+                                    , badModule = moduleNameUnsafe "@/domain/LoginUseCase"
                                     , prose = "Domain modules may only import from domain or shared layers."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "@/infrastructure/HttpClient", importStatement = "import { ... } from '@/infrastructure/HttpClient'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/infrastructure/HttpClient", importStatement = "import { ... } from '@/infrastructure/HttpClient'"}
                                     , fix = "Move the dependency to the correct layer."
                                     }
                                ]
@@ -1029,9 +1029,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "domain-purity"
-                                    , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
+                                    , badModule = moduleNameUnsafe "@/domain/LoginUseCase"
                                     , prose = "Domain modules may only import from domain or shared layers."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "react", importStatement = "import { ... } from 'react'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "react", importStatement = "import { ... } from 'react'"}
                                     , fix = "Move the dependency to the correct layer."
                                     }
                                ]
@@ -1043,9 +1043,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "domain-purity"
-                                    , badModule = moduleIdUnsafe "@/domain/user/login/LoginUseCase"
+                                    , badModule = moduleNameUnsafe "@/domain/user/login/LoginUseCase"
                                     , prose = "Domain modules may only import from domain or shared layers."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "@/infrastructure/db/UserDbRepository", importStatement = "import { ... } from '@/infrastructure/db/UserDbRepository'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/infrastructure/db/UserDbRepository", importStatement = "import { ... } from '@/infrastructure/db/UserDbRepository'"}
                                     , fix = "Move the dependency to the correct layer."
                                     }
                                ]
@@ -1098,9 +1098,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "no-transitive-store"
-                                    , badModule = moduleIdUnsafe "@/components/Button"
+                                    , badModule = moduleNameUnsafe "@/components/Button"
                                     , prose = "Components must not transitively import store modules."
-                                    , kind = TransitiveImport {chain = moduleIdUnsafe "@/components/Button" :| [moduleIdUnsafe "@/lib/hooks", moduleIdUnsafe "@/store/app-store"], firstImport = Just "import { ... } from '@/lib/hooks'", alsoReached = []}
+                                    , kind = TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/hooks", moduleNameUnsafe "@/store/app-store"], firstImport = Just "import { ... } from '@/lib/hooks'", alsoReached = []}
                                     , fix = "Remove the transitive store import."
                                     }
                                ]
@@ -1121,9 +1121,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "domain-purity-transitive"
-                                    , badModule = moduleIdUnsafe "@/domain/LoginUseCase"
+                                    , badModule = moduleNameUnsafe "@/domain/LoginUseCase"
                                     , prose = "Domain must not transitively reach non-domain/shared modules."
-                                    , kind = TransitiveImport {chain = moduleIdUnsafe "@/domain/LoginUseCase" :| [moduleIdUnsafe "@/domain/AuthService", moduleIdUnsafe "@/infrastructure/HttpClient"], firstImport = Just "import { ... } from '@/domain/AuthService'", alsoReached = []}
+                                    , kind = TransitiveImport {chain = moduleNameUnsafe "@/domain/LoginUseCase" :| [moduleNameUnsafe "@/domain/AuthService", moduleNameUnsafe "@/infrastructure/HttpClient"], firstImport = Just "import { ... } from '@/domain/AuthService'", alsoReached = []}
                                     , fix = "Keep domain pure."
                                     }
                                ]
@@ -1185,9 +1185,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "dir-isolation"
-                                    , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                    , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
                                     , prose = "Feature modules may only import from their own directory."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "@/features/auth/AuthService", importStatement = "import { ... } from '@/features/auth/AuthService'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/auth/AuthService", importStatement = "import { ... } from '@/features/auth/AuthService'"}
                                     , fix = "Keep imports within the same directory or extract to shared."
                                     }
                                ]
@@ -1199,9 +1199,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "dir-isolation"
-                                    , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                    , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
                                     , prose = "Feature modules may only import from their own directory."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "react", importStatement = "import { ... } from 'react'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "react", importStatement = "import { ... } from 'react'"}
                                     , fix = "Keep imports within the same directory or extract to shared."
                                     }
                                ]
@@ -1220,9 +1220,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "dir-isolation"
-                                    , badModule = moduleIdUnsafe "@/features/home/data/HomeRepository"
+                                    , badModule = moduleNameUnsafe "@/features/home/data/HomeRepository"
                                     , prose = "Feature modules may only import from their own directory."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "@/features/home/HomeService", importStatement = "import { ... } from '@/features/home/HomeService'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/home/HomeService", importStatement = "import { ... } from '@/features/home/HomeService'"}
                                     , fix = "Keep imports within the same directory or extract to shared."
                                     }
                                ]
@@ -1235,9 +1235,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "dir-isolation"
-                                    , badModule = moduleIdUnsafe "@/features/home/data/HomeRepository"
+                                    , badModule = moduleNameUnsafe "@/features/home/data/HomeRepository"
                                     , prose = "Feature modules may only import from their own directory."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "@/features/home/ui/HomeButton", importStatement = "import { ... } from '@/features/home/ui/HomeButton'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/home/ui/HomeButton", importStatement = "import { ... } from '@/features/home/ui/HomeButton'"}
                                     , fix = "Keep imports within the same directory or extract to shared."
                                     }
                                ]
@@ -1249,9 +1249,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "dir-isolation"
-                                    , badModule = moduleIdUnsafe "@/features/home/data/HomeRepository"
+                                    , badModule = moduleNameUnsafe "@/features/home/data/HomeRepository"
                                     , prose = "Feature modules may only import from their own directory."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "@/features/auth/data/AuthRepository", importStatement = "import { ... } from '@/features/auth/data/AuthRepository'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/auth/data/AuthRepository", importStatement = "import { ... } from '@/features/auth/data/AuthRepository'"}
                                     , fix = "Keep imports within the same directory or extract to shared."
                                     }
                                ]
@@ -1273,9 +1273,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "dir-isolation-shared"
-                                    , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                    , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
                                     , prose = "Feature modules may only import from their own directory or shared."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "@/features/auth/AuthService", importStatement = "import { ... } from '@/features/auth/AuthService'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/auth/AuthService", importStatement = "import { ... } from '@/features/auth/AuthService'"}
                                     , fix = "Keep imports within the same directory or use shared modules."
                                     }
                                ]
@@ -1287,9 +1287,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "dir-isolation-shared"
-                                    , badModule = moduleIdUnsafe "@/features/home/HomeContainer"
+                                    , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
                                     , prose = "Feature modules may only import from their own directory or shared."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "react", importStatement = "import { ... } from 'react'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "react", importStatement = "import { ... } from 'react'"}
                                     , fix = "Keep imports within the same directory or use shared modules."
                                     }
                                ]
@@ -1303,9 +1303,9 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     `shouldBe` [ RuleViolation
                                     { rulebook = RulebookId "test-rulebook"
                                     , rule = RuleId "dir-isolation-shared"
-                                    , badModule = moduleIdUnsafe "@/features/home/data/HomeRepository"
+                                    , badModule = moduleNameUnsafe "@/features/home/data/HomeRepository"
                                     , prose = "Feature modules may only import from their own directory or shared."
-                                    , kind = DirectImport {imported = moduleIdUnsafe "@/features/home/HomeService", importStatement = "import { ... } from '@/features/home/HomeService'"}
+                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/home/HomeService", importStatement = "import { ... } from '@/features/home/HomeService'"}
                                     , fix = "Keep imports within the same directory or use shared modules."
                                     }
                                ]

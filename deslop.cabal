@@ -93,7 +93,7 @@ library
     TypeScript.CST
     TypeScript.Iterator
     TypeScript.Lexer
-    TypeScript.Lint.RelativeImports
+    TypeScript.Lint.RelativeSpecifiers
     TypeScript.ModuleResolver
     TypeScript.Parser
     TypeScript.Tokens
@@ -145,6 +145,7 @@ test-suite deslop-test
   main-is:            Spec.hs
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
+    Deslop.CodeGraphPropSpec
     Deslop.CodeGraphSpec
     Deslop.GlobPlus.CasingSpec
     Deslop.GlobPlus.Oracle
@@ -172,6 +173,8 @@ test-suite deslop-test
     Fixtures.Deslop.Problem.Baseline
     Fixtures.Deslop.Rule.Book.Dto
     Fixtures.TypeScript.Config
+    Generators.TypeScript.CST
+    Generators.TypeScript.Project
     Git.IgnoreSpec
     ParamsSpec
     TestUtils
@@ -182,8 +185,11 @@ test-suite deslop-test
     TypeScript.CSTSpec
     TypeScript.IteratorSpec
     TypeScript.LexerSpec
-    TypeScript.Lint.RelativeImportsSpec
+    TypeScript.Lint.RelativeSpecifiersPropSpec
+    TypeScript.Lint.RelativeSpecifiersSpec
     TypeScript.ModuleResolverSpec
+    TypeScript.ParserPropSpec
+    TypeScript.ResolutionCorpusSpec
     TypeScript.ParserSpec
     UISpec
     UtilsSpec

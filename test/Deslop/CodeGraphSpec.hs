@@ -1,8 +1,8 @@
 module Deslop.CodeGraphSpec (spec) where
 
 import Data.Map.Strict qualified as Map
-import Deslop.AST (AstModule (..), AstNode (..), ModuleId (..), moduleIdUnsafe)
-import Deslop.CodeGraph (ModuleCycle (..), buildModuleGraph, findCycles, findKnownPath, hasPath, moduleExists, reachableFrom)
+import Deslop.AST (AstModule (..), AstNode (..), ModuleName (..), moduleNameUnsafe)
+import Deslop.CodeGraph (GraphKey (..), ModuleCycle (..), ModuleRef (..), buildModuleGraph, findCycles, findKnownPath, hasPath, moduleExists, reachableFrom)
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
 import Fixtures.Deslop.AST (mkModule)
@@ -16,34 +16,38 @@ runHasPath :: AstModule -> AstModule -> [AstModule] -> Bool
 runHasPath from to modules =
     runPureEff
         . runReader (buildModuleGraph modules)
-        $ hasPath from.id to.id
+        $ hasPath (InternalKey from.id) (InternalKey to.id)
 
 runReachableFrom :: AstModule -> [AstModule] -> [Text]
 runReachableFrom from modules =
     sort
-        . map (.text)
+        . map canonicalNameText
         . runPureEff
         . runReader (buildModuleGraph modules)
-        $ reachableFrom from.id
+        $ reachableFrom (InternalKey from.id)
 
 runModuleExists :: Text -> [AstModule] -> Bool
 runModuleExists mid modules =
     runPureEff
         . runReader (buildModuleGraph modules)
-        $ moduleExists (moduleIdUnsafe mid)
+        $ moduleExists (moduleNameUnsafe mid)
 
 runFindKnownPath :: AstModule -> AstModule -> [AstModule] -> [Text]
 runFindKnownPath from to modules =
-    map (.text)
+    map canonicalNameText
         . toList
         . runPureEff
         . runReader (buildModuleGraph modules)
-        $ findKnownPath from.id to.id
+        $ findKnownPath (InternalKey from.id) (InternalKey to.id)
 
--- | Runs findCycles and reduces each cycle to its module ids, in walk order.
+-- | The name a report would give the module a ref points at.
+canonicalNameText :: ModuleRef -> Text
+canonicalNameText = (.text) . head . (.names)
+
+-- | Runs findCycles and reduces each cycle to its module names, in walk order.
 runFindCycles :: [AstModule] -> [[Text]]
 runFindCycles modules =
-    map (map (.id.text) . toList . (.modules))
+    map (map ((.text) . head . (.names)) . toList . (.modules))
         . runPureEff
         . runReader (buildModuleGraph modules)
         $ findCycles
@@ -125,10 +129,11 @@ spec = describe "Deslop.CodeGraph" $ do
         it "returns False for an empty graph" $ do
             runModuleExists "a" [] `shouldBe` False
 
-        it "returns True for an external module referenced as an import target" $ do
-            -- "b" is never parsed but referenced by "a", so it exists as ExternalModule
+        it "returns False for a module only referenced, never parsed" $ do
+            -- "b" is a vertex, so that a's edge does not vanish, but nothing on
+            -- disk answers to that name and `exists` must not be satisfied by it.
             let a = mkModule "a" ["b"]
-            runModuleExists "b" [a] `shouldBe` True
+            runModuleExists "b" [a] `shouldBe` False
 
         it "returns False when a sibling module exists but not the queried one" $ do
             let a = mkModule "a" []
@@ -247,7 +252,7 @@ assertIsCycle modules reported = do
     viaNonEmpty head reported === viaNonEmpty head (sort reported)
     traverse_ assertImports hops
   where
-    imports = Map.fromList [(m.id.text, map (.target.text) m.nodes) | m <- modules]
+    imports = Map.fromList [((head m.names).text, map (.specifier.text) m.nodes) | m <- modules]
     hops = zip reported (drop 1 reported <> take 1 reported)
     assertImports (from, to) =
         (from, to `elem` Map.findWithDefault [] from imports) === (from, True)

@@ -1,10 +1,20 @@
 module Deslop.Rule.Enforcer (enforceRulebooks) where
 
 import Data.Text qualified as T
-import Deslop.AST (AstModule (..), AstNode (..), ModuleId (..), moduleIdUnsafe)
-import Deslop.CodeGraph (ModuleGraph, findKnownPath, moduleExists, reachableFrom)
+import Deslop.AST (AstModule (..), AstNode (..), ModuleName (..), canonicalName, moduleNameUnsafe)
+import Deslop.CodeGraph (
+    GraphKey (..),
+    ModuleGraph,
+    ModuleRef (..),
+    findKnownPath,
+    graphKeyOf,
+    moduleExists,
+    reachableFrom,
+    refName,
+    refOfKey,
+ )
 import Deslop.Error (DeslopError (..))
-import Deslop.GlobPlus (MatchEnv, Segments, hydrate, matchExclude, matchResolved, matchTarget, moduleFromGlob, renderClausePattern, segmentsOf)
+import Deslop.GlobPlus (MatchEnv, ResolvedClause, Segments, hydrate, matchExclude, matchResolved, matchTarget, moduleFromGlob, renderClausePattern, segmentsOf)
 import Deslop.GlobPlus.Compiler (interpolate)
 import Deslop.Problem (Problem (..), ViolationKind (..))
 import Deslop.Rule.Book (AllowsClause (..), ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
@@ -28,20 +38,35 @@ ruleViolation env m violationKind = do
         RuleViolation
             { rulebook = rbId
             , rule = rule.id
-            , badModule = m.id
+            , badModule = canonicalName m
             , prose = interpolate env rule.description
             , kind = violationKind
             , fix = interpolate env rule.fix
             }
 
 {- | Every path this module will be tested against, each split into segments
-exactly once. A module id is matched against every rule and every clause, so
-taking it apart per match is work done as many times as there are clauses.
+exactly once. A module is matched against every rule and every clause, so
+taking its names apart per match is work done as many times as there are
+clauses.
+
+A module answers to more than one name, so each candidate carries all of them:
+a pattern matches the module when it matches any one.
 -}
 data Candidates = Candidates
-    { self :: Segments
-    , imports :: [(AstNode, Segments)]
-    , reachable :: [(ModuleId, Segments)]
+    { self :: NonEmpty Segments
+    , imports :: [ImportCandidate]
+    , reachable :: [ReachCandidate]
+    }
+
+data ImportCandidate = ImportCandidate
+    { node :: AstNode
+    , ref :: ModuleRef
+    , segments :: [Segments]
+    }
+
+data ReachCandidate = ReachCandidate
+    { ref :: ModuleRef
+    , segments :: [Segments]
     }
 
 enforceRulebooks ::
@@ -53,14 +78,27 @@ enforceRulebooks ::
     AstModule -> Eff es ()
 enforceRulebooks m = do
     rulebooks <- ask @[Rulebook]
-    reachable <- reachableFrom m.id
+    reached <- reachableFrom (InternalKey m.id)
+    imported <- traverse importCandidate m.nodes
     let candidates =
             Candidates
-                { self = segmentsOf m.id.text
-                , imports = [(node, segmentsOf node.target.text) | node <- m.nodes]
-                , reachable = [(moduleId, segmentsOf moduleId.text) | moduleId <- reachable]
+                { self = segmentsOfName <$> m.names
+                , imports = imported
+                , reachable = [ReachCandidate {ref = r, segments = segmentsOfRef r} | r <- reached]
                 }
     runReader candidates $ traverse_ (enforceRulebook m) rulebooks
+  where
+    importCandidate node = do
+        let key = graphKeyOf node
+        found <- refOfKey key
+        let r = fromMaybe ModuleRef {key = key, names = node.specifier :| []} found
+        pure ImportCandidate {node = node, ref = r, segments = segmentsOfRef r}
+
+segmentsOfRef :: ModuleRef -> [Segments]
+segmentsOfRef = map segmentsOfName . toList . (.names)
+
+segmentsOfName :: ModuleName -> Segments
+segmentsOfName = segmentsOf . (.text)
 
 enforceRulebook ::
     ( Reader ModuleGraph :> es
@@ -101,12 +139,23 @@ enforceRule m rule = do
         for_ rule.exists (traverse_ (enforceExists m env))
         for_ rule.uses (traverse_ (enforceUses m env))
 
-isTarget :: Segments -> Rule -> Maybe MatchEnv
-isTarget moduleSegments rule = case matchTarget rule.target moduleSegments of
-    Just env | not isExcluded -> Just env
-    _ -> Nothing
+{- | Whether the Rule applies, and what its target captured.
+
+A module matches when any of its names does; an @exclude@ matching any of them
+takes the module out entirely, since excluding is how a Rule is silenced. The
+captures come from the first name that matched, which is the canonical one
+whenever it matches at all.
+-}
+isTarget :: NonEmpty Segments -> Rule -> Maybe MatchEnv
+isTarget names rule
+    | any isExcluded names = Nothing
+    | otherwise = asum $ matchTarget rule.target <$> names
   where
-    isExcluded = any (`matchExclude` moduleSegments) (foldMap toList rule.exclude)
+    isExcluded segments = any (`matchExclude` segments) (foldMap toList rule.exclude)
+
+-- | Whether a hydrated clause matches any name a module answers to.
+matchesAny :: ResolvedClause -> [Segments] -> Bool
+matchesAny pattern = any (matchResolved pattern)
 
 {- | Clauses are hydrated once per matched target and then run against every
 candidate path, rather than resolved afresh for each one.
@@ -123,31 +172,38 @@ enforceForbids m env (ForbidsImport target transitive) = do
     candidates <- ask @Candidates
     allowed <- asks @Rule (fmap (hydrate env . (.target)) . foldMap toList . (.allows))
     let forbidden = hydrate env target
-        isAllowed segments = any (`matchResolved` segments) allowed
+        isAllowed segments = any (`matchesAny` segments) allowed
+        breaks segments = matchesAny forbidden segments && not (isAllowed segments)
     if transitive
-        then traverse_ (transitiveForbiddenImport forbidden isAllowed) candidates.reachable
-        else traverse_ (directForbiddenImport forbidden isAllowed) candidates.imports
+        then traverse_ (transitiveForbiddenImport breaks) candidates.reachable
+        else traverse_ (directForbiddenImport breaks) candidates.imports
   where
-    directForbiddenImport forbidden isAllowed (ImportNode t rawStatement, segments)
-        | matchResolved forbidden segments && not (isAllowed segments) =
+    directForbiddenImport breaks candidate
+        | breaks candidate.segments =
             report
                 =<< ruleViolation
                     env
                     m
-                    DirectImport {imported = t, importStatement = T.strip rawStatement}
+                    DirectImport
+                        { imported = refName candidate.ref
+                        , edge = candidate.node.kind
+                        , importStatement = T.strip candidate.node.rawStatement
+                        }
         | otherwise = pure ()
 
-    transitiveForbiddenImport forbidden isAllowed (reachableModuleId, segments)
-        | matchResolved forbidden segments && not (isAllowed segments) = do
-            p <- findKnownPath m.id reachableModuleId
+    transitiveForbiddenImport breaks candidate
+        | breaks candidate.segments = do
+            p <- findKnownPath (InternalKey m.id) candidate.ref.key
             let firstHop = listToMaybe . drop 1 . toList $ p
-                importRaw hop = T.strip . (.rawStatement) <$> find (\n -> n.target == hop) m.nodes
+                -- Found by what the edge resolved to, not by the text it was
+                -- written with: one module answers to several names.
+                importRaw hop = T.strip . (.rawStatement) <$> find ((== hop.key) . graphKeyOf) m.nodes
             report
                 =<< ruleViolation
                     env
                     m
                     TransitiveImport
-                        { chain = p
+                        { chain = refName <$> p
                         , firstImport = firstHop >>= importRaw
                         , alsoReached = []
                         }
@@ -164,8 +220,8 @@ enforceUses m env (UsesImport usesPattern transitive) = do
     candidates <- ask @Candidates
     let required = hydrate env usesPattern
         satisfied
-            | transitive = any (matchResolved required . snd) candidates.reachable
-            | otherwise = any (matchResolved required . snd) candidates.imports
+            | transitive = any (matchesAny required . (.segments)) candidates.reachable
+            | otherwise = any (matchesAny required . (.segments)) candidates.imports
     unless satisfied $
         report
             =<< ruleViolation
@@ -185,8 +241,8 @@ enforceExists ::
     ) =>
     AstModule -> MatchEnv -> ExistsClause -> Eff es ()
 enforceExists m env (ExistsModule pat) = do
-    mid <- case moduleFromGlob env pat of
-        Just t -> pure (moduleIdUnsafe t)
+    name <- case moduleFromGlob env pat of
+        Just t -> pure (moduleNameUnsafe t)
         Nothing -> do
             RulebookId rbIdText <- ask @RulebookId
             rule <- ask @Rule
@@ -197,6 +253,6 @@ enforceExists m env (ExistsModule pat) = do
                     <> "' in rulebook '"
                     <> rbIdText
                     <> "': 'exists' patterns must not contain wildcards (* or **)."
-    exists <- moduleExists mid
+    exists <- moduleExists name
     unless exists $
-        report =<< ruleViolation env m MissingModule {requiredModule = mid}
+        report =<< ruleViolation env m MissingModule {requiredModule = name}

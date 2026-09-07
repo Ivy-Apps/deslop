@@ -106,18 +106,21 @@ You describe your architecture in declarative YAML rulebooks and drop them in `d
 
 Rules are concise and self-documenting. A non-engineer can read a rulebook and understand the intended architecture. No plugins to author, no regex to wrestle with — just YAML that says what's allowed and what isn't.
 
-Deslop works with **module IDs** — the aliased import paths your code already uses, like `@/features/auth/AuthService`, rather than relative file paths (not `src/features/auth/AuthService.ts`).
+Deslop works with **module names** — the aliased import paths your code already uses, like `@/features/auth/AuthService`, rather than relative file paths (not `src/features/auth/AuthService.ts`).
+
+A module answers to every name that resolves to it, and a rule matching any one of them matches the module. A barrel at `src/features/home/index.ts` is named by both `@/features/home` and `@/features/home/index`; if your `tsconfig.json` maps two aliases onto the same directory, both name the same module. Write whichever you write in your imports.
 
 > [!TIP]
 > Make sure your project has a `@/` path alias configured in `tsconfig.json` so Deslop can resolve all modules.
 
 ### Built-in Checks
 
-Two checks are always on and need no rulebook:
+Three checks are always on and need no rulebook:
 
 | Rule | What it catches | Auto-fixed by `deslop fix` |
 |------|-----------------|----------------------------|
 | `no-relative-imports` | `./util` or `../../lib/util` where an alias like `@/lib/util` exists | Yes |
+| `no-relative-exports` | `export * from "./util"` where an alias like `@/lib/util` exists | Yes |
 | `no-import-cycles` | Circular imports — `@/a` → `@/b` → `@/c` → `@/a` | No |
 
 They report through the same pipeline as rulebook violations, so `deslop baseline` silences them like anything else. Their baseline keys use the lint format, `{rule-id}#{relative-file-path}`:
@@ -125,6 +128,7 @@ They report through the same pipeline as rulebook violations, so `deslop baselin
 ```yaml
 - "no-import-cycles#src/a.ts"
 - "no-relative-imports#src/lib/util.ts"
+- "no-relative-exports#src/lib/index.ts"
 ```
 
 ---

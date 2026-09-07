@@ -51,7 +51,7 @@ import TypeScript.CST
 import TypeScript.Config (TsConfig (..))
 import TypeScript.Config.Loader (loadTsConfig, renderSkippedExtends, renderTsConfigLoadError)
 import TypeScript.Iterator (getTsFiles)
-import TypeScript.Lint.RelativeImports (noRelativeImports)
+import TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers)
 import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
 import UI (divider, humanReadable, problemsFoundText, problemsLogText, summaryLine)
 import Utils (pluralise)
@@ -221,9 +221,9 @@ enforcedRules rulebooks = RuleCount $ rulebookRules + buildInRulesCount
   where
     RuleCount rulebookRules = countRules rulebooks
 
--- | No relative imports and no import cycles.
+-- | No relative imports, no relative re-exports and no import cycles.
 buildInRulesCount :: Int
-buildInRulesCount = 2
+buildInRulesCount = 3
 
 -- | What the Rulebooks themselves define, built-in Rules aside.
 countRules :: [Rulebook] -> RuleCount
@@ -292,7 +292,7 @@ lintFile p c =
     traverse deslop . parseTs $
         TsFile {path = p, content = TE.decodeUtf8 c}
   where
-    deslop = foldr (>=>) pure [noRelativeImports]
+    deslop = foldr (>=>) pure [noRelativeSpecifiers]
 
 {- | The project's effective TypeScript configuration, @extends@ chain and all.
 

@@ -68,6 +68,58 @@ relative to. Not the Paths Base: a project whose aliases live in a `config/`
 subdirectory has the two in different places.
 _Avoid_: Paths Base, baseUrl, source root, working directory
 
+### Modules and dependencies
+
+**Module**:
+One unit of code Deslop puts in the graph. In TypeScript that is one file, but
+that is a fact about TypeScript rather than about Deslop: a Go package is a
+directory and a Rust `mod` may have no file of its own.
+
+**Module Id**:
+Which Module this is. One per Module, minted by a language frontend from
+whatever identifies a Module in that language - for TypeScript, the canonical
+path of its file. Machine-specific, so it never reaches a report or a Baseline.
+_Avoid_: Module Name (see Overloaded terms), path, key
+
+**Module Name**:
+What a Module is called, in the vocabulary Rulebook Rules and reports are
+written in - `@/features/home`. A Module has several whenever several names
+resolve to it, and a Glob+ Pattern matching any one matches the Module.
+_Avoid_: Module Id, alias, import path
+
+**Canonical Name**:
+The one Module Name a report prints and a Rule Violation's Problem ID is built
+from. Fixed per Module, so a Problem keeps its ID from run to run.
+_Avoid_: Primary name, main alias
+
+**Specifier**:
+The text a source file actually writes to name what it depends on - `"@/a"`,
+`"./helper"`, `"react"`. What the author typed, before anything resolves it.
+_Avoid_: Import path, module id, target
+
+**Dependency Edge**:
+One Module depending on another: the Specifier as written, what it resolved to,
+its Edge Kind, and the statement verbatim so a report can quote it.
+_Avoid_: Import (that is one kind of edge), link
+
+**Edge Kind**:
+Whether a Dependency Edge is private to the Module or part of the surface it
+exposes - an Import or a Re-export. Both are edges and the graph treats them
+alike; the distinction exists so a report's sentence matches the statement
+quoted under it.
+
+**Re-export**:
+A Dependency Edge that also re-exposes what it depends on: TypeScript's
+`export ... from`, Rust's `pub use`, a Haskell export list. Go and Kotlin have
+no such construct.
+_Avoid_: Export (a plain `export const` names no Module and is not an edge)
+
+**Barrel**:
+A Module whose purpose is to re-export others, conventionally
+`<dir>/index.ts`. It answers to both its own name and its directory's, and
+those are one Module.
+_Avoid_: Index file (that is the file; the Barrel is what it means), facade
+
 ### Rules and problems
 
 **Rulebook**:
@@ -95,8 +147,9 @@ architecture rather than a rewrite.
 _Avoid_: Fixable (every Problem has a suggested fix; only some are automatic)
 
 **Hop**:
-One edge of the shortest import path from a module to a module it reaches
-transitively. A direct import is 1 hop.
+One Dependency Edge of the shortest path from a module to a module it reaches
+transitively. A direct dependency is 1 hop. A Re-export is a hop like any
+other, which is what lets a chain run through a Barrel.
 _Avoid_: Step, level, depth, degree
 
 ### Glob+
@@ -218,3 +271,17 @@ the word, and each has its own syntax and matching rules:
   mapping, either `Exact` or a single-`*` `Wildcard`.
 - **Ignore Pattern** (`Git.Ignore.IgnorePattern`) — a `.gitignore` glob, per
   gitignore(5).
+
+**Module Id** and **Module Name** both sound like identity. Only one is:
+
+- A **Module Id** identifies. One per Module, opaque to everything outside the
+  language frontend that minted it, and never rendered - it names this machine,
+  so a Problem ID or a Baseline entry built from one would match nothing
+  anywhere else.
+- A **Module Name** names. A Module has as many as there are ways to name it:
+  a Barrel's directory and index forms, plus every alias resolving to it. These
+  are what Rules match and what reports print.
+
+A pattern matches a Module when *any* of its Names does, so the two must not be
+confused: matching on the Id would make the same Module answer under one
+spelling and not another.

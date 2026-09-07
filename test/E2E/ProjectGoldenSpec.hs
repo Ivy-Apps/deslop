@@ -52,6 +52,7 @@ spec = describe "E2E.Project" $ do
     itChecks "ts-globplus-project"
     itChecks "ts-casing-project"
     itChecks "ts-monorepo-project"
+    itChecks "ts-barrel-project"
 
     itFailsToLoadRulebook "ts-invalid-rulebook-project"
     itFailsToLoadTsConfig "ts-broken-extends-project"
@@ -64,8 +65,14 @@ spec = describe "E2E.Project" $ do
     itBaselines "ts-globplus-project"
     itBaselines "ts-casing-project"
     itBaselines "ts-monorepo-project"
+    itBaselines "ts-barrel-project"
 
     itIterates "ts-gitignore-project"
+
+    itFixes
+        "ts-barrel-project"
+        [ "src/lib/index.ts"
+        ]
 
     itFixes
         "ts-project-1"

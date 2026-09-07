@@ -1,0 +1,41 @@
+id: barrels
+name: Barrels
+description: >-
+  Every rule here passes only if a barrel is one module with one set of edges.
+  Each was chosen because it fails against a graph keyed by the text an author
+  typed rather than by the file a specifier resolves to.
+rules:
+  - id: app-keeps-out-of-server
+    description: >-
+      No app module may reach the server layer, however many barrels the chain
+      runs through. The chain is app -> the home barrel -> home-service ->
+      helper -> server/db, so it is only found if re-exports are edges and the
+      barrel's two spellings are one module.
+    target: "@/app/**"
+    forbids:
+      - import: "@/server/**"
+        transitive: true
+    fix: >-
+      Do not depend on @/server from the app layer, directly or through a barrel.
+
+  - id: barrel-exposes-its-view
+    description: >-
+      A feature's barrel is its public surface, so it must re-export the View
+      that feature is for. Naming the barrel by its directory form is what
+      people write, and the rule has to be able to say it.
+    target: "@/features/{{feature-name}}"
+    uses:
+      - import: "@/features/{{feature-name}}/{{feature-name}}-view"
+    fix: >-
+      Re-export the feature's View from its barrel.
+
+  - id: helper-uses-the-db
+    description: >-
+      The helper depends on the database module. It writes that dependency with
+      the second of the two aliases that map to src/, and the rule writes it
+      with the first, so this passes only if both name one module.
+    target: "@/lib/helper"
+    uses:
+      - import: "@/server/db"
+    fix: >-
+      Import @/server/db.

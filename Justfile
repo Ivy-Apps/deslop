@@ -29,6 +29,10 @@ integration:
     cabal run deslop -- baseline sandbox/
     cabal run deslop -- check sandbox/
 
+# Re-record what `tsc` resolves each case in fixtures/resolution-corpus.json to
+update-resolution-corpus:
+    node scripts/update-resolution-corpus.mjs
+
 # Measure performance and fail if it regressed against bench/reference.yaml
 benchmark:
     cabal bench deslop-bench

@@ -8,7 +8,7 @@ module Deslop.Problem (
     LintRuleId (..),
 ) where
 
-import Deslop.AST (ModuleId (..))
+import Deslop.AST (EdgeKind, ModuleName (..))
 import Deslop.Rule.Book (RuleId (RuleId), RulebookId (RulebookId))
 import FileSystem.Path (RelativePath, portablePath)
 
@@ -29,7 +29,7 @@ data Problem
     | RuleViolation
         { rulebook :: RulebookId
         , rule :: RuleId
-        , badModule :: ModuleId
+        , badModule :: ModuleName
         , prose :: Text
         , kind :: ViolationKind
         , fix :: Text
@@ -41,9 +41,13 @@ says what the module actually did, and carries the facts a report is written
 from rather than the sentence itself - "Deslop.Problem.Formatter" owns that.
 -}
 data ViolationKind
-    = -- | The module names the forbidden module in an import of its own.
+    = {- | The module names the forbidden module in a dependency of its own.
+      @edge@ says whether that dependency was an import or a re-export, so the
+      sentence a report writes matches the statement quoted under it.
+      -}
       DirectImport
-        { imported :: ModuleId
+        { imported :: ModuleName
+        , edge :: EdgeKind
         , importStatement :: Text
         }
     | {- | The module arrives at a forbidden module by following imports.
@@ -51,12 +55,12 @@ data ViolationKind
       is the import that opens it - absent when the chain has no first hop.
       -}
       TransitiveImport
-        { chain :: NonEmpty ModuleId
+        { chain :: NonEmpty ModuleName
         , firstImport :: Maybe Text
         , -- | The chains this violation stands in for, once duplicates have
           -- been compacted. Empty until "Deslop.Problem.Shrinker" runs, and
           -- empty afterwards for a violation that had no duplicates.
-          alsoReached :: [NonEmpty ModuleId]
+          alsoReached :: [NonEmpty ModuleName]
         }
     | -- | The module does not import something the Rule requires it to.
       MissingUse
@@ -65,7 +69,7 @@ data ViolationKind
         }
     | -- | A module the Rule requires to exist does not.
       MissingModule
-        { requiredModule :: ModuleId
+        { requiredModule :: ModuleName
         }
     deriving stock (Eq, Show, Ord)
 

@@ -2,7 +2,7 @@ module Deslop.Problem.Formatter (formatProblem) where
 
 import Data.List.NonEmpty qualified as NE
 import Data.Text qualified as T
-import Deslop.AST (ModuleId (..))
+import Deslop.AST (EdgeKind (..), ModuleName (..))
 import Deslop.Problem (Location (..), Problem (..), ProblemId (..), ViolationKind (..), problemId)
 import Utils (pluralise)
 
@@ -26,14 +26,19 @@ formatProblem p@RuleViolation {} =
 module even though the header above it already does, so that a violation
 quoted on its own still says who broke the Rule.
 -}
-violation :: ModuleId -> ViolationKind -> Text
-violation badModule DirectImport {imported, importStatement} =
+violation :: ModuleName -> ViolationKind -> Text
+violation badModule DirectImport {imported, edge, importStatement} =
     "Module '"
         <> badModule.text
-        <> "' directly imports '"
+        <> "' "
+        <> verb edge
+        <> " '"
         <> imported.text
         <> "'."
         <> codeBlock importStatement
+  where
+    verb ImportEdge = "directly imports"
+    verb ReExportEdge = "re-exports"
 violation badModule TransitiveImport {chain, firstImport, alsoReached} =
     "Module '"
         <> badModule.text
@@ -65,7 +70,7 @@ left out on purpose - they are what made the un-compacted report unreadable.
 What the reader still has to act on is the set of imports at fault, so any hop
 other than the one already shown above is named.
 -}
-absorbed :: Maybe ModuleId -> [NonEmpty ModuleId] -> Text
+absorbed :: Maybe ModuleName -> [NonEmpty ModuleName] -> Text
 absorbed _ [] = ""
 absorbed shownHop chains =
     "\nAlso reaches "
@@ -80,7 +85,7 @@ absorbed shownHop chains =
     quoted = T.intercalate ", " . map (\hop -> "'" <> hop.text <> "'")
 
 -- | The import that opens a chain. Absent when the chain never leaves the module.
-firstHop :: NonEmpty ModuleId -> Maybe ModuleId
+firstHop :: NonEmpty ModuleName -> Maybe ModuleName
 firstHop = listToMaybe . drop 1 . toList
 
 codeBlock :: Text -> Text

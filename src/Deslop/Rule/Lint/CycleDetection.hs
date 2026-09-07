@@ -4,8 +4,8 @@ module Deslop.Rule.Lint.CycleDetection (
 
 import Data.List.NonEmpty qualified as NE
 import Data.Text qualified as T
-import Deslop.AST (AstModule (..), AstNode (..), ModuleId (..))
-import Deslop.CodeGraph (ModuleCycle (..), ModuleGraph, findCycles)
+import Deslop.AST (AstModule (..), AstNode (..), ModuleName (..), canonicalName)
+import Deslop.CodeGraph (GraphKey (..), ModuleCycle (..), ModuleGraph, findCycles, graphKeyOf)
 import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader, ask)
@@ -22,7 +22,7 @@ importCycle projectRoot (ModuleCycle loop) =
         , location =
             Location
                 { file = relativePathTo projectRoot start.path
-                , code = enteringImport start nextHop.id
+                , code = enteringImport start nextHop
                 }
         , description = "Circular dependency (import cycle) detected: " <> renderLoop loop
         , fix =
@@ -36,10 +36,12 @@ importCycle projectRoot (ModuleCycle loop) =
     -- a module that imports itself is its own next hop
     nextHop = fromMaybe start . listToMaybe . NE.tail $ loop
 
-    enteringImport :: AstModule -> ModuleId -> Text
+    -- The edge is found by the identity of what it resolved to, not by the
+    -- text it was written with: the same module can be named several ways.
+    enteringImport :: AstModule -> AstModule -> Text
     enteringImport importer target =
-        maybe target.text (T.strip . (.rawStatement))
-            . find ((== target) . (.target))
+        maybe (canonicalName target).text (T.strip . (.rawStatement))
+            . find ((== InternalKey target.id) . graphKeyOf)
             $ importer.nodes
 
 noImportCycles ::
@@ -56,5 +58,5 @@ noImportCycles = do
 renderLoop :: NonEmpty AstModule -> Text
 renderLoop loop =
     T.intercalate " → "
-        . map (.id.text)
+        . map ((.text) . canonicalName)
         $ toList loop <> [NE.head loop]

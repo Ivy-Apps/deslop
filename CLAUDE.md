@@ -81,6 +81,23 @@ red test green throws away the only thing the snapshot was protecting.
 Note that it starts by emptying `.golden/`, so a run that fails to compile
 leaves the directory empty. `git checkout .golden` restores it.
 
+### Updating the tsc resolution corpus
+
+```bash
+nix run .#update-resolution-corpus
+```
+
+Re-records what TypeScript itself resolves each case in
+`fixtures/resolution-corpus.json` to, by running `tsc --traceResolution` over a
+temp copy of each case. Only the `tsc` field is written; everything else is
+authored by hand.
+
+The committed answers are what `TypeScript.ResolutionCorpusSpec` judges our
+resolver against, so the default suite needs neither node nor a compiler. As
+with `.golden`, **a failing corpus test is not a reason to run this**: a diff
+here is a claim about what the compiler does. See
+[ADR 18](docs/adr/0018-typescript-resolution-is-judged-against-tsc.md).
+
 ### Test fixtures
 
 `fixtures/ts-gitignore-project/` contains real `.gitignore` files, which

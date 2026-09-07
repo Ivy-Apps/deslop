@@ -1,7 +1,7 @@
-module TypeScript.Lint.RelativeImportsSpec (spec) where
+module TypeScript.Lint.RelativeSpecifiersSpec (spec) where
 
 import Data.Text qualified as T
-import Deslop.Problem (LintRuleId (..), Location (..), Problem (..))
+import Deslop.Problem (LintRuleId (..), Location (..), Problem (..), ProblemId (..), problemId)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
@@ -17,13 +17,13 @@ import Test.Hspec
 import TestUtils (ap, prop)
 import TypeScript.CST (TsNode (..), TsProgram (..))
 import TypeScript.Config (Pattern (..), TsConfig (..))
-import TypeScript.Lint.RelativeImports (noRelativeImports)
+import TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers)
 
 repoRoot :: ProjectRoot
 repoRoot = ProjectRoot (absPathUnsafe [osp|/home/repo|])
 
 spec :: Spec
-spec = describe "TypeScript.Lint.RelativeImports" $ do
+spec = describe "TypeScript.Lint.RelativeSpecifiers" $ do
     let runTestIn root cfg baseline existingFiles prog =
             runEff
                 . runMockRoFileSystem (mockFiles existingFiles)
@@ -32,7 +32,7 @@ spec = describe "TypeScript.Lint.RelativeImports" $ do
                 . runReader cfg
                 . runReader baseline
                 $ do
-                    result <- noRelativeImports prog
+                    result <- noRelativeSpecifiers prog
                     problems <- getProblems
                     pure (result, problems)
 
@@ -41,8 +41,9 @@ spec = describe "TypeScript.Lint.RelativeImports" $ do
 
     let mkProg fp = TsModule (absPathUnsafe fp)
     let mkImport t = Import {prefix = "import * from '", target = t, suffix = "';\n"}
+    let mkReExport t = ReExport {prefix = "export * from '", target = t, suffix = "';\n"}
 
-    describe "noRelativeImports" $ do
+    describe "noRelativeSpecifiers" $ do
         it "converts an up-dir relative import to an alias" $ do
             let prog =
                     mkProg
@@ -107,6 +108,75 @@ spec = describe "TypeScript.Lint.RelativeImports" $ do
             map (.target) result.cst `shouldBe` ["@/components/Button"]
             problems `shouldBe` []
 
+        it "converts a relative re-export to an alias, under its own rule" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/lib/index.ts|]
+                        [mkReExport "./welcome"]
+            (result, problems) <-
+                runTestNoBaseline defaultTsConfig [[osp|/home/repo/src/lib/welcome.ts|]] prog
+
+            map (.target) result.cst `shouldBe` ["@/lib/welcome"]
+            case problems of
+                [LintProblem {lintRule = r}] -> r `shouldBe` LintRuleId "no-relative-exports"
+                _ -> expectationFailure "expected exactly one no-relative-exports problem"
+
+        it "leaves an already-aliased re-export unchanged and reports no problem" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/lib/index.ts|]
+                        [mkReExport "@/lib/welcome"]
+            (result, problems) <-
+                runTestNoBaseline defaultTsConfig [[osp|/home/repo/src/lib/welcome.ts|]] prog
+
+            map (.target) result.cst `shouldBe` ["@/lib/welcome"]
+            problems `shouldBe` []
+
+        -- One module answers to several names, so a written alias that is not
+        -- the canonical one is that module named another way, not a relative
+        -- import. Reporting it said "Relative imports are not allowed" about an
+        -- import containing nothing relative.
+        it "leaves a non-canonical alias alone rather than calling it relative" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/app.ts|]
+                        [mkImport "@test/welcome"]
+            (result, problems) <-
+                runTestNoBaseline defaultTsConfig [[osp|/home/repo/test/welcome.ts|]] prog
+
+            map (.target) result.cst `shouldBe` ["@test/welcome"]
+            problems `shouldBe` []
+
+        -- The two rules have separate ids so that accepting one does not
+        -- silence the other, which a shared id would do: a Lint Problem's id is
+        -- {rule}#{file}, and these two share a file.
+        it "reports an import and a re-export in one file under separate ids" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/lib/index.ts|]
+                        [mkImport "./welcome", mkReExport "./welcome"]
+            (_, problems) <-
+                runTestNoBaseline defaultTsConfig [[osp|/home/repo/src/lib/welcome.ts|]] prog
+
+            sort (map problemId problems)
+                `shouldBe` sort
+                    [ ProblemId "no-relative-imports#src/lib/index.ts"
+                    , ProblemId "no-relative-exports#src/lib/index.ts"
+                    ]
+
+        it "baselining the import does not silence the re-export" $ do
+            let prog =
+                    mkProg
+                        [osp|/home/repo/src/lib/index.ts|]
+                        [mkImport "./welcome", mkReExport "./welcome"]
+            let baseline = baselineOf ["no-relative-imports#src/lib/index.ts"]
+            (result, _) <-
+                runTest defaultTsConfig baseline [[osp|/home/repo/src/lib/welcome.ts|]] prog
+
+            -- The baselined import keeps its original text; the re-export is
+            -- still fixed.
+            map (.target) result.cst `shouldBe` ["./welcome", "@/lib/welcome"]
+
         it "transforms multiple imports in one program" $ do
             let prog =
                     mkProg
@@ -141,7 +211,7 @@ spec = describe "TypeScript.Lint.RelativeImports" $ do
                     n2 `shouldBe` Source {raw = "export default x;\n"}
                 _ -> expectationFailure "expected at least 3 nodes"
 
-    describe "noRelativeImports with baseline" $ do
+    describe "noRelativeSpecifiers with baseline" $ do
         it "baselined import is reported as problem but kept as-is (not fixed)" $ do
             -- problemId for LintProblem = lintRuleId <> "#" <> filePath
             -- file is relative to the project root, so:

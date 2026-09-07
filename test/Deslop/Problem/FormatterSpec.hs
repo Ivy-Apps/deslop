@@ -1,6 +1,6 @@
 module Deslop.Problem.FormatterSpec (spec) where
 
-import Deslop.AST (ModuleId (..), moduleIdUnsafe)
+import Deslop.AST (EdgeKind (..), ModuleName (..), moduleNameUnsafe)
 import Deslop.Problem (LintRuleId (LintRuleId), Location (..), Problem (..), ViolationKind (..))
 import Deslop.Problem.Formatter (formatProblem)
 import Deslop.Rule.Book (RuleId (RuleId), RulebookId (RulebookId))
@@ -22,28 +22,28 @@ lintProblem =
         }
 
 ruleViolation :: Problem
-ruleViolation = violationOf DirectImport {imported = moduleIdUnsafe "@/lib/index", importStatement = "import { x } from '@/lib/index'"}
+ruleViolation = violationOf DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/lib/index", importStatement = "import { x } from '@/lib/index'"}
 
 violationOf :: ViolationKind -> Problem
 violationOf violationKind =
     RuleViolation
         { rulebook = RulebookId "architecture"
         , rule = RuleId "no-barrel-imports"
-        , badModule = moduleIdUnsafe "@/lib/util"
+        , badModule = moduleNameUnsafe "@/lib/util"
         , prose = "Barrel imports are forbidden"
         , kind = violationKind
         , fix = "Import directly from the module"
         }
 
 -- | @@/lib/util -> @/lib/a -> @/forbids/store@, the chain most cases start from.
-twoHopChain :: NonEmpty ModuleId
-twoHopChain = moduleIdUnsafe "@/lib/util" :| [moduleIdUnsafe "@/lib/a", moduleIdUnsafe "@/forbids/store"]
+twoHopChain :: NonEmpty ModuleName
+twoHopChain = moduleNameUnsafe "@/lib/util" :| [moduleNameUnsafe "@/lib/a", moduleNameUnsafe "@/forbids/store"]
 
-transitiveVia :: Text -> ModuleId -> [NonEmpty ModuleId] -> Problem
+transitiveVia :: Text -> ModuleName -> [NonEmpty ModuleName] -> Problem
 transitiveVia hop forbidden absorbed =
     violationOf
         TransitiveImport
-            { chain = moduleIdUnsafe "@/lib/util" :| [moduleIdUnsafe hop, forbidden]
+            { chain = moduleNameUnsafe "@/lib/util" :| [moduleNameUnsafe hop, forbidden]
             , firstImport = Just $ "import { x } from '" <> hop <> "'"
             , alsoReached = absorbed
             }
@@ -124,7 +124,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
                 let p =
                         violationOf
                             TransitiveImport
-                                { chain = moduleIdUnsafe "@/lib/util" :| [moduleIdUnsafe "@/forbids/store"]
+                                { chain = moduleNameUnsafe "@/lib/util" :| [moduleNameUnsafe "@/forbids/store"]
                                 , firstImport = Nothing
                                 , alsoReached = []
                                 }
@@ -138,10 +138,10 @@ spec = describe "Deslop.Problem.Formatter" $ do
 
             it "attributes absorbed duplicates to this import when they share its first hop" $ do
                 let absorbed =
-                        [ moduleIdUnsafe "@/lib/util" :| [moduleIdUnsafe "@/lib/a", moduleIdUnsafe "@/forbids/other"]
-                        , moduleIdUnsafe "@/lib/util" :| [moduleIdUnsafe "@/lib/a", moduleIdUnsafe "@/forbids/third"]
+                        [ moduleNameUnsafe "@/lib/util" :| [moduleNameUnsafe "@/lib/a", moduleNameUnsafe "@/forbids/other"]
+                        , moduleNameUnsafe "@/lib/util" :| [moduleNameUnsafe "@/lib/a", moduleNameUnsafe "@/forbids/third"]
                         ]
-                    p = transitiveVia "@/lib/a" (moduleIdUnsafe "@/forbids/store") absorbed
+                    p = transitiveVia "@/lib/a" (moduleNameUnsafe "@/forbids/store") absorbed
 
                 formatProblem p
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
@@ -154,10 +154,10 @@ spec = describe "Deslop.Problem.Formatter" $ do
 
             it "names the other imports at fault when absorbed duplicates come through them" $ do
                 let absorbed =
-                        [ moduleIdUnsafe "@/lib/util" :| [moduleIdUnsafe "@/lib/b", moduleIdUnsafe "@/forbids/other"]
-                        , moduleIdUnsafe "@/lib/util" :| [moduleIdUnsafe "@/lib/c", moduleIdUnsafe "@/forbids/third"]
+                        [ moduleNameUnsafe "@/lib/util" :| [moduleNameUnsafe "@/lib/b", moduleNameUnsafe "@/forbids/other"]
+                        , moduleNameUnsafe "@/lib/util" :| [moduleNameUnsafe "@/lib/c", moduleNameUnsafe "@/forbids/third"]
                         ]
-                    p = transitiveVia "@/lib/a" (moduleIdUnsafe "@/forbids/store") absorbed
+                    p = transitiveVia "@/lib/a" (moduleNameUnsafe "@/forbids/store") absorbed
 
                 formatProblem p
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
@@ -169,8 +169,8 @@ spec = describe "Deslop.Problem.Formatter" $ do
                         <> "FIX: Import directly from the module"
 
             it "puts a lone absorbed duplicate in the singular" $ do
-                let absorbed = [moduleIdUnsafe "@/lib/util" :| [moduleIdUnsafe "@/lib/b", moduleIdUnsafe "@/forbids/other"]]
-                    p = transitiveVia "@/lib/a" (moduleIdUnsafe "@/forbids/store") absorbed
+                let absorbed = [moduleNameUnsafe "@/lib/util" :| [moduleNameUnsafe "@/lib/b", moduleNameUnsafe "@/forbids/other"]]
+                    p = transitiveVia "@/lib/a" (moduleNameUnsafe "@/forbids/store") absorbed
 
                 formatProblem p
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"
@@ -197,7 +197,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
                                )
 
             it "names the module a rule requires to exist" $ do
-                let p = violationOf MissingModule {requiredModule = moduleIdUnsafe "@/lib/util.spec"}
+                let p = violationOf MissingModule {requiredModule = moduleNameUnsafe "@/lib/util.spec"}
 
                 formatProblem p
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"

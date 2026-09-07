@@ -1,6 +1,6 @@
 [Title] 🚀 Checking project: ts-project-1
 [Plain] 📚 Loaded 2 rulebooks, 9 rules
-[Error] Found 32 problems:
+[Error] Found 33 problems:
 [Error] ─────────────────────────────────────────
 [Error] [AUTO-FIXABLE] # no-relative-imports#src/app/[locale]/login/page.tsx
 Relative imports are not allowed. Use aliased ones.
@@ -242,6 +242,16 @@ import { HomeScreen } from "@/features/home/home-screen";
 FIX: Remove any imports that transitively pull in React. Data layer modules must only import from @/lib, external non-React packages, or other framework-agnostic modules. Move any React-dependent logic to a ViewModel or Container in the features layer.
 ---------
 
+# architecture#no-react-transitively-in-data#@/features/home/data/home-repository
+Data layer modules in @/features/**/data must not transitively depend on React. Repositories and data access code must stay framework-agnostic so they can be reused in server-side and non-React contexts without pulling in the entire React runtime.
+
+Module '@/features/home/data/home-repository' transitively imports 'react' (3 hops) via: @/features/home/data/home-repository → @/lib/util → @/lib/dom-utils → react.
+```ts
+import { formatDate } from "../../../lib/util";
+```
+FIX: Remove any imports that transitively pull in React. Data layer modules must only import from @/lib, external non-React packages, or other framework-agnostic modules. Move any React-dependent logic to a ViewModel or Container in the features layer.
+---------
+
 # architecture#no-react-transitively-in-data#@/features/profile/data/profile-repository
 Data layer modules in @/features/**/data must not transitively depend on React. Repositories and data access code must stay framework-agnostic so they can be reused in server-side and non-React contexts without pulling in the entire React runtime.
 
@@ -285,7 +295,7 @@ import { httpGet } from "@/infrastructure/HttpClient";
 ```
 FIX: Move the dependency out of the domain layer. Infrastructure concerns (HTTP, DB) belong in @/infrastructure. UI concerns belong in @/features or @/components. Shared pure utilities belong in @/shared.
 [Error] ─────────────────────────────────────────
-[summary] Checked 45 modules enforcing 11 rules
-[exit] Found 32 problems, 17 of them auto-fixable.
+[summary] Checked 45 modules enforcing 12 rules
+[exit] Found 33 problems, 17 of them auto-fixable.
    Run `deslop fix` to fix the 17 auto-fixable problems.
-   Run `deslop baseline` to silence all 32 problems.
+   Run `deslop baseline` to silence all 33 problems.

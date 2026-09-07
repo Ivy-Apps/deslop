@@ -1,11 +1,17 @@
 {- | Turning what a TypeScript file /writes/ in an import into the module it
 actually names, and back again.
 
-The 'Deslop.AST.ModuleId' it deals in is the core's, not this module's: what
+The 'Deslop.AST.ModuleName' it deals in is the core's, not this module's: what
 varies per language is how a written import resolves to a module, not what a
 module is.
+
+A file answers to more than one name - the directory and index forms of a
+barrel, and every @paths@ alias that maps to it - and 'moduleNames' produces all
+of them. Deslop matches patterns against every one, which is what stops the same
+file from becoming two vertices.
 -}
 module TypeScript.ModuleResolver (
+    moduleNames,
     reverseResolve,
     reverseResolveImport,
     resolve,
@@ -16,7 +22,7 @@ module TypeScript.ModuleResolver (
 ) where
 
 import Data.Text qualified as T
-import Deslop.AST (ModuleId (..), moduleIdUnsafe)
+import Deslop.AST (ModuleName (..), moduleNameUnsafe)
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (RoFileSystem, fsFileExists, fsMkAbsolute)
@@ -31,11 +37,34 @@ import FileSystem.Path (
 import System.OsPath (OsPath, dropExtension, splitDirectories, takeDirectory)
 import TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..), ValuePattern (..))
 
+{- | Every alias this file answers to, canonical first.
+
+The canonical name is what 'reverseResolve' has always returned, so a Problem
+reported against a module keeps the id it had and no Baseline churns. After it
+come the remaining aliases, and then the directory form of a barrel - kept only
+when the alias that produced it would accept the shortened text, so that
+@src\/index.ts@ under @\@\/*@ does not claim the name @\@@.
+
+Empty when no mapping names the file; "TypeScript.AST" supplies the fallback,
+because only it knows the project root the fallback is spelled from.
+-}
+moduleNames :: (Reader TsConfig :> es) => AbsPath -> Eff es [ModuleName]
+moduleNames absFilePath = do
+    cfg <- ask @TsConfig
+    let aliased = aliasNames cfg absFilePath
+        directoryForms =
+            [ short
+            | (key, name) <- aliased
+            , Just short <- [T.stripSuffix "/index" name]
+            , isJust (match key short)
+            ]
+    pure . fmap moduleNameUnsafe . ordNub $ fmap snd aliased <> directoryForms
+
 reverseResolveImport ::
     ( RoFileSystem :> es
     , Reader TsConfig :> es
     ) =>
-    AbsPath -> ModuleId -> Eff es ModuleId
+    AbsPath -> ModuleName -> Eff es ModuleName
 reverseResolveImport importingFile target = do
     maybeAbsPath <- resolve importingFile target
     case maybeAbsPath of
@@ -49,38 +78,45 @@ reverseResolveImport importingFile target = do
                         else resolved
         Nothing -> pure target -- keep the original target
 
-reverseResolve :: (Reader TsConfig :> es) => AbsPath -> Eff es (Maybe ModuleId)
+-- | The canonical name of a file: the first alias that maps to it, if any.
+reverseResolve :: (Reader TsConfig :> es) => AbsPath -> Eff es (Maybe ModuleName)
 reverseResolve absFilePath = do
     cfg <- ask @TsConfig
-    let noExtAbsFp = dropTypeScriptExtension absFilePath.osPath
-    let targetSegs = splitDirectories noExtAbsFp
-    let pathsBaseSegs = splitDirectories cfg.pathsBase.osPath
-    let (tRemainderOsp, bRemainderOsp) = dropCommonSegments targetSegs pathsBaseSegs
-    let tRemainder = decodeOsPath <$> tRemainderOsp
+    pure . fmap (moduleNameUnsafe . snd) . listToMaybe $ aliasNames cfg absFilePath
 
-    let upTraversal = replicate (length bRemainderOsp) ".."
-    let moduleRelToCfg = T.intercalate "/" (upTraversal <> tRemainder)
-    case applyPathMapping cfg.paths moduleRelToCfg of
-        Just alias ->
-            let moduleId = moduleIdUnsafe alias
-             in if isRelativeImport moduleId
-                    then pure Nothing
-                    else pure $ Just moduleId
-        Nothing -> pure Nothing
+{- | Every @paths@ mapping that names this file, in the config's own precedence
+order, paired with the key pattern that produced it. A mapping whose key would
+produce a relative name is dropped: a relative name is not a name, it is a
+direction from wherever the reader happens to be.
+-}
+aliasNames :: TsConfig -> AbsPath -> [(Pattern, Text)]
+aliasNames cfg absFilePath =
+    [ (mapping.key.pattern, name)
+    | mapping <- cfg.paths
+    , Just name <- [applyPathMapping mapping moduleRelToCfg]
+    , not . isRelativeImport . moduleNameUnsafe $ name
+    ]
   where
-    applyPathMapping :: [PathMapping] -> Text -> Maybe Text
-    applyPathMapping [] _ = Nothing
-    applyPathMapping (x : xs) moduleRelToCfg
-        | Just valueMatch <- matchValues (toList x.values) moduleRelToCfg = case valueMatch of
-            ExactMatch -> case x.key of
-                (KeyPattern (Exact t)) -> Just t
-                (KeyPattern (Wildcard pre suff)) -> Just (pre <> suff)
-            WildcardMatch capture -> case x.key of
-                -- invalid: Exact Key with Wildcard Value
-                (KeyPattern (Exact _)) -> applyPathMapping xs moduleRelToCfg
-                (KeyPattern (Wildcard pre suff)) -> Just (pre <> capture <> suff)
-        | otherwise = applyPathMapping xs moduleRelToCfg
+    moduleRelToCfg = T.intercalate "/" (upTraversal <> tRemainder)
 
+    noExtAbsFp = dropTypeScriptExtension absFilePath.osPath
+    (tRemainderOsp, bRemainderOsp) =
+        dropCommonSegments (splitDirectories noExtAbsFp) (splitDirectories cfg.pathsBase.osPath)
+    tRemainder = decodeOsPath <$> tRemainderOsp
+    upTraversal = replicate (length bRemainderOsp) ".."
+
+{- | The name one mapping gives a file, if that mapping's value matches it. A
+wildcard value under an exact key is not a valid mapping and names nothing.
+-}
+applyPathMapping :: PathMapping -> Text -> Maybe Text
+applyPathMapping mapping moduleRelToCfg = do
+    valueMatch <- matchValues (toList mapping.values) moduleRelToCfg
+    case (valueMatch, mapping.key) of
+        (ExactMatch, KeyPattern (Exact t)) -> Just t
+        (ExactMatch, KeyPattern (Wildcard pre suff)) -> Just (pre <> suff)
+        (WildcardMatch _, KeyPattern (Exact _)) -> Nothing
+        (WildcardMatch capture, KeyPattern (Wildcard pre suff)) -> Just (pre <> capture <> suff)
+  where
     matchValues :: [ValuePattern] -> Text -> Maybe Match
     matchValues [] _ = Nothing
     matchValues (ValuePattern p : ps) t
@@ -110,7 +146,7 @@ resolve ::
     ( RoFileSystem :> es
     , Reader TsConfig :> es
     ) =>
-    AbsPath -> ModuleId -> Eff es (Maybe AbsPath)
+    AbsPath -> ModuleName -> Eff es (Maybe AbsPath)
 resolve importingFile target =
     if isRelativeImport target
         then
@@ -170,7 +206,7 @@ resolve importingFile target =
             then pure $ Just absFilePath
             else tryExtensions fp es
 
-isRelativeImport :: ModuleId -> Bool
+isRelativeImport :: ModuleName -> Bool
 isRelativeImport m = case m.text of
     "." -> True
     ".." -> True

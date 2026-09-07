@@ -165,6 +165,66 @@ spec = describe "TypeScript.Lexer" $ do
                         token.kind `shouldBe` ImportK
                         T.strip token.raw `shouldBe` T.strip expectedRaw
 
+    describe "Re-export Parser" $ do
+        let runTest = parse lexer "test.ts"
+        let reExports input =
+                map (T.strip . (.raw)) . filter (\n -> n.kind == ReExportK) <$> runTest input
+
+        let edgeCases =
+                [ ("Star", "export * from '@/a'; const x = 1;", "export * from '@/a';")
+                , ("Star with namespace alias", "export * as ns from \"@/a\";", "export * as ns from \"@/a\";")
+                , ("Named", "export { x } from '@/a';", "export { x } from '@/a';")
+                , ("Named with alias", "export { x as y } from '@/a';", "export { x as y } from '@/a';")
+                , ("Default re-export", "export { default } from '@/a';", "export { default } from '@/a';")
+                , ("Default with alias", "export { default as A } from '@/a';", "export { default as A } from '@/a';")
+                , ("Type-only", "export type { T } from '@/a';", "export type { T } from '@/a';")
+                , ("Inline type", "export { type T, x } from '@/a';", "export { type T, x } from '@/a';")
+                , ("Empty clause", "export {} from '@/a';", "export {} from '@/a';")
+                , ("String literal export name", "export { \"odd-name\" as ok } from '@/a';", "export { \"odd-name\" as ok } from '@/a';")
+                , ("No trailing semicolon", "export * from '@/a'\nconst x = 1;", "export * from '@/a'")
+                , ("Multiline", "export {\n  a,\n  b,\n} from '@/a';", "export {\n  a,\n  b,\n} from '@/a';")
+                , ("Comment before the clause", "export /* c */ * from '@/a';", "export /* c */ * from '@/a';")
+                ]
+
+        forM_ edgeCases $ \(desc, input, expectedRaw) ->
+            it ("lexes: " <> desc) $
+                case reExports input of
+                    Left err -> expectationFailure (errorBundlePretty err)
+                    Right raws -> raws `shouldBe` [T.strip expectedRaw]
+
+        -- `export` is everywhere in a TypeScript file, and `deslop fix`
+        -- rewrites what this classifies, so a statement that only looks like a
+        -- re-export must fall through to raw untouched. A string literal
+        -- mistaken for a specifier is a rewritten string literal in somebody's
+        -- source.
+        let nonEdgeCases =
+                [ ("Plain const", "export const x = 5;")
+                , ("Const holding a path", "export const cfg = \"./config\";")
+                , ("Object with a from key", "export const o = { from: \"./nope\" };")
+                , ("Default function", "export default function foo() {}")
+                , ("Named export, no from", "export { a, b };")
+                , ("Type alias", "export type Foo = { a: string };")
+                , ("Type-only, no from", "export type { T };")
+                , ("CommonJS exports", "exports.foo = 1;")
+                , ("Identifier starting with export", "const exported = true;")
+                , ("Interface", "export interface Props { a: string }")
+                , ("Star with no from", "export * ;")
+                ]
+
+        forM_ nonEdgeCases $ \(desc, input) ->
+            it ("does not lex as a re-export: " <> desc) $
+                case reExports input of
+                    Left err -> expectationFailure (errorBundlePretty err)
+                    Right raws -> raws `shouldBe` []
+
+        -- `importantThing` begins with `import`, and the old lexer took the
+        -- keyword without a word boundary, recovering only because the parser
+        -- then failed to find a quote.
+        it "does not lex an identifier beginning with import as an import" $
+            case map (.kind) <$> runTest "const importantThing = 1;" of
+                Left err -> expectationFailure (errorBundlePretty err)
+                Right kinds -> kinds `shouldNotContain` [ImportK]
+
 -- | The core property: Reassembled tokens must match the original input exactly.
 prop_roundTrip :: PropertyT IO ()
 prop_roundTrip = do

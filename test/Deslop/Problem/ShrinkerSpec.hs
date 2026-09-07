@@ -1,6 +1,6 @@
 module Deslop.Problem.ShrinkerSpec (spec) where
 
-import Deslop.AST (ModuleId (..), moduleIdUnsafe)
+import Deslop.AST (EdgeKind (..), ModuleName (..), moduleNameUnsafe)
 import Deslop.Problem (LintRuleId (..), Location (..), Problem (..), ProblemId, ViolationKind (..), problemId)
 import Deslop.Problem.Shrinker (compactProblems)
 import Deslop.Rule.Book (RuleId (..), RulebookId (..))
@@ -23,11 +23,11 @@ transitive bad hops =
     RuleViolation
         { rulebook = RulebookId "architecture"
         , rule = RuleId "hooks-cant-use-components"
-        , badModule = moduleIdUnsafe bad
+        , badModule = moduleNameUnsafe bad
         , prose = "Hooks may not reach components."
         , kind =
             TransitiveImport
-                { chain = moduleIdUnsafe bad :| map moduleIdUnsafe hops
+                { chain = moduleNameUnsafe bad :| map moduleNameUnsafe hops
                 , firstImport = ("import '" <>) <$> listToMaybe hops
                 , alsoReached = []
                 }
@@ -40,7 +40,7 @@ missingUse bad =
     RuleViolation
         { rulebook = RulebookId "architecture"
         , rule = RuleId "hooks-cant-use-components"
-        , badModule = moduleIdUnsafe bad
+        , badModule = moduleNameUnsafe bad
         , prose = "Hooks may not reach components."
         , kind = MissingUse {requiredImport = "@/hooks/base", transitive = False}
         , fix = "Import it."
@@ -51,9 +51,9 @@ directImport bad imported =
     RuleViolation
         { rulebook = RulebookId "architecture"
         , rule = RuleId "hooks-cant-use-components"
-        , badModule = moduleIdUnsafe bad
+        , badModule = moduleNameUnsafe bad
         , prose = "Hooks may not reach components."
-        , kind = DirectImport {imported = moduleIdUnsafe imported, importStatement = "import '" <> imported <> "'"}
+        , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe imported, importStatement = "import '" <> imported <> "'"}
         , fix = "Remove the import."
         }
 

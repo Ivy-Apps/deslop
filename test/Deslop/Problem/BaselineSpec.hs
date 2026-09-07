@@ -1,7 +1,7 @@
 module Deslop.Problem.BaselineSpec (spec) where
 
 import Data.HashSet qualified as HS
-import Deslop.AST (moduleIdUnsafe)
+import Deslop.AST (moduleNameUnsafe)
 import Deslop.Problem (LintRuleId (..), Location (..), Problem (..), ViolationKind (..), problemId)
 import Deslop.Problem.Baseline (Baseline (..), applyBaseline, inBaseline, loadBaselineFromFile, saveBaseline)
 import Deslop.Rule.Book (RuleId (..), RulebookId (..))
@@ -41,9 +41,9 @@ problemA =
     RuleViolation
         { rulebook = RulebookId "rb"
         , rule = RuleId "rule"
-        , badModule = moduleIdUnsafe "modA"
+        , badModule = moduleNameUnsafe "modA"
         , prose = "problem A"
-        , kind = MissingModule {requiredModule = moduleIdUnsafe "modA.spec"}
+        , kind = MissingModule {requiredModule = moduleNameUnsafe "modA.spec"}
         , fix = "fix A"
         }
 
@@ -52,9 +52,9 @@ problemB =
     RuleViolation
         { rulebook = RulebookId "rb"
         , rule = RuleId "rule"
-        , badModule = moduleIdUnsafe "modB"
+        , badModule = moduleNameUnsafe "modB"
         , prose = "problem B"
-        , kind = MissingModule {requiredModule = moduleIdUnsafe "modB.spec"}
+        , kind = MissingModule {requiredModule = moduleNameUnsafe "modB.spec"}
         , fix = "fix B"
         }
 
