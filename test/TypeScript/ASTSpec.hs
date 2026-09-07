@@ -186,6 +186,34 @@ spec = describe "TypeScript.AST" $ do
         map (.target) ast.nodes
             `shouldBe` [ToModule (moduleIdUnsafe "/home/repo/src/features/home/index.ts")]
 
+    -- An import's alias and a re-export's run in opposite directions: in
+    -- `import { A as B } from './m'`, `A` is what './m' exports; in
+    -- `export { A as B } from './m'`, `A` is what './m' exports and `B` is what
+    -- a consumer of the barrel imports. Deslop stores neither - an edge names
+    -- the module - so the two statements are the same edge, differing only in
+    -- the kind that decides how a report words itself.
+    it "an aliased import and an aliased re-export are the same edge" $ do
+        let existingFiles =
+                [ [osp|/home/repo/src/features/home/index.ts|]
+                , [osp|/home/repo/src/features/home/service.ts|]
+                ]
+        let path = absPathUnsafe [osp|/home/repo/src/features/home/index.ts|]
+        let parseOf source =
+                either (fail . toString) pure
+                    . first toText
+                    . parseTs
+                    $ TsFile {path = path, content = source}
+
+        imported <- parseOf "import { A as B } from '@/features/home/service';\n"
+        reExported <- parseOf "export { A as B } from '@/features/home/service';\n"
+        importAst <- runParseAst defaultTsConfig existingFiles imported
+        reExportAst <- runParseAst defaultTsConfig existingFiles reExported
+
+        map (.target) reExportAst.nodes `shouldBe` map (.target) importAst.nodes
+        map (.specifier) reExportAst.nodes `shouldBe` map (.specifier) importAst.nodes
+        map (.kind) importAst.nodes `shouldBe` [ImportEdge]
+        map (.kind) reExportAst.nodes `shouldBe` [ReExportEdge]
+
     it "a re-export of a relative specifier is an edge to the same file" $ do
         let existingFiles =
                 [ [osp|/home/repo/src/features/home/index.ts|]

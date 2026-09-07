@@ -100,10 +100,16 @@ genReExport = do
         , "* as ns"
         , "{ x }"
         , "{ x as y }"
+        , "{ a, b as c }"
+        , "{ default }"
         , "{ default as X }"
         , "{}"
         , "type { T }"
         , "{ type T, x }"
+        , -- A quoted name inside the clause: the specifier is then not the
+          -- first string in the statement.
+          "{ \"odd-name\" as ok }"
+        , "{ x as \"odd-name\" }"
         ]
 
 {- | Statements that name no module, including every shape that has ever looked
@@ -136,6 +142,11 @@ genNonEdgeSource =
         , "export type { T };"
         , "export { a, b };"
         , "export { a as b };"
+        , -- The `from` clause is the whole discriminator, so every shape that
+          -- lacks one belongs here however much of a re-export it looks like.
+          "export { a, b as c };"
+        , "export { default };"
+        , "export * ;"
         , "export {};"
         , "exports.foo = 1;"
         , "module.exports = {};"

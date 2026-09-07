@@ -1,6 +1,6 @@
 [Title] 🚀 Checking project: ts-barrel-project
-[Plain] 📚 Loaded 1 rulebook, 3 rules
-[Error] Found 3 problems:
+[Plain] 📚 Loaded 1 rulebook, 6 rules
+[Error] Found 10 problems:
 [Error] ─────────────────────────────────────────
 [Error] [AUTO-FIXABLE] # no-relative-exports#src/lib/index.ts
 Relative re-exports are not allowed. Use aliased ones.
@@ -10,26 +10,93 @@ export * from "./helper";
 FIX: Use ```export * from "@/lib/helper";``` instead.
 ---------
 
-# barrels#app-keeps-out-of-server#@/app/explicit
-No app module may reach the server layer, however many barrels the chain runs through. The chain is app -> the home barrel -> home-service -> helper -> server/db, so it is only found if re-exports are edges and the barrel's two spellings are one module.
+# barrels#aliased-re-export-is-an-edge#@/app/explicit
+No app module may reach @/server/audit. The only route is `export { formatTitle as title } from`, whose alias names what the barrel exposes rather than what it depends on.
+
+Module '@/app/explicit' transitively imports '@/server/audit' (3 hops) via: @/app/explicit → @/features/home/index → @/features/home/home-view → @/server/audit.
+```ts
+import { greet } from "@/features/home/index";
+```
+FIX: Do not reach @/server/audit through the home barrel.
+---------
+
+# barrels#aliased-re-export-is-an-edge#@/app/page
+No app module may reach @/server/audit. The only route is `export { formatTitle as title } from`, whose alias names what the barrel exposes rather than what it depends on.
+
+Module '@/app/page' transitively imports '@/server/audit' (3 hops) via: @/app/page → @/features/home/index → @/features/home/home-view → @/server/audit.
+```ts
+import { greet } from "@/features/home";
+```
+FIX: Do not reach @/server/audit through the home barrel.
+---------
+
+# barrels#barrel-exposes-its-view#@/features/settings/index
+A feature's barrel is its public surface, so it must re-export the View that feature is for. Naming the barrel by its directory form is what people write, and the rule has to be able to say it.
+
+Module '@/features/settings/index' must import '@/features/settings/settings-view'.
+FIX: Re-export the feature's View from its barrel.
+---------
+
+# barrels#star-as-re-export-is-an-edge#@/app/explicit
+No app module may reach @/server/cache. The only route is `export * as widgets from`, a star re-export with a namespace bound to it.
+
+Module '@/app/explicit' transitively imports '@/server/cache' (3 hops) via: @/app/explicit → @/features/home/index → @/features/home/home-widgets → @/server/cache.
+```ts
+import { greet } from "@/features/home/index";
+```
+FIX: Do not reach @/server/cache through the home barrel.
+---------
+
+# barrels#star-as-re-export-is-an-edge#@/app/page
+No app module may reach @/server/cache. The only route is `export * as widgets from`, a star re-export with a namespace bound to it.
+
+Module '@/app/page' transitively imports '@/server/cache' (3 hops) via: @/app/page → @/features/home/index → @/features/home/home-widgets → @/server/cache.
+```ts
+import { greet } from "@/features/home";
+```
+FIX: Do not reach @/server/cache through the home barrel.
+---------
+
+# barrels#star-re-export-is-an-edge#@/app/explicit
+No app module may reach @/server/db. The only route is `export * from`, which carries no specifier list at all and so can only ever be a module-level edge.
 
 Module '@/app/explicit' transitively imports '@/server/db' (4 hops) via: @/app/explicit → @/features/home/index → @/features/home/home-service → @/lib/helper → @/server/db.
 ```ts
 import { greet } from "@/features/home/index";
 ```
-FIX: Do not depend on @/server from the app layer, directly or through a barrel.
+FIX: Do not reach @/server/db through the home barrel.
 ---------
 
-# barrels#app-keeps-out-of-server#@/app/page
-No app module may reach the server layer, however many barrels the chain runs through. The chain is app -> the home barrel -> home-service -> helper -> server/db, so it is only found if re-exports are edges and the barrel's two spellings are one module.
+# barrels#star-re-export-is-an-edge#@/app/page
+No app module may reach @/server/db. The only route is `export * from`, which carries no specifier list at all and so can only ever be a module-level edge.
 
 Module '@/app/page' transitively imports '@/server/db' (4 hops) via: @/app/page → @/features/home/index → @/features/home/home-service → @/lib/helper → @/server/db.
 ```ts
 import { greet } from "@/features/home";
 ```
-FIX: Do not depend on @/server from the app layer, directly or through a barrel.
+FIX: Do not reach @/server/db through the home barrel.
+---------
+
+# barrels#type-only-re-export-is-an-edge#@/app/explicit
+No app module may reach @/server/schema. The only route is `export type { HomeProps } from`, which erases at runtime but is still a dependency an architecture rule is about.
+
+Module '@/app/explicit' transitively imports '@/server/schema' (3 hops) via: @/app/explicit → @/features/home/index → @/features/home/home-types → @/server/schema.
+```ts
+import { greet } from "@/features/home/index";
+```
+FIX: Do not reach @/server/schema through the home barrel.
+---------
+
+# barrels#type-only-re-export-is-an-edge#@/app/page
+No app module may reach @/server/schema. The only route is `export type { HomeProps } from`, which erases at runtime but is still a dependency an architecture rule is about.
+
+Module '@/app/page' transitively imports '@/server/schema' (3 hops) via: @/app/page → @/features/home/index → @/features/home/home-types → @/server/schema.
+```ts
+import { greet } from "@/features/home";
+```
+FIX: Do not reach @/server/schema through the home barrel.
 [Error] ─────────────────────────────────────────
-[summary] Checked 8 modules enforcing 6 rules
-[exit] Found 3 problems, 1 of them auto-fixable.
+[summary] Checked 15 modules enforcing 9 rules
+[exit] Found 10 problems, 1 of them auto-fixable.
    Run `deslop fix` to fix the 1 auto-fixable problem.
-   Run `deslop baseline` to silence all 3 problems.
+   Run `deslop baseline` to silence all 10 problems.

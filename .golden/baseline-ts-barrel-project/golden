@@ -1,9 +1,16 @@
 [Title] 🚀 Baselining project: ts-barrel-project
-[Plain] 📚 Loaded 1 rulebook, 3 rules
-[Success] ✅ Success: Baseline generated with 3 problems.
-[summary] Baselined 8 modules enforcing 6 rules
+[Plain] 📚 Loaded 1 rulebook, 6 rules
+[Success] ✅ Success: Baseline generated with 10 problems.
+[summary] Baselined 15 modules enforcing 9 rules
 
 >>> baseline.yaml
-- barrels#app-keeps-out-of-server#@/app/explicit
-- barrels#app-keeps-out-of-server#@/app/page
+- barrels#aliased-re-export-is-an-edge#@/app/explicit
+- barrels#aliased-re-export-is-an-edge#@/app/page
+- barrels#barrel-exposes-its-view#@/features/settings/index
+- barrels#star-as-re-export-is-an-edge#@/app/explicit
+- barrels#star-as-re-export-is-an-edge#@/app/page
+- barrels#star-re-export-is-an-edge#@/app/explicit
+- barrels#star-re-export-is-an-edge#@/app/page
+- barrels#type-only-re-export-is-an-edge#@/app/explicit
+- barrels#type-only-re-export-is-an-edge#@/app/page
 - no-relative-exports#src/lib/index.ts
