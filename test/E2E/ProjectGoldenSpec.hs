@@ -75,6 +75,7 @@ spec = describe "E2E.Project" $ do
         "ts-barrel-project"
         [ "src/lib/index.ts"
         , "src/lib/literals.ts" -- statement-shaped text, must not be rewritten
+        , "src/lib/tricky.tsx" -- real dependencies written after text that could swallow them
         ]
 
     itFixes

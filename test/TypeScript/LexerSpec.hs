@@ -230,7 +230,8 @@ spec = describe "TypeScript.Lexer" $ do
     -- classifies is what `deslop fix` rewrites, so classifying a literal is a
     -- silent write to somebody's source rather than a false line in a report.
     describe "String literals" $ do
-        let kindsOf = fmap (map (.kind)) . parse lexer "test.ts"
+        let runTest = parse lexer "test.ts"
+        let kindsOf = fmap (map (.kind)) . runTest
 
         let literalCases =
                 [ ("Template literal", "const banner = `export * from \"./generated\";`;")
@@ -293,6 +294,88 @@ spec = describe "TypeScript.Lexer" $ do
             case kindsOf "const label = <p>don't</p>;\nimport x from './a';" of
                 Left err -> expectationFailure (errorBundlePretty err)
                 Right kinds -> kinds `shouldContain` [ImportK]
+
+        -- Escapes decide where a literal ends. A backslash miscounted by one
+        -- either closes a string early - exposing its text as code - or fails
+        -- to close it, swallowing whatever follows.
+        let escapeCases =
+                [ ("Escaped closing quote", "const s = \"he said \\\"hi\\\"\";")
+                , ("String ending in an escaped backslash", "const s = \"back \\\\\";")
+                , ("Escaped backtick in a template", "const t = `a \\` b`;")
+                , ("Escaped interpolation in a template", "const t = `a \\${b}`;")
+                , ("Escaped quote in a single-quoted string", "const s = 'it\\'s';")
+                ]
+
+        forM_ escapeCases $ \(desc, prefix) ->
+            it ("finds a dependency after: " <> desc) $
+                case kindsOf (prefix <> "\nimport x from './a';") of
+                    Left err -> expectationFailure (errorBundlePretty err)
+                    Right kinds -> kinds `shouldContain` [ImportK]
+
+        -- The other direction of the same guarantee. Every case above proves a
+        -- literal is not rewritten; these prove the scanner still finds a real
+        -- dependency written after text that could have swallowed it.
+        let survivesCases =
+                [ ("Division, which is not a comment", "const r = a / b / c;")
+                , ("A regex holding both quote characters", "const re = /['\"]/;")
+                , ("JSX text with two apostrophes", "const el = <p>don't stop, it's fine</p>;")
+                , ("A multi-line template", "const t = `\nmulti\nline`;")
+                , ("A template with an interpolation", "const t = `a ${ b + c } d`;")
+                , ("A nested template", "const t = `a ${ f(`inner`) } b`;")
+                , ("Non-ASCII text", "const s = \"\26085\26412\35486 ok\";")
+                , ("A CRLF line ending", "const s = 'a';\r")
+                , ("An object literal", "const o = { from: './nope' };")
+                ]
+
+        forM_ survivesCases $ \(desc, prefix) ->
+            it ("finds a dependency after: " <> desc) $
+                case kindsOf (prefix <> "\nimport x from './a';") of
+                    Left err -> expectationFailure (errorBundlePretty err)
+                    Right kinds -> kinds `shouldContain` [ImportK]
+
+        -- Malformed input reaches the lexer from a file somebody is midway
+        -- through typing. It must still round-trip, because `deslop fix`
+        -- writes back what this returns.
+        -- A template interpolation holds code rather than text, so a dynamic
+        -- import written inside one is a real dependency that this scanner
+        -- does not see: a raw token is one contiguous span, so nothing inside
+        -- a region being skipped can be classified. Pinned rather than fixed,
+        -- because the alternative re-opens the literal-rewriting hole. See #231.
+        it "sees a dynamic import but not one inside an interpolation" $
+            case kindsOf "const a = await import('./a');\nconst b = `${ await import('./b') }`;" of
+                Left err -> expectationFailure (errorBundlePretty err)
+                Right kinds -> filter (ImportK ==) kinds `shouldBe` [ImportK]
+
+        -- A known gap, asserted to still be a gap: a backtick inside a regex
+        -- character class opens a skip that is not a string, and pairs with the
+        -- next real template. `/['"]/` is safe because the newline bound closes
+        -- it; only the backtick escapes that. Recorded rather than fixed -
+        -- telling a regex from a division needs the previous token. Closing
+        -- #230 makes this red, which is the point of writing it down.
+        it "still misreads a backtick inside a regex (known gap, #230)" $
+            case kindsOf "const re = /[`]/;\nconst t = `export * from \"./a\";`;" of
+                Left err -> expectationFailure (errorBundlePretty err)
+                Right kinds -> kinds `shouldContain` [ReExportK]
+
+        it "is unaffected by the quote characters a regex usually holds" $
+            case kindsOf "const re = /['\"]/;\nconst t = `export * from \"./a\";`;" of
+                Left err -> expectationFailure (errorBundlePretty err)
+                Right kinds -> kinds `shouldNotContain` [ReExportK]
+
+        let degenerateCases =
+                [ ("Unterminated string at end of file", "const s = \"abc")
+                , ("Unterminated template at end of file", "const t = `abc")
+                , ("Unterminated interpolation", "const t = `a ${ b`;")
+                , ("A lone backtick", "`")
+                , ("A lone quote", "\"")
+                , ("Empty input", "")
+                ]
+
+        forM_ degenerateCases $ \(desc, input) ->
+            it ("round-trips: " <> desc) $
+                case runTest input of
+                    Left err -> expectationFailure (errorBundlePretty err)
+                    Right tokens -> T.concat ((.raw) <$> tokens) `shouldBe` input
 
 -- | The core property: Reassembled tokens must match the original input exactly.
 prop_roundTrip :: PropertyT IO ()

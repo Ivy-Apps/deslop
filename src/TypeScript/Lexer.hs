@@ -11,6 +11,7 @@ module TypeScript.Lexer (
     reExportHeader,
 ) where
 
+import Data.Text qualified as T
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
@@ -150,6 +151,10 @@ Interpolations are the reason this is not a scan to the next backtick. A
 template may hold @${...}@, which holds arbitrary code, which may hold another
 template: closing on the first backtick found would close on the /inner opening/
 one and leave the inner template's text to be read as code.
+
+The cost is that an interpolation is skipped rather than scanned, so a dynamic
+@import()@ written inside one is not an edge - a raw token is one contiguous
+span, so nothing inside a region being skipped can be classified. See #231.
 -}
 pTemplate :: Lexer ()
 pTemplate = void $ char '`' *> manyTill piece (char '`')
@@ -217,6 +222,32 @@ pRaw =
     uncurry TsToken . second (const RawK)
         <$> match (rawChunk >> manyTill rawChunk stopCondition)
   where
-    rawChunk = try pSkipString <|> void anySingle
+    rawChunk =
+        choice
+            [ void $ takeWhile1P Nothing (not . breaksRawRun)
+            , try pSkipString
+            , void anySingle
+            ]
     stopCondition = lookAhead $ void atTokenStart <|> eof
-    atTokenStart = choice [try $ string "//", string "/*", string "import", string "export"]
+    atTokenStart = choice . map (try . string) $ tokenStarts
+
+-- | What ends a raw run: a comment, or a statement this module classifies.
+tokenStarts :: [Text]
+tokenStarts = ["//", "/*", "import", "export"]
+
+{- | Whether a character can end a raw run - by opening a string literal, or by
+beginning one of 'tokenStarts'.
+
+Every other character is consumed in bulk by one 'takeWhile1P', which is the
+whole point: without it a raw run pays for three quote alternatives and a
+four-way keyword lookahead at every character of a file that is mostly neither.
+
+Derived from 'tokenStarts' rather than written out, because the two must agree.
+A hand-written set would let a fifth keyword be added above and silently not be
+looked for here, and the symptom would be a dependency that stops being found.
+-}
+breaksRawRun :: Char -> Bool
+breaksRawRun = (`elem` rawRunBreaks)
+
+rawRunBreaks :: [Char]
+rawRunBreaks = ['"', '\'', '`'] <> mapMaybe (fmap fst . T.uncons) tokenStarts

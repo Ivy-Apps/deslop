@@ -1,6 +1,6 @@
 [Title] 🚀 Checking project: ts-barrel-project
 [Plain] 📚 Loaded 1 rulebook, 6 rules
-[Error] Found 10 problems:
+[Error] Found 12 problems:
 [Error] ─────────────────────────────────────────
 [Error] [AUTO-FIXABLE] # no-relative-exports#src/lib/index.ts
 src/lib/index.ts:2
@@ -9,6 +9,24 @@ Relative re-exports are not allowed. Use aliased ones.
 export * from "./helper";
 ```
 FIX: Use ```export * from "@/lib/helper";``` instead.
+---------
+
+[AUTO-FIXABLE] # no-relative-exports#src/lib/tricky.tsx
+src/lib/tricky.tsx:15
+Relative re-exports are not allowed. Use aliased ones.
+```ts
+export * from "./helper";
+```
+FIX: Use ```export * from "@/lib/helper";``` instead.
+---------
+
+[AUTO-FIXABLE] # no-relative-imports#src/lib/tricky.tsx
+src/lib/tricky.tsx:12
+Relative imports are not allowed. Use aliased ones.
+```ts
+import { helper } from "./helper";
+```
+FIX: Use ```import { helper } from "@/lib/helper";``` instead.
 ---------
 
 # barrels#aliased-re-export-is-an-edge#@/app/explicit
@@ -106,7 +124,7 @@ import { greet } from "@/features/home";
 ```
 FIX: Do not reach @/server/schema through the home barrel.
 [Error] ─────────────────────────────────────────
-[summary] Checked 16 modules enforcing 9 rules
-[exit] Found 10 problems, 1 of them auto-fixable.
-   Run `deslop fix` to fix the 1 auto-fixable problem.
-   Run `deslop baseline` to silence all 10 problems.
+[summary] Checked 17 modules enforcing 9 rules
+[exit] Found 12 problems, 3 of them auto-fixable.
+   Run `deslop fix` to fix the 3 auto-fixable problems.
+   Run `deslop baseline` to silence all 12 problems.
