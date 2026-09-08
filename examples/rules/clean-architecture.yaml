@@ -20,6 +20,10 @@ description: >-
 
 rules:
 
+  # `allows-only:` is `forbids: "**"` plus `allows:` in one clause. Note that
+  # "**" means every module, npm packages included, so a layer that legitimately
+  # imports react or next must list them here alongside its own layers.
+
   # ── LAYER 1: Domain ──────────────────────────────────────────────────────
   # Whitelist: domain modules may only import other domain modules.
   # Zero npm dependencies, zero knowledge of outer layers.
@@ -29,9 +33,7 @@ rules:
       other domain modules — no application logic, no infrastructure,
       no UI, and no external frameworks.
     target: "@/domain/**"
-    forbids:
-      - import: "**"
-    allows:
+    allows-only:
       - import: "@/domain/**"
     fix: >-
       Remove the import. Domain logic must be pure TypeScript with no
@@ -46,9 +48,7 @@ rules:
       They must not depend on infrastructure, UI, or external frameworks —
       only on domain abstractions.
     target: "@/application/**"
-    forbids:
-      - import: "**"
-    allows:
+    allows-only:
       - import: "@/domain/**"
       - import: "@/application/**"
     fix: >-

@@ -11,6 +11,10 @@ description: >-
 
 rules:
 
+  # `allows-only:` is `forbids: "**"` plus `allows:` in one clause. Note that
+  # "**" means every module, npm packages included, so a layer that legitimately
+  # imports react or next must list them here alongside its own layers.
+
   # ── Pages ─────────────────────────────────────────────────────────────────
   # Whitelist: pages compose from widgets downward, never from app layer.
   - id: pages-layer-boundary
@@ -18,9 +22,7 @@ rules:
       Pages compose the UI from widgets, features, entities, and shared.
       They must not import from the app layer, which configures the application.
     target: "@/pages/**"
-    forbids:
-      - import: "**"
-    allows:
+    allows-only:
       - import: "@/pages/**"
       - import: "@/widgets/**"
       - import: "@/features/**"
@@ -35,9 +37,7 @@ rules:
       Widgets are composite UI blocks. They may only import from features,
       entities, and shared — never from pages or the app layer above them.
     target: "@/widgets/**"
-    forbids:
-      - import: "**"
-    allows:
+    allows-only:
       - import: "@/widgets/**"
       - import: "@/features/**"
       - import: "@/entities/**"
@@ -53,9 +53,7 @@ rules:
       Features implement isolated business interactions. They may only import
       from entities and shared — never from widgets, pages, or the app layer.
     target: "@/features/**"
-    forbids:
-      - import: "**"
-    allows:
+    allows-only:
       - import: "@/features/**"
       - import: "@/entities/**"
       - import: "@/shared/**"
@@ -70,9 +68,7 @@ rules:
       Entities are reusable business objects with no feature-specific logic.
       They may only import from shared.
     target: "@/entities/**"
-    forbids:
-      - import: "**"
-    allows:
+    allows-only:
       - import: "@/entities/**"
       - import: "@/shared/**"
     fix: >-
@@ -86,9 +82,7 @@ rules:
       Shared contains generic utilities, UI kit, and helpers used by all layers.
       It must not import from any FSD layer above it.
     target: "@/shared/**"
-    forbids:
-      - import: "**"
-    allows:
+    allows-only:
       - import: "@/shared/**"
     fix: >-
       Remove imports from feature-specific layers.
