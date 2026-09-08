@@ -3,6 +3,7 @@
 [Error] Found 19 problems:
 [Error] ─────────────────────────────────────────
 [Error] # provider-services#adapter-imports-its-provider-config#@/adapters/stripe-connect/stripe-connect-payment-gateway
+src/adapters/stripe-connect/stripe-connect-payment-gateway.ts
 An adapter names its provider twice: once as the folder it sits in, and once as the prefix of its own file name, before the service type. The greedy split of that file segment gives the provider one word too many, and the folder above has already ruled it out - so the split has to be chosen by what is already bound rather than merely checked against it.
 
 Module '@/adapters/stripe-connect/stripe-connect-payment-gateway' must import '@/config/stripe-connect'.
@@ -10,6 +11,7 @@ FIX: Import @/config/stripe-connect, the config of the provider your folder name
 ---------
 
 # provider-services#nested-view-uses-its-provider-config#@/components/paypal/payment/RefundView
+src/components/paypal/payment/RefundView.tsx
 A View at any depth under a provider folder must import that provider's config. The provider variable sits before the **, so the group that captures it is numbered after the globstar's own - the arrangement in which reading captures by position binds the provider to the globstar.
 
 Module '@/components/paypal/payment/RefundView' must import '@/config/paypal'.
@@ -17,6 +19,7 @@ FIX: Import @/config/paypal rather than another provider's config.
 ---------
 
 # provider-services#nested-view-uses-its-shared-formatter#@/components/stripe-connect/payment/widgets/BadgeView
+src/components/stripe-connect/payment/widgets/BadgeView.tsx
 Every View imports the money formatter from the shared folder one directory back from its own. @/components/stripe-connect/payment/widgets is the directory of the matched FILE rather than of the rule, so this clause names a different module for a View nested one level deeper. That is documented behaviour rather than a bug: see "`..` is relative to the file, not to the rule".
 
 Module '@/components/stripe-connect/payment/widgets/BadgeView' must import '@/components/stripe-connect/payment/shared/format-money'.
@@ -24,6 +27,7 @@ FIX: Import the format-money module from the shared folder beside your own, or m
 ---------
 
 # provider-services#nested-view-uses-its-shared-formatter#@/components/stripe-connect/payment/widgets/BadgeView
+src/components/stripe-connect/payment/widgets/BadgeView.tsx
 Every View imports the money formatter from the shared folder one directory back from its own. @/components/stripe-connect/payment/widgets is the directory of the matched FILE rather than of the rule, so this clause names a different module for a View nested one level deeper. That is documented behaviour rather than a bug: see "`..` is relative to the file, not to the rule".
 
 Module '@/components/stripe-connect/payment/widgets/BadgeView' requires '@/components/stripe-connect/payment/shared/format-money' to exist.
@@ -31,6 +35,7 @@ FIX: Import the format-money module from the shared folder beside your own, or m
 ---------
 
 # provider-services#provider-entry-is-named-after-its-folder#@/components/square/SquareEntry
+src/components/square/SquareEntry.tsx
 A provider's entry point carries its provider's name. The same variable occurs on both sides of the **, so the rule applies only where the folder and the file agree - and never applied at all while the globstar's text was being read as the provider.
 
 Module '@/components/square/SquareEntry' requires '@/config/square' to exist.
@@ -38,6 +43,7 @@ FIX: Name the entry point after the provider folder it sits under.
 ---------
 
 # provider-services#providers-are-isolated#@/components/paypal
+src/components/paypal.ts:7
 One provider's components must never import another provider's components. Anything shared between providers belongs outside @/components.
 
 Module '@/components/paypal' directly imports '@/components/stripe-connect/payment/CheckoutView'.
@@ -48,6 +54,7 @@ FIX: Import only from within @/components/paypal, or promote the shared code out
 ---------
 
 # provider-services#providers-are-isolated#@/components/paypal/payment/RefundView
+src/components/paypal/payment/RefundView.tsx:6
 One provider's components must never import another provider's components. Anything shared between providers belongs outside @/components.
 
 Module '@/components/paypal/payment/RefundView' directly imports '@/components/stripe-connect/payment/CheckoutView'.
@@ -58,6 +65,7 @@ FIX: Import only from within @/components/paypal, or promote the shared code out
 ---------
 
 # provider-services#storybook-has-a-visual-test#@/components/stripe-connect/payment/CheckoutView.stories
+src/components/stripe-connect/payment/CheckoutView.stories.tsx
 Every story is paired with a visual test. This rule's own prose carries variables: Checkout and @/components/stripe-connect/payment are substituted from the match, while the misspelled {{FileNam}} names nothing and is printed as written.
 
 Module '@/components/stripe-connect/payment/CheckoutView.stories' requires '@/components/stripe-connect/payment/CheckoutView.visual' to exist.
@@ -65,6 +73,7 @@ FIX: Add @/components/stripe-connect/payment/CheckoutView.visual next to the sto
 ---------
 
 # provider-services#use-case-has-a-view-model#@/application/notify-user/NotifyUserUseCase
+src/application/notify-user/NotifyUserUseCase.ts
 Every use case is driven by a ViewModel named after it, in camelCase this time - the same three words spelled a third way.
 
 Module '@/application/notify-user/NotifyUserUseCase' requires '@/application/notify-user/useNotifyUserViewModel' to exist.
@@ -72,6 +81,7 @@ FIX: Add a useNotifyUserViewModel next to the use case.
 ---------
 
 # provider-services#view-has-a-storybook#@/components/paypal/payment/RefundView
+src/components/paypal/payment/RefundView.tsx
 Every service View must be documented in Storybook.
 
 Module '@/components/paypal/payment/RefundView' requires '@/components/paypal/payment/RefundView.stories' to exist.
@@ -79,6 +89,7 @@ FIX: Add a RefundView.stories.tsx file next to the View.
 ---------
 
 # provider-services#view-has-a-storybook#@/components/stripe-connect/payout/TransferView
+src/components/stripe-connect/payout/TransferView.tsx
 Every service View must be documented in Storybook.
 
 Module '@/components/stripe-connect/payout/TransferView' requires '@/components/stripe-connect/payout/TransferView.stories' to exist.
@@ -86,6 +97,7 @@ FIX: Add a TransferView.stories.tsx file next to the View.
 ---------
 
 # provider-services#view-may-reach-its-providers-shared-folder#@/components/paypal/payment/RefundView
+src/components/paypal/payment/RefundView.tsx:6
 A View may use its own service folder and the provider's shared folder, which sits one directory back from @/components/paypal/payment. A sibling *service* folder of the same provider is not reachable that way, so the .. in this clause is what decides where the allowance stops - providers-are-isolated permits that import, and this rule does not.
 
 Module '@/components/paypal/payment/RefundView' directly imports '@/components/stripe-connect/payment/CheckoutView'.
@@ -96,6 +108,7 @@ FIX: Import from your own payment folder or from @/components/paypal/shared, and
 ---------
 
 # provider-services#view-may-reach-its-providers-shared-folder#@/components/stripe-connect/payout/TransferView
+src/components/stripe-connect/payout/TransferView.tsx:7
 A View may use its own service folder and the provider's shared folder, which sits one directory back from @/components/stripe-connect/payout. A sibling *service* folder of the same provider is not reachable that way, so the .. in this clause is what decides where the allowance stops - providers-are-isolated permits that import, and this rule does not.
 
 Module '@/components/stripe-connect/payout/TransferView' directly imports '@/components/stripe-connect/payment/CheckoutView'.
@@ -106,6 +119,7 @@ FIX: Import from your own payout folder or from @/components/stripe-connect/shar
 ---------
 
 # provider-services#view-model-calls-its-own-provider-service#@/components/stripe-connect/payout/useTransferViewModel
+src/components/stripe-connect/payout/useTransferViewModel.ts
 A ViewModel may only talk to the service module of the provider and service type it belongs to. The service module name is derived from all three variables, so a ViewModel cannot reach into another provider's service.
 
 Module '@/components/stripe-connect/payout/useTransferViewModel' must import '@/services/stripe-connect/payout-transfer'.
@@ -113,6 +127,7 @@ FIX: Import @/services/stripe-connect/payout-transfer rather than another provid
 ---------
 
 # provider-services#view-model-drives-its-use-case#@/application/db-sync-job/useDBSyncJobViewModel
+src/application/db-sync-job/useDBSyncJobViewModel.ts
 A use case's ViewModel drives that use case and no other. The variable is three words long and occurs three times - as the kebab-case folder, and in PascalCase inside two different affixed segments - so every word of it has to survive being written out in two casings.
 
 Module '@/application/db-sync-job/useDBSyncJobViewModel' must import '@/application/db-sync-job/DBSyncJobUseCase'.
@@ -120,6 +135,7 @@ FIX: Import @/application/db-sync-job/DBSyncJobUseCase rather than another use c
 ---------
 
 # provider-services#view-model-drives-its-use-case#@/application/refund-payment/useRefundPaymentViewModel
+src/application/refund-payment/useRefundPaymentViewModel.ts
 A use case's ViewModel drives that use case and no other. The variable is three words long and occurs three times - as the kebab-case folder, and in PascalCase inside two different affixed segments - so every word of it has to survive being written out in two casings.
 
 Module '@/application/refund-payment/useRefundPaymentViewModel' must import '@/application/refund-payment/RefundPaymentUseCase'.
@@ -127,6 +143,7 @@ FIX: Import @/application/refund-payment/RefundPaymentUseCase rather than anothe
 ---------
 
 # provider-services#view-wires-own-view-model#@/components/paypal/payment/RefundView
+src/components/paypal/payment/RefundView.tsx
 A service View is pure UI. It must delegate its state and behaviour to the ViewModel hook that sits next to it in the same provider/service folder.
 
 Module '@/components/paypal/payment/RefundView' must import '@/components/paypal/payment/useRefundViewModel'.
@@ -134,6 +151,7 @@ FIX: Import useRefundViewModel from the same directory and drive the View from t
 ---------
 
 # provider-services#views-reach-shared-at-any-depth#@/components/paypal/payment/RefundView
+src/components/paypal/payment/RefundView.tsx:6
 A View may import from its own folder, from a shared folder at any level at or above it, and from config. Written with allows-only and ..*, which is what makes it hold at every depth: the fixed ../shared/** of nested-view-uses-its-shared-formatter above names a different folder for a View one level deeper, while ..* names all of them.
 
 Module '@/components/paypal/payment/RefundView' directly imports '@/components/stripe-connect/payment/CheckoutView'.
@@ -144,6 +162,7 @@ FIX: Import from your own folder, or move the code into a shared folder at or ab
 ---------
 
 # provider-services#views-reach-shared-at-any-depth#@/components/stripe-connect/payout/TransferView
+src/components/stripe-connect/payout/TransferView.tsx:7
 A View may import from its own folder, from a shared folder at any level at or above it, and from config. Written with allows-only and ..*, which is what makes it hold at every depth: the fixed ../shared/** of nested-view-uses-its-shared-formatter above names a different folder for a View one level deeper, while ..* names all of them.
 
 Module '@/components/stripe-connect/payout/TransferView' directly imports '@/components/stripe-connect/payment/CheckoutView'.
@@ -152,6 +171,6 @@ import { CheckoutView } from '@/components/stripe-connect/payment/CheckoutView';
 ```
 FIX: Import from your own folder, or move the code into a shared folder at or above this View.
 [Error] ─────────────────────────────────────────
-[summary] Checked 28 modules enforcing 15 rules
+[summary] Checked 28 modules enforcing 16 rules
 [exit] Found 19 problems, none auto-fixable.
    Run `deslop baseline` to silence all 19 problems.

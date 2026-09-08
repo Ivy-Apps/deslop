@@ -81,6 +81,23 @@ red test green throws away the only thing the snapshot was protecting.
 Note that it starts by emptying `.golden/`, so a run that fails to compile
 leaves the directory empty. `git checkout .golden` restores it.
 
+### Updating the tsc resolution corpus
+
+```bash
+nix run .#update-resolution-corpus
+```
+
+Re-records what TypeScript itself resolves each case in
+`fixtures/resolution-corpus.json` to, by running `tsc --traceResolution` over a
+temp copy of each case. Only the `tsc` field is written; everything else is
+authored by hand.
+
+The committed answers are what `TypeScript.ResolutionCorpusSpec` judges our
+resolver against, so the default suite needs neither node nor a compiler. As
+with `.golden`, **a failing corpus test is not a reason to run this**: a diff
+here is a claim about what the compiler does. See
+[ADR 18](docs/adr/0018-typescript-resolution-is-judged-against-tsc.md).
+
 ### Test fixtures
 
 `fixtures/ts-gitignore-project/` contains real `.gitignore` files, which
@@ -98,8 +115,8 @@ Four layers. **Imports only ever point inward** - see
 
 ```
 Deslop.hs          orchestration - the only module that knows both a language and the core
-  └─ Deslop/       language-agnostic core: AST, CodeGraph, Problem, GlobPlus, Rule
-       └─ TypeScript/    a language frontend: bytes → Tokens → CST → Deslop.AST
+  └─ Deslop/       language-agnostic core: Module, CodeGraph, Problem, GlobPlus, Rule
+       └─ TypeScript/    a language frontend: bytes → Tokens → CST → Deslop.Module
             └─ Effects/  FileSystem/  Git/  Utils  Renderable    infrastructure
 ```
 
@@ -107,10 +124,15 @@ Where new code goes:
 
 - **`Deslop/`** - anything true of every language. It must not `import
   TypeScript`; `grep -rn "^import TypeScript" src/Deslop/` returning nothing is
-  the check.
+  the check. It holds nothing machine-specific either: paths crossing the seam
+  are `ProjectRelativePath`, and `ModuleId` is opaque and never rendered.
 - **`TypeScript/`** - anything that knows the syntax, `tsconfig`, or file
   extensions. A new language is a new top-level directory ending in a
-  `<Lang>.AST` that produces `Deslop.AST`, the seam both sides meet at.
+  `<Lang>.Module` that produces `Deslop.Module`, the seam both sides meet at.
+  Nothing crossing it is a tree: a frontend hands over a flat list of modules
+  and the edges between them, having already resolved every specifier and named
+  what it resolved to. Module Names are spelled with `/` in every language
+  (ADR 19).
 - **`Effects/`** - every effect declaration and its interpreter. `Effects.CLI`
   is the only code that writes to a terminal; `UI` composes the text it prints
   and is pure.

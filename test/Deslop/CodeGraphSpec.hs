@@ -1,49 +1,61 @@
 module Deslop.CodeGraphSpec (spec) where
 
 import Data.Map.Strict qualified as Map
-import Deslop.AST (AstModule (..), AstNode (..), ModuleId (..), moduleIdUnsafe)
-import Deslop.CodeGraph (ModuleCycle (..), buildModuleGraph, findCycles, findKnownPath, hasPath, moduleExists, reachableFrom)
+import Deslop.CodeGraph (GraphKey (..), ModuleCycle (..), ModuleRef (..), buildModuleGraph, findCycles, findKnownPath, hasPath, moduleExists, reachableFrom)
+import Deslop.Module (
+    DependencyEdge (..),
+    EdgeTarget (..),
+    Module (..),
+    ModuleName (..),
+    Specifier (..),
+    moduleIdUnsafe,
+    moduleNameUnsafe,
+ )
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
-import Fixtures.Deslop.AST (mkModule)
+import Fixtures.Deslop.Module (mkImportEdge, mkModule)
 import Hedgehog (Gen, PropertyT, footnote, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import Test.Hspec
 import TestUtils (prop)
 
-runHasPath :: AstModule -> AstModule -> [AstModule] -> Bool
+runHasPath :: Module -> Module -> [Module] -> Bool
 runHasPath from to modules =
     runPureEff
         . runReader (buildModuleGraph modules)
-        $ hasPath from.id to.id
+        $ hasPath (ModuleKey from.id) (ModuleKey to.id)
 
-runReachableFrom :: AstModule -> [AstModule] -> [Text]
+runReachableFrom :: Module -> [Module] -> [Text]
 runReachableFrom from modules =
     sort
-        . map (.text)
+        . map canonicalNameText
         . runPureEff
         . runReader (buildModuleGraph modules)
-        $ reachableFrom from.id
+        $ reachableFrom (ModuleKey from.id)
 
-runModuleExists :: Text -> [AstModule] -> Bool
+runModuleExists :: Text -> [Module] -> Bool
 runModuleExists mid modules =
     runPureEff
         . runReader (buildModuleGraph modules)
-        $ moduleExists (moduleIdUnsafe mid)
+        $ moduleExists (moduleNameUnsafe mid)
 
-runFindKnownPath :: AstModule -> AstModule -> [AstModule] -> [Text]
+runFindKnownPath :: Module -> Module -> [Module] -> [Text]
 runFindKnownPath from to modules =
-    map (.text)
+    map canonicalNameText
         . toList
         . runPureEff
         . runReader (buildModuleGraph modules)
-        $ findKnownPath from.id to.id
+        $ findKnownPath (ModuleKey from.id) (ModuleKey to.id)
 
--- | Runs findCycles and reduces each cycle to its module ids, in walk order.
-runFindCycles :: [AstModule] -> [[Text]]
+-- | The name a report would give the module a ref points at.
+canonicalNameText :: ModuleRef -> Text
+canonicalNameText = (.text) . head . (.names)
+
+-- | Runs findCycles and reduces each cycle to its module names, in walk order.
+runFindCycles :: [Module] -> [[Text]]
 runFindCycles modules =
-    map (map (.id.text) . toList . (.modules))
+    map (map ((.text) . head . (.names)) . toList . (.modules))
         . runPureEff
         . runReader (buildModuleGraph modules)
         $ findCycles
@@ -113,6 +125,38 @@ spec = describe "Deslop.CodeGraph" $ do
                 c = mkModule "c" ["a"]
             runReachableFrom a [a, b, c] `shouldBe` ["a", "b", "c"]
 
+    describe "naming what was reached but never scanned" $ do
+        -- Both modules name one gitignored file, one relatively and one by
+        -- alias. The vertex has to be named, and a relative specifier is not a
+        -- name: '../shared/x' means something different in every file that
+        -- writes it. Deslop used to pick the smallest specifier that reached
+        -- the file, and '.' sorts below '@', so it reliably chose that one.
+        let unscanned =
+                Resolved
+                    (moduleIdUnsafe "/repo/src/shared/x.ts")
+                    (moduleNameUnsafe "@/shared/x" :| [])
+            reaching name spelling =
+                (mkModule name [])
+                    { edges =
+                        [ (mkImportEdge (name <> ".ts") 1 spelling) {target = unscanned}
+                        ]
+                    }
+
+        it "names it by what the frontend resolved, not by the specifier that reached it" $ do
+            let a = reaching "a" "../shared/x"
+                b = reaching "b" "@/shared/x"
+            sort (runReachableFrom a [a, b]) `shouldBe` ["@/shared/x", "a"]
+
+        it "gives it one name however it was spelled to get there" $ do
+            let a = reaching "a" "../shared/x"
+                b = reaching "b" "@/shared/x"
+                reachedFrom m = filter (/= (head m.names).text) (runReachableFrom m [a, b])
+            reachedFrom a `shouldBe` reachedFrom b
+
+        it "does not satisfy exists, which asks about modules actually scanned" $ do
+            let a = reaching "a" "../shared/x"
+            runModuleExists "@/shared/x" [a] `shouldBe` False
+
     describe "moduleExists" $ do
         it "returns True for an internal module in the graph" $ do
             let a = mkModule "a" []
@@ -125,10 +169,11 @@ spec = describe "Deslop.CodeGraph" $ do
         it "returns False for an empty graph" $ do
             runModuleExists "a" [] `shouldBe` False
 
-        it "returns True for an external module referenced as an import target" $ do
-            -- "b" is never parsed but referenced by "a", so it exists as ExternalModule
+        it "returns False for a module only referenced, never parsed" $ do
+            -- "b" is a vertex, so that a's edge does not vanish, but nothing on
+            -- disk answers to that name and `exists` must not be satisfied by it.
             let a = mkModule "a" ["b"]
-            runModuleExists "b" [a] `shouldBe` True
+            runModuleExists "b" [a] `shouldBe` False
 
         it "returns False when a sibling module exists but not the queried one" $ do
             let a = mkModule "a" []
@@ -240,14 +285,14 @@ spec = describe "Deslop.CodeGraph" $ do
 every consecutive hop a real import, the last module importing the first, and the
 smallest module first.
 -}
-assertIsCycle :: [AstModule] -> [Text] -> PropertyT IO ()
+assertIsCycle :: [Module] -> [Text] -> PropertyT IO ()
 assertIsCycle modules reported = do
     footnote $ "cycle: " <> show reported
     ordNub reported === reported
     viaNonEmpty head reported === viaNonEmpty head (sort reported)
     traverse_ assertImports hops
   where
-    imports = Map.fromList [(m.id.text, map (.target.text) m.nodes) | m <- modules]
+    imports = Map.fromList [((head m.names).text, map (.specifier.text) m.edges) | m <- modules]
     hops = zip reported (drop 1 reported <> take 1 reported)
     assertImports (from, to) =
         (from, to `elem` Map.findWithDefault [] from imports) === (from, True)
@@ -259,7 +304,7 @@ moduleName prefix i = prefix <> show i
 {- | A graph that is acyclic by construction: module i may only import modules
 after it. The result is shuffled so no consumer can rely on topological input.
 -}
-genDag :: Gen [AstModule]
+genDag :: Gen [Module]
 genDag = do
     n <- Gen.int (Range.linear 0 12)
     let names = map (moduleName "m") [0 .. n - 1]
@@ -267,7 +312,7 @@ genDag = do
     Gen.shuffle (zipWith mkModule names imports)
 
 -- | A graph wired at random, which may contain any number of cycles or none.
-genArbitraryGraph :: Gen [AstModule]
+genArbitraryGraph :: Gen [Module]
 genArbitraryGraph = do
     n <- Gen.int (Range.linear 1 10)
     let names = map (moduleName "m") [0 .. n - 1]
@@ -277,7 +322,7 @@ genArbitraryGraph = do
 {- | A DAG plus a disjoint chain that loops back on itself. The two share no
 modules, so the chain is the graph's only cycle. Returns the chain's modules.
 -}
-genGraphWithIsolatedCycle :: Gen ([AstModule], [Text])
+genGraphWithIsolatedCycle :: Gen ([Module], [Text])
 genGraphWithIsolatedCycle = do
     dag <- genDag
     k <- Gen.int (Range.linear 2 6)

@@ -3,6 +3,7 @@
 [Error] Found 12 problems:
 [Error] ─────────────────────────────────────────
 [Error] [AUTO-FIXABLE] # no-relative-imports#.storybook/preview.ts
+.storybook/preview.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import '../src/styles/global.css';
@@ -11,6 +12,7 @@ FIX: Use ```import '@/styles/global.css';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#next.config.ts
+next.config.ts:5
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import './src/libs/Env';
@@ -19,6 +21,7 @@ FIX: Use ```import '@/libs/Env';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/components/Hello.tsx
+src/components/Hello.tsx:3
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Sponsors } from './Sponsors';
@@ -27,6 +30,7 @@ FIX: Use ```import { Sponsors } from '@/components/Sponsors';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/libs/DB.ts
+src/libs/DB.ts:2
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Env } from './Env';
@@ -35,6 +39,7 @@ FIX: Use ```import { Env } from '@/libs/Env';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/libs/I18n.ts
+src/libs/I18n.ts:3
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { routing } from './I18nRouting';
@@ -43,6 +48,7 @@ FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/libs/I18nNavigation.ts
+src/libs/I18nNavigation.ts:2
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { routing } from './I18nRouting';
@@ -51,6 +57,7 @@ FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/libs/Logger.ts
+src/libs/Logger.ts:9
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Env } from './Env';
@@ -59,6 +66,7 @@ FIX: Use ```import { Env } from '@/libs/Env';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/proxy.ts
+src/proxy.ts:7
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { routing } from './libs/I18nRouting';
@@ -67,6 +75,7 @@ FIX: Use ```import { routing } from '@/libs/I18nRouting';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/templates/BaseTemplate.stories.tsx
+src/templates/BaseTemplate.stories.tsx:4
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { BaseTemplate } from './BaseTemplate';
@@ -75,6 +84,7 @@ FIX: Use ```import { BaseTemplate } from '@/templates/BaseTemplate';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/templates/BaseTemplate.test.tsx
+src/templates/BaseTemplate.test.tsx:6
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { BaseTemplate } from './BaseTemplate';
@@ -83,6 +93,7 @@ FIX: Use ```import { BaseTemplate } from '@/templates/BaseTemplate';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/utils/Helpers.test.ts
+src/utils/Helpers.test.ts:3
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { getI18nPath } from './Helpers';
@@ -91,6 +102,7 @@ FIX: Use ```import { getI18nPath } from '@/utils/Helpers';``` instead.
 ---------
 
 # boilerplate-architecture#components-never-reach-the-database#@/components/CurrentCount
+src/components/CurrentCount.tsx:4
 Stronger than the direct rules above: no chain of imports starting at a component may arrive at the database handle. A component that can reach it can query from the browser bundle, which is both a correctness and a security problem.
 
 Module '@/components/CurrentCount' transitively imports '@/libs/DB' (1 hop) via: @/components/CurrentCount → @/libs/DB.
@@ -99,7 +111,7 @@ import { db } from '@/libs/DB';
 ```
 FIX: Follow the reported import chain and break it. Fetch in a server component or a route handler and pass the result down as a prop.
 [Error] ─────────────────────────────────────────
-[summary] Checked 59 modules enforcing 12 rules
+[summary] Checked 59 modules enforcing 13 rules
 [exit] Found 12 problems, 11 of them auto-fixable.
    Run `deslop fix` to fix the 11 auto-fixable problems.
    Run `deslop baseline` to silence all 12 problems.

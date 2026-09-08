@@ -31,7 +31,7 @@ import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsListDirectory, fsR
 import FileSystem.Path (
     AbsPath,
     ProjectRoot (..),
-    RelativePath (..),
+    ProjectRelativePath (..),
     decodeOsPath,
     relativePathTo,
     withAbsBaseUnsafe,

@@ -1,6 +1,6 @@
 cabal-version:   3.0
 name:            deslop
-version:         0.10.1
+version:         0.11.0
 license:         MIT
 license-file:    LICENSE
 author:          Ivy Apps LTD
@@ -59,12 +59,12 @@ library
   import:          shared-properties
   exposed-modules:
     Deslop
-    Deslop.AST
     Deslop.CodeGraph
     Deslop.Error
     Deslop.GlobPlus
     Deslop.GlobPlus.Casing
     Deslop.GlobPlus.Compiler
+    Deslop.Module
     Deslop.Problem
     Deslop.Problem.Baseline
     Deslop.Problem.Formatter
@@ -86,14 +86,14 @@ library
     Params
     Prelude
     Renderable
-    TypeScript.AST
     TypeScript.Config
     TypeScript.Config.Dto
     TypeScript.Config.Loader
     TypeScript.CST
     TypeScript.Iterator
     TypeScript.Lexer
-    TypeScript.Lint.RelativeImports
+    TypeScript.Lint.RelativeSpecifiers
+    TypeScript.Module
     TypeScript.ModuleResolver
     TypeScript.Parser
     TypeScript.Tokens
@@ -145,6 +145,7 @@ test-suite deslop-test
   main-is:            Spec.hs
   build-tool-depends: hspec-discover:hspec-discover
   other-modules:
+    Deslop.CodeGraphPropSpec
     Deslop.CodeGraphSpec
     Deslop.GlobPlus.CasingSpec
     Deslop.GlobPlus.Oracle
@@ -168,23 +169,29 @@ test-suite deslop-test
     Effects.ReportProblemSpec
     FileSystem.IteratorSpec
     FileSystem.PathSpec
-    Fixtures.Deslop.AST
+    Fixtures.Deslop.Module
     Fixtures.Deslop.Problem.Baseline
     Fixtures.Deslop.Rule.Book.Dto
     Fixtures.TypeScript.Config
+    Generators.TypeScript.CST
+    Generators.TypeScript.Project
     Git.IgnoreSpec
     ParamsSpec
     TestUtils
-    TypeScript.ASTSpec
     TypeScript.Config.DtoSpec
     TypeScript.Config.LoaderSpec
     TypeScript.ConfigSpec
     TypeScript.CSTSpec
     TypeScript.IteratorSpec
     TypeScript.LexerSpec
-    TypeScript.Lint.RelativeImportsSpec
+    TypeScript.Lint.RelativeSpecifiersPropSpec
+    TypeScript.Lint.RelativeSpecifiersSpec
+    TypeScript.ModulePropSpec
     TypeScript.ModuleResolverSpec
+    TypeScript.ModuleSpec
+    TypeScript.ParserPropSpec
     TypeScript.ParserSpec
+    TypeScript.ResolutionCorpusSpec
     UISpec
     UtilsSpec
 

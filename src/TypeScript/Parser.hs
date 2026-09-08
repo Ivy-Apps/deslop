@@ -31,9 +31,8 @@ buildCST = fmap node
     node (TsToken r RawK) = Source r
     node (TsToken r WhitespaceK) = Source r
     node (TsToken r CommentK) = Source r
-    node (TsToken r ImportK) = case parseImport r of
-        Left _ -> Source r
-        Right n -> n
+    node (TsToken r ImportK) = either (const $ Source r) identity (parseImport r)
+    node (TsToken r ReExportK) = either (const $ Source r) identity (parseReExport r)
 
 parseImport :: Text -> Either String TsNode
 parseImport = first errorBundlePretty . runParser parser ""
@@ -70,3 +69,21 @@ parseImport = first errorBundlePretty . runParser parser ""
         | c == '\'' || c == '"' = Just c
         | otherwise = Nothing
     targetQuote _ _ = Nothing
+
+{- | Re-runs the lexer's own grammar to find where the specifier starts, so
+that the two can never disagree about what a re-export is.
+-}
+parseReExport :: Text -> Either String TsNode
+parseReExport = first errorBundlePretty . runParser parser ""
+  where
+    parser :: Parser TsNode
+    parser = do
+        (p, q) <- match reExportHeader
+        t <- takeWhile1P (Just "target") (/= q)
+        s <- takeRest
+        pure
+            ReExport
+                { prefix = p
+                , target = t
+                , suffix = s
+                }

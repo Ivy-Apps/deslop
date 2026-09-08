@@ -33,7 +33,7 @@ import Effects.FileSystem (RoFileSystem, fsFileExists, fsMkAbsolute, fsReadFile)
 import FileSystem.Path (
     AbsPath (..),
     ProjectRoot,
-    RelativePath (..),
+    ProjectRelativePath (..),
     absPathUnsafe,
     decodeOsPath,
     encodeOsPath,

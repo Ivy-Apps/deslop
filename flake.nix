@@ -88,6 +88,19 @@
             '';
           };
 
+          # Re-records the tsc resolution corpus. node and typescript are
+          # carried here rather than added to the `ci` shell, on the same
+          # reasoning as `hgold` above: the corpus is committed, so the test
+          # suite reads it without ever needing a compiler, and CI would
+          # realise the closure for nothing.
+          aiUpdateResolutionCorpusRunner = pkgs.writeShellApplication {
+            name = "ai-update-resolution-corpus";
+            runtimeInputs = [ pkgs.nix pkgs.nodejs pkgs.typescript ];
+            text = ''
+              nix develop ".#ci" --no-warn-dirty --quiet -c just update-resolution-corpus
+            '';
+          };
+
           # The ghcid daemon behind `nix run .#quick-typecheck`, and the tool
           # `just stop-ghcid` uses to retire every session on the machine.
           ghcidTools = import ./nix/ghcid.nix { inherit pkgs; };
@@ -105,6 +118,10 @@
             update-golden = {
               type = "app";
               program = "${aiUpdateGoldenRunner}/bin/ai-update-golden";
+            };
+            update-resolution-corpus = {
+              type = "app";
+              program = "${aiUpdateResolutionCorpusRunner}/bin/ai-update-resolution-corpus";
             };
           };
 

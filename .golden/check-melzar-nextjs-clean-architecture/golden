@@ -3,6 +3,7 @@
 [Error] Found 18 problems:
 [Error] ─────────────────────────────────────────
 [Error] # no-import-cycles#src/ioc/Application/authentication.module.ts
+src/ioc/Application/authentication.module.ts:5
 Circular dependency (import cycle) detected: ioc/Application/authentication.module → ioc/common/utils/ioc.utils → ioc/application.container → ioc/Application/authentication.module
 ```ts
 import { applyDependencies } from 'ioc/common/utils/ioc.utils';
@@ -11,6 +12,7 @@ FIX: Import cycles are not allowed. Break the loop by removing one of its import
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#.storybook/preview.tsx
+.storybook/preview.tsx:3
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import '../src/app/globals.scss';
@@ -19,6 +21,7 @@ FIX: Use ```import 'app/globals.scss';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/app/layout.tsx
+src/app/layout.tsx:8
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import './globals.scss';
@@ -27,6 +30,7 @@ FIX: Use ```import 'app/globals.scss';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/ui/common/components/layout/ContainerBox/ContainerBox.tsx
+src/ui/common/components/layout/ContainerBox/ContainerBox.tsx:3
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import styles from './containerBox.module.scss';
@@ -35,6 +39,7 @@ FIX: Use ```import styles from 'ui/common/components/layout/ContainerBox/contain
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/ui/common/components/layout/TopHeader/TopHeader.stories.tsx
+src/ui/common/components/layout/TopHeader/TopHeader.stories.tsx:3
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { TopHeader } from './TopHeader';
@@ -43,6 +48,7 @@ FIX: Use ```import { TopHeader } from 'ui/common/components/layout/TopHeader/Top
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/ui/common/components/layout/TopNavigation/TopNavigation.tsx
+src/ui/common/components/layout/TopNavigation/TopNavigation.tsx:6
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import styles from './topNavigation.module.scss';
@@ -51,6 +57,7 @@ FIX: Use ```import styles from 'ui/common/components/layout/TopNavigation/topNav
 ---------
 
 # clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Clients/Admin/Client/client.view
+src/ui/Clients/Admin/Client/client.view.tsx:8
 A view renders state. It may read that state from a presenter, but no import chain starting at a view may arrive at the REST client itself - a view that can reach it can issue a request that bypasses every use case in between.
 
 Module 'ui/Clients/Admin/Client/client.view' transitively imports 'data/network/rest/common/config/rest.client' (8 hops) via: ui/Clients/Admin/Client/client.view → ui/Clients/Admin/Client/components/ClientPageHeading/ClientPageHeading → ui/Clients/Admin/Client/components/ClientPageHeading/clientPageHeading.hooks → ui/Clients/Admin/Client/client.data → ui/Clients/Admin/Client/client.actions → ui/common/utils/inject → ioc/application.container → ioc/shared/network.module → data/network/rest/common/config/rest.client.
@@ -61,6 +68,7 @@ FIX: Take the data from the presenter this view already uses, rather than from a
 ---------
 
 # clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Clients/Admin/Clients/clients.view
+src/ui/Clients/Admin/Clients/clients.view.tsx:8
 A view renders state. It may read that state from a presenter, but no import chain starting at a view may arrive at the REST client itself - a view that can reach it can issue a request that bypasses every use case in between.
 
 Module 'ui/Clients/Admin/Clients/clients.view' transitively imports 'data/network/rest/common/config/rest.client' (8 hops) via: ui/Clients/Admin/Clients/clients.view → ui/Clients/Admin/Clients/components/ClientsList/ClientsList → ui/Clients/Admin/Clients/components/ClientsList/clientsList.hooks → ui/Clients/Admin/Clients/components/ClientsList/clientsList.data → ui/Clients/Admin/Clients/components/ClientsList/clientsList.actions → ui/common/utils/inject → ioc/application.container → ioc/shared/network.module → data/network/rest/common/config/rest.client.
@@ -71,6 +79,7 @@ FIX: Take the data from the presenter this view already uses, rather than from a
 ---------
 
 # clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Dashboard/Admin/dashboard.view
+src/ui/Dashboard/Admin/dashboard.view.tsx:10
 A view renders state. It may read that state from a presenter, but no import chain starting at a view may arrive at the REST client itself - a view that can reach it can issue a request that bypasses every use case in between.
 
 Module 'ui/Dashboard/Admin/dashboard.view' transitively imports 'data/network/rest/common/config/rest.client' (7 hops) via: ui/Dashboard/Admin/dashboard.view → ui/Dashboard/Admin/dashboard.hooks → ui/Dashboard/Admin/dashboard.data → ui/shared/Packages/Admin/packages.actions → ui/common/utils/inject → ioc/application.container → ioc/shared/network.module → data/network/rest/common/config/rest.client.
@@ -81,6 +90,7 @@ FIX: Take the data from the presenter this view already uses, rather than from a
 ---------
 
 # clean-architecture-layers#views-do-not-reach-the-rest-client#ui/Packages/Admin/packages.view
+src/ui/Packages/Admin/packages.view.tsx:10
 A view renders state. It may read that state from a presenter, but no import chain starting at a view may arrive at the REST client itself - a view that can reach it can issue a request that bypasses every use case in between.
 
 Module 'ui/Packages/Admin/packages.view' transitively imports 'data/network/rest/common/config/rest.client' (8 hops) via: ui/Packages/Admin/packages.view → ui/Packages/Admin/components/PackagesList/PackagesList → ui/Packages/Admin/components/PackagesList/packagesList.hooks → ui/Packages/Admin/packages.data → ui/shared/Packages/Admin/packages.actions → ui/common/utils/inject → ioc/application.container → ioc/shared/network.module → data/network/rest/common/config/rest.client.
@@ -91,6 +101,7 @@ FIX: Take the data from the presenter this view already uses, rather than from a
 ---------
 
 # naming-conventions#component-has-a-story#ui/common/components/layout/SideNavigation/SideNavigationLinks/SideNavigationLinks
+src/ui/common/components/layout/SideNavigation/SideNavigationLinks/SideNavigationLinks.tsx
 A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
 
 Module 'ui/common/components/layout/SideNavigation/SideNavigationLinks/SideNavigationLinks' requires 'ui/common/components/layout/SideNavigation/SideNavigationLinks/SideNavigationLinks.stories' to exist.
@@ -98,6 +109,7 @@ FIX: Add SideNavigationLinks.stories.tsx next to the component.
 ---------
 
 # naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigation
+src/ui/common/components/layout/TopNavigation/TopNavigation.tsx
 A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
 
 Module 'ui/common/components/layout/TopNavigation/TopNavigation' requires 'ui/common/components/layout/TopNavigation/TopNavigation.stories' to exist.
@@ -105,6 +117,7 @@ FIX: Add TopNavigation.stories.tsx next to the component.
 ---------
 
 # naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions
+src/ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions.tsx
 A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
 
 Module 'ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions' requires 'ui/common/components/layout/TopNavigation/TopNavigationActions/TopNavigationActions.stories' to exist.
@@ -112,6 +125,7 @@ FIX: Add TopNavigationActions.stories.tsx next to the component.
 ---------
 
 # naming-conventions#component-has-a-story#ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser
+src/ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser.tsx
 A shared component is documented in Storybook. The folder and the file carry the same component name, and the story carries it a third time.
 
 Module 'ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser' requires 'ui/common/components/layout/TopNavigation/TopNavigationUser/TopNavigationUser.stories' to exist.
@@ -119,6 +133,7 @@ FIX: Add TopNavigationUser.stories.tsx next to the component.
 ---------
 
 # naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Authentication/models/AuthenticationRest
+src/data/network/rest/v1/Authentication/models/AuthenticationRest.ts
 A wire model exists to be mapped into the domain model of the same name. If the domain has no counterpart, either the mapping is missing or the wire model is describing something the domain has never heard of.
 
 Module 'data/network/rest/v1/Authentication/models/AuthenticationRest' requires 'domain/Authentication/models/Authentication' to exist.
@@ -126,6 +141,7 @@ FIX: Add domain/Authentication/models/Authentication.ts, or move the wire model 
 ---------
 
 # naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Authentication/models/RoleRest
+src/data/network/rest/v1/Authentication/models/RoleRest.ts
 A wire model exists to be mapped into the domain model of the same name. If the domain has no counterpart, either the mapping is missing or the wire model is describing something the domain has never heard of.
 
 Module 'data/network/rest/v1/Authentication/models/RoleRest' requires 'domain/Authentication/models/Role' to exist.
@@ -133,6 +149,7 @@ FIX: Add domain/Authentication/models/Role.ts, or move the wire model under the 
 ---------
 
 # naming-conventions#rest-model-mirrors-a-domain-model#data/network/rest/v1/Packages/models/PackageRest
+src/data/network/rest/v1/Packages/models/PackageRest.ts
 A wire model exists to be mapped into the domain model of the same name. If the domain has no counterpart, either the mapping is missing or the wire model is describing something the domain has never heard of.
 
 Module 'data/network/rest/v1/Packages/models/PackageRest' requires 'domain/Packages/models/Package' to exist.
@@ -140,12 +157,13 @@ FIX: Add domain/Packages/models/Package.ts, or move the wire model under the fea
 ---------
 
 # naming-conventions#view-has-a-dictionary#ui/Login/login.view
+src/ui/Login/login.view.tsx
 User-facing strings live in a dictionary beside the view rather than inline, so that a view can be read without wading through copy.
 
 Module 'ui/Login/login.view' requires 'ui/Login/login.dictionary' to exist.
 FIX: Add login.dictionary.ts next to this view and move its strings into it.
 [Error] ─────────────────────────────────────────
-[summary] Checked 240 modules enforcing 17 rules
+[summary] Checked 240 modules enforcing 18 rules
 [exit] Found 18 problems, 5 of them auto-fixable.
    Run `deslop fix` to fix the 5 auto-fixable problems.
    Run `deslop baseline` to silence all 18 problems.

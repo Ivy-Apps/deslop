@@ -14,8 +14,10 @@ one is never mistaken for a real import.
 -}
 data TsTokenKind
     = ImportK
+    | -- | @export ... from "..."@: a dependency that the module also re-exposes.
+      -- A plain @export const x = 1@ names no module and is never this.
+      ReExportK
     | CommentK
     | WhitespaceK
     | RawK
     deriving (Show, Eq)
-

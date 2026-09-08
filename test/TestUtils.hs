@@ -1,7 +1,7 @@
 {- | Test plumbing: golden helpers, fixture-directory access, and the small
 combinators that keep a failing assertion readable.
 
-Deliberately domain-free. A helper that builds a 'Deslop.AST.AstModule' or a
+Deliberately domain-free. A helper that builds a 'Deslop.Module.Module' or a
 'TypeScript.Config.TsConfig' belongs under @Fixtures.@ next to the module whose
 type it builds; a helper that only knows about hspec, Hedgehog or the
 filesystem belongs here.
@@ -36,7 +36,7 @@ import Effectful
 import Effects.FileSystem (fsMkAbsolute, runFileSystemIO)
 import FileSystem.Path (
     AbsPath (osPath),
-    RelativePath,
+    ProjectRelativePath,
     absPathUnsafe,
     encodeOsPath,
     encodeOsPathString,
@@ -115,7 +115,7 @@ copyDir src dst = do
 ap :: Text -> AbsPath
 ap = absPathUnsafe . encodeOsPath
 
-rp :: Text -> RelativePath
+rp :: Text -> ProjectRelativePath
 rp = relativePathUnsafe . encodeOsPath
 
 mkAbsolute :: OsPath -> IO AbsPath

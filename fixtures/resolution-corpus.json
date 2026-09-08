@@ -1,0 +1,379 @@
+{
+  "about": [
+    "What TypeScript itself resolves each specifier to. The `tsc` field is",
+    "recorded by `just update-resolution-corpus` and is never edited by hand: it",
+    "is the compiler's answer, and it is what TypeScript.ResolutionCorpusSpec",
+    "judges Deslop's resolver against.",
+    "Everything else is authored. `configs` maps a tsconfig path to that file's",
+    "literal contents - written verbatim by the recorder and read verbatim by",
+    "the spec, so the two cannot drift. `files` are the files that exist, `from`",
+    "is the importing file and `specifier` is what it writes.",
+    "A `knownGap` names what Deslop does not yet resolve the way tsc does; the",
+    "spec asserts those still differ, so closing one turns its test red."
+  ],
+  "cases": [
+    {
+      "name": "relative specifier",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/app/helper.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "./helper",
+      "tsc": "src/app/helper.ts"
+    },
+    {
+      "name": "relative specifier walking up a directory",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/lib/util.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "../lib/util",
+      "tsc": "src/lib/util.ts"
+    },
+    {
+      "name": "relative specifier naming a directory resolves to its index",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/lib/index.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "../lib",
+      "tsc": "src/lib/index.ts"
+    },
+    {
+      "name": "aliased specifier",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/lib/util.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "@/lib/util",
+      "tsc": "src/lib/util.ts"
+    },
+    {
+      "name": "aliased specifier naming a barrel by its directory",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/features/home/index.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "@/features/home",
+      "tsc": "src/features/home/index.ts"
+    },
+    {
+      "name": "aliased specifier naming a barrel by its index",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/features/home/index.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "@/features/home/index",
+      "tsc": "src/features/home/index.ts"
+    },
+    {
+      "name": "two aliases onto one directory resolve to the same file",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ],
+              "~/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/lib/util.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "~/lib/util",
+      "tsc": "src/lib/util.ts"
+    },
+    {
+      "name": "a more specific alias wins over a more general one",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ],
+              "@/lib/*": [
+                "./vendor/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/lib/util.ts",
+        "vendor/util.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "@/lib/util",
+      "tsc": "vendor/util.ts"
+    },
+    {
+      "name": "an alias falls through to its second value",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./missing/*",
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/lib/util.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "@/lib/util",
+      "tsc": "src/lib/util.ts"
+    },
+    {
+      "name": "an exact alias naming one file",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "config": [
+                "./src/settings.ts"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/settings.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "config",
+      "tsc": "src/settings.ts",
+      "knownGap": "an alias value that already carries its extension is not resolved: '.ts' is appended again"
+    },
+    {
+      "name": "a tsx file is resolved",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            },
+            "jsx": "preserve"
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/ui/Button.tsx"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "@/ui/Button",
+      "tsc": "src/ui/Button.tsx"
+    },
+    {
+      "name": "a bare package specifier that is not installed",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "react",
+      "tsc": null
+    },
+    {
+      "name": "an aliased specifier naming nothing on disk",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "@/lib/missing",
+      "tsc": null
+    },
+    {
+      "name": "paths declared in an extended config",
+      "configs": {
+        "tsconfig.json": {
+          "extends": "./tsconfig.base.json",
+          "compilerOptions": {}
+        },
+        "tsconfig.base.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/lib/util.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "@/lib/util",
+      "tsc": "src/lib/util.ts"
+    },
+    {
+      "name": "an ESM .js specifier naming a .ts file",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": ".",
+            "module": "nodenext",
+            "moduleResolution": "nodenext",
+            "paths": {
+              "@/*": [
+                "./src/*"
+              ]
+            }
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/app/helper.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "./helper.js",
+      "tsc": "src/app/helper.ts",
+      "knownGap": "ESM '.js' specifiers are not resolved to their '.ts' source"
+    },
+    {
+      "name": "baseUrl with no paths at all",
+      "configs": {
+        "tsconfig.json": {
+          "compilerOptions": {
+            "baseUrl": "."
+          }
+        }
+      },
+      "files": [
+        "src/app/page.ts",
+        "src/lib/util.ts"
+      ],
+      "from": "src/app/page.ts",
+      "specifier": "src/lib/util",
+      "tsc": "src/lib/util.ts",
+      "knownGap": "a bare baseUrl-relative specifier is not resolved without a paths mapping"
+    }
+  ]
+}

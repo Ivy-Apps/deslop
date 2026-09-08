@@ -3,6 +3,7 @@
 [Error] Found 3 problems:
 [Error] ─────────────────────────────────────────
 [Error] [AUTO-FIXABLE] # no-relative-imports#packages/app/src/checkout.ts
+packages/app/src/checkout.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Button } from '../../ui/src/Button';
@@ -11,6 +12,7 @@ FIX: Use ```import { Button } from '@ui/Button';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#packages/app/src/main.ts
+packages/app/src/main.ts:2
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { formatMoney } from './helpers/format';
@@ -19,6 +21,7 @@ FIX: Use ```import { formatMoney } from '@app/helpers/format';``` instead.
 ---------
 
 # workspace-boundaries#scripts-keep-out-of-the-packages#/scripts/release
+scripts/release.ts:1
 A release script wires the workspaces together; it must not depend on what any one of them renders.
 
 Module '/scripts/release' directly imports '@ui/Button'.
@@ -27,7 +30,7 @@ import { Button } from '@ui/Button';
 ```
 FIX: Move the shared code into a module both the script and the package can import, rather than reaching into the UI package from a script.
 [Error] ─────────────────────────────────────────
-[summary] Checked 5 modules enforcing 3 rules
+[summary] Checked 5 modules enforcing 4 rules
 [exit] Found 3 problems, 2 of them auto-fixable.
    Run `deslop fix` to fix the 2 auto-fixable problems.
    Run `deslop baseline` to silence all 3 problems.

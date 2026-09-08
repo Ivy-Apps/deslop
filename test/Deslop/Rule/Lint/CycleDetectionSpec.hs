@@ -1,31 +1,22 @@
 module Deslop.Rule.Lint.CycleDetectionSpec (spec) where
 
-import Deslop.AST (AstModule)
 import Deslop.CodeGraph (buildModuleGraph)
-import Deslop.Problem (LintRuleId (..), Location (..), Problem (..), ProblemId (..), problemId)
+import Deslop.Module (Location (..), Module)
+import Deslop.Problem (LintRuleId (..), Problem (..), ProblemId (..), problemId)
 import Deslop.Problem.Baseline (applyBaseline)
 import Deslop.Rule.Lint.CycleDetection (noImportCycles)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
-import FileSystem.Path (ProjectRoot (..))
-import Fixtures.Deslop.AST (mkModule, mkModuleAt)
+import Fixtures.Deslop.Module (mkModule, mkModuleAt)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
 import Test.Hspec
-import TestUtils (ap, rp)
+import TestUtils (rp)
 
--- | The root 'Fixtures.Deslop.AST.mkModule' places its source files under.
-repoRoot :: ProjectRoot
-repoRoot = ProjectRoot (ap "/home/repo")
-
-runNoImportCycles :: [AstModule] -> IO [Problem]
-runNoImportCycles = runNoImportCyclesIn repoRoot
-
-runNoImportCyclesIn :: ProjectRoot -> [AstModule] -> IO [Problem]
-runNoImportCyclesIn root modules =
+runNoImportCycles :: [Module] -> IO [Problem]
+runNoImportCycles modules =
     runEff
         . runReportProblem
-        . runReader @ProjectRoot root
         . runReader (buildModuleGraph modules)
         $ noImportCycles >> getProblems
 
@@ -47,6 +38,7 @@ spec = describe "Deslop.Rule.Lint.CycleDetection" $ do
                             , location =
                                 Location
                                     { file = rp "a.ts"
+                                    , line = 1
                                     , code = "import { ... } from 'b'"
                                     }
                             , description = "Circular dependency (import cycle) detected: a → b → a"
@@ -66,6 +58,7 @@ spec = describe "Deslop.Rule.Lint.CycleDetection" $ do
                             , location =
                                 Location
                                     { file = rp "a.ts"
+                                    , line = 1
                                     , code = "import { ... } from 'b'"
                                     }
                             , description = "Circular dependency (import cycle) detected: a → b → c → a"
@@ -83,6 +76,7 @@ spec = describe "Deslop.Rule.Lint.CycleDetection" $ do
                             , location =
                                 Location
                                     { file = rp "a.ts"
+                                    , line = 1
                                     , code = "import { ... } from 'a'"
                                     }
                             , description = "Circular dependency (import cycle) detected: a → a"
@@ -114,10 +108,8 @@ spec = describe "Deslop.Rule.Lint.CycleDetection" $ do
         problems <- runNoImportCycles [a, b]
         applyBaseline (baselineOf ["no-import-cycles#b.ts"]) problems `shouldBe` problems
 
-    it "reports a file outside the project root by going back out of it" $ do
-        -- makeRelative would hand the absolute path straight back here, and a
-        -- Problem Id carrying one matches nothing on another checkout.
-        let a = mkModuleAt "/home/other/a.ts" "a" ["b"]
-            b = mkModuleAt "/home/other/b.ts" "b" ["a"]
-        problems <- runNoImportCyclesIn repoRoot [a, b]
-        map (.location.file) problems `shouldBe` [rp "../other/a.ts"]
+    it "points at the file the cycle is entered from" $ do
+        let a = mkModuleAt "src/a.ts" "a" ["b"]
+            b = mkModuleAt "src/b.ts" "b" ["a"]
+        problems <- runNoImportCycles [a, b]
+        map (.location.file) problems `shouldBe` [rp "src/a.ts"]

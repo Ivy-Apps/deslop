@@ -1,0 +1,49 @@
+>>> FILE: src/lib/index.ts
+// A relative re-export: no-relative-exports must report and fix this.
+export * from "@/lib/helper";
+
+
+
+>>> FILE: src/lib/literals.ts
+// Statement-shaped text that is not a statement. `deslop fix` rewrites what
+// the lexer classifies, so every line below must come back byte for byte.
+const banner = `export * from "./generated";`;
+const snippet = "export { a } from './a'";
+const typed = "export type { T } from './a'";
+const imported = "import x from './a'";
+
+// One literal is not one statement: the lexer must not join these two.
+const open = "export {";
+const rest = "} from './a'";
+
+// A raw run that begins on the quote itself.
+const wrapped =
+  "export * from './a'";
+
+// A template inside an interpolation: the outer skip must close on the outer
+// backtick, not on the inner opening one.
+const nested = `const x = ${gen(`export * from "./generated";`)};`;
+const deeper = `a ${f({ k: `import { b } from "./b";` })}`;
+
+export const literals = [banner, snippet, typed, imported, open, rest, wrapped, nested, deeper];
+
+
+
+>>> FILE: src/lib/tricky.tsx
+// Text that could swallow what follows it, followed by dependencies that must
+// still be found. Every literal below must come back byte for byte, and every
+// statement between them must still be reported and fixed.
+const apostrophes = <p>don't stop, it's fine</p>;
+const escaped = "he said \"hi\" and ended with a backslash \\";
+const divided = a / b / c;
+const regex = /['"]/;
+const nested = `outer ${f(`inner ${g(`deep`)}`)} end`;
+const notAStatement = `export * from "./nope";`;
+
+// A real relative import, written after all of the above.
+import { helper } from "@/lib/helper";
+
+// A real relative re-export, written after all of the above.
+export * from "@/lib/helper";
+
+export const tricky = [apostrophes, escaped, divided, regex, nested, notAStatement, helper];

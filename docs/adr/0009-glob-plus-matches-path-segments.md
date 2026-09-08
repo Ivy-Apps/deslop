@@ -7,7 +7,9 @@ Date: 2026-08-17
 Accepted. Refines [ADR 6](0006-glob-plus-variables-are-named-with-inferred-casing.md)
 and [ADR 7](0007-glob-plus-values-agree-by-spelling-compatibility.md); the
 Decision below says clause by clause what it keeps from each and what it
-replaces.
+replaces. Refined by
+[ADR 19](0019-module-names-are-slash-segmented-in-every-language.md), which
+settles what separates a segment in a language that does not write `/`.
 
 ## Context
 

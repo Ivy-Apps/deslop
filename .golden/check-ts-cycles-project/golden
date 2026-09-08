@@ -4,12 +4,13 @@ Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
 [Error] Found 1 problem:
 [Error] ─────────────────────────────────────────
 [Error] # no-import-cycles#src/a.ts
+src/a.ts:1
 Circular dependency (import cycle) detected: @/a → @/b → @/c → @/a
 ```ts
 import { b } from '@/b';
 ```
 FIX: Import cycles are not allowed. Break the loop by removing one of its imports - usually by extracting the shared code into a module that both sides can depend on.
 [Error] ─────────────────────────────────────────
-[summary] Checked 6 modules enforcing 2 rules
+[summary] Checked 6 modules enforcing 3 rules
 [exit] Found 1 problem, none auto-fixable.
    Run `deslop baseline` to silence all 1 problem.

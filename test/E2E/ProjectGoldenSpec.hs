@@ -15,7 +15,7 @@ import Effects.ReportProblem (runReportProblem)
 import FileSystem.Path (
     AbsPath (osPath),
     ProjectRoot (..),
-    RelativePath (osPath),
+    ProjectRelativePath (osPath),
     decodeOsPath,
     encodeOsPathString,
     relativePathTo,
@@ -52,6 +52,8 @@ spec = describe "E2E.Project" $ do
     itChecks "ts-globplus-project"
     itChecks "ts-casing-project"
     itChecks "ts-monorepo-project"
+    itChecks "ts-barrel-project"
+    itChecks "ts-unscanned-project"
 
     itFailsToLoadRulebook "ts-invalid-rulebook-project"
     itFailsToLoadTsConfig "ts-broken-extends-project"
@@ -64,8 +66,17 @@ spec = describe "E2E.Project" $ do
     itBaselines "ts-globplus-project"
     itBaselines "ts-casing-project"
     itBaselines "ts-monorepo-project"
+    itBaselines "ts-barrel-project"
+    itBaselines "ts-unscanned-project"
 
     itIterates "ts-gitignore-project"
+
+    itFixes
+        "ts-barrel-project"
+        [ "src/lib/index.ts"
+        , "src/lib/literals.ts" -- statement-shaped text, must not be rewritten
+        , "src/lib/tricky.tsx" -- real dependencies written after text that could swallow them
+        ]
 
     itFixes
         "ts-project-1"

@@ -1,7 +1,7 @@
 module Deslop.Problem.ShrinkerSpec (spec) where
 
-import Deslop.AST (ModuleId (..), moduleIdUnsafe)
-import Deslop.Problem (LintRuleId (..), Location (..), Problem (..), ProblemId, ViolationKind (..), problemId)
+import Deslop.Module (Location (..), EdgeKind (..), ModuleName (..), moduleNameUnsafe)
+import Deslop.Problem (LintRuleId (..), Problem (..), ProblemId, ViolationKind (..), problemId)
 import Deslop.Problem.Shrinker (compactProblems)
 import Deslop.Rule.Book (RuleId (..), RulebookId (..))
 import FileSystem.Path (encodeOsPath, relativePathUnsafe)
@@ -23,12 +23,13 @@ transitive bad hops =
     RuleViolation
         { rulebook = RulebookId "architecture"
         , rule = RuleId "hooks-cant-use-components"
-        , badModule = moduleIdUnsafe bad
+        , badModule = moduleNameUnsafe bad
+        , modulePath = relativePathUnsafe (encodeOsPath (bad <> ".ts"))
         , prose = "Hooks may not reach components."
         , kind =
             TransitiveImport
-                { chain = moduleIdUnsafe bad :| map moduleIdUnsafe hops
-                , firstImport = ("import '" <>) <$> listToMaybe hops
+                { chain = moduleNameUnsafe bad :| map moduleNameUnsafe hops
+                , firstImport = statementAt bad . ("import '" <>) <$> listToMaybe hops
                 , alsoReached = []
                 }
         , fix = "Remove the import."
@@ -40,7 +41,8 @@ missingUse bad =
     RuleViolation
         { rulebook = RulebookId "architecture"
         , rule = RuleId "hooks-cant-use-components"
-        , badModule = moduleIdUnsafe bad
+        , badModule = moduleNameUnsafe bad
+        , modulePath = relativePathUnsafe (encodeOsPath (bad <> ".ts"))
         , prose = "Hooks may not reach components."
         , kind = MissingUse {requiredImport = "@/hooks/base", transitive = False}
         , fix = "Import it."
@@ -51,9 +53,10 @@ directImport bad imported =
     RuleViolation
         { rulebook = RulebookId "architecture"
         , rule = RuleId "hooks-cant-use-components"
-        , badModule = moduleIdUnsafe bad
+        , badModule = moduleNameUnsafe bad
+        , modulePath = relativePathUnsafe (encodeOsPath (bad <> ".ts"))
         , prose = "Hooks may not reach components."
-        , kind = DirectImport {imported = moduleIdUnsafe imported, importStatement = "import '" <> imported <> "'"}
+        , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe imported, location = statementAt bad ("import '" <> imported <> "'")}
         , fix = "Remove the import."
         }
 
@@ -61,7 +64,7 @@ lintProblem :: Text -> Problem
 lintProblem file =
     LintProblem
         { lintRule = LintRuleId "no-relative-imports"
-        , location = Location {file = relativePathUnsafe (encodeOsPath file), code = "import './x'"}
+        , location = Location {file = relativePathUnsafe (encodeOsPath file), line = 1, code = "import './x'"}
         , description = "Relative imports are not allowed."
         , fix = "Use an aliased import."
         , autoFixable = True
@@ -223,3 +226,8 @@ spec = describe "Deslop.Problem.Shrinker" $ do
             problems <- forAll genProblems
 
             compactProblems (reverse problems) === compactProblems problems
+
+-- | A statement at the top of a module's own file.
+statementAt :: Text -> Text -> Location
+statementAt m code =
+    Location {file = relativePathUnsafe (encodeOsPath (m <> ".ts")), line = 1, code = code}

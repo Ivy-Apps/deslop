@@ -1,16 +1,9 @@
 [Title] 🚀 Checking project: ts-project-1
 [Plain] 📚 Loaded 2 rulebooks, 9 rules
-[Error] Found 32 problems:
+[Error] Found 33 problems:
 [Error] ─────────────────────────────────────────
 [Error] [AUTO-FIXABLE] # no-relative-imports#src/app/[locale]/login/page.tsx
-Relative imports are not allowed. Use aliased ones.
-```ts
-import { capitalize } from '../../../lib/util';
-```
-FIX: Use ```import { capitalize } from '@/lib/util';``` instead.
----------
-
-[AUTO-FIXABLE] # no-relative-imports#src/app/[locale]/login/page.tsx
+src/app/[locale]/login/page.tsx:5
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { validateUsername } from '../../../features/login/login-form';
@@ -18,7 +11,17 @@ import { validateUsername } from '../../../features/login/login-form';
 FIX: Use ```import { validateUsername } from '@/features/login/login-form';``` instead.
 ---------
 
+[AUTO-FIXABLE] # no-relative-imports#src/app/[locale]/login/page.tsx
+src/app/[locale]/login/page.tsx:6
+Relative imports are not allowed. Use aliased ones.
+```ts
+import { capitalize } from '../../../lib/util';
+```
+FIX: Use ```import { capitalize } from '@/lib/util';``` instead.
+---------
+
 [AUTO-FIXABLE] # no-relative-imports#src/app/[locale]/page.tsx
+src/app/[locale]/page.tsx:3
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { getHomeData } from '../../features/home/home-component';
@@ -27,6 +30,7 @@ FIX: Use ```import { getHomeData } from '@/features/home/home-component';``` ins
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/auth/auth-service.ts
+src/features/auth/auth-service.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { capitalize } from "../../lib/util";
@@ -35,6 +39,7 @@ FIX: Use ```import { capitalize } from "@/lib/util";``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/auth/auth-service.ts
+src/features/auth/auth-service.ts:2
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { mockUser } from '../../tests/fixtures';
@@ -43,6 +48,7 @@ FIX: Use ```import { mockUser } from '@/tests/fixtures';``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/home/data/bad-repository.ts
+src/features/home/data/bad-repository.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { HomeScreen } from "../home-screen";
@@ -51,14 +57,16 @@ FIX: Use ```import { HomeScreen } from "@/features/home/home-screen";``` instead
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/home/home-component.ts
+src/features/home/home-component.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
-import ('../../lib/extra')
+import { formatDate } from "../../lib/util";
 ```
-FIX: Use ```import ('@/lib/extra')``` instead.
+FIX: Use ```import { formatDate } from "@/lib/util";``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/home/home-component.ts
+src/features/home/home-component.ts:4
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import ('../heavy-module');
@@ -67,14 +75,25 @@ FIX: Use ```import ('@/features/heavy-module');``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/home/home-component.ts
+src/features/home/home-component.ts:5
 Relative imports are not allowed. Use aliased ones.
 ```ts
-import { formatDate } from "../../lib/util";
+import ('../../lib/extra')
 ```
-FIX: Use ```import { formatDate } from "@/lib/util";``` instead.
+FIX: Use ```import ('@/lib/extra')``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/home/home-screen.tsx
+src/features/home/home-screen.tsx:3
+Relative imports are not allowed. Use aliased ones.
+```ts
+import { getHomeData } from "./home-component";
+```
+FIX: Use ```import { getHomeData } from "@/features/home/home-component";``` instead.
+---------
+
+[AUTO-FIXABLE] # no-relative-imports#src/features/home/home-screen.tsx
+src/features/home/home-screen.tsx:5
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { Button } from "../../components/ds/Button";
@@ -82,7 +101,8 @@ import { Button } from "../../components/ds/Button";
 FIX: Use ```import { Button } from "@/components/ds/Button";``` instead.
 ---------
 
-[AUTO-FIXABLE] # no-relative-imports#src/features/home/home-screen.tsx
+[AUTO-FIXABLE] # no-relative-imports#src/features/home/home.spec.ts
+src/features/home/home.spec.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { getHomeData } from "./home-component";
@@ -91,6 +111,7 @@ FIX: Use ```import { getHomeData } from "@/features/home/home-component";``` ins
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/home/home.spec.ts
+src/features/home/home.spec.ts:3
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import * from "../../../tests/test-log"
@@ -99,15 +120,17 @@ FIX: Use ```import * from "@tests/test-log"
 ``` instead.
 ---------
 
-[AUTO-FIXABLE] # no-relative-imports#src/features/home/home.spec.ts
+[AUTO-FIXABLE] # no-relative-imports#src/features/login/login-form.ts
+src/features/login/login-form.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
-import { getHomeData } from "./home-component";
+import { capitalize } from "../../lib/util";
 ```
-FIX: Use ```import { getHomeData } from "@/features/home/home-component";``` instead.
+FIX: Use ```import { capitalize } from "@/lib/util";``` instead.
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/login/login-form.ts
+src/features/login/login-form.ts:2
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import {
@@ -122,15 +145,8 @@ FIX: Use ```import {
 ``` instead.
 ---------
 
-[AUTO-FIXABLE] # no-relative-imports#src/features/login/login-form.ts
-Relative imports are not allowed. Use aliased ones.
-```ts
-import { capitalize } from "../../lib/util";
-```
-FIX: Use ```import { capitalize } from "@/lib/util";``` instead.
----------
-
 [AUTO-FIXABLE] # no-relative-imports#src/features/login/login.spec.ts
+src/features/login/login.spec.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { validateUsername } from "./login-form";
@@ -139,6 +155,7 @@ FIX: Use ```import { validateUsername } from "@/features/login/login-form";``` i
 ---------
 
 [AUTO-FIXABLE] # no-relative-imports#src/features/profile/data/profile-repository.ts
+src/features/profile/data/profile-repository.ts:1
 Relative imports are not allowed. Use aliased ones.
 ```ts
 import { HomeScreen } from "../../home/home-screen";
@@ -147,6 +164,7 @@ FIX: Use ```import { HomeScreen } from "@/features/home/home-screen";``` instead
 ---------
 
 # architecture#container-uses-state-event#@/features/products/ProductListContainer
+src/features/products/ProductListContainer.ts
 Every Container must import its corresponding StateEvent module from the same directory. The StateEvent defines the UiState and UiEvent types that wire the Container to the ViewModel and View.
 
 Module '@/features/products/ProductListContainer' must import '@/features/products/ProductListStateEvent'.
@@ -154,6 +172,7 @@ FIX: Import the StateEvent module: import { ... } from '@/features/products/Prod
 ---------
 
 # architecture#container-uses-state-event#@/features/settings/SettingsContainer
+src/features/settings/SettingsContainer.ts
 Every Container must import its corresponding StateEvent module from the same directory. The StateEvent defines the UiState and UiEvent types that wire the Container to the ViewModel and View.
 
 Module '@/features/settings/SettingsContainer' must import '@/features/settings/SettingsStateEvent'.
@@ -161,6 +180,7 @@ FIX: Import the StateEvent module: import { ... } from '@/features/settings/Sett
 ---------
 
 # architecture#features-cant-import-other-features#@/features/auth/auth-home-bridge
+src/features/auth/auth-home-bridge.ts:1
 Features can't import from other features.
 
 Module '@/features/auth/auth-home-bridge' directly imports '@/features/home/data/home-repository'.
@@ -171,6 +191,7 @@ FIX: Use only what's internally in the feature folder or promote the used code t
 ---------
 
 # architecture#features-cant-import-other-features#@/features/home/data/bad-repository
+src/features/home/data/bad-repository.ts:1
 Features can't import from other features.
 
 Module '@/features/home/data/bad-repository' directly imports '@/features/home/home-screen'.
@@ -181,6 +202,7 @@ FIX: Use only what's internally in the feature folder or promote the used code t
 ---------
 
 # architecture#features-cant-import-other-features#@/features/home/home-component
+src/features/home/home-component.ts:4
 Features can't import from other features.
 
 Module '@/features/home/home-component' directly imports '@/features/heavy-module'.
@@ -191,6 +213,7 @@ FIX: Use only what's internally in the feature folder or promote the used code t
 ---------
 
 # architecture#features-cant-import-other-features#@/features/profile/data/profile-repository
+src/features/profile/data/profile-repository.ts:1
 Features can't import from other features.
 
 Module '@/features/profile/data/profile-repository' directly imports '@/features/home/home-screen'.
@@ -201,6 +224,7 @@ FIX: Use only what's internally in the feature folder or promote the used code t
 ---------
 
 # architecture#hooks-cant-use-components#@/hooks/list/useItemList
+src/hooks/list/useItemList.ts:3
 A hook is reactive logic, so no import chain starting at a hook may arrive at a component. One offending import usually drags in a whole subtree of them.
 
 Module '@/hooks/list/useItemList' transitively imports '@/components/list/ItemListView' (1 hop) via: @/hooks/list/useItemList → @/components/list/ItemListView.
@@ -212,6 +236,7 @@ FIX: Remove the component import. If shared logic is needed, extract it into @/h
 ---------
 
 # architecture#hooks-cant-use-components#@/hooks/list/useItemList.spec
+src/hooks/list/useItemList.spec.ts:2
 A hook is reactive logic, so no import chain starting at a hook may arrive at a component. One offending import usually drags in a whole subtree of them.
 
 Module '@/hooks/list/useItemList.spec' transitively imports '@/components/list/ItemListView' (2 hops) via: @/hooks/list/useItemList.spec → @/hooks/list/useItemList → @/components/list/ItemListView.
@@ -223,6 +248,7 @@ FIX: Remove the component import. If shared logic is needed, extract it into @/h
 ---------
 
 # architecture#no-react-in-lib#@/lib/dom-utils
+src/lib/dom-utils.ts:1
 Library modules in @/lib must not directly import React. The lib layer should contain pure, framework-agnostic utilities.
 
 Module '@/lib/dom-utils' directly imports 'react'.
@@ -233,6 +259,7 @@ FIX: Remove the direct React import from this library module. Extract any React-
 ---------
 
 # architecture#no-react-transitively-in-data#@/features/home/data/bad-repository
+src/features/home/data/bad-repository.ts:1
 Data layer modules in @/features/**/data must not transitively depend on React. Repositories and data access code must stay framework-agnostic so they can be reused in server-side and non-React contexts without pulling in the entire React runtime.
 
 Module '@/features/home/data/bad-repository' transitively imports 'react' (2 hops) via: @/features/home/data/bad-repository → @/features/home/home-screen → react.
@@ -242,7 +269,19 @@ import { HomeScreen } from "@/features/home/home-screen";
 FIX: Remove any imports that transitively pull in React. Data layer modules must only import from @/lib, external non-React packages, or other framework-agnostic modules. Move any React-dependent logic to a ViewModel or Container in the features layer.
 ---------
 
+# architecture#no-react-transitively-in-data#@/features/home/data/home-repository
+src/features/home/data/home-repository.ts:1
+Data layer modules in @/features/**/data must not transitively depend on React. Repositories and data access code must stay framework-agnostic so they can be reused in server-side and non-React contexts without pulling in the entire React runtime.
+
+Module '@/features/home/data/home-repository' transitively imports 'react' (3 hops) via: @/features/home/data/home-repository → @/lib/util → @/lib/dom-utils → react.
+```ts
+import { formatDate } from "../../../lib/util";
+```
+FIX: Remove any imports that transitively pull in React. Data layer modules must only import from @/lib, external non-React packages, or other framework-agnostic modules. Move any React-dependent logic to a ViewModel or Container in the features layer.
+---------
+
 # architecture#no-react-transitively-in-data#@/features/profile/data/profile-repository
+src/features/profile/data/profile-repository.ts:1
 Data layer modules in @/features/**/data must not transitively depend on React. Repositories and data access code must stay framework-agnostic so they can be reused in server-side and non-React contexts without pulling in the entire React runtime.
 
 Module '@/features/profile/data/profile-repository' transitively imports 'react' (2 hops) via: @/features/profile/data/profile-repository → @/features/home/home-screen → react.
@@ -253,6 +292,7 @@ FIX: Remove any imports that transitively pull in React. Data layer modules must
 ---------
 
 # architecture#no-tests-import-in-features#@/features/home/home.spec
+src/features/home/home.spec.ts:3
 Feature modules must not import from the test fixtures directory (@tests). Test helpers are meant only for test files, not for production code.
 
 Module '@/features/home/home.spec' directly imports '@tests/test-log'.
@@ -263,6 +303,7 @@ FIX: Remove the import from the tests directory. If you need shared data structu
 ---------
 
 # architecture#screen-transitively-uses-state-event#@/features/settings/SettingsScreen
+src/features/settings/SettingsScreen.ts
 Every Screen must transitively import its corresponding StateEvent module. A Screen typically delegates to a Container which wires the StateEvent, so the StateEvent must be reachable somewhere in the import chain.
 
 Module '@/features/settings/SettingsScreen' must transitively import '@/features/settings/SettingsStateEvent'.
@@ -270,6 +311,7 @@ FIX: Ensure that '@/features/settings/SettingsStateEvent' is reachable from this
 ---------
 
 # architecture#viewmodel-has-spec#@/features/profile/useUserProfileViewModel
+src/features/profile/useUserProfileViewModel.ts
 Every ViewModel hook must have a corresponding spec file in the same directory to verify its state transitions and business logic.
 
 Module '@/features/profile/useUserProfileViewModel' requires '@/features/profile/useUserProfileViewModel.spec' to exist.
@@ -277,6 +319,7 @@ FIX: Create a spec file named 'useUserProfileViewModel.spec.ts' in the same dire
 ---------
 
 # domain-rules#domain-purity#@/domain/order/OrderService
+src/domain/order/OrderService.ts:1
 Domain modules may only import from other domain modules or shared utilities. Importing from infrastructure, features, components, or external UI frameworks pollutes the domain and couples it to delivery/infrastructure concerns.
 
 Module '@/domain/order/OrderService' directly imports '@/infrastructure/HttpClient'.
@@ -285,7 +328,7 @@ import { httpGet } from "@/infrastructure/HttpClient";
 ```
 FIX: Move the dependency out of the domain layer. Infrastructure concerns (HTTP, DB) belong in @/infrastructure. UI concerns belong in @/features or @/components. Shared pure utilities belong in @/shared.
 [Error] ─────────────────────────────────────────
-[summary] Checked 45 modules enforcing 11 rules
-[exit] Found 32 problems, 17 of them auto-fixable.
+[summary] Checked 45 modules enforcing 12 rules
+[exit] Found 33 problems, 17 of them auto-fixable.
    Run `deslop fix` to fix the 17 auto-fixable problems.
-   Run `deslop baseline` to silence all 32 problems.
+   Run `deslop baseline` to silence all 33 problems.

@@ -1,0 +1,73 @@
+id: barrels
+name: Barrels
+description: >-
+  Every rule here passes only if a barrel is one module with one set of edges.
+  Each was chosen because it fails against a graph keyed by the text an author
+  typed rather than by the file a specifier resolves to.
+rules:
+  # One rule per re-export form. Each names a different module under @/server,
+  # reached only through the form it is named for, so a firing violation is
+  # positive proof that that form is an edge - and each fires for both
+  # spellings of the barrel, which is the other half of what is proven here.
+  - id: star-re-export-is-an-edge
+    description: >-
+      No app module may reach @/server/db. The only route is `export * from`,
+      which carries no specifier list at all and so can only ever be a
+      module-level edge.
+    target: "@/app/**"
+    forbids:
+      - import: "@/server/db"
+        transitive: true
+    fix: Do not reach @/server/db through the home barrel.
+
+  - id: star-as-re-export-is-an-edge
+    description: >-
+      No app module may reach @/server/cache. The only route is
+      `export * as widgets from`, a star re-export with a namespace bound to it.
+    target: "@/app/**"
+    forbids:
+      - import: "@/server/cache"
+        transitive: true
+    fix: Do not reach @/server/cache through the home barrel.
+
+  - id: aliased-re-export-is-an-edge
+    description: >-
+      No app module may reach @/server/audit. The only route is
+      `export { formatTitle as title } from`, whose alias names what the barrel
+      exposes rather than what it depends on.
+    target: "@/app/**"
+    forbids:
+      - import: "@/server/audit"
+        transitive: true
+    fix: Do not reach @/server/audit through the home barrel.
+
+  - id: type-only-re-export-is-an-edge
+    description: >-
+      No app module may reach @/server/schema. The only route is
+      `export type { HomeProps } from`, which erases at runtime but is still a
+      dependency an architecture rule is about.
+    target: "@/app/**"
+    forbids:
+      - import: "@/server/schema"
+        transitive: true
+    fix: Do not reach @/server/schema through the home barrel.
+
+  - id: barrel-exposes-its-view
+    description: >-
+      A feature's barrel is its public surface, so it must re-export the View
+      that feature is for. Naming the barrel by its directory form is what
+      people write, and the rule has to be able to say it.
+    target: "@/features/{{feature-name}}"
+    uses:
+      - import: "@/features/{{feature-name}}/{{feature-name}}-view"
+    fix: Re-export the feature's View from its barrel.
+
+  - id: helper-uses-the-db
+    description: >-
+      The helper depends on the database module. It writes that dependency with
+      the second of the two aliases that map to src/, and the rule writes it
+      with the first, so this passes only if both name one module.
+    target: "@/lib/helper"
+    uses:
+      - import: "@/server/db"
+    fix: Import @/server/db.

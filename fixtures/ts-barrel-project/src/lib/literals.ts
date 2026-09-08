@@ -1,0 +1,21 @@
+// Statement-shaped text that is not a statement. `deslop fix` rewrites what
+// the lexer classifies, so every line below must come back byte for byte.
+const banner = `export * from "./generated";`;
+const snippet = "export { a } from './a'";
+const typed = "export type { T } from './a'";
+const imported = "import x from './a'";
+
+// One literal is not one statement: the lexer must not join these two.
+const open = "export {";
+const rest = "} from './a'";
+
+// A raw run that begins on the quote itself.
+const wrapped =
+  "export * from './a'";
+
+// A template inside an interpolation: the outer skip must close on the outer
+// backtick, not on the inner opening one.
+const nested = `const x = ${gen(`export * from "./generated";`)};`;
+const deeper = `a ${f({ k: `import { b } from "./b";` })}`;
+
+export const literals = [banner, snippet, typed, imported, open, rest, wrapped, nested, deeper];

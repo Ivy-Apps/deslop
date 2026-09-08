@@ -13,7 +13,7 @@ module Deslop.Problem.Shrinker (compactProblems) where
 
 import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as Map
-import Deslop.AST (ModuleId)
+import Deslop.Module (ModuleName)
 import Deslop.Problem (Problem (..), ViolationKind (..), problemId)
 
 {- | One Problem per @(ProblemId, kind)@ for transitive imports, every other
@@ -32,8 +32,8 @@ chain the Violation speaks for - its own, and any it has already absorbed.
 -}
 data Transitive = Transitive
     { problem :: Problem
-    , chain :: NonEmpty ModuleId
-    , stands :: NonEmpty (NonEmpty ModuleId)
+    , chain :: NonEmpty ModuleName
+    , stands :: NonEmpty (NonEmpty ModuleName)
     }
 
 classify :: Problem -> Either Problem Transitive
@@ -55,7 +55,7 @@ already did so that compacting an already-compacted report changes nothing. A
 no-op on anything that is not a transitive import, which 'classify' never
 groups.
 -}
-absorb :: [NonEmpty ModuleId] -> Problem -> Problem
+absorb :: [NonEmpty ModuleName] -> Problem -> Problem
 absorb chains p@RuleViolation {kind = k@TransitiveImport {alsoReached}} =
     p {kind = k {alsoReached = alsoReached <> chains}}
 absorb _ p = p

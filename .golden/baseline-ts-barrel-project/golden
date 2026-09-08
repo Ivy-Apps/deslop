@@ -1,0 +1,18 @@
+[Title] 🚀 Baselining project: ts-barrel-project
+[Plain] 📚 Loaded 1 rulebook, 6 rules
+[Success] ✅ Success: Baseline generated with 12 problems.
+[summary] Baselined 17 modules enforcing 9 rules
+
+>>> baseline.yaml
+- barrels#aliased-re-export-is-an-edge#@/app/explicit
+- barrels#aliased-re-export-is-an-edge#@/app/page
+- barrels#barrel-exposes-its-view#@/features/settings/index
+- barrels#star-as-re-export-is-an-edge#@/app/explicit
+- barrels#star-as-re-export-is-an-edge#@/app/page
+- barrels#star-re-export-is-an-edge#@/app/explicit
+- barrels#star-re-export-is-an-edge#@/app/page
+- barrels#type-only-re-export-is-an-edge#@/app/explicit
+- barrels#type-only-re-export-is-an-edge#@/app/page
+- no-relative-exports#src/lib/index.ts
+- no-relative-exports#src/lib/tricky.tsx
+- no-relative-imports#src/lib/tricky.tsx
