@@ -1,10 +1,3 @@
->>> FILE: src/lib/index.ts
-// A relative re-export: no-relative-exports must report and fix this.
-export * from "@/lib/helper";
-
-
-
->>> FILE: src/lib/literals.ts
 // Statement-shaped text that is not a statement. `deslop fix` rewrites what
 // the lexer classifies, so every line below must come back byte for byte.
 const banner = `export * from "./generated";`;

@@ -1,7 +1,7 @@
 [Title] 🚀 Baselining project: ts-barrel-project
 [Plain] 📚 Loaded 1 rulebook, 6 rules
 [Success] ✅ Success: Baseline generated with 10 problems.
-[summary] Baselined 15 modules enforcing 9 rules
+[summary] Baselined 16 modules enforcing 9 rules
 
 >>> baseline.yaml
 - barrels#aliased-re-export-is-an-edge#@/app/explicit

@@ -74,6 +74,7 @@ spec = describe "E2E.Project" $ do
     itFixes
         "ts-barrel-project"
         [ "src/lib/index.ts"
+        , "src/lib/literals.ts" -- statement-shaped text, must not be rewritten
         ]
 
     itFixes

@@ -24,6 +24,7 @@ import Data.Text qualified as T
 import Hedgehog (Gen)
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
+import Renderable (Renderable (render))
 import TypeScript.CST (TsNode (..))
 
 {- | What a program is claimed to depend on: the kind of statement and the
@@ -114,54 +115,85 @@ genReExport = do
 
 {- | Statements that name no module, including every shape that has ever looked
 like it did: a string that could pass for a specifier, a named export with no
-@from@, a word beginning with @import@, and a dependency written inside a
-comment.
+@from@, a word beginning with @import@, a dependency written inside a comment,
+and - through 'genStatementInString' - a whole statement written inside a string
+literal.
 
-A /whole/ import or re-export statement inside a string literal is deliberately
-absent: the lexer does classify one of those as an edge, and it is a known
-limitation rather than something this generator should assert.
+The one shape still absent is a quote character inside a regular expression
+literal: @const re = \/[\`]\/;@ opens a skip that is not a string, and telling a
+regex from a division needs the previous token, which a scanner does not carry. See #230.
 -}
 genNonEdgeSource :: Gen Text
 genNonEdgeSource =
-    Gen.element
-        [ "export const x = 5;"
-        , "export const cfg = \"./config\";"
-        , "export const alias = \"@/lib/thing\";"
-        , "export const nested = { from: \"./nope\" };"
-        , "export let counter = 0;"
-        , "export var legacy = null;"
-        , "export default function foo() { return 1; }"
-        , "export default class Bar {}"
-        , "export function baz(a: number) { return a; }"
-        , "export async function qux() { await go(); }"
-        , "export class Component {}"
-        , "export abstract class Base {}"
-        , "export interface Props { a: string }"
-        , "export enum Colour { Red, Green }"
-        , "export type Foo = { a: string };"
-        , "export type { T };"
-        , "export { a, b };"
-        , "export { a as b };"
-        , -- The `from` clause is the whole discriminator, so every shape that
-          -- lacks one belongs here however much of a re-export it looks like.
-          "export { a, b as c };"
-        , "export { default };"
-        , "export * ;"
-        , "export {};"
-        , "exports.foo = 1;"
-        , "module.exports = {};"
-        , "const importantThing = 1;"
-        , "const exported = true;"
-        , "const exportedFrom = \"./x\";"
-        , "let importer = null;"
-        , "function importAll() { return 1; }"
-        , "const a = 1;"
-        , "type Handler = (e: Event) => void;"
-        , "// import { x } from \"./commented\";"
-        , "// export * from \"./commented\";"
-        , "/* export { y } from \"./blocked\"; */"
-        , "/** @see export * from \"./doc\" */"
+    Gen.frequency
+        [ (3, genStatementInString)
+        , (7, Gen.element nonEdgeStatements)
         ]
+
+{- | A whole dependency written inside a string literal, which is text rather
+than a dependency however exactly it is spelled.
+
+This is the case that reaches @fsWriteFile@: the lexer classifies, the fixer
+rewrites what it classified, so a literal read as a specifier is a silent write
+to somebody's source. Generated from the same statements 'genImport' and
+'genReExport' plant, so the claim ranges over every statement shape rather than
+the handful anybody thought to write down.
+-}
+genStatementInString :: Gen Text
+genStatementInString = do
+    statement <- render <$> Gen.choice [genImport, genReExport]
+    quote <- Gen.element (quotesNotIn statement)
+    name <- Gen.element ["banner", "snippet", "template", "codegen"]
+    pure $ "const " <> name <> " = " <> quote <> statement <> quote <> ";"
+  where
+    -- A backtick always survives, because no generated statement holds one.
+    quotesNotIn statement = filter (not . (`T.isInfixOf` statement)) ["\"", "'", "`"]
+
+nonEdgeStatements :: [Text]
+nonEdgeStatements =
+    [ "export const x = 5;"
+    , "export const cfg = \"./config\";"
+    , "export const alias = \"@/lib/thing\";"
+    , "export const nested = { from: \"./nope\" };"
+    , "export let counter = 0;"
+    , "export var legacy = null;"
+    , "export default function foo() { return 1; }"
+    , "export default class Bar {}"
+    , "export function baz(a: number) { return a; }"
+    , "export async function qux() { await go(); }"
+    , "export class Component {}"
+    , "export abstract class Base {}"
+    , "export interface Props { a: string }"
+    , "export enum Colour { Red, Green }"
+    , "export type Foo = { a: string };"
+    , "export type { T };"
+    , "export { a, b };"
+    , "export { a as b };"
+    , -- The `from` clause is the whole discriminator, so every shape that
+      -- lacks one belongs here however much of a re-export it looks like.
+      "export { a, b as c };"
+    , "export { default };"
+    , "export * ;"
+    , "export {};"
+    , "exports.foo = 1;"
+    , "module.exports = {};"
+    , "const importantThing = 1;"
+    , "const exported = true;"
+    , "const exportedFrom = \"./x\";"
+    , "let importer = null;"
+    , "function importAll() { return 1; }"
+    , "const a = 1;"
+    , "type Handler = (e: Event) => void;"
+    , "// import { x } from \"./commented\";"
+    , "// export * from \"./commented\";"
+    , "/* export { y } from \"./blocked\"; */"
+    , "/** @see export * from \"./doc\" */"
+    , -- The two shapes 'genStatementInString' cannot express, because neither
+      -- fits inside one literal on one line: a statement spread across two
+      -- literals, and one written inside a multi-line template.
+      "const open = \"export {\";\nconst rest = \"} from './a'\";"
+    , "const template = `\nexport * from \"./a\";\nimport x from \"./b\";\n`;"
+    ]
 
 genQuote :: Gen Text
 genQuote = Gen.element ["\"", "'"]

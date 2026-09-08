@@ -106,7 +106,7 @@ import { greet } from "@/features/home";
 ```
 FIX: Do not reach @/server/schema through the home barrel.
 [Error] ─────────────────────────────────────────
-[summary] Checked 15 modules enforcing 9 rules
+[summary] Checked 16 modules enforcing 9 rules
 [exit] Found 10 problems, 1 of them auto-fixable.
    Run `deslop fix` to fix the 1 auto-fixable problem.
    Run `deslop baseline` to silence all 10 problems.

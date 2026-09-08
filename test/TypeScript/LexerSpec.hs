@@ -225,6 +225,52 @@ spec = describe "TypeScript.Lexer" $ do
                 Left err -> expectationFailure (errorBundlePretty err)
                 Right kinds -> kinds `shouldNotContain` [ImportK]
 
+    -- A whole statement inside a string literal is text, not a dependency.
+    -- This is the one case that reaches `fsWriteFile`: what the lexer
+    -- classifies is what `deslop fix` rewrites, so classifying a literal is a
+    -- silent write to somebody's source rather than a false line in a report.
+    describe "String literals" $ do
+        let kindsOf = fmap (map (.kind)) . parse lexer "test.ts"
+
+        let literalCases =
+                [ ("Template literal", "const banner = `export * from \"./generated\";`;")
+                , ("Double-quoted re-export", "const s = \"export { a } from './a'\";")
+                , ("Single-quoted re-export", "const s = 'export * from \"./a\"';")
+                , ("Double-quoted import", "const i = \"import x from './a'\";")
+                , ("Single-quoted import", "const i = 'import x from \"./a\"';")
+                , ("Type-only re-export", "const t = \"export type { T } from './a'\";")
+                ,
+                    ( "Literal split across statements"
+                    , "const open = \"export {\";\nconst rest = \"} from './a'\";"
+                    )
+                ,
+                    ( "Statement inside a multi-line template"
+                    , "const t = `\nexport * from \"./a\";\nimport x from \"./b\";\n`;"
+                    )
+                , -- A raw run begins on the quote itself, so the leading
+                  -- character needs the same protection as every one after it.
+                    ( "Literal opening a raw run"
+                    , "const s =\n  \"export * from './a'\";"
+                    )
+                ]
+
+        forM_ literalCases $ \(desc, input) ->
+            it ("lexes no dependency inside: " <> desc) $
+                case kindsOf input of
+                    Left err -> expectationFailure (errorBundlePretty err)
+                    Right kinds -> do
+                        kinds `shouldNotContain` [ImportK]
+                        kinds `shouldNotContain` [ReExportK]
+
+        -- The bound is the ECMAScript rule: only a template literal may hold a
+        -- raw line terminator. Without it a stray apostrophe opens a span that
+        -- runs to the next one anywhere in the file, hiding every dependency
+        -- in between.
+        it "does not let an unterminated quote hide a later dependency" $
+            case kindsOf "const label = <p>don't</p>;\nimport x from './a';" of
+                Left err -> expectationFailure (errorBundlePretty err)
+                Right kinds -> kinds `shouldContain` [ImportK]
+
 -- | The core property: Reassembled tokens must match the original input exactly.
 prop_roundTrip :: PropertyT IO ()
 prop_roundTrip = do
