@@ -227,6 +227,11 @@ rules:
 Required on a rulebook: `id`, `name`, `description`, `rules`.
 Required on each rule: `id`, `description`, `target`, `fix`.
 
+An unknown key fails the load rather than being ignored, so a typo like
+`forbid:` or `excludes:` is reported instead of quietly producing a rule that
+passes on everything. Keys of two or more words are kebab-case; `allows-only`
+is the only one so far.
+
 ---
 
 ### Targeting Modules
@@ -479,7 +484,7 @@ exists:
 ```
 
 > [!NOTE]
-> Wildcards (`*`, `**`) are not allowed in `exists` patterns — each entry must resolve to a single deterministic path.
+> `*`, `**` and `..*` are not allowed in `exists` patterns - each entry must name exactly one module. This is checked when the rulebook loads, alongside every other error in the file.
 
 ---
 
@@ -838,7 +843,7 @@ twice, so a `forbids:` clause accepts **every** spelling of its variable, while
   path are followed; a package specifier such as `@repo/typescript-config/base.json` is
   skipped with a warning. Deslop still uses one config per run, so a workspace with a
   `tsconfig.json` per package needs one run per package.
-- **`exists:` patterns cannot contain wildcards**, since the path has to be exact.
+- **`exists:` patterns cannot contain `*`, `**` or `..*`**, since each entry has to name exactly one module. Rejected at load time.
 
 ---
 
