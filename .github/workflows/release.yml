@@ -314,6 +314,49 @@ jobs:
           echo "NPM_TAG=$NPM_TAG" >> "$GITHUB_ENV"
           echo "Publishing $VERSION under dist-tag $NPM_TAG"
 
+      - name: Resolve pending publications
+        run: |
+          # The registry, not this workflow, is the source of truth for what a
+          # release still owes. npm versions are immutable, so a re-run can
+          # never redo a publish - it can only finish one. Deciding that here,
+          # once, is what makes a tag re-runnable: v0.11.0 published three of
+          # its five packages, died on a bad credential, and the retry then
+          # failed in Preflight instead of picking up where it left off.
+          #
+          # The consequence worth knowing before you trust a green tick: this
+          # job publishing nothing at all is a success, not a bug. If every
+          # package is already up, there is nothing left for it to do.
+          #
+          # A non-zero `npm view` is either E404 (genuinely unpublished) or a
+          # transient registry error, and npm does not make those cheap to tell
+          # apart. Both are read as "pending", which is the safe direction: a
+          # blip makes us attempt a publish that npm then rejects loudly, and
+          # you re-run. The unsafe direction - concluding "already published"
+          # about a package that is not there, and so exiting 0 on a release
+          # that shipped nothing - needs the registry to affirmatively hand
+          # back a version, so it cannot happen by accident.
+          PENDING_PLATFORMS=""
+          for PLATFORM in $PLATFORMS; do
+            PKG="@ivy-apps/deslop-$PLATFORM"
+            if npm view "$PKG@$VERSION" version >/dev/null 2>&1; then
+              echo "$PKG@$VERSION is already published, skipping"
+            else
+              PENDING_PLATFORMS="${PENDING_PLATFORMS:+$PENDING_PLATFORMS }$PLATFORM"
+            fi
+          done
+
+          if npm view "@ivy-apps/deslop@$VERSION" version >/dev/null 2>&1; then
+            echo "@ivy-apps/deslop@$VERSION is already published, skipping"
+            MAIN_PENDING=false
+          else
+            MAIN_PENDING=true
+          fi
+
+          echo "PENDING_PLATFORMS=$PENDING_PLATFORMS" >> "$GITHUB_ENV"
+          echo "MAIN_PENDING=$MAIN_PENDING" >> "$GITHUB_ENV"
+          echo "Platform packages to publish: ${PENDING_PLATFORMS:-none}"
+          echo "Main package to publish: $MAIN_PENDING"
+
       - name: Stage packages
         run: |
           for PLATFORM in $PLATFORMS; do
@@ -349,74 +392,62 @@ jobs:
         run: |
           # npm has no multi-package transaction and published versions are
           # immutable, so a failure halfway down the publish loop leaves a
-          # release that can neither be completed nor redone under the same
+          # release that can only ever be finished, never redone under the same
           # version number. This step moves every failure that does not require
           # writing to the registry - a bad manifest, a missing bin, a file the
           # `files` allowlist drops - ahead of the first real publish.
+          #
+          # What it does NOT check is credentials. A dry run fetches the
+          # packument and stops, so it never performs the Trusted Publishing
+          # token exchange. v0.11.0 is the proof: Preflight passed for
+          # win32-x64, and the real publish of that same package then died on a
+          # `404 Not Found - PUT`. Nothing here can catch a bad credential
+          # ahead of the first real publish.
           #
           # --provenance is deliberately absent here: signing writes a public
           # Sigstore transparency-log entry, which is not something a dry run
           # should be doing. Packing and manifest validation are what is
           # being checked.
-          for PLATFORM in $PLATFORMS; do
+          #
+          # Only pending packages are preflighted. A dry run still asks the
+          # registry, and the registry rejects a version that already exists -
+          # which is exactly how the v0.11.0 retry died, on the first package
+          # of the loop, before ever reaching the guarded publish steps below.
+          for PLATFORM in $PENDING_PLATFORMS; do
             (cd "npm/packages/$PLATFORM" && npm publish --dry-run --access public --tag "$NPM_TAG")
           done
-          (cd npm && npm publish --dry-run --access public --tag "$NPM_TAG")
+          if [ "$MAIN_PENDING" = true ]; then
+            (cd npm && npm publish --dry-run --access public --tag "$NPM_TAG")
+          fi
 
       - name: Publish platform packages
         run: |
-          for PLATFORM in $PLATFORMS; do
-            PKG="@ivy-apps/deslop-$PLATFORM"
-
-            # Makes re-running a tag able to finish a release that died partway
-            # through. npm rejects re-publishing an existing version, so without
-            # this the retry dies on the first package that already went out.
-            if npm view "$PKG@$VERSION" version >/dev/null 2>&1; then
-              echo "$PKG@$VERSION is already published, skipping"
-              continue
-            fi
-
-            # --provenance is passed explicitly rather than left to npm. npm
-            # does auto-enable it under Trusted Publishing, but that path is
-            # wrapped in a catch-all that logs at verbose and gives up, and it
-            # depends on a live package-visibility lookup - so a transient
-            # failure ships an unattested package and still exits 0. Asking for
-            # it makes it a requirement instead of a best effort.
-            if [ "$PLATFORM" = "win32-x64" ]; then
-              # TEMPORARY - remove once Trusted Publishing is set up.
-              #
-              # npm can only enable Trusted Publishing on a package that already
-              # exists on the registry, and @ivy-apps/deslop-win32-x64 has never
-              # been published. There is no OIDC identity to exchange yet, so
-              # this first publish has to authenticate with a token.
-              #
-              # Cleanup, after this release: enable Trusted Publishing for
-              # @ivy-apps/deslop-win32-x64 on npmjs.com, delete this branch so
-              # win32-x64 falls through to the `else` arm every other package
-              # already uses, and delete the NPM_TOKEN repository secret.
-              #
-              # Scoped to this one command, not the job, so the other packages
-              # have no token in their environment at all and OIDC is the only
-              # auth path they can take.
-              (cd "npm/packages/$PLATFORM" && NODE_AUTH_TOKEN="${{ secrets.NPM_TOKEN }}" \
-                npm publish --access public --provenance --tag "$NPM_TAG")
-            else
-              (cd "npm/packages/$PLATFORM" && \
-                npm publish --access public --provenance --tag "$NPM_TAG")
-            fi
+          # Every package authenticates over OIDC and nothing else: there is no
+          # publish token anywhere in this job, so Trusted Publishing is the
+          # only auth path a package can take.
+          #
+          # --provenance is passed explicitly rather than left to npm. npm
+          # does auto-enable it under Trusted Publishing, but that path is
+          # wrapped in a catch-all that logs at verbose and gives up, and it
+          # depends on a live package-visibility lookup - so a transient
+          # failure ships an unattested package and still exits 0. Asking for
+          # it makes it a requirement instead of a best effort.
+          for PLATFORM in $PENDING_PLATFORMS; do
+            (cd "npm/packages/$PLATFORM" && \
+              npm publish --access public --provenance --tag "$NPM_TAG")
           done
 
       - name: Publish main package
         run: |
           # Published last, on purpose: the platform packages are
           # optionalDependencies of this one, so until it goes out a partially
-          # published release is not reachable by any user.
-          if npm view "@ivy-apps/deslop@$VERSION" version >/dev/null 2>&1; then
-            echo "@ivy-apps/deslop@$VERSION is already published, skipping"
-            exit 0
+          # published release is not reachable by any user. That is also why a
+          # half-finished release is safe to walk away from - v0.11.0 left
+          # three platform packages on the registry that nothing can resolve
+          # to, because this step never ran.
+          if [ "$MAIN_PENDING" = true ]; then
+            (cd npm && npm publish --access public --provenance --tag "$NPM_TAG")
           fi
-          cd npm
-          npm publish --access public --provenance --tag "$NPM_TAG"
 
   github-release:
     name: GitHub Release

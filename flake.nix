@@ -137,6 +137,12 @@
                 # lean shell instead of the HLS-heavy `default` one.
                 pkgs.just
                 pkgs.hlint
+                # Behind `just lint-actions`. shellcheck is optional to
+                # actionlint but not decorative: with it absent from PATH,
+                # actionlint silently skips every `run:` block, which is where
+                # the release workflow keeps all of its logic.
+                pkgs.actionlint
+                pkgs.shellcheck
                 # The Git.Ignore property tests use `git check-ignore` as an
                 # oracle, so the test suite needs a git binary on PATH.
                 pkgs.git
@@ -156,6 +162,9 @@
                 pkgs.pkg-config
                 pkgs.just
                 pkgs.hlint
+                # See the `ci` shell for why shellcheck rides along.
+                pkgs.actionlint
+                pkgs.shellcheck
                 # See the `ci` shell: `git check-ignore` is a test oracle.
                 pkgs.git
                 hgold
