@@ -64,15 +64,20 @@ spec = describe "TypeScript.Lint.RelativeSpecifiers properties" $ do
             pure (renderCst fixed /= renderCst original)
         coverRewriting rewrote
 
-    prop "P6 a file that resolves and has nothing to report comes back byte for byte" $ do
+    prop "P6 a file the pass reports nothing about comes back byte for byte" $ do
         project <- forAll genProject
-        quiet <- forM (renderProject asImports project) $ \source -> do
+        reported <- forM (relativeSources project <> renderProject asImports project) $ \source -> do
             original <- parseSource source
             (fixed, problems) <-
                 lintReporting projectConfig emptyBaseline (projectFiles project) (fst source) original
             when (null problems) $ fixed === original
-            pure (null problems)
-        cover 80 "resolved with nothing to report" (and quiet)
+            pure (not . null $ problems)
+        -- Both branches, because an implication nothing ever satisfies the
+        -- antecedent of is true for the wrong reason. Rendered one way the pass
+        -- has something to say and rendered the other it does not, so the
+        -- guard above gates rather than waving everything through.
+        cover 60 "a file was reported" (or reported)
+        cover 60 "a file was not reported" (not . and $ reported)
 
     prop "P12 the module graph does not depend on what the baseline suppresses" $ do
         project <- forAll genProject

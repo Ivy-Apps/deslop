@@ -252,6 +252,29 @@ spec = describe "TypeScript.Lexer" $ do
                     ( "Literal opening a raw run"
                     , "const s =\n  \"export * from './a'\";"
                     )
+                , -- A template inside an interpolation. The outer skip must
+                  -- close on the outer backtick, not on the inner opening one.
+                    ( "Nested template, re-export"
+                    , "const code = `const x = ${gen(`export * from \"./a\";`)};`;"
+                    )
+                ,
+                    ( "Nested template, import"
+                    , "const code = `const y = ${gen(`import { a } from \"./a\";`)};`;"
+                    )
+                ,
+                    ( "Twice-nested template"
+                    , "const code = `a ${f(`b ${g(`export * from \"./a\";`)}`)}`;"
+                    )
+                , -- Braces nest inside an interpolation, so the scan for the
+                  -- closing one has to count them.
+                    ( "Nested template behind an object literal"
+                    , "const code = `a ${f({ k: `export * from \"./a\";` })}`;"
+                    )
+                , -- A plain string inside an interpolation, which the brace
+                  -- scan must step over rather than read as code.
+                    ( "Quoted statement inside an interpolation"
+                    , "const code = `a ${f(\"export * from './a';\")}`;"
+                    )
                 ]
 
         forM_ literalCases $ \(desc, input) ->

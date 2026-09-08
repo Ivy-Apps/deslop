@@ -137,15 +137,48 @@ two characters of a perfectly ordinary single-line string.
 pSkipString :: Lexer ()
 pSkipString =
     choice
-        [ skipBetween (noneOf ['\n']) '"'
-        , skipBetween (noneOf ['\n']) '\''
-        , skipBetween anySingle '`'
+        [ skipLine '"'
+        , skipLine '\''
+        , pTemplate
         ]
   where
-    skipBetween p q =
-        void $ char q *> manyTill (escaped <|> void p) (char q)
+    skipLine q = void $ char q *> manyTill (escaped <|> void (noneOf ['\n'])) (char q)
 
-    escaped = void $ char '\\' *> anySingle
+{- | A template literal and everything its interpolations hold.
+
+Interpolations are the reason this is not a scan to the next backtick. A
+template may hold @${...}@, which holds arbitrary code, which may hold another
+template: closing on the first backtick found would close on the /inner opening/
+one and leave the inner template's text to be read as code.
+-}
+pTemplate :: Lexer ()
+pTemplate = void $ char '`' *> manyTill piece (char '`')
+  where
+    piece = choice [escaped, void $ try pInterpolation, void anySingle]
+
+{- | An interpolation, up to the brace that closes it.
+
+Braces nest and a literal may hold an unpaired one, so the closing brace is
+found by counting rather than by scanning. A comment or a regular expression
+holding an unpaired @}@ ends the count early - the same blind spot as #230, and
+a partial exposure rather than a wrong classification.
+-}
+pInterpolation :: Lexer ()
+pInterpolation = string "${" *> pBraced
+
+pBraced :: Lexer ()
+pBraced = void $ manyTill piece (char '}')
+  where
+    piece =
+        choice
+            [ escaped
+            , try pSkipString
+            , try $ char '{' *> pBraced
+            , void anySingle
+            ]
+
+escaped :: Lexer ()
+escaped = void $ char '\\' *> anySingle
 
 pComment :: Lexer TsToken
 pComment = try pLineComment <|> pBlockComment
@@ -173,9 +206,11 @@ classifying it as a re-export makes @deslop fix@ rewrite somebody's source. The
 first character needs that protection as much as the rest, because after a
 whitespace token a run can begin on the opening quote itself.
 
-One case is left: a quote character inside a regular expression literal
-(@\/['"\`]\/@) opens a skip that is not a string. Telling a regex from a
-division needs the previous token, which a scanner does not carry. See #230.
+What is left is the regular expression literal, which 'pSkipString' does not
+know about. A quote inside one (@\/['"\`]\/@) opens a skip that is not a string,
+and an unpaired @}@ inside one ends an interpolation's brace count early.
+Telling a regex from a division needs the previous token, which a scanner does
+not carry. See #230.
 -}
 pRaw :: Lexer TsToken
 pRaw =

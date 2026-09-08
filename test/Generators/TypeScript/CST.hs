@@ -138,14 +138,31 @@ rewrites what it classified, so a literal read as a specifier is a silent write
 to somebody's source. Generated from the same statements 'genImport' and
 'genReExport' plant, so the claim ranges over every statement shape rather than
 the handful anybody thought to write down.
+
+The depth is drawn rather than fixed, because skipping a literal is recursive:
+a template holds an interpolation, which holds arbitrary code, which holds
+another template. A generator that only ever nests once cannot tell a correct
+recursion from one that handles exactly one level.
 -}
 genStatementInString :: Gen Text
 genStatementInString = do
     statement <- render <$> Gen.choice [genImport, genReExport]
-    quote <- Gen.element (quotesNotIn statement)
+    depth <- Gen.int (Range.linear 0 2)
     name <- Gen.element ["banner", "snippet", "template", "codegen"]
-    pure $ "const " <> name <> " = " <> quote <> statement <> quote <> ";"
+    body <- nest depth statement
+    pure $ "const " <> name <> " = " <> body <> ";"
   where
+    nest :: Int -> Text -> Gen Text
+    nest 0 statement = do
+        quote <- Gen.element (quotesNotIn statement)
+        pure $ quote <> statement <> quote
+    nest depth statement = do
+        inner <- nest (depth - 1) statement
+        wrapper <- Gen.element ["`v = ${ gen(", "`v = ${ f({ k: "]
+        pure $ wrapper <> inner <> closing wrapper
+
+    closing wrapper = if "gen(" `T.isSuffixOf` wrapper then ") }`" else " }) }`"
+
     -- A backtick always survives, because no generated statement holds one.
     quotesNotIn statement = filter (not . (`T.isInfixOf` statement)) ["\"", "'", "`"]
 

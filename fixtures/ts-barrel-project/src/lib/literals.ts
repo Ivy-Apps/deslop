@@ -13,4 +13,9 @@ const rest = "} from './a'";
 const wrapped =
   "export * from './a'";
 
-export const literals = [banner, snippet, typed, imported, open, rest, wrapped];
+// A template inside an interpolation: the outer skip must close on the outer
+// backtick, not on the inner opening one.
+const nested = `const x = ${gen(`export * from "./generated";`)};`;
+const deeper = `a ${f({ k: `import { b } from "./b";` })}`;
+
+export const literals = [banner, snippet, typed, imported, open, rest, wrapped, nested, deeper];
