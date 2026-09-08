@@ -5,6 +5,7 @@ default:
 # Run the full quality suite (use from nix develop); mirrors the Quality CI
 check:
     just lint
+    just lint-actions
     just build
     just test
     just integration
@@ -12,6 +13,14 @@ check:
 # Haskell lint (hlint)
 lint:
     hlint .
+
+# Lint the GitHub Actions workflows (actionlint, with shellcheck over `run:`).
+# SC2153 is off because shellcheck cannot see a workflow's `env:` block, so
+# every `for X in $XS` over an injected variable reads to it as a typo for the
+# loop variable. actionlint 1.7.12 disables the rule by default; nixpkgs pins
+# 1.7.9, so we adopt that default by hand until the pin catches up.
+lint-actions:
+    actionlint -shellcheck="shellcheck -e SC2153"
 
 # Compile the library, the executable and the benchmark
 build:

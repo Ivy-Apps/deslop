@@ -37,6 +37,9 @@ jobs:
       - name: 🔍 Lint
         run: nix develop .#ci --accept-flake-config -c just lint
 
+      - name: 🔍 Lint workflows
+        run: nix develop .#ci --accept-flake-config -c just lint-actions
+
       - name: 🏗️ Build
         run: nix develop .#ci --accept-flake-config -c just build
 
