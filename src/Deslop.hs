@@ -36,8 +36,8 @@ import Effects.FileSystem (
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import FileSystem.Path (
     AbsPath (osPath),
-    ProjectRoot (..),
     ProjectRelativePath (osPath),
+    ProjectRoot (..),
     decodeOsPath,
     relativePathTo,
     withAbsBaseUnsafe,
@@ -46,9 +46,9 @@ import Git.Ignore (loadGitIgnore)
 import Params
 import Renderable (Renderable (render))
 import System.OsPath (osp, takeFileName)
+import TypeScript.CST
 import TypeScript.Config (TsConfig (..))
 import TypeScript.Config.Loader (loadTsConfig, renderSkippedExtends, renderTsConfigLoadError)
-import TypeScript.CST
 import TypeScript.Iterator (getTsFiles)
 import TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers)
 import TypeScript.Module (parseModule)

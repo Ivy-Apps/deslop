@@ -58,6 +58,7 @@ executable deslop
 library
   import:          shared-properties
   exposed-modules:
+    CompilerFrontend
     Deslop
     Deslop.CodeGraph
     Deslop.Error
@@ -82,6 +83,9 @@ library
     Effects.ReportProblem
     FileSystem.Iterator
     FileSystem.Path
+    Frontend.Class
+    Frontend.Pipeline
+    Frontend.TypeScript
     Git.Ignore
     Params
     Prelude
