@@ -149,6 +149,12 @@ spec = describe "TypeScript.Iterator" $ do
                 [(root, [direnvDir]), (direnvDir, [ap "/project/.direnv/flake-inputs/src/api.ts"])]
                 >>= (`shouldBe` [])
 
+        it "skips AI agent folders, worktrees included" $ do
+            let agentDirs = ["/project/.claude", "/project/.codex", "/project/.cursor", "/project/.opencode", "/project/.windsurf"]
+            run
+                ((root, ap <$> agentDirs) : fmap (\dir -> (ap dir, [ap $ dir <> "/worktrees/x/src/api.ts"])) agentDirs)
+                >>= (`shouldBe` [])
+
         it "skips all ignored dirs simultaneously while collecting from valid ones" $ do
             let nodeModules = ap "/project/node_modules"
             let distDir = ap "/project/dist"
