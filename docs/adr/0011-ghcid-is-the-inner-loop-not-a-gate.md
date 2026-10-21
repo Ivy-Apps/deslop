@@ -82,17 +82,24 @@ behind a `callCabal2nix` IFD evaluation and a 70-module repl load, with no way
 to detach that survives `direnv export`. Paying ~15s on the first `check` of a
 session is the cheaper trade.
 
-The session loads all four components:
+The session loads every component agents work on:
 
 ```
 cabal repl --enable-multi-repl lib:deslop deslop:exe:deslop \
-           deslop:test:deslop-test deslop:bench:deslop-bench
+           deslop:test:deslop-test
 ```
 
-70 modules, 5.1s to load. Loading only `lib` and `test` was measured at 61
-modules and was no faster per reload, so the narrower session bought nothing
-and would have left `app/Main.hs` and `bench/` reporting a green that never
-looked at them.
+It loaded the benchmark too until 2026-10-21. That was dropped because agents
+do not touch the benchmark and its dependencies (criterion, statistics) are in
+neither dev shell: loading it made cabal fetch and compile them from Hackage on
+every new machine before the first verdict. CI compiles the benchmark instead
+(`just build-bench`), so a change that breaks it still fails the pull request.
+
+With the benchmark it was 70 modules, 5.1s to load. Loading only `lib` and
+`test` was measured at 61 modules and was no faster per reload, so narrowing for
+speed bought nothing, and the executable stays in for the same reason it was
+first added: `app/Main.hs` would otherwise report a green that never looked at
+it.
 
 ### Why `--restart` is not optional
 
@@ -211,9 +218,10 @@ which is the only cleanup on offer and is deliberately all that is.
 - The first `nix run .#quick-typecheck` of a session costs ~15s to load the
   repl. Nothing warms it in the background any more; see the Decision above.
 - `quick-typecheck` reports only what `ghci` can see. It is interpreted, so
-  there is no `-O2`, no link errors, no test results and no `hlint`. A green
-  benchmark component means it typechecks, never that it performs;
-  `just benchmark` remains the only answer there, per ADR 0008.
+  there is no `-O2`, no link errors, no test results and no `hlint`. It does
+  not see the benchmark at all; CI's `just build-bench` is what typechecks it,
+  and `just benchmark` remains the only answer to whether it performs, per
+  ADR 0008.
 - Daemon state lives outside the worktree, so nothing is added to `.gitignore`
   and the repository stays clean, at the cost of the state being less obvious to
   find than a directory sitting in the project root.

@@ -22,9 +22,14 @@ lint:
 lint-actions:
     actionlint -shellcheck="shellcheck -e SC2153"
 
-# Compile the library, the executable and the benchmark
+# Compile the library and the executable
 build:
-    cabal build --enable-benchmarks all
+    cabal build all
+
+# Compile the benchmark. CI runs this; the dev shells do not carry the
+# benchmark's dependencies, so it needs `cabal update` first.
+build-bench:
+    cabal build --enable-benchmarks deslop-bench
 
 # Run the test suite
 test:
