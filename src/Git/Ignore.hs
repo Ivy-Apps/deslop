@@ -171,6 +171,11 @@ alwaysIgnoredNames =
     , ".astro"
     , ".vercel"
     , ".wrangler"
+    , ".claude"
+    , ".codex"
+    , ".cursor"
+    , ".opencode"
+    , ".windsurf"
     ]
 
 alwaysIgnoredPaths :: Set OsPath
