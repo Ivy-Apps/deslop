@@ -11,8 +11,8 @@ import Effects.CLI (CLI)
 import Effects.FileSystem (RoFileSystem, WrFileSystem)
 import Effects.ReportProblem (ReportProblem)
 import FileSystem.Path (ProjectRoot (..))
+import Frontend.Class (CompilerFrontend)
 import Git.Ignore (GitIgnore)
-import Params (Command)
 
 runFrontend ::
     ( CompilerFrontend fe

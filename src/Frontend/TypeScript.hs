@@ -2,7 +2,6 @@
 
 module Frontend.TypeScript () where
 
-import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Deslop.Error (DeslopError (..))
 import Deslop.Module (Module)

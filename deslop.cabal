@@ -58,7 +58,6 @@ executable deslop
 library
   import:          shared-properties
   exposed-modules:
-    CompilerFrontend
     Deslop
     Deslop.CodeGraph
     Deslop.Error
