@@ -13,9 +13,10 @@ nix run .#quick-typecheck
 ```
 
 It answers exactly one question, "does the project typecheck", by keeping a warm
-`ghcid` session over all four components (library, executable, tests,
-benchmark). It prints either `All good (70 modules)` and exits 0, or the GHC
-errors verbatim and exits 1. There is no need to pipe it through `grep`.
+`ghcid` session over the library, the executable and the tests (not the
+benchmark, which only CI compiles). It prints either `All good (<N> modules)`
+and exits 0, or the GHC errors verbatim and exits 1. There is no need to pipe it
+through `grep`.
 
 Roughly 0.5s when nothing broke and ~2s when something did, against ~8s for
 `nix run .#build`. The first call after a break starts the session and takes
@@ -46,6 +47,18 @@ nix run .#build
 ```
 
 ### Running Tests
+
+The full local quality suite needs the lean `ci` shell, and on a fresh machine
+a Hackage package index first (cabal builds a few test dependencies whose
+`cabal.project.freeze` pins are newer than nixpkgs):
+
+```bash
+nix develop .#ci -c cabal update   # once per machine
+nix develop .#ci -c just check
+```
+
+It runs the same steps as CI, except the benchmark build: agents do not touch
+the benchmark, so only CI compiles it (`just build-bench`).
 
 Run all tests:
 ```bash

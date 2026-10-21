@@ -43,6 +43,9 @@ jobs:
       - name: 🏗️ Build
         run: nix develop .#ci --accept-flake-config -c just build
 
+      - name: ⏱️ Build benchmark
+        run: nix develop .#ci --accept-flake-config -c just build-bench
+
       - name: 🧪 Test
         run: nix develop .#ci --accept-flake-config -c just test
 

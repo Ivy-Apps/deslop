@@ -25,13 +25,14 @@ let
   inherit (pkgs) lib;
 
   # ── What the session covers ────────────────────────────────────────────────
-  # All four components, so `All good` means the whole repo is good rather than
-  # the part someone remembered to list.
+  # Every component agents work on, so `All good` means all of it is good
+  # rather than the part someone remembered to list. The benchmark is left out:
+  # agents do not touch it, the dev shells do not carry its dependencies, and
+  # CI compiles it (`just build-bench`). See ADR 0011.
   components = [
     "lib:deslop"
     "deslop:exe:deslop"
     "deslop:test:deslop-test"
-    "deslop:bench:deslop-bench"
   ];
 
   # Edits to these change the module graph itself, which ghcid cannot reload
@@ -43,7 +44,7 @@ let
   # amount of restarting from within that shell can pick up. Respawn instead.
   shellFiles = [ "flake.nix" "flake.lock" ];
 
-  sourceDirs = [ "src" "app" "test" "bench" ];
+  sourceDirs = [ "src" "app" "test" ];
 
   # ── Tuning ─────────────────────────────────────────────────────────────────
   cacheNamespace = "deslop-ghcid";
@@ -56,6 +57,7 @@ let
   settleSeconds = 30;
   pollSeconds = "0.2";
   maxReportLines = 200; # keep a wide breakage from flooding an agent's context
+  deathLogLines = 40; # where `cabal repl` or `nix develop` says why it died
 
   watchdogName = "${cacheNamespace}-watchdog";
   cacheRoot = ''"''${XDG_CACHE_HOME:-$HOME/.cache}/${cacheNamespace}"'';
@@ -326,7 +328,11 @@ let
       case "$status" in
         0) report ;;
         2)
-          printf 'quick-typecheck: the ghcid daemon exited; see %s\n' "$LOGF" >&2
+          # The reason is at the end of the log - a cabal solver failure, a
+          # missing package index, a broken flake - so show it rather than
+          # sending the agent off to read a file.
+          printf 'quick-typecheck: the ghcid daemon exited. The end of %s:\n' "$LOGF" >&2
+          tail -n ${toString deathLogLines} "$LOGF" >&2
           exit 2
           ;;
         3)
