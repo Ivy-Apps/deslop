@@ -10,7 +10,7 @@ module Deslop.Frontend.Pipeline (runFrontend) where
 import Deslop.Command (Command (..))
 import Deslop.Error (DeslopError)
 import Deslop.Frontend (CompilerFrontend (..))
-import Deslop.Frontend.Finding (Finding (..), applyFindings)
+import Deslop.Frontend.Finding (applyFindings)
 import Deslop.Module (Module)
 import Deslop.Problem.Baseline (Baseline)
 import Effectful (Eff, type (:>))

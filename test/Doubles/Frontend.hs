@@ -20,7 +20,7 @@ module Doubles.Frontend (
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Deslop.Frontend (CompilerFrontend (..))
-import Deslop.Frontend.Finding (Finding (..), Fix (..))
+import Deslop.Frontend.Finding (fixable, unfixable)
 import Deslop.Module (Location (..), Module (..), moduleIdUnsafe, moduleNameUnsafe)
 import Deslop.Problem (LintRuleId (..), Problem (..))
 import Deslop.Problem.Formatter (CodeFence (..))
@@ -82,8 +82,8 @@ instance CompilerFrontend LinesFrontend where
         pure . catMaybes . zipWith (findingAt located) [1 ..] $ file.statements
       where
         findingAt located line statement = case statement of
-            "TODO" -> Just . Finding (problemAt todoRule located line statement True) . Rewrite . Endo $ repair line
-            "FIXME" -> Just . Finding (problemAt fixmeRule located line statement False) $ NoFix
+            "TODO" -> Just . fixable (problemAt todoRule located line statement) . Endo $ repair line
+            "FIXME" -> Just . unfixable $ problemAt fixmeRule located line statement
             _ -> Nothing
         repair line f = f {statements = zipWith (\i s -> bool s "DONE" (i == line)) [1 ..] f.statements}
         problemAt rule located line statement autoFixable =

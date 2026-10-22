@@ -1,7 +1,7 @@
 module Frontend.TypeScript.Lint.RelativeSpecifiersSpec (spec) where
 
 import Data.Text qualified as T
-import Deslop.Frontend.Finding (Finding (..), applyFindings)
+import Deslop.Frontend.Finding (applyFindings)
 import Deslop.Module (Location (..))
 import Deslop.Problem (LintRuleId (..), Problem (..), ProblemId (..), problemId)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)

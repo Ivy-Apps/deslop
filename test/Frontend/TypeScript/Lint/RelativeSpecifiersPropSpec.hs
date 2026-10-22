@@ -12,7 +12,7 @@ edges from whatever this pass left behind.
 -}
 module Frontend.TypeScript.Lint.RelativeSpecifiersPropSpec (spec) where
 
-import Deslop.Frontend.Finding (Finding (..), applyFindings)
+import Deslop.Frontend.Finding (applyFindings)
 import Deslop.Module (Module)
 import Deslop.Problem (Problem, ProblemId (..), problemId)
 import Deslop.Problem.Baseline (Baseline, emptyBaseline)

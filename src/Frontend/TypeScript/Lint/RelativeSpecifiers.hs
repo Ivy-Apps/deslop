@@ -12,7 +12,7 @@ module Frontend.TypeScript.Lint.RelativeSpecifiers (
     relativeSpecifierRules,
 ) where
 
-import Deslop.Frontend.Finding (Finding (..), Fix (..))
+import Deslop.Frontend.Finding (Finding, fixable)
 import Deslop.Module (Location (..), Specifier (..), specifierUnsafe)
 import Deslop.Problem (LintRuleId (..), Problem (..))
 import Effectful (Eff, type (:>))
@@ -59,14 +59,14 @@ ruleFor Import {} = Just importRule
 ruleFor ReExport {} = Just reExportRule
 ruleFor Source {} = Nothing
 
-relativeSpecifier :: SpecifierRule -> (TsNode, TsNode) -> Int -> ProjectRelativePath -> Problem
-relativeSpecifier rule (old, new) line file =
+relativeSpecifier :: SpecifierRule -> (TsNode, TsNode) -> Int -> ProjectRelativePath -> Bool -> Problem
+relativeSpecifier rule (old, new) line file autoFixable =
     LintProblem
         { lintRule = rule.ruleId
         , location = Location {file = file, line = line, code = render old}
         , description = rule.description
         , fix = "Use ```" <> render new <> "``` instead."
-        , autoFixable = True
+        , autoFixable
         }
 
 {- | Every relative specifier in the program, each with the rewrite that names
@@ -92,10 +92,7 @@ noRelativeSpecifiers prog = do
             t' <- (.text) <$> reverseResolveImport prog.path (specifierUnsafe t)
             let new = withSpecifier t' old
             pure $
-                Finding
-                    { problem = relativeSpecifier rule (old, new) line file
-                    , fix = Rewrite . Endo $ replaceNode index new
-                    }
+                fixable (relativeSpecifier rule (old, new) line file) (Endo $ replaceNode index new)
                     <$ guard (t /= t')
         _ -> pure Nothing
 

@@ -8,7 +8,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Deslop.Command (Command (..))
-import Deslop.Problem (Problem (..), problemId)
+import Deslop.Problem (isAutoFixable, problemId)
 import Deslop.Problem.Baseline (Baseline, inBaseline)
 import Effects.CLI (LogStyle (..))
 import FileSystem.Path (AbsPath (..), decodeOsPath)
@@ -48,7 +48,7 @@ spec = describe "Deslop.Frontend.Pipeline properties" $ do
         recheck <- evalIO . runLines CheckC baseline . Map.toList $ fixed.files
         cover 10 "a file was repaired" (not . null $ fixed.written)
         for_ recheck.problems $ \problem ->
-            assert (inBaseline baseline problem || not (autoFixableOf problem))
+            assert (inBaseline baseline problem || not (isAutoFixable problem))
 
     prop "a second fix writes nothing" $ do
         project <- forAll genProject
@@ -65,11 +65,6 @@ spec = describe "Deslop.Frontend.Pipeline properties" $ do
 
 modified :: AbsPath -> Text
 modified = ("  modified  " <>) . fromMaybe "" . T.stripPrefix "/project/" . decodeOsPath . (.osPath)
-
-autoFixableOf :: Problem -> Bool
-autoFixableOf = \case
-    LintProblem {autoFixable} -> autoFixable
-    RuleViolation {} -> False
 
 -- | A flat Lines project: a few files, each a few statements.
 genProject :: Gen [(AbsPath, ByteString)]

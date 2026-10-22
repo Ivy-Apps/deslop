@@ -154,6 +154,7 @@ test-suite deslop-test
   other-modules:
     Deslop.CodeGraphPropSpec
     Deslop.CodeGraphSpec
+    Deslop.Frontend.FindingSpec
     Deslop.Frontend.PipelinePropSpec
     Deslop.Frontend.PipelineSpec
     Deslop.GlobPlus.CasingSpec
