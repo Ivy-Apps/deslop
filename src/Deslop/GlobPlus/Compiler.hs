@@ -134,7 +134,7 @@ renderGlobPlusError (ParentDirInTargetPattern token) =
         <> "  A target is matched against whole module ids, so there is nothing\n"
         <> "  for "
         <> quoted token
-        <> " to be relative to. Write the path you mean, e.g. \"@/shared/**\".\n"
+        <> " to be relative to. Write the path you mean, e.g. \"shared/**\".\n"
         <> relativeToTargetDir
 renderGlobPlusError (ParentDirInExcludePattern token) =
     quoted token
@@ -143,7 +143,7 @@ renderGlobPlusError (ParentDirInExcludePattern token) =
         <> "  module ids, so there is nothing for "
         <> quoted token
         <> " to be relative to. Write\n"
-        <> "  the path you mean, e.g. \"@/shared/**\".\n"
+        <> "  the path you mean, e.g. \"shared/**\".\n"
         <> relativeToTargetDir
 renderGlobPlusError (ParentDirPastWildcard token segment) =
     quoted token

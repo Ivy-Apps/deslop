@@ -22,7 +22,7 @@ apart - see
   @.\/helper@ names nothing, it points somewhere from where its writer stood.
 * a 'Module' is the thing itself.
 
-Producing one from TypeScript is "TypeScript.Module".
+Producing one from TypeScript is "Frontend.TypeScript.Module".
 -}
 module Deslop.Module (
     ModuleId (text),
@@ -91,7 +91,7 @@ denotes a different module for every file that writes it. A name means the same
 thing to every reader.
 
 The two answer different questions, which is why an edge carries both:
-"TypeScript.Lint.RelativeSpecifiers" judges what was /written/, and a Rule's
+"Frontend.TypeScript.Lint.RelativeSpecifiers" judges what was /written/, and a Rule's
 @forbids@ judges what was /reached/.
 -}
 newtype Specifier = Specifier

@@ -141,36 +141,19 @@ emptyGitIgnore r = GitIgnore {root = r, scopes = []}
 -- Always-ignored directories
 --------------------------------------------------------------------------------
 
-{- | Directories and files never traversed, for any reason.
+{- | Directories and files never traversed, whatever the language.
 
-These are pruned greedily and are not even scanned for @.gitignore@ files:
-they are large enough that walking them costs more than every other part of a
-run combined. Unlike a gitignored path, no rule can re-include one.
+These are pruned greedily and are not even scanned for @.gitignore@ files.
+Unlike a gitignored path, no rule can re-include one. What a language's own
+tooling generates - @node_modules@, build output - is that frontend's to add,
+see 'loadGitIgnore'.
 -}
 alwaysIgnoredNames :: [Text]
 alwaysIgnoredNames =
-    [ "node_modules"
-    , ".git"
-    , "dist"
-    , ".next"
-    , "next-env.d.ts"
-    , ".next-env.d.ts"
-    , "build"
-    , "out"
-    , ".output"
-    , "storybook-static"
-    , "coverage"
+    [ ".git"
     , ".direnv"
     , ".devenv"
-    , ".turbo"
     , ".cache"
-    , ".parcel-cache"
-    , ".yarn"
-    , ".svelte-kit"
-    , ".nuxt"
-    , ".astro"
-    , ".vercel"
-    , ".wrangler"
     , ".claude"
     , ".codex"
     , ".cursor"
@@ -193,16 +176,17 @@ gitIgnoreName = [osp|.gitignore|]
 
 {- | Walks the project once, collecting and parsing every @.gitignore@.
 
-Pruning is by 'alwaysIgnored' only: this is the pass that discovers the rules,
-so it cannot yet prune by them.
+Pruning is by 'alwaysIgnored' and by what the language's tooling generates
+only: this is the pass that discovers the rules, so it cannot yet prune by them.
 -}
-loadGitIgnore :: (RoFileSystem :> es) => AbsPath -> Eff es GitIgnore
-loadGitIgnore projectRoot =
-    walkDir alwaysIgnored ignoreFile projectRoot
+loadGitIgnore :: (RoFileSystem :> es) => (Entry -> Bool) -> AbsPath -> Eff es GitIgnore
+loadGitIgnore generated projectRoot =
+    walkDir prune ignoreFile projectRoot
         >>= fmap (GitIgnore projectRoot . sortOn depth) . traverse readScope
   where
     ignoreFile e = e.path <$ guard (not e.isDir && takeFileName e.path.osPath == gitIgnoreName)
     depth = length . splitDirectories . (.osPath) . (.base)
+    prune e = alwaysIgnored e || generated e
 
 -- | A @.gitignore@ that cannot be decoded contributes no rules.
 readScope :: (RoFileSystem :> es) => AbsPath -> Eff es IgnoreScope

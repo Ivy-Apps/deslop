@@ -461,3 +461,16 @@ describe('Helpers', () => {
     });
   });
 });
+
+>>> changelog
+  modified  .storybook/preview.ts
+  modified  next.config.ts
+  modified  src/components/Hello.tsx
+  modified  src/libs/DB.ts
+  modified  src/libs/I18n.ts
+  modified  src/libs/I18nNavigation.ts
+  modified  src/libs/Logger.ts
+  modified  src/proxy.ts
+  modified  src/templates/BaseTemplate.stories.tsx
+  modified  src/templates/BaseTemplate.test.tsx
+  modified  src/utils/Helpers.test.ts

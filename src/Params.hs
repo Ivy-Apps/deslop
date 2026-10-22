@@ -13,15 +13,13 @@ where
 
 import Data.Text qualified as T
 import Data.Version (showVersion)
+import Deslop.Command (Command (..))
 import Effectful (Eff, (:>))
 import Effects.FileSystem (RoFileSystem, fsMkAbsolute)
 import FileSystem.Path (AbsPath, encodeOsPath)
 import Options.Applicative
 import Paths_deslop (version)
 import System.OsPath (OsPath, osp)
-
-data Command = CheckC | FixC | BaselineC
-    deriving (Show, Eq)
 
 data Params = Params
     { projectPath :: AbsPath
@@ -61,7 +59,7 @@ pParams =
         <*> argument
             (eitherReader (Right . encodeOsPath . T.pack))
             ( metavar "PROJECT_DIR"
-                <> help "Path to the TypeScript project"
+                <> help "Path to the project"
                 <> value [osp|.|]
                 <> showDefault
             )
@@ -81,7 +79,7 @@ paramsParser =
         (helper <*> versionOption <*> pParams)
         ( fullDesc
             <> header "Deslop - A Haskell-powered code cleaner ✨"
-            <> progDesc "Removes slop from TypeScript projects. Commands: check, fix, baseline."
+            <> progDesc "Removes slop from your project's architecture. Commands: check, fix, baseline."
         )
 
 parserPrefs :: ParserPrefs

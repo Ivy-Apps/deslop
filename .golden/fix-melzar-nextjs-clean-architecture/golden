@@ -211,3 +211,10 @@ export default function Home() {
     </main>
   );
 }
+
+>>> changelog
+  modified  .storybook/preview.tsx
+  modified  src/app/layout.tsx
+  modified  src/ui/common/components/layout/ContainerBox/ContainerBox.tsx
+  modified  src/ui/common/components/layout/TopHeader/TopHeader.stories.tsx
+  modified  src/ui/common/components/layout/TopNavigation/TopNavigation.tsx

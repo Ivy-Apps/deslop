@@ -1,8 +1,11 @@
 module UISpec (spec) where
 
+import Deslop.Error (DeslopError (..))
 import Deslop.RunReport (ModuleCount (..), RuleCount (..), RunSummary (..))
+import FileSystem.Path (ProjectRoot (..))
 import Test.Hspec (Spec, describe, it, shouldBe)
-import UI (coverage, summaryLine)
+import TestUtils (ap)
+import UI (coverage, humanReadable, summaryLine)
 
 spec :: Spec
 spec = describe "UI" $ do
@@ -43,3 +46,8 @@ spec = describe "UI" $ do
         it "keeps two decimals for long runs" $
             summaryLine (Baselined (ModuleCount 9) (RuleCount 3)) 123.456
                 `shouldBe` "⏱  Baselined 9 modules enforcing 3 rules in 123.46s"
+
+    describe "humanReadable" $ do
+        it "names the directory searched and what every language looked for" $
+            humanReadable (NoFrontendDetected (ProjectRoot (ap "/home/me/app")) ["TypeScript (tsconfig.json)", "Lines (lines.project)"])
+                `shouldBe` "No supported project found in /home/me/app. Looked for: TypeScript (tsconfig.json), Lines (lines.project)"

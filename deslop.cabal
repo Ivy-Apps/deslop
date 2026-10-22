@@ -60,7 +60,11 @@ library
   exposed-modules:
     Deslop
     Deslop.CodeGraph
+    Deslop.Command
     Deslop.Error
+    Deslop.Frontend
+    Deslop.Frontend.Finding
+    Deslop.Frontend.Pipeline
     Deslop.GlobPlus
     Deslop.GlobPlus.Casing
     Deslop.GlobPlus.Compiler
@@ -82,21 +86,24 @@ library
     Effects.ReportProblem
     FileSystem.Iterator
     FileSystem.Path
+    Frontend
+    Frontend.TypeScript
+    Frontend.TypeScript.CST
+    Frontend.TypeScript.Config
+    Frontend.TypeScript.Config.Dto
+    Frontend.TypeScript.Config.Loader
+    Frontend.TypeScript.Ignore
+    Frontend.TypeScript.Iterator
+    Frontend.TypeScript.Lexer
+    Frontend.TypeScript.Lint.RelativeSpecifiers
+    Frontend.TypeScript.Module
+    Frontend.TypeScript.ModuleResolver
+    Frontend.TypeScript.Parser
+    Frontend.TypeScript.Tokens
     Git.Ignore
     Params
     Prelude
     Renderable
-    TypeScript.Config
-    TypeScript.Config.Dto
-    TypeScript.Config.Loader
-    TypeScript.CST
-    TypeScript.Iterator
-    TypeScript.Lexer
-    TypeScript.Lint.RelativeSpecifiers
-    TypeScript.Module
-    TypeScript.ModuleResolver
-    TypeScript.Parser
-    TypeScript.Tokens
     UI
     Utils
 
@@ -147,6 +154,8 @@ test-suite deslop-test
   other-modules:
     Deslop.CodeGraphPropSpec
     Deslop.CodeGraphSpec
+    Deslop.Frontend.PipelinePropSpec
+    Deslop.Frontend.PipelineSpec
     Deslop.GlobPlus.CasingSpec
     Deslop.GlobPlus.Oracle
     Deslop.GlobPlusPropSpec
@@ -163,6 +172,7 @@ test-suite deslop-test
     Deslop.Rule.Lint.CycleDetectionSpec
     Doubles.CLI
     Doubles.FileSystem
+    Doubles.Frontend
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
@@ -170,28 +180,32 @@ test-suite deslop-test
     FileSystem.IteratorSpec
     FileSystem.PathSpec
     Fixtures.Deslop.Module
+    Fixtures.Deslop.Frontend.Pipeline
     Fixtures.Deslop.Problem.Baseline
     Fixtures.Deslop.Rule.Book.Dto
-    Fixtures.TypeScript.Config
-    Generators.TypeScript.CST
-    Generators.TypeScript.Project
+    Fixtures.Frontend.TypeScript.Config
+    Frontend.TypeScript.CSTSpec
+    Frontend.TypeScript.Config.DtoSpec
+    Frontend.TypeScript.Config.LoaderSpec
+    Frontend.TypeScript.ConfigSpec
+    Frontend.TypeScript.IgnoreSpec
+    Frontend.TypeScript.IteratorSpec
+    Frontend.TypeScript.LexerSpec
+    Frontend.TypeScript.Lint.RelativeSpecifiersPropSpec
+    Frontend.TypeScript.Lint.RelativeSpecifiersSpec
+    Frontend.TypeScript.ModulePropSpec
+    Frontend.TypeScript.ModuleResolverSpec
+    Frontend.TypeScript.ModuleSpec
+    Frontend.TypeScript.ParserPropSpec
+    Frontend.TypeScript.ParserSpec
+    Frontend.TypeScript.ResolutionCorpusSpec
+    Frontend.TypeScriptSpec
+    FrontendSpec
+    Generators.Frontend.TypeScript.CST
+    Generators.Frontend.TypeScript.Project
     Git.IgnoreSpec
     ParamsSpec
     TestUtils
-    TypeScript.Config.DtoSpec
-    TypeScript.Config.LoaderSpec
-    TypeScript.ConfigSpec
-    TypeScript.CSTSpec
-    TypeScript.IteratorSpec
-    TypeScript.LexerSpec
-    TypeScript.Lint.RelativeSpecifiersPropSpec
-    TypeScript.Lint.RelativeSpecifiersSpec
-    TypeScript.ModulePropSpec
-    TypeScript.ModuleResolverSpec
-    TypeScript.ModuleSpec
-    TypeScript.ParserPropSpec
-    TypeScript.ParserSpec
-    TypeScript.ResolutionCorpusSpec
     UISpec
     UtilsSpec
 

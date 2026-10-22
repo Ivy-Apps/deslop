@@ -2,6 +2,10 @@ module E2E.FileGoldenSpec (spec) where
 
 import Data.Text qualified as T
 import FileSystem.Path (absPathUnsafe, decodeOsPath)
+import Frontend.TypeScript.CST
+import Frontend.TypeScript.Lexer (lexer)
+import Frontend.TypeScript.Parser
+import Frontend.TypeScript.Tokens
 import Renderable (Renderable (render))
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
@@ -11,10 +15,6 @@ import TestUtils (listFixtures, requireRight)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
-import TypeScript.CST
-import TypeScript.Lexer (lexer)
-import TypeScript.Parser
-import TypeScript.Tokens
 
 tsFixturesPath :: OsPath
 tsFixturesPath = [osp|fixtures/typescript|]

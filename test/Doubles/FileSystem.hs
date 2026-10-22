@@ -8,14 +8,18 @@ module Doubles.FileSystem (
     mockDirs,
     mockDirsWithSymlinks,
     mockFileAt,
+    InMemoryFileSystem (..),
+    newInMemoryFileSystem,
+    runInMemoryFileSystem,
 ) where
 
+import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret)
 import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
 import FileSystem.Path (AbsPath (..), absPathUnsafe, decodeOsPath, encodeOsPath)
-import System.OsPath (OsPath, (</>))
+import System.OsPath (OsPath, splitDirectories, (</>))
 
 runMockWrFileSystem ::
     (IOE :> es) =>
@@ -120,3 +124,48 @@ mockDirs dirs =
 mockDirsWithSymlinks :: [(AbsPath, [AbsPath])] -> [AbsPath] -> MockRoFileSystem es
 mockDirsWithSymlinks dirs symlinks =
     (mockDirs dirs) {mockIsSymlink = \p -> pure $ p `elem` symlinks}
+
+{- | A working filesystem in memory: reads see what was written, and every write
+is remembered, so a test can tell an untouched file from one rewritten with
+the same bytes.
+
+Directories are implied by the files beneath them.
+-}
+data InMemoryFileSystem = InMemoryFileSystem
+    { files :: IORef (Map AbsPath ByteString)
+    , written :: IORef [AbsPath]
+    }
+
+newInMemoryFileSystem :: (MonadIO m) => [(AbsPath, ByteString)] -> m InMemoryFileSystem
+newInMemoryFileSystem initial =
+    InMemoryFileSystem <$> newIORef (Map.fromList initial) <*> newIORef []
+
+runInMemoryFileSystem ::
+    (IOE :> es) =>
+    InMemoryFileSystem ->
+    Eff (WrFileSystem : RoFileSystem : es) a ->
+    Eff es a
+runInMemoryFileSystem fs = runMockRoFileSystem reading . writing
+  where
+    writing = interpret $ \_ -> \case
+        WriteFile p content -> liftIO $ do
+            modifyIORef' fs.files (Map.insert p content)
+            modifyIORef' fs.written (<> [p])
+        MkDirP _ -> pure ()
+
+    reading =
+        defaultMockRoFileSystem
+            { mockReadFile = \p -> fromMaybe mempty . Map.lookup p <$> current
+            , mockFileExists = \p -> Map.member p <$> current
+            , mockDirectoryExists = \p -> any (isBeneath p) . Map.keys <$> current
+            , mockListDirectory = \p -> ordNub . mapMaybe (childOf p) . Map.keys <$> current
+            }
+
+    current :: (IOE :> es') => Eff es' (Map AbsPath ByteString)
+    current = readIORef fs.files
+
+    segments = splitDirectories . (.osPath)
+    isBeneath dir file = segments dir `isPrefixOf` segments file && segments dir /= segments file
+    childOf dir file = case drop (length (segments dir)) (segments file) of
+        child : _ | isBeneath dir file -> Just . absPathUnsafe $ dir.osPath </> child
+        _ -> Nothing

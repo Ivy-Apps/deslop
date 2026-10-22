@@ -291,7 +291,7 @@ the word, and each has its own syntax and matching rules:
   named variables. Used by Rulebook Rules. Itself three kinds, which differ in
   what they may contain: Target Pattern, Clause Pattern and Exclude Pattern
   (see Glob+ above).
-- **TsConfig Pattern** (`TypeScript.Config.Pattern`) — a `tsconfig.json` path
+- **TsConfig Pattern** (`Frontend.TypeScript.Config.Pattern`) — a `tsconfig.json` path
   mapping, either `Exact` or a single-`*` `Wildcard`.
 - **Ignore Pattern** (`Git.Ignore.IgnorePattern`) — a `.gitignore` glob, per
   gitignore(5).

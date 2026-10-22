@@ -105,7 +105,7 @@ Re-records what TypeScript itself resolves each case in
 temp copy of each case. Only the `tsc` field is written; everything else is
 authored by hand.
 
-The committed answers are what `TypeScript.ResolutionCorpusSpec` judges our
+The committed answers are what `Frontend.TypeScript.ResolutionCorpusSpec` judges our
 resolver against, so the default suite needs neither node nor a compiler. As
 with `.golden`, **a failing corpus test is not a reason to run this**: a diff
 here is a claim about what the compiler does. See
@@ -124,28 +124,35 @@ git add -f fixtures/ts-gitignore-project/<path>
 ## Architecture
 
 Four layers. **Imports only ever point inward** - see
-[ADR 13](docs/adr/0013-the-source-tree-is-layered-by-dependency-direction.md).
+[ADR 13](docs/adr/0013-the-source-tree-is-layered-by-dependency-direction.md)
+and [ADR 20](docs/adr/0020-languages-plug-in-through-a-staged-compiler-frontend.md).
 
 ```
-Deslop.hs          orchestration - the only module that knows both a language and the core
-  └─ Deslop/       language-agnostic core: Module, CodeGraph, Problem, GlobPlus, Rule
-       └─ TypeScript/    a language frontend: bytes → Tokens → CST → Deslop.Module
-            └─ Effects/  FileSystem/  Git/  Utils  Renderable    infrastructure
+Deslop.hs          orchestration - detects the language, then runs the core
+  └─ Frontend.hs   the registry: the only module that imports a language
+       └─ Frontend/<Lang>/   a language: bytes → CST → Deslop.Module, behind CompilerFrontend
+            └─ Deslop/       language-agnostic core: Frontend (the class + driver), Module, CodeGraph, Problem, GlobPlus, Rule
+                 └─ Effects/  FileSystem/  Git/  Utils  Renderable    infrastructure
 ```
 
 Where new code goes:
 
-- **`Deslop/`** - anything true of every language. It must not `import
-  TypeScript`; `grep -rn "^import TypeScript" src/Deslop/` returning nothing is
-  the check. It holds nothing machine-specific either: paths crossing the seam
-  are `ProjectRelativePath`, and `ModuleId` is opaque and never rendered.
-- **`TypeScript/`** - anything that knows the syntax, `tsconfig`, or file
-  extensions. A new language is a new top-level directory ending in a
-  `<Lang>.Module` that produces `Deslop.Module`, the seam both sides meet at.
-  Nothing crossing it is a tree: a frontend hands over a flat list of modules
-  and the edges between them, having already resolved every specifier and named
-  what it resolved to. Module Names are spelled with `/` in every language
-  (ADR 19).
+- **`Deslop/`** - anything true of every language. It must not import a
+  language; `grep -rn "^import Frontend" src/Deslop/` returning nothing is the
+  check. It holds nothing machine-specific either: paths crossing the seam are
+  `ProjectRelativePath`, and `ModuleId` is opaque and never rendered. The
+  `CompilerFrontend` class is `Deslop.Frontend`; the driver that owns the
+  Command, the Baseline, fix write-back and concurrency is
+  `Deslop.Frontend.Pipeline`.
+- **`Frontend/<Lang>/`** - anything that knows a language's syntax, its config
+  (`tsconfig`) or its file extensions. A language is `Frontend/<Lang>.hs`, an
+  instance of `CompilerFrontend`, plus its internals under `Frontend/<Lang>/`,
+  and one line in `Frontend.supported`. Its `lint` returns Findings and never
+  reports or writes; its `lower` sees the whole program and produces
+  `Deslop.Module`, the seam both sides meet at. Nothing crossing it is a tree: a
+  frontend hands over a flat list of modules and the edges between them, having
+  already resolved every specifier and named what it resolved to. Module Names
+  are spelled with `/` in every language (ADR 19). ADR 20 lists the rest.
 - **`Effects/`** - every effect declaration and its interpreter. `Effects.CLI`
   is the only code that writes to a terminal; `UI` composes the text it prints
   and is pure.
@@ -154,7 +161,7 @@ Where new code goes:
 - One module per pipeline stage, named for its subject. No `Types.hs`-style
   catch-alls.
 - A built-in Rule lives with what it reads: `Deslop.Rule.Lint.*` reads only the
-  `ModuleGraph`, `TypeScript.Lint.*` touches TypeScript.
+  `ModuleGraph`, `Frontend.TypeScript.Lint.*` touches TypeScript.
 
 Tests mirror `src/`:
 
@@ -165,6 +172,8 @@ Tests mirror `src/`:
 - A helper stays private in its spec until a **second** spec needs it. Then it
   moves to `Fixtures.<full.module.path>` or `Generators.<full.module.path>`.
   `TestUtils` holds only domain-free plumbing.
+- `Doubles.Frontend` is a fake line-based language for testing what every
+  frontend shares - the driver and the registry - without TypeScript.
 - `fixtures/` (repo root) holds the sample TypeScript projects. It cannot live
   under `test/` - it would collide with `test/Fixtures/` on macOS.
 

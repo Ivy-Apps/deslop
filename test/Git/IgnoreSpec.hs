@@ -365,14 +365,19 @@ scopeSpec = describe "scopes" $ do
 
 alwaysIgnoredSpec :: Spec
 alwaysIgnoredSpec = describe "always-ignored directories" $ do
-    it "ignores node_modules regardless of any rule" $
-        ignoresDir (rootOnly "!node_modules") "node_modules" `shouldBe` True
+    it "ignores .git regardless of any rule" $
+        ignoresDir (rootOnly "!.git") ".git" `shouldBe` True
 
     it "ignores files beneath an always-ignored directory" $
-        ignoresFile (rootOnly "") "node_modules/pkg/index.ts" `shouldBe` True
+        ignoresFile (rootOnly "") ".git/hooks/pre-commit.ts" `shouldBe` True
 
     it "matches an always-ignored name exactly, not as a prefix" $
-        alwaysIgnored Entry {path = inProject "node_modules_backup", isDir = True} `shouldBe` False
+        alwaysIgnored Entry {path = inProject ".git_backup", isDir = True} `shouldBe` False
+
+    -- What a language's tooling generates is that frontend's to ignore: a
+    -- directory called `build` or `out` is source in some languages.
+    it "leaves a language's generated directories to that language" $
+        ignoresDir (rootOnly "") "node_modules" `shouldBe` False
 
 orderingProps :: Spec
 orderingProps = describe "ordering and negation laws" $ do
