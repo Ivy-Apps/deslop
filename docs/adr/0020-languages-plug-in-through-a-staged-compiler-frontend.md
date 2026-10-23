@@ -51,7 +51,7 @@ them subtly different.
 detect      ProjectRoot -> Maybe fe            is this project mine?
 loadConfig  ProjectRoot -> Config fe           tsconfig.json, a .cabal file
 discover    Config fe -> GitIgnore -> [AbsPath]
-parse       AbsPath -> ByteString -> Either (ParseError fe) (Unit fe)
+parse       Config fe -> AbsPath -> ByteString -> Either (ParseError fe) (Unit fe)
 render      Unit fe -> ByteString              parse's inverse
 lint        Config fe -> Unit fe -> [Finding (Unit fe)]
 lower       Config fe -> [Unit fe] -> [Module] whole-program
@@ -107,8 +107,11 @@ text are language-neutral.
   outside your directory you should need to touch.
 - `detect` must be cheap and certain: a marker file at the root.
   `lookingFor` says what that marker is, for someone whose project has none.
-- `parse` must be lossless: `render fe <$> parse fe p b == Right b`. That is
-  what lets `fix` rewrite one statement and leave every other byte alone.
+- `parse` must be lossless: `render fe <$> parse fe cfg p b == Right b`. That
+  is what lets `fix` rewrite one statement and leave every other byte alone.
+  It is given the `Config` because a project's configuration can decide how a
+  file is read: a `.cabal` file's `default-extensions`, such as `CPP` or
+  `PackageImports`, change what a Haskell file means.
 - `lint` returns Findings. It never reports, logs or writes, and it never asks
   about the Baseline. A `Rewrite` must change only what its Problem is about,
   and rewrites in one unit must commute.

@@ -94,7 +94,7 @@ deslopFile ::
     Eff es (WriteBack, Either (ParseError fe) (Unit fe))
 deslopFile fe cfg command baseline src = do
     bytes <- fsReadFile src
-    case parse fe src bytes of
+    case parse fe cfg src bytes of
         Left err -> pure (Untouched, Left err)
         Right unit -> fmap Right <$> lintUnit bytes unit
   where

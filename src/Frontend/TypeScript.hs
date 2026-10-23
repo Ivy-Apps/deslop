@@ -55,7 +55,7 @@ instance CompilerFrontend TsFrontend where
     ecosystemIgnored _ = jsEcosystemIgnored
     loadConfig _ = tsConfig
     discover _ _ projectRoot gitIgnore = getTsFiles gitIgnore projectRoot.path
-    parse _ path = first TsParseError . parseTs . TsFile path . TE.decodeUtf8
+    parse _ _ path = first TsParseError . parseTs . TsFile path . TE.decodeUtf8
     render _ = TE.encodeUtf8 . Renderable.render . (.cst)
     lint _ cfg = runReader cfg . noRelativeSpecifiers
     lower _ cfg = runReader cfg . pooledMapConcurrentlyN 32 parseModule

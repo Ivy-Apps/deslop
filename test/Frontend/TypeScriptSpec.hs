@@ -8,6 +8,7 @@ import Deslop.Problem.Formatter (CodeFence (..))
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import FileSystem.Path (ProjectRoot (..))
+import Fixtures.Frontend.TypeScript.Config (emptyTsConfig)
 import Frontend.TypeScript (TsFrontend (..), TsParseError (..))
 import Generators.Frontend.TypeScript.CST (genTsProgram)
 import Hedgehog (forAll, (===))
@@ -46,7 +47,7 @@ spec = describe "Frontend.TypeScript" $ do
         prop "renders a parsed file back to its bytes" $ do
             planted <- forAll genTsProgram
             let bytes = encodeUtf8 (Renderable.render planted)
-            (render TsFrontend <$> parse TsFrontend (ap "/project/a.ts") bytes) === Right bytes
+            (render TsFrontend <$> parse TsFrontend emptyTsConfig (ap "/project/a.ts") bytes) === Right bytes
 
         it "logs a parse error exactly as the lexer reported it" $
             Renderable.render (TsParseError "src/a.ts:1:8:\nunexpected end of input\n")

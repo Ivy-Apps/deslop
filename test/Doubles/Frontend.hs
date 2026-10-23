@@ -72,7 +72,7 @@ instance CompilerFrontend LinesFrontend where
       where
         skip entry = ecosystemIgnored fe entry || isIgnored gitIgnore entry
         source entry = entry.path <$ guard (not entry.isDir && takeExtension entry.path.osPath == [osp|.lines|])
-    parse _ path bytes = case T.splitOn "\n" <$> decodeUtf8' bytes of
+    parse _ _ path bytes = case T.splitOn "\n" <$> decodeUtf8' bytes of
         Right statements | not (any ("!" `T.isPrefixOf`) statements) -> Right LinesFile {path, statements}
         _ -> Left (LinesParseError path)
     render _ = TE.encodeUtf8 . T.intercalate "\n" . (.statements)

@@ -81,9 +81,13 @@ class (Renderable (ParseError fe)) => CompilerFrontend fe where
         (RoFileSystem :> es) =>
         fe -> Config fe -> ProjectRoot -> GitIgnore -> Eff es [AbsPath]
 
-    parse :: fe -> AbsPath -> ByteString -> Either (ParseError fe) (Unit fe)
+    {- | One file's bytes, read as the project's 'Config' says: in some
+    languages the configuration decides how a file is read, e.g. a @.cabal@
+    file's @default-extensions@ such as @CPP@ or @PackageImports@.
+    -}
+    parse :: fe -> Config fe -> AbsPath -> ByteString -> Either (ParseError fe) (Unit fe)
 
-    -- | The inverse of 'parse': @render fe <$> parse fe p b == Right b@.
+    -- | The inverse of 'parse': @render fe <$> parse fe cfg p b == Right b@.
     render :: fe -> Unit fe -> ByteString
 
     -- | What is wrong with one unit and how to repair it. Never reports nor writes.
