@@ -107,7 +107,7 @@ instance CompilerFrontend LinesFrontend where
                 }
     lower _ _ files = do
         projectRoot <- ask @ProjectRoot
-        pure $ (moduleOf projectRoot <$> files, [])
+        pure (moduleOf projectRoot <$> files, [])
       where
         moduleOf projectRoot file =
             let located = relativePathTo projectRoot file.path

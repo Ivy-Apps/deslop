@@ -24,7 +24,7 @@ data DeslopError
 
 newtype Warning = Warning Text deriving (Show, Eq)
 
-data VoidError = VoidError Void
+newtype VoidError = VoidError Void
 
 instance Renderable VoidError where
     render (VoidError v) = absurd v
