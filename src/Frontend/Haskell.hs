@@ -61,12 +61,14 @@ import System.OsPath (osp, takeDirectory, takeExtension, takeFileName)
 data HsFrontend = HsFrontend
     deriving stock (Show, Eq)
 
-newtype HsParseError = HsParseError AbsPath
+-- | The driver names the file, so this says only what is wrong with it.
+data HsParseError = NotUtf8 | UsesCpp
     deriving stock (Show, Eq)
 
--- The driver logs only this text, so the path has to be in it.
 instance Renderable HsParseError where
-    render (HsParseError p) = decodeOsPath p.osPath <> ": not valid UTF-8"
+    render = \case
+        NotUtf8 -> "not valid UTF-8"
+        UsesCpp -> "compiled with CPP (default-extensions), which this frontend cannot read yet"
 
 data ComponentKind = Lib | Exe | Test | Bench
     deriving stock (Eq)
@@ -118,6 +120,11 @@ rawOf (HsLine raw _) = raw
 
 data HsFile = HsFile {path :: AbsPath, hsLines :: [HsLine]}
 
+-- | The @default-extensions@ of every component whose source dirs hold the file.
+extensionsFor :: HsConfig -> AbsPath -> [Text]
+extensionsFor cfg file =
+    sortNub [e | c <- allComponents cfg, any (isJust . (`relativeName` file)) c.sourceDirs, e <- c.extensions]
+
 moduleNameRule :: LintRuleId
 moduleNameRule = LintRuleId "haskell-module-name-matches-path"
 
@@ -138,18 +145,18 @@ instance CompilerFrontend HsFrontend where
       where
         ignoredNames = encodeOsPath <$> ["dist-newstyle", "dist", ".stack-work", ".hie"]
     loadConfig _ = loadHsConfig
-    discover fe cfg _ gitIgnore =
-        sortNub . concat <$> traverse (walkDir skip hsSource) (sortNub . concatMap (.sourceDirs) . allComponents $ cfg)
+    discover _ cfg _ gitIgnore =
+        sortNub . concat <$> traverse (walkDir (isIgnored gitIgnore) hsSource) (sortNub . concatMap (.sourceDirs) . allComponents $ cfg)
       where
-        -- The driver already handed 'ecosystemIgnored' to 'loadGitIgnore', yet
-        -- 'isIgnored' does not apply it, so every frontend has to OR it in.
-        skip entry = ecosystemIgnored fe entry || isIgnored gitIgnore entry
         hsSource entry = entry.path <$ guard (not entry.isDir && takeExtension entry.path.osPath == [osp|.hs|])
-    -- No Config here, so default-extensions (CPP!) from the .cabal file cannot
-    -- change how a file is read.
-    parse _ path bytes = case decodeUtf8' bytes of
-        Left _ -> Left (HsParseError path)
-        Right text -> Right . HsFile path . fmap classify . T.splitOn "\n" $ text
+    -- The file is read once, but every component compiling it may enable
+    -- different default-extensions; the union is the best parse can do. The
+    -- line classifier cannot see through CPP, so it refuses rather than misread.
+    parse _ cfg path bytes
+        | "CPP" `elem` extensionsFor cfg path = Left UsesCpp
+        | otherwise = case decodeUtf8' bytes of
+            Left _ -> Left NotUtf8
+            Right text -> Right . HsFile path . fmap classify . T.splitOn "\n" $ text
     render _ = TE.encodeUtf8 . T.intercalate "\n" . fmap rawOf . (.hsLines)
     lint _ cfg file = do
         projectRoot <- ask @ProjectRoot
