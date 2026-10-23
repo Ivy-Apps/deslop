@@ -53,9 +53,19 @@ class
     ) =>
     CompilerFrontend fe
     where
-    -- | The project's own configuration, e.g. a resolved @tsconfig.json@.
+    {- | The project's own configuration, e.g. a resolved @tsconfig.json@ or a
+    @.cabal@ file: whatever decides how files are found, read and named. Loaded
+    once per run by 'loadConfig' and handed to every later stage.
+    -}
     type Config fe
 
+    {- | Why the project's configuration could not be loaded: a @tsconfig.json@
+    that is not JSON, an @extends@ chain that points nowhere. Fatal: the driver
+    stops the run with it, because no stage can go on without a 'Config'.
+    Rendered for the person whose project it is, naming the file at fault; the
+    driver adds nothing to it. Anything that still leaves a usable 'Config' is a
+    warning from 'loadConfig' instead.
+    -}
     type ConfigError fe
 
     {- | One parsed file. Lossless: rendering it gives back its bytes. Usually a
@@ -71,7 +81,13 @@ class
     -}
     type LowerError fe
 
-    -- | Whether the project at the root is written in this language.
+    {- | Whether the project at the root is written in this language. Cheap:
+    every language's 'detect' runs, in registry order, until one matches, so
+    look at as little as recognises the project - a marker file, a directory
+    listing - and never parse it. A broken marker still counts: a
+    @tsconfig.json@ that will not parse is a TypeScript project, and
+    'loadConfig' is the one to say what is wrong with it.
+    -}
     detect :: (RoFileSystem :> es) => ProjectRoot -> Eff es (Maybe fe)
 
     -- | The language's name, e.g. @"TypeScript"@.
@@ -95,6 +111,13 @@ class
     -}
     ecosystemIgnored :: fe -> Config fe -> Entry -> Bool
 
+    {- | The project's 'Config', read from the root 'detect' recognised.
+
+    'Left' only when no usable 'Config' can be built; the run stops with the
+    'ConfigError'. Anything the user should know that still leaves one - an
+    @extends@ that was skipped, a setting Deslop ignores - is a
+    'Deslop.Error.Warning', which the driver logs before going on.
+    -}
     loadConfig ::
         (RoFileSystem :> es) =>
         fe -> ProjectRoot -> Eff es (Either (ConfigError fe) (Config fe, [Warning]))
