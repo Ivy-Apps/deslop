@@ -28,8 +28,12 @@ A first sketch was one opaque method, `pipeline :: fe -> Command -> Eff es
 - **Haskell** needs a module index - which file defines `Data.List.NonEmpty` -
   before any import can be resolved, so lowering is two-phase: parse everything,
   index, then lower.
-- **Python** and **Nix** are the same: an import names a package or a path that
-  only the whole program can resolve.
+- **Python** is the same: an import names a package that only the whole
+  program can resolve.
+- **Nix** resolves a literal `import ./x` or `imports = [ ./a.nix ]` per file,
+  by probing the filesystem as TypeScript does: a directory means its
+  `default.nix`. What it lacks is evaluation: a computed path, a flake input or
+  `<nixpkgs>` is known only once the expression is evaluated.
 - **Kotlin** makes a package, which spans files, the unit of architecture, so
   one file is not one Module.
 - **Rust** discovers files by walking `mod x;` from each crate root, not by
@@ -105,13 +109,21 @@ text are language-neutral.
 - Put everything under `Frontend/<Lang>/` and end in `Frontend/<Lang>.hs` with
   the instance. Add one line to `Frontend.supported`; that is the only file
   outside your directory you should need to touch.
-- `detect` must be cheap and certain: a marker file at the root.
-  `lookingFor` says what that marker is, for someone whose project has none.
+- `detect` must be cheap: it runs for every language, in order, until one
+  matches. A marker is not always certain - `settings.gradle.kts` also exists
+  in Java-only builds, Python has four possible markers, and a Haskell `*.cabal`
+  file needs a directory listing - so look at as little as recognises the
+  project. `lookingFor` says what you look for, for someone whose project has
+  none of it.
 - `parse` must be lossless: `render fe <$> parse fe cfg p b == Right b`. That
   is what lets `fix` rewrite one statement and leave every other byte alone.
   It is given the `Config` because a project's configuration can decide how a
   file is read: a `.cabal` file's `default-extensions`, such as `CPP` or
   `PackageImports`, change what a Haskell file means.
+- `lint` is a side feature: Deslop's focus is architecture rules over the
+  Module graph, which `lower` feeds. TypeScript uses `lint` to rewrite relative
+  imports and exports. `lint` and its `Fix` are deliberately per unit and single
+  file; a repair that spans files is out of scope.
 - `lint` returns Findings. It never reports, logs or writes, and it never asks
   about the Baseline. A `Rewrite` must change only what its Problem is about,
   and rewrites in one unit must commute.
@@ -134,14 +146,16 @@ text are language-neutral.
 Out of scope for this ADR, and expected to need more: Rust's discovery is a
 walk of `mod` declarations from crate roots rather than a file list, and
 Kotlin's Module is a package spanning files. Both fit `lower`'s whole-program
-shape but may want `discover` to see more than a `GitIgnore`.
+shape but may want `discover` to see more than a `GitIgnore`. So are Nix's
+evaluation-only edges - a computed path, a flake input, `<nixpkgs>` - which no
+reading of the source can resolve, and Lint repairs that span files.
 
 ## Considered options
 
 - **One opaque `pipeline` method.** Smallest class, and the user's first sketch.
   Rejected: every language would own the Command, Baseline and write-back, and
   the five language studies all needed the stages anyway.
-- **Per-file `lower`.** Rejected: Haskell, Python, Nix and Kotlin cannot name a
+- **Per-file `lower`.** Rejected: Haskell, Python and Kotlin cannot name a
   dependency without seeing the whole program.
 - **Lints that report through `ReportProblem` and read the Baseline**, as
   `noRelativeSpecifiers` did. Rejected: it made each lint responsible for
