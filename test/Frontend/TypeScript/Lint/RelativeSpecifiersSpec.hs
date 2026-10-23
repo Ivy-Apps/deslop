@@ -1,17 +1,17 @@
 module Frontend.TypeScript.Lint.RelativeSpecifiersSpec (spec) where
 
 import Data.Text qualified as T
-import Deslop.Frontend.Finding (applyFindings)
+import Deslop.Frontend.Finding (Finding (..), applyFindings)
 import Deslop.Module (Location (..))
 import Deslop.Problem (LintRuleId (..), Problem (..), ProblemId (..), problemId)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
-import FileSystem.Path (ProjectRoot (..), ProjectRelativePath (..), absPathUnsafe, decodeOsPath, encodeOsPath)
+import FileSystem.Path (ProjectRelativePath (..), ProjectRoot (..), absPathUnsafe, decodeOsPath, encodeOsPath)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
 import Fixtures.Frontend.TypeScript.Config (defaultTsConfig, mkMapping)
-import Frontend.TypeScript.Config (Pattern (..), TsConfig (..))
 import Frontend.TypeScript.CST (TsNode (..), TsProgram (..))
+import Frontend.TypeScript.Config (Pattern (..), TsConfig (..))
 import Frontend.TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers)
 import Hedgehog (Gen, evalIO, forAll, (===))
 import Hedgehog.Gen qualified as Gen

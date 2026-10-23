@@ -12,7 +12,7 @@ edges from whatever this pass left behind.
 -}
 module Frontend.TypeScript.Lint.RelativeSpecifiersPropSpec (spec) where
 
-import Deslop.Frontend.Finding (applyFindings)
+import Deslop.Frontend.Finding (Finding (..), applyFindings)
 import Deslop.Module (Module)
 import Deslop.Problem (Problem, ProblemId (..), problemId)
 import Deslop.Problem.Baseline (Baseline)
@@ -21,8 +21,8 @@ import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import FileSystem.Path (AbsPath)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
-import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.CST (TsNode, TsProgram (..), withSpecifier)
+import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers)
 import Frontend.TypeScript.Parser (TsFile (..), parseTs)
 import Generators.Frontend.TypeScript.Project (

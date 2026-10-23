@@ -1,6 +1,6 @@
 module Deslop.Frontend.FindingSpec (spec) where
 
-import Deslop.Frontend.Finding (Finding, applyFindings, fixable, unfixable)
+import Deslop.Frontend.Finding (Finding (..), applyFindings, fixable, unfixable)
 import Deslop.Module (Location (..))
 import Deslop.Problem (LintRuleId (..), Problem (..), isAutoFixable)
 import FileSystem.Path (encodeOsPath, relativePathUnsafe)
