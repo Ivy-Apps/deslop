@@ -12,11 +12,13 @@ library
   build-depends:   base, text
 
 executable hs-tiny
-  hs-source-dirs: app
+  hs-source-dirs: app shared
   main-is:        Main.hs
-  build-depends:  base, hs-tiny
+  other-modules:  Cli
+  build-depends:  base, hs-tiny, text
 
 executable hs-tiny-tool
-  hs-source-dirs: tool
+  hs-source-dirs: tool shared
   main-is:        Main.hs
-  build-depends:  base, hs-tiny
+  other-modules:  Cli
+  build-depends:  base, hs-tiny, text

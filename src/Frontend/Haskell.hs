@@ -3,10 +3,17 @@
 {- | SPIKE: Haskell as a 'CompilerFrontend'. Throwaway, to probe PR #237.
 
 A project with a @cabal.project@ or a @*.cabal@ file at its root. Each package's
-@hs-source-dirs@ are walked for @.hs@ files. The "parser" only recognises
-@module@ and @import@ lines that start in column 0 and keeps every line's raw
-text, so 'render' is the identity. Lowering builds a module index over every
-unit and resolves each import against it; anything else is 'External'.
+components (library, executables, test suites, benchmarks) are read from its
+@.cabal@ file, and their @hs-source-dirs@ are walked for @.hs@ files. The
+"parser" only recognises @module@ and @import@ lines that start in column 0 and
+keeps every line's raw text, so 'render' is the identity.
+
+A Module is a file /as compiled by one component/. Its canonical Module Name is
+qualified by that component - @lib\/hs-tiny\/Tiny\/A@, @exe\/hs-tiny-tool\/Main@ -
+and it also answers to the bare GHC name (@Tiny\/A@, @Main@). The canonical name
+is what Problem ids are built from, so two executables' @Main@s never share an
+id, and a file two components both compile is two Modules that each resolve
+their imports against their own component's index.
 -}
 module Frontend.Haskell (
     HsFrontend (..),
@@ -61,10 +68,43 @@ newtype HsParseError = HsParseError AbsPath
 instance Renderable HsParseError where
     render (HsParseError p) = decodeOsPath p.osPath <> ": not valid UTF-8"
 
--- | One cabal package: where it lives and where its sources are.
-newtype HsPackage = HsPackage {sourceDirs :: [AbsPath]}
+data ComponentKind = Lib | Exe | Test | Bench
+    deriving stock (Eq)
+
+kindPrefix :: ComponentKind -> Text
+kindPrefix = \case
+    Lib -> "lib"
+    Exe -> "exe"
+    Test -> "test"
+    Bench -> "bench"
+
+{- | One cabal component. A library compiles every file under its source dirs;
+anything with a @main@ compiles only @main-is@ plus @other-modules@, because two
+executables may share a source dir and must not claim each other's files.
+-}
+data Component = Component
+    { kind :: ComponentKind
+    , name :: Text
+    -- ^ The main library is named after its package, as cabal does.
+    , sourceDirs :: [AbsPath]
+    , mainIs :: Maybe Text
+    , otherModules :: [Text]
+    , depends :: [Text]
+    -- ^ Package names only; version bounds dropped.
+    , extensions :: [Text]
+    -- ^ @default-extensions@, for 'parse' once it is handed the Config.
+    }
+
+-- | What every Module Name of this component starts with: @exe/hs-tiny-tool@.
+qualifier :: Component -> Text
+qualifier c = kindPrefix c.kind <> "/" <> c.name
+
+data HsPackage = HsPackage {name :: Text, components :: [Component]}
 
 newtype HsConfig = HsConfig {packages :: [HsPackage]}
+
+allComponents :: HsConfig -> [Component]
+allComponents = concatMap (.components) . (.packages)
 
 data Decl
     = ModuleHeader Text
@@ -99,7 +139,7 @@ instance CompilerFrontend HsFrontend where
         ignoredNames = encodeOsPath <$> ["dist-newstyle", "dist", ".stack-work", ".hie"]
     loadConfig _ = loadHsConfig
     discover fe cfg _ gitIgnore =
-        sortNub . concat <$> traverse (walkDir skip hsSource) (concatMap (.sourceDirs) cfg.packages)
+        sortNub . concat <$> traverse (walkDir skip hsSource) (sortNub . concatMap (.sourceDirs) . allComponents $ cfg)
       where
         -- The driver already handed 'ecosystemIgnored' to 'loadGitIgnore', yet
         -- 'isIgnored' does not apply it, so every frontend has to OR it in.
@@ -128,36 +168,78 @@ instance CompilerFrontend HsFrontend where
                     , fix = "Rename the module to `" <> expected <> "`, or move the file."
                     , autoFixable
                     }
-    lower _ _ files = do
+    lower _ cfg files = do
         projectRoot <- ask @ProjectRoot
-        let named = (\f -> (f, nameOf f)) <$> files
-            -- Two executables both define `Main`: the first one wins the name,
-            -- and both mint the same ModuleName.
-            index :: Map Text ModuleId
-            index = Map.fromListWith (\_ first' -> first') [(n, idOf f) | (f, n) <- named]
-        pure $ moduleOf projectRoot index <$> named
-      where
-        idOf f = moduleIdUnsafe (decodeOsPath f.path.osPath)
-        moduleOf projectRoot index (f, name) =
-            Module
-                { id = idOf f
-                , names = slashed name :| []
-                , path = relativePathTo projectRoot f.path
-                , edges = mapMaybe (edgeOf projectRoot index f) (zip [1 ..] f.hsLines)
-                }
-        edgeOf projectRoot index f (line, HsLine raw decl) = case decl of
-            Import name ->
-                Just
-                    DependencyEdge
-                        { specifier = specifierUnsafe name
-                        , target = maybe (External (specifierUnsafe name)) (\mid -> Resolved mid (slashed name :| [])) (Map.lookup name index)
-                        , kind = ImportEdge
-                        , location = Location {file = relativePathTo projectRoot f.path, line, code = T.strip raw}
-                        }
-            _ -> Nothing
+        pure $ concatMap (lowerComponent projectRoot cfg files) (allComponents cfg)
 
-slashed :: Text -> ModuleName
-slashed = moduleNameUnsafe . T.replace "." "/"
+-- | Every file a component compiles, lowered as that component sees it.
+lowerComponent :: ProjectRoot -> HsConfig -> [HsFile] -> Component -> [Module]
+lowerComponent projectRoot cfg files component = moduleOf <$> own
+  where
+    own = ownedBy component files
+    -- What this component can import: its own modules, then the libraries of
+    -- the project packages it depends on. A name both define resolves to its own.
+    index :: Map Text (ModuleId, NonEmpty ModuleName)
+    index = Map.fromList . reverse $ visible
+    visible =
+        [(nameOf f, targetOf component f) | f <- own]
+            <> [ (nameOf f, targetOf lib f)
+               | pkg <- cfg.packages
+               , pkg.name `elem` component.depends
+               , lib <- filter ((== Lib) . (.kind)) pkg.components
+               , f <- ownedBy lib files
+               ]
+    targetOf c f = (idOf c f, namesIn c f)
+    moduleOf f =
+        Module
+            { id = idOf component f
+            , names = namesIn component f
+            , path = relativePathTo projectRoot f.path
+            , edges = mapMaybe (edgeOf f) (zip [1 ..] f.hsLines)
+            }
+    edgeOf f (line, HsLine raw decl) = case decl of
+        Import name ->
+            Just
+                DependencyEdge
+                    { specifier = specifierUnsafe name
+                    , -- The core turns an External's specifier into its Module
+                      -- Name, so it is slashed here (ADR 19); the edge's own
+                      -- specifier above keeps what the source typed.
+                      target = maybe (External . specifierUnsafe . slashed $ name) (uncurry Resolved) (Map.lookup name index)
+                    , kind = ImportEdge
+                    , location = Location {file = relativePathTo projectRoot f.path, line, code = T.strip raw}
+                    }
+        _ -> Nothing
+
+{- | Canonical first: the component-qualified name, which Problem ids are built
+from, then the bare GHC name, so @Tiny/**@ and @Main@ still match.
+-}
+namesIn :: Component -> HsFile -> NonEmpty ModuleName
+namesIn c f = moduleNameUnsafe (qualifier c <> "/" <> bare) :| [moduleNameUnsafe bare]
+  where
+    bare = slashed (nameOf f)
+
+-- | One file compiled by two components is two Modules, so the id names both.
+idOf :: Component -> HsFile -> ModuleId
+idOf c f = moduleIdUnsafe (qualifier c <> "|" <> decodeOsPath f.path.osPath)
+
+ownedBy :: Component -> [HsFile] -> [HsFile]
+ownedBy c = filter owns
+  where
+    owns f = case c.mainIs of
+        Nothing -> any (isJust . (`relativeName` f.path)) c.sourceDirs
+        Just mainFile ->
+            any (\dir -> decodeOsPath f.path.osPath == decodeOsPath dir.osPath <> "/" <> mainFile) c.sourceDirs
+                || any (maybe False (`elem` c.otherModules) . (`relativeName` f.path)) c.sourceDirs
+
+-- | The module name GHC would look a file up by, from one source dir.
+relativeName :: AbsPath -> AbsPath -> Maybe Text
+relativeName dir file = do
+    rest <- T.stripPrefix (decodeOsPath dir.osPath <> "/") (decodeOsPath file.osPath)
+    T.replace "/" "." <$> T.stripSuffix ".hs" rest
+
+slashed :: Text -> Text
+slashed = T.replace "." "/"
 
 nameOf :: HsFile -> Text
 nameOf = maybe "Main" (\(_, n, _) -> n) . header
@@ -179,12 +261,9 @@ classify raw = HsLine raw $ case T.words raw of
 
 -- | What GHC would call the file, from the source dir that contains it.
 expectedName :: HsConfig -> AbsPath -> Maybe Text
-expectedName cfg file = viaNonEmpty head . sortOn (Down . T.length) $ mapMaybe from dirs
+expectedName cfg file = viaNonEmpty head . sortOn (Down . T.length) $ mapMaybe (`relativeName` file) dirs
   where
-    dirs = concatMap (.sourceDirs) cfg.packages
-    from dir = do
-        rest <- T.stripPrefix (decodeOsPath dir.osPath <> "/") (decodeOsPath file.osPath)
-        T.replace "/" "." <$> T.stripSuffix ".hs" rest
+    dirs = concatMap (.sourceDirs) (allComponents cfg)
 
 loadHsConfig :: (RoFileSystem :> es, CLI :> es) => ProjectRoot -> Eff es HsConfig
 loadHsConfig projectRoot = do
@@ -201,13 +280,51 @@ loadHsConfig projectRoot = do
         | otherwise = withAbsBaseUnsafe projectRoot.path (encodeOsPath . T.dropWhileEnd (== '/') $ p)
     package dir =
         cabalFilesIn dir >>= \case
-            (cabal : _) -> do
-                fields <- fieldValues "hs-source-dirs" . decodeUtf8 <$> fsReadFile cabal
-                let srcs = bool fields ["."] (null fields)
-                pure . Just . HsPackage $ withAbsBaseUnsafe dir . encodeOsPath <$> srcs
+            (cabal : _) -> Just . packageOf dir . decodeUtf8 <$> fsReadFile cabal
             [] -> do
                 cliLog Warning $ "WARNING: no .cabal file in " <> decodeOsPath dir.osPath
                 pure Nothing
+
+{- | A package's components, from the text of its @.cabal@ file. Crude: no
+conditionals, no @common@ stanzas, no sub-library dependencies.
+-}
+packageOf :: AbsPath -> Text -> HsPackage
+packageOf dir cabal = HsPackage {name = pkgName, components = mapMaybe component stanzas}
+  where
+    (topLevel, stanzas) = stanzasOf cabal
+    pkgName = fromMaybe "" . listToMaybe $ fieldValues "name" topLevel
+    component (stanzaHeader, body) = do
+        (kind, name) <- case T.words (T.toLower stanzaHeader) of
+            ["library"] -> Just (Lib, pkgName)
+            ["library", n] -> Just (Lib, n)
+            ["executable", n] -> Just (Exe, n)
+            ["test-suite", n] -> Just (Test, n)
+            ["benchmark", n] -> Just (Bench, n)
+            _ -> Nothing
+        let srcs = fieldValues "hs-source-dirs" body
+        pure
+            Component
+                { kind
+                , name
+                , sourceDirs = withAbsBaseUnsafe dir . encodeOsPath <$> bool srcs ["."] (null srcs)
+                , mainIs = bool Nothing (listToMaybe $ fieldValues "main-is" body) (kind /= Lib)
+                , otherModules = fieldValues "other-modules" body
+                , depends = mapMaybe packageName . T.splitOn "," . unwords . fieldLines "build-depends" $ body
+                , extensions = fieldValues "default-extensions" body
+                }
+    packageName = listToMaybe . T.words . T.takeWhile (`notElem` ['<', '>', '=', '^'])
+
+{- | Top-level lines, then each stanza's header and body. A stanza starts at an
+unindented line that is not a field, and runs until the next one.
+-}
+stanzasOf :: Text -> (Text, [(Text, Text)])
+stanzasOf text = (unlines top, groups rest)
+  where
+    (top, rest) = break isHeader (lines text)
+    isHeader l = not (T.null l) && not (isSpace (T.head l)) && not (":" `T.isInfixOf` l) && not ("--" `T.isPrefixOf` l)
+    groups = \case
+        [] -> []
+        (h : ls) -> let (body, others) = break isHeader ls in (h, unlines body) : groups others
 
 cabalFilesIn :: (RoFileSystem :> es) => AbsPath -> Eff es [AbsPath]
 cabalFilesIn dir = filter ((== [osp|.cabal|]) . takeExtension . (.osPath)) <$> fsListDirectory dir
@@ -216,14 +333,17 @@ cabalFilesIn dir = filter ((== [osp|.cabal|]) . takeExtension . (.osPath)) <$> f
 continuation lines. Crude: no sections, no conditionals, no comments.
 -}
 fieldValues :: Text -> Text -> [Text]
-fieldValues field = go . lines
+fieldValues field = concatMap (filter (not . T.null) . T.split (\c -> c == ',' || isSpace c)) . fieldLines field
+
+-- | The raw text of every occurrence of a field, continuation lines included.
+fieldLines :: Text -> Text -> [Text]
+fieldLines field = go . lines
   where
     go [] = []
     go (l : ls) = case T.stripPrefix (field <> ":") (T.toLower . T.strip $ l) of
         Just _ ->
             let rest = T.drop 1 . T.dropWhile (/= ':') $ l
                 (continued, others) = span (\c -> indent c > indent l && not (":" `T.isInfixOf` c)) ls
-             in values (rest : continued) <> go others
+             in (rest : continued) <> go others
         Nothing -> go ls
     indent = T.length . T.takeWhile isSpace
-    values = filter (not . T.null) . concatMap (T.split (\c -> c == ',' || isSpace c))

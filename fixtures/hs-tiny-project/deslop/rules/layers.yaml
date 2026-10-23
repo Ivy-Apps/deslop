@@ -1,28 +1,33 @@
 id: layers
 name: Layers
-description: Spike rules probing how Haskell module names meet Glob+ patterns
+description: >-
+  Haskell Module Names are qualified by the cabal component that compiles them
+  (lib/hs-tiny/Tiny/A, exe/hs-tiny-tool/Main) and also answer to the bare GHC
+  name (Tiny/A, Main), so rules can speak about either.
 rules:
-  - id: no-text-slashed
-    description: Tiny must not use Data.Text, spelled with slashes as ADR 19 says names are.
+  - id: no-text
+    description: The library must not use Data.Text; external names are slash-segmented too.
     target: "Tiny/**"
     forbids:
       - import: "Data/Text"
     fix: Remove it.
-  - id: no-text-dotted
-    description: Tiny must not use Data.Text, spelled with dots as the source typed it.
-    target: "Tiny/**"
-    forbids:
-      - import: "Data.Text"
-    fix: Remove it.
-  - id: main-not-d
-    description: Main must not import Tiny/D directly.
-    target: "Main"
-    forbids:
-      - import: "Tiny/D"
-    fix: Go through Tiny/A.
-  - id: mains-not-a
-    description: No executable may import Tiny/A.
-    target: "Main"
+  - id: exes-not-a
+    description: Executable {{exe-name}} must not import Tiny/A.
+    target: "exe/{{exe-name}}/**"
     forbids:
       - import: "Tiny/A"
     fix: Go through Tiny/B.
+  - id: lib-not-exe
+    description: The library must not import any executable's modules.
+    target: "lib/**"
+    forbids:
+      - import: "exe/**"
+    fix: Move the shared code into the library.
+  - id: tool-no-text
+    description: >-
+      The tool must not use Data.Text, even through a module it shares with
+      another executable.
+    target: "exe/hs-tiny-tool/**"
+    forbids:
+      - import: "Data/Text"
+    fix: Use String in the tool.
