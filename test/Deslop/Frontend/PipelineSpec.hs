@@ -65,8 +65,13 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
                     emptyBaseline
                     [(inLines "broken.lines", "!oops"), (inLines "fine.lines", "ok")]
 
-            outcome.transcript `shouldBe` [(Error, "❌ Error: cannot parse broken.lines")]
+            outcome.transcript `shouldBe` [(Error, "❌ Error: broken.lines: cannot parse")]
             fmap moduleName outcome.modules `shouldBe` ["fine.lines"]
+
+        it "names a file that does not parse by its path from the project root" $ do
+            outcome <- runLines CheckC emptyBaseline [(inLines "src/deep/broken.lines", "!oops")]
+
+            outcome.transcript `shouldBe` [(Error, "❌ Error: src/deep/broken.lines: cannot parse")]
 
         it "neither reports nor writes a file that does not parse" $ do
             outcome <- runLines FixC emptyBaseline [(inLines "broken.lines", "TODO\n!oops")]

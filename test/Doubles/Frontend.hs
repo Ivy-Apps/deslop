@@ -42,11 +42,12 @@ data LinesFile = LinesFile
     }
     deriving stock (Show, Eq)
 
-newtype LinesParseError = LinesParseError AbsPath
+-- | A statement starts with @!@, or the bytes are not UTF-8.
+data LinesParseError = LinesParseError
     deriving stock (Show, Eq)
 
 instance Renderable LinesParseError where
-    render (LinesParseError p) = "cannot parse " <> decodeOsPath (takeFileName p.osPath)
+    render LinesParseError = "cannot parse"
 
 todoRule :: LintRuleId
 todoRule = LintRuleId "no-todo"
@@ -68,13 +69,12 @@ instance CompilerFrontend LinesFrontend where
     builtInRules _ = [todoRule, fixmeRule]
     ecosystemIgnored _ = (== [osp|generated|]) . takeFileName . (.osPath) . (.path)
     loadConfig _ _ = pure ()
-    discover fe _ projectRoot gitIgnore = walkDir skip source projectRoot.path
+    discover _ _ projectRoot gitIgnore = walkDir (isIgnored gitIgnore) source projectRoot.path
       where
-        skip entry = ecosystemIgnored fe entry || isIgnored gitIgnore entry
         source entry = entry.path <$ guard (not entry.isDir && takeExtension entry.path.osPath == [osp|.lines|])
-    parse _ path bytes = case T.splitOn "\n" <$> decodeUtf8' bytes of
+    parse _ _ path bytes = case T.splitOn "\n" <$> decodeUtf8' bytes of
         Right statements | not (any ("!" `T.isPrefixOf`) statements) -> Right LinesFile {path, statements}
-        _ -> Left (LinesParseError path)
+        _ -> Left LinesParseError
     render _ = TE.encodeUtf8 . T.intercalate "\n" . (.statements)
     lint _ _ file = do
         projectRoot <- ask @ProjectRoot

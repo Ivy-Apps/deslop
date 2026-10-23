@@ -4,7 +4,7 @@ module Frontend.TypeScript.Parser (
 ) where
 
 import Data.Text qualified as T
-import FileSystem.Path (AbsPath (..), decodeOsPath)
+import FileSystem.Path (AbsPath (..))
 import Frontend.TypeScript.CST
 import Frontend.TypeScript.Lexer
 import Frontend.TypeScript.Tokens
@@ -22,7 +22,10 @@ parseTs :: TsFile -> Either String TsProgram
 parseTs f =
     first errorBundlePretty $
         TsModule f.path . buildCST
-            <$> runParser lexer (T.unpack . decodeOsPath $ f.path.osPath) f.content
+            <$> runParser lexer noSourceName f.content
+  where
+    -- The driver names the file, so the error starts at the line and column.
+    noSourceName = ""
 
 buildCST :: [TsToken] -> [TsNode]
 buildCST = fmap node

@@ -43,7 +43,10 @@ class (Renderable (ParseError fe)) => CompilerFrontend fe where
     -- | One parsed file. Lossless: rendering it gives back its bytes.
     type Unit fe
 
-    -- | Why a file could not be parsed, rendered for the person reading it.
+    {- | Why a file could not be parsed, rendered for the person reading it.
+    The driver prefixes the file's project-relative path, so the rendered
+    error should not repeat it: a position within the file is enough.
+    -}
     type ParseError fe
 
     -- | Whether the project at the root is written in this language.
@@ -65,6 +68,8 @@ class (Renderable (ParseError fe)) => CompilerFrontend fe where
 
     {- | What the language's own tooling generates and no run should walk -
     dependency folders and build output - on top of what is always ignored.
+    The driver hands it to "Git.Ignore.loadGitIgnore", so the 'GitIgnore'
+    'discover' is given already honours it.
     -}
     ecosystemIgnored :: fe -> Entry -> Bool
 
@@ -73,17 +78,22 @@ class (Renderable (ParseError fe)) => CompilerFrontend fe where
         (RoFileSystem :> es, CLI :> es, Error DeslopError :> es) =>
         fe -> ProjectRoot -> Eff es (Config fe)
 
-    {- | Every source file of the project. A walk prunes what the 'GitIgnore'
-    ignores and what 'ecosystemIgnored' names, as "Git.Ignore.isIgnored" and
-    this frontend's own predicate say, without descending into either.
+    {- | Every source file of the project. A walk prunes whatever
+    "Git.Ignore.isIgnored" says the 'GitIgnore' ignores - what is always
+    ignored, what 'ecosystemIgnored' names and what is gitignored - without
+    descending into it.
     -}
     discover ::
         (RoFileSystem :> es) =>
         fe -> Config fe -> ProjectRoot -> GitIgnore -> Eff es [AbsPath]
 
-    parse :: fe -> AbsPath -> ByteString -> Either (ParseError fe) (Unit fe)
+    {- | One file's bytes, read as the project's 'Config' says: in some
+    languages the configuration decides how a file is read, e.g. a @.cabal@
+    file's @default-extensions@ such as @CPP@ or @PackageImports@.
+    -}
+    parse :: fe -> Config fe -> AbsPath -> ByteString -> Either (ParseError fe) (Unit fe)
 
-    -- | The inverse of 'parse': @render fe <$> parse fe p b == Right b@.
+    -- | The inverse of 'parse': @render fe <$> parse fe cfg p b == Right b@.
     render :: fe -> Unit fe -> ByteString
 
     -- | What is wrong with one unit and how to repair it. Never reports nor writes.

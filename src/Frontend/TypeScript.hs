@@ -17,7 +17,7 @@ import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Reader.Static (runReader)
 import Effects.CLI (CLI, LogStyle (..), cliLog)
-import Effects.FileSystem (RoFileSystem, fsFileExists)
+import Effects.FileSystem (RoFileSystem, fsFileExists, fsIsSymlink, fsListDirectory)
 import FileSystem.Path (AbsPath, ProjectRoot (..), withAbsBaseUnsafe)
 import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.Config.Loader (loadTsConfig, renderSkippedExtends, renderTsConfigLoadError)
@@ -35,7 +35,9 @@ import System.OsPath (osp)
 data TsFrontend = TsFrontend
     deriving stock (Show, Eq)
 
--- | Megaparsec's report on a file the lexer could not read, already rendered.
+{- | Megaparsec's report on a file the lexer could not read, already rendered.
+It starts at the line and column; the driver names the file.
+-}
 newtype TsParseError = TsParseError String
     deriving stock (Show, Eq)
 
@@ -47,7 +49,7 @@ instance CompilerFrontend TsFrontend where
     type Unit TsFrontend = TsProgram
     type ParseError TsFrontend = TsParseError
 
-    detect projectRoot = bool Nothing (Just TsFrontend) <$> fsFileExists (tsConfigPath projectRoot)
+    detect projectRoot = bool Nothing (Just TsFrontend) <$> hasTsConfig projectRoot
     label _ = "TypeScript"
     lookingFor _ = "TypeScript (tsconfig.json)"
     codeFence _ = CodeFence "ts"
@@ -55,13 +57,25 @@ instance CompilerFrontend TsFrontend where
     ecosystemIgnored _ = jsEcosystemIgnored
     loadConfig _ = tsConfig
     discover _ _ projectRoot gitIgnore = getTsFiles gitIgnore projectRoot.path
-    parse _ path = first TsParseError . parseTs . TsFile path . TE.decodeUtf8
+    parse _ _ path = first TsParseError . parseTs . TsFile path . TE.decodeUtf8
     render _ = TE.encodeUtf8 . Renderable.render . (.cst)
     lint _ cfg = runReader cfg . noRelativeSpecifiers
     lower _ cfg = runReader cfg . pooledMapConcurrentlyN 32 parseModule
 
 tsConfigPath :: ProjectRoot -> AbsPath
 tsConfigPath projectRoot = withAbsBaseUnsafe projectRoot.path [osp|tsconfig.json|]
+
+{- | Whether the root holds a @tsconfig.json@, even a link that points nowhere.
+
+A dangling link is still a TypeScript project, just a broken one: 'loadConfig'
+then names the config it could not find. Checking for the link itself needs it
+to be listed first, as a link that is not there cannot be asked about.
+-}
+hasTsConfig :: (RoFileSystem :> es) => ProjectRoot -> Eff es Bool
+hasTsConfig projectRoot = fsFileExists path >>= bool danglingLink (pure True)
+  where
+    path = tsConfigPath projectRoot
+    danglingLink = fsListDirectory projectRoot.path >>= bool (pure False) (fsIsSymlink path) . elem path
 
 {- | The project's effective TypeScript configuration, @extends@ chain and all.
 
