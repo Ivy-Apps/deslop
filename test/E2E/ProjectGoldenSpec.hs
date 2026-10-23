@@ -63,6 +63,7 @@ spec = describe "E2E.Project" $ do
     itFailsToLoadTsConfig "ts-broken-extends-project"
 
     itFindsNoLanguage
+    itFindsNoLanguageInMissingPath
     itReportsRulebookBeforeLanguage "ts-invalid-rulebook-project"
 
     itBaselines "ts-project-1"
@@ -266,6 +267,26 @@ spec = describe "E2E.Project" $ do
             -- The title and the warning every run without Rulebooks gives, but
             -- no claim to have detected a language.
             fmap fst logs.transcript `shouldBe` [Title, Warning]
+
+    -- A path that is not a directory holds no tsconfig.json: the person is told
+    -- no language matched, not shown a raw IO exception.
+    itFindsNoLanguageInMissingPath = it "refuses to run a project path that does not exist" $ do
+        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
+            -- Given
+            params <- defaultParams (encodeOsPathString $ tmpFp <> "/missing")
+
+            -- When
+            res <-
+                runEff
+                    . runFileSystemIO
+                    . runErrorNoCallStack @DeslopError
+                    . runMockCLI defaultMockCLI
+                    . runReportProblem
+                    . runConcurrent
+                    $ doWork params {command = CheckC}
+
+            -- Then
+            res `shouldBe` Left (NoFrontendDetected (ProjectRoot params.projectPath) ["TypeScript (tsconfig.json)"])
 
     -- Detecting the language must not reorder what a broken project hears
     -- first: its Rulebooks are read before any language is required.

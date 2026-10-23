@@ -18,7 +18,7 @@ import Effectful (Eff, type (:>))
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Reader.Static (ask, runReader)
 import Effects.Concurrency (poolSize)
-import Effects.FileSystem (RoFileSystem, fsFileExists, fsIsSymlink, fsListDirectory)
+import Effects.FileSystem (RoFileSystem, fsFileExists)
 import FileSystem.Path (AbsPath, ProjectRelativePath, ProjectRoot (..), portablePath, relativePathTo, withAbsBaseUnsafe)
 import Frontend.TypeScript.CST (TsProgram (..))
 import Frontend.TypeScript.Config (TsConfig)
@@ -64,7 +64,7 @@ instance CompilerFrontend TsFrontend where
     type Unit TsFrontend = TsUnit
     type LowerError TsFrontend = TsLowerError
 
-    detect projectRoot = bool Nothing (Just TsFrontend) <$> hasTsConfig projectRoot
+    detect = fmap (bool Nothing (Just TsFrontend)) . fsFileExists . tsConfigPath
     label _ = "TypeScript"
     lookingFor _ = "TypeScript (tsconfig.json)"
     codeFence _ = CodeFence "ts"
@@ -97,18 +97,6 @@ instance CompilerFrontend TsFrontend where
 
 tsConfigPath :: ProjectRoot -> AbsPath
 tsConfigPath projectRoot = withAbsBaseUnsafe projectRoot.path [osp|tsconfig.json|]
-
-{- | Whether the root holds a @tsconfig.json@, even a link that points nowhere.
-
-A dangling link is still a TypeScript project, just a broken one: 'loadConfig'
-then names the config it could not find. Checking for the link itself needs it
-to be listed first, as a link that is not there cannot be asked about.
--}
-hasTsConfig :: (RoFileSystem :> es) => ProjectRoot -> Eff es Bool
-hasTsConfig projectRoot = fsFileExists path >>= bool danglingLink (pure True)
-  where
-    path = tsConfigPath projectRoot
-    danglingLink = fsListDirectory projectRoot.path >>= bool (pure False) (fsIsSymlink path) . elem path
 
 tsConfig ::
     (RoFileSystem :> es) =>
