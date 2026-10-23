@@ -87,6 +87,9 @@ library
     FileSystem.Iterator
     FileSystem.Path
     Frontend
+    Frontend.Kotlin
+    Frontend.Kotlin.Module
+    Frontend.Kotlin.Source
     Frontend.TypeScript
     Frontend.TypeScript.CST
     Frontend.TypeScript.Config
