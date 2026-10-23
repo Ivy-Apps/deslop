@@ -87,6 +87,9 @@ library
     FileSystem.Iterator
     FileSystem.Path
     Frontend
+    Frontend.Nix
+    Frontend.Nix.Module
+    Frontend.Nix.Parser
     Frontend.TypeScript
     Frontend.TypeScript.CST
     Frontend.TypeScript.Config

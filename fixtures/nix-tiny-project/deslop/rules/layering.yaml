@@ -1,0 +1,12 @@
+id: nix-layering
+name: Nix layering
+description: >-
+  NixOS modules sit above the library; the library never reaches up into them.
+rules:
+  - id: lib-does-not-import-modules
+    description: >-
+      The library is plain functions. It must not depend on NixOS modules.
+    target: "/lib/**"
+    forbids:
+      - import: "/modules/**"
+    fix: Move what the library needs out of modules/ and into lib/.
