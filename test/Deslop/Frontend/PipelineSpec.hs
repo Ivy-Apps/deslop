@@ -4,7 +4,6 @@ import Data.Map.Strict qualified as Map
 import Deslop.Command (Command (..))
 import Deslop.Module (Module (..), ModuleName (..))
 import Deslop.Problem (ProblemId (..), problemId)
-import Deslop.Problem.Baseline (emptyBaseline)
 import Effects.CLI (LogStyle (..))
 import Fixtures.Deslop.Frontend.Pipeline (Outcome (..), inLines, runLines)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
@@ -15,7 +14,7 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
     describe "reporting" $ do
         it "reports every finding, fixable or not, under every command" $ do
             for_ [CheckC, FixC, BaselineC] $ \command -> do
-                outcome <- runLines command emptyBaseline [(inLines "a.lines", "TODO\nok\nFIXME")]
+                outcome <- runLines command mempty [(inLines "a.lines", "TODO\nok\nFIXME")]
 
                 sort (fmap problemId outcome.problems)
                     `shouldBe` [ProblemId "no-fixme#a.lines", ProblemId "no-todo#a.lines"]
@@ -34,7 +33,7 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
             outcome <-
                 runLines
                     FixC
-                    emptyBaseline
+                    mempty
                     [ (inLines "dirty.lines", "ok\nTODO")
                     , (inLines "clean.lines", "ok")
                     , (inLines "unfixable.lines", "FIXME")
@@ -53,7 +52,7 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
 
         it "never writes when checking or baselining" $
             for_ [CheckC, BaselineC] $ \command -> do
-                outcome <- runLines command emptyBaseline [(inLines "a.lines", "TODO")]
+                outcome <- runLines command mempty [(inLines "a.lines", "TODO")]
 
                 (outcome.written, outcome.transcript) `shouldBe` ([], [])
 
@@ -62,26 +61,26 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
             outcome <-
                 runLines
                     CheckC
-                    emptyBaseline
+                    mempty
                     [(inLines "broken.lines", "!oops"), (inLines "fine.lines", "ok")]
 
             outcome.transcript `shouldBe` [(Error, "❌ Error: broken.lines: cannot parse")]
             fmap moduleName outcome.modules `shouldBe` ["fine.lines"]
 
         it "names a file that does not parse by its path from the project root" $ do
-            outcome <- runLines CheckC emptyBaseline [(inLines "src/deep/broken.lines", "!oops")]
+            outcome <- runLines CheckC mempty [(inLines "src/deep/broken.lines", "!oops")]
 
             outcome.transcript `shouldBe` [(Error, "❌ Error: src/deep/broken.lines: cannot parse")]
 
         it "neither reports nor writes a file that does not parse" $ do
-            outcome <- runLines FixC emptyBaseline [(inLines "broken.lines", "TODO\n!oops")]
+            outcome <- runLines FixC mempty [(inLines "broken.lines", "TODO\n!oops")]
 
             (outcome.problems, outcome.written) `shouldBe` ([], [])
 
     describe "lowering" $ do
         it "lowers every parsed file, whatever the command" $
             for_ [CheckC, FixC, BaselineC] $ \command -> do
-                outcome <- runLines command emptyBaseline [(inLines "a.lines", "ok"), (inLines "src/b.lines", "TODO")]
+                outcome <- runLines command mempty [(inLines "a.lines", "ok"), (inLines "src/b.lines", "TODO")]
 
                 sort (fmap moduleName outcome.modules) `shouldBe` ["a.lines", "src/b.lines"]
 
@@ -89,7 +88,7 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
             outcome <-
                 runLines
                     CheckC
-                    emptyBaseline
+                    mempty
                     [ (inLines "a.lines", "ok")
                     , (inLines "generated/b.lines", "TODO")
                     , (inLines "notes.txt", "TODO")
@@ -101,7 +100,7 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
             outcome <-
                 runLines
                     CheckC
-                    emptyBaseline
+                    mempty
                     [(inLines ".gitignore", "ignored.lines"), (inLines "a.lines", "ok"), (inLines "ignored.lines", "TODO")]
 
             (fmap moduleName outcome.modules, outcome.problems) `shouldBe` (["a.lines"], [])

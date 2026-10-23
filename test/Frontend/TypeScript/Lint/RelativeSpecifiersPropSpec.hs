@@ -15,7 +15,7 @@ module Frontend.TypeScript.Lint.RelativeSpecifiersPropSpec (spec) where
 import Deslop.Frontend.Finding (applyFindings)
 import Deslop.Module (Module)
 import Deslop.Problem (Problem, ProblemId (..), problemId)
-import Deslop.Problem.Baseline (Baseline, emptyBaseline)
+import Deslop.Problem.Baseline (Baseline)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
@@ -69,7 +69,7 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers properties" $ do
         reported <- forM (relativeSources project <> renderProject asImports project) $ \source -> do
             original <- parseSource source
             (fixed, problems) <-
-                lintReporting projectConfig emptyBaseline (projectFiles project) (fst source) original
+                lintReporting projectConfig mempty (projectFiles project) (fst source) original
             when (null problems) $ fixed === original
             pure (not . null $ problems)
         -- Both branches, because an implication nothing ever satisfies the
@@ -83,8 +83,8 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers properties" $ do
         project <- forAll genProject
         for_ fixableSpellings $ \spelling -> do
             let sources = renderProject spelling project
-            unsuppressed <- lintedAsts project sources emptyBaseline
-            problems <- concat <$> traverse (fmap snd . lintProblems project emptyBaseline) sources
+            unsuppressed <- lintedAsts project sources mempty
+            problems <- concat <$> traverse (fmap snd . lintProblems project mempty) sources
             suppressed <- lintedAsts project sources . baselineOf . map ((.text) . problemId) $ problems
             reachability suppressed === reachability unsuppressed
             cover 60 "a problem was baselined" (not . null $ problems)
@@ -122,7 +122,7 @@ renderCst :: [TsNode] -> Text
 renderCst = render
 
 lintOnce :: Project -> (AbsPath, Text) -> PropertyT IO [TsNode]
-lintOnce project source = fst <$> lintProblems project emptyBaseline source
+lintOnce project source = fst <$> lintProblems project mempty source
 
 lintProblems :: Project -> Baseline -> (AbsPath, Text) -> PropertyT IO ([TsNode], [Problem])
 lintProblems project baseline source = do

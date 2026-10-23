@@ -9,7 +9,7 @@ import Deslop.Error (DeslopError (..))
 import Deslop.Frontend (CompilerFrontend (..), SomeFrontend (..))
 import Deslop.Frontend.Pipeline (runFrontend)
 import Deslop.Problem (LintRuleId, Problem, isAutoFixable)
-import Deslop.Problem.Baseline (Baseline, applyBaseline, emptyBaseline, loadBaseline, saveBaseline)
+import Deslop.Problem.Baseline (Baseline, applyBaseline, loadBaseline, saveBaseline)
 import Deslop.Problem.Formatter (CodeFence)
 import Deslop.Problem.Shrinker (compactProblems)
 import Deslop.Rule.Book (Rulebook (..))
@@ -114,7 +114,7 @@ doWork params = do
     projectRoot = ProjectRoot params.projectPath
 
 baselineForCmd :: (RoFileSystem :> es) => Params -> Eff es Baseline
-baselineForCmd (Params BaselineC _) = pure emptyBaseline
+baselineForCmd (Params BaselineC _) = pure mempty
 baselineForCmd (Params _ projectPath) = loadBaseline projectPath
 
 rulebooksOf :: (RoFileSystem :> es, Error DeslopError :> es) => ProjectRoot -> Eff es [Rulebook]

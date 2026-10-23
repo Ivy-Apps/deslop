@@ -27,7 +27,7 @@ import Deslop.Module (
     moduleNameUnsafe,
  )
 import Deslop.Problem (ProblemId (..), problemId)
-import Deslop.Problem.Baseline (emptyBaseline)
+import Deslop.Problem.Baseline (Baseline)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
@@ -182,7 +182,7 @@ lintIds project sources =
         . runReportProblem
         . runReader projectConfig
         . runReader projectRoot
-        . runReader emptyBaseline
+        . runReader @Baseline mempty
         $ do
             traverse_ (noRelativeSpecifiers . program) sources
             sort . map ((.text) . problemId) <$> getProblems
