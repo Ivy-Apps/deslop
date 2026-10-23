@@ -35,7 +35,9 @@ import System.OsPath (osp)
 data TsFrontend = TsFrontend
     deriving stock (Show, Eq)
 
--- | Megaparsec's report on a file the lexer could not read, already rendered.
+{- | Megaparsec's report on a file the lexer could not read, already rendered.
+It starts at the line and column; the driver names the file.
+-}
 newtype TsParseError = TsParseError String
     deriving stock (Show, Eq)
 

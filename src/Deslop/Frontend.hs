@@ -43,7 +43,10 @@ class (Renderable (ParseError fe)) => CompilerFrontend fe where
     -- | One parsed file. Lossless: rendering it gives back its bytes.
     type Unit fe
 
-    -- | Why a file could not be parsed, rendered for the person reading it.
+    {- | Why a file could not be parsed, rendered for the person reading it.
+    The driver prefixes the file's project-relative path, so the rendered
+    error should not repeat it: a position within the file is enough.
+    -}
     type ParseError fe
 
     -- | Whether the project at the root is written in this language.

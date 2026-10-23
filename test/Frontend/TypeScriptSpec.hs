@@ -50,5 +50,5 @@ spec = describe "Frontend.TypeScript" $ do
             (render TsFrontend <$> parse TsFrontend emptyTsConfig (ap "/project/a.ts") bytes) === Right bytes
 
         it "logs a parse error exactly as the lexer reported it" $
-            Renderable.render (TsParseError "src/a.ts:1:8:\nunexpected end of input\n")
-                `shouldBe` "src/a.ts:1:8:\nunexpected end of input\n"
+            Renderable.render (TsParseError "1:8:\nunexpected end of input\n")
+                `shouldBe` "1:8:\nunexpected end of input\n"

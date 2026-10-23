@@ -34,7 +34,8 @@ import Renderable qualified
 {- | Lints every file of the project, repairs and writes back what @deslop fix@
 may, and lowers what parsed into 'Module's.
 
-A file that does not parse is logged and left out; the run goes on without it.
+A file that does not parse is logged under its project-relative path and left
+out; the run goes on without it.
 -}
 runFrontend ::
     ( CompilerFrontend fe
@@ -58,11 +59,17 @@ runFrontend fe command baseline projectRoot = do
         (writes, results) <-
             unzip <$> pooledMapConcurrentlyN 32 (deslopFile fe cfg command baseline) files
         traverse_ logModified . sort . mapMaybe rewritten $ writes
-        let (parseErrors, units) = partitionEithers results
-        traverse_ (cliLog Error . ("❌ Error: " <>) . Renderable.render) parseErrors
+        let (unparsed, units) = partitionEithers results
+        traverse_ logUnparsed unparsed
         lower fe cfg units
   where
-    logModified = cliLog Change . ("  modified  " <>) . decodeOsPath . (.osPath)
+    logModified = cliLog Change . ("  modified  " <>) . shown
+    logUnparsed (Unparsed src err) =
+        cliLog Error $ "❌ Error: " <> shown (relativePathTo projectRoot src) <> ": " <> Renderable.render err
+    shown = decodeOsPath . (.osPath)
+
+-- | A file that did not parse, and why: its error never names the file itself.
+data Unparsed e = Unparsed AbsPath e
 
 -- | Whether a file's bytes were written back, and where it lives if so.
 data WriteBack
@@ -91,11 +98,11 @@ deslopFile ::
     Command ->
     Baseline ->
     AbsPath ->
-    Eff es (WriteBack, Either (ParseError fe) (Unit fe))
+    Eff es (WriteBack, Either (Unparsed (ParseError fe)) (Unit fe))
 deslopFile fe cfg command baseline src = do
     bytes <- fsReadFile src
     case parse fe cfg src bytes of
-        Left err -> pure (Untouched, Left err)
+        Left err -> pure (Untouched, Left (Unparsed src err))
         Right unit -> fmap Right <$> lintUnit bytes unit
   where
     lintUnit bytes unit = do
