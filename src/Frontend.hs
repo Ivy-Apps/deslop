@@ -14,10 +14,11 @@ import Deslop.Frontend (SomeFrontend, Supported (..), detectFirst, lookingForAny
 import Effectful (Eff, type (:>))
 import Effects.FileSystem (RoFileSystem)
 import FileSystem.Path (ProjectRoot)
+import Frontend.Python (PyFrontend)
 import Frontend.TypeScript (TsFrontend)
 
 supported :: [Supported]
-supported = [Supported (Proxy @TsFrontend)]
+supported = [Supported (Proxy @TsFrontend), Supported (Proxy @PyFrontend)]
 
 detectFrontend :: (RoFileSystem :> es) => ProjectRoot -> Eff es (Maybe SomeFrontend)
 detectFrontend = detectFirst supported
