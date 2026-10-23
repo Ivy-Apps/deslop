@@ -3,6 +3,7 @@ module Frontend.TypeScript.IteratorSpec (spec) where
 import Doubles.FileSystem (mockDirs, runMockRoFileSystem)
 import Effectful (runEff)
 import FileSystem.Path (AbsPath)
+import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
 import Frontend.TypeScript.Iterator (getTsFiles)
 import Git.Ignore (GitIgnore (..), IgnoreScope (..), emptyGitIgnore, parseIgnoreFile)
 import Test.Hspec
@@ -13,7 +14,7 @@ root = ap "/project"
 
 -- | Run getTsFiles against a mock filesystem rooted at '/project'.
 run :: [(AbsPath, [AbsPath])] -> IO [AbsPath]
-run = runWith (emptyGitIgnore root)
+run = runWith (emptyGitIgnore jsEcosystemIgnored root)
 
 runWith :: GitIgnore -> [(AbsPath, [AbsPath])] -> IO [AbsPath]
 runWith gitIgnore dirs = runEff . runMockRoFileSystem (mockDirs dirs) $ getTsFiles gitIgnore root
@@ -21,7 +22,7 @@ runWith gitIgnore dirs = runEff . runMockRoFileSystem (mockDirs dirs) $ getTsFil
 -- | A GitIgnore holding a single root .gitignore with the given contents.
 rootGitIgnore :: Text -> GitIgnore
 rootGitIgnore content =
-    GitIgnore {root, scopes = [IgnoreScope {base = root, rules = parseIgnoreFile content}]}
+    GitIgnore {root, ecosystem = jsEcosystemIgnored, scopes = [IgnoreScope {base = root, rules = parseIgnoreFile content}]}
 
 spec :: Spec
 spec = describe "Frontend.TypeScript.Iterator" $ do

@@ -19,7 +19,7 @@ spec = describe "Frontend.TypeScript.Ignore" $ do
     describe "always-ignored directories" $ do
         it "ignores node_modules regardless of any rule" $ do
             let nodeModules = ap "/project/node_modules"
-            let reIncluding = GitIgnore {root, scopes = [IgnoreScope {base = root, rules = parseIgnoreFile "!node_modules"}]}
+            let reIncluding = GitIgnore {root, ecosystem = jsEcosystemIgnored, scopes = [IgnoreScope {base = root, rules = parseIgnoreFile "!node_modules"}]}
 
             files <-
                 runEff . runMockRoFileSystem (mockDirs [(root, [nodeModules]), (nodeModules, [ap "/project/node_modules/dep.ts"])]) $
@@ -33,7 +33,7 @@ spec = describe "Frontend.TypeScript.Ignore" $ do
 
             files <-
                 runEff . runMockRoFileSystem (mockDirs [(root, [nodeModules]), (nodeModules, [pkg]), (pkg, [ap "/project/node_modules/pkg/index.ts"])]) $
-                    getTsFiles (emptyGitIgnore root) root
+                    getTsFiles (emptyGitIgnore jsEcosystemIgnored root) root
 
             files `shouldBe` []
 

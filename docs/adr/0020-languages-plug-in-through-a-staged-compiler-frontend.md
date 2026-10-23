@@ -118,8 +118,10 @@ text are language-neutral.
 - `builtInRules` lists every rule id `lint` can report. Give separate concerns
   separate ids: a Lint Problem's id is `{rule}#{file}`, so a shared id makes
   accepting one Problem silence the other.
-- `discover` prunes both what the `GitIgnore` ignores and what
-  `ecosystemIgnored` names, without descending into either.
+- `discover` prunes whatever `isIgnored` says the `GitIgnore` ignores, without
+  descending into it. The `GitIgnore` already holds `ecosystemIgnored`, so
+  `isIgnored` alone covers what is always ignored, what the ecosystem
+  generates and what is gitignored.
 - `lower` sees the whole program. Build any module index there, not as global
   state, and mint Module Names slash-segmented whatever the language writes
   ([ADR 19](0019-module-names-are-slash-segmented-in-every-language.md)).
@@ -161,4 +163,5 @@ shape but may want `discover` to see more than a `GitIgnore`.
 - Lowering now runs after every file is linted rather than per file. Same
   Modules, in the same order.
 - `loadGitIgnore` takes the frontend's generated-directory predicate, so it
-  still never walks `node_modules`.
+  still never walks `node_modules`, and keeps it in the `GitIgnore`, so
+  `isIgnored` is the one predicate every walk prunes by.

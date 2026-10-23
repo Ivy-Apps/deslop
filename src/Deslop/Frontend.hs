@@ -68,6 +68,8 @@ class (Renderable (ParseError fe)) => CompilerFrontend fe where
 
     {- | What the language's own tooling generates and no run should walk -
     dependency folders and build output - on top of what is always ignored.
+    The driver hands it to "Git.Ignore.loadGitIgnore", so the 'GitIgnore'
+    'discover' is given already honours it.
     -}
     ecosystemIgnored :: fe -> Entry -> Bool
 
@@ -76,9 +78,10 @@ class (Renderable (ParseError fe)) => CompilerFrontend fe where
         (RoFileSystem :> es, CLI :> es, Error DeslopError :> es) =>
         fe -> ProjectRoot -> Eff es (Config fe)
 
-    {- | Every source file of the project. A walk prunes what the 'GitIgnore'
-    ignores and what 'ecosystemIgnored' names, as "Git.Ignore.isIgnored" and
-    this frontend's own predicate say, without descending into either.
+    {- | Every source file of the project. A walk prunes whatever
+    "Git.Ignore.isIgnored" says the 'GitIgnore' ignores - what is always
+    ignored, what 'ecosystemIgnored' names and what is gitignored - without
+    descending into it.
     -}
     discover ::
         (RoFileSystem :> es) =>
