@@ -9,7 +9,7 @@ module Frontend.TypeScript (
 ) where
 
 import Data.Text.Encoding qualified as TE
-import Deslop.Error (Warning (..))
+import Deslop.Error (VoidError, Warning (..))
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Problem.Formatter (CodeFence (..))
 import Effectful (Eff, type (:>))
@@ -53,6 +53,7 @@ instance CompilerFrontend TsFrontend where
     type ConfigError TsFrontend = TsConfigError
     type Unit TsFrontend = TsProgram
     type ParseError TsFrontend = TsParseError
+    type LowerError TsFrontend = VoidError
 
     detect projectRoot = bool Nothing (Just TsFrontend) <$> hasTsConfig projectRoot
     label _ = "TypeScript"
@@ -65,7 +66,10 @@ instance CompilerFrontend TsFrontend where
     parse _ _ path = first TsParseError . parseTs . TsFile path . TE.decodeUtf8
     render _ = TE.encodeUtf8 . Renderable.render . (.cst)
     lint _ cfg = runReader cfg . noRelativeSpecifiers
-    lower _ cfg = runReader cfg . pooledMapConcurrentlyN 32 parseModule
+    lower _ cfg = do
+        runReader cfg
+            . pooledMapConcurrentlyN 32 parseModule
+            >=> (\ms -> pure (ms, []))
 
 tsConfigPath :: ProjectRoot -> AbsPath
 tsConfigPath projectRoot = withAbsBaseUnsafe projectRoot.path [osp|tsconfig.json|]

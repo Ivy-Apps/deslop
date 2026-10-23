@@ -20,6 +20,7 @@ module Doubles.Frontend (
 
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
+import Deslop.Error (VoidError)
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Frontend.Finding (fixable, unfixable)
 import Deslop.Module (Location (..), Module (..), moduleIdUnsafe, moduleNameUnsafe)
@@ -68,6 +69,7 @@ instance CompilerFrontend LinesFrontend where
     type ConfigError LinesFrontend = LinesConfigError
     type Unit LinesFrontend = LinesFile
     type ParseError LinesFrontend = LinesParseError
+    type LowerError LinesFrontend = VoidError
 
     detect projectRoot =
         bool Nothing (Just LinesFrontend)
@@ -105,7 +107,7 @@ instance CompilerFrontend LinesFrontend where
                 }
     lower _ _ files = do
         projectRoot <- ask @ProjectRoot
-        pure $ moduleOf projectRoot <$> files
+        pure $ (moduleOf projectRoot <$> files, [])
       where
         moduleOf projectRoot file =
             let located = relativePathTo projectRoot file.path

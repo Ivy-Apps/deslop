@@ -34,7 +34,13 @@ every Rule is judged against.
 @fe@ is a witness that the language was detected; every method takes it so
 that the associated types below are never ambiguous.
 -}
-class (Renderable (ParseError fe), Renderable (ConfigError fe)) => CompilerFrontend fe where
+class
+    ( Renderable (ConfigError fe)
+    , Renderable (ParseError fe)
+    , Renderable (LowerError fe)
+    ) =>
+    CompilerFrontend fe
+    where
     -- | The project's own configuration, e.g. a resolved @tsconfig.json@.
     type Config fe
 
@@ -48,6 +54,8 @@ class (Renderable (ParseError fe), Renderable (ConfigError fe)) => CompilerFront
     error should not repeat it: a position within the file is enough.
     -}
     type ParseError fe
+
+    type LowerError fe
 
     -- | Whether the project at the root is written in this language.
     detect :: (RoFileSystem :> es) => ProjectRoot -> Eff es (Maybe fe)
@@ -105,7 +113,7 @@ class (Renderable (ParseError fe), Renderable (ConfigError fe)) => CompilerFront
     -}
     lower ::
         (RoFileSystem :> es, Reader ProjectRoot :> es, Concurrent :> es) =>
-        fe -> Config fe -> [Unit fe] -> Eff es [Module]
+        fe -> Config fe -> [Unit fe] -> Eff es ([Module], [LowerError fe])
 
 -- | Whichever language was detected.
 data SomeFrontend = forall fe. (CompilerFrontend fe) => SomeFrontend fe

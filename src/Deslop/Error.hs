@@ -2,9 +2,10 @@
 
 Rendering one for a human is "UI.humanReadable".
 -}
-module Deslop.Error (DeslopError (..), Warning (..)) where
+module Deslop.Error (DeslopError (..), Warning (..), VoidError) where
 
 import FileSystem.Path (ProjectRoot)
+import Renderable (Renderable (..))
 
 data DeslopError
     = {- | A language frontend could not make sense of the project: a
@@ -22,3 +23,8 @@ data DeslopError
     deriving (Show, Eq)
 
 newtype Warning = Warning Text deriving (Show, Eq)
+
+data VoidError = VoidError Void
+
+instance Renderable VoidError where
+    render (VoidError v) = absurd v

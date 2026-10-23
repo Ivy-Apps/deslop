@@ -53,10 +53,10 @@ runFrontend ::
     ProjectRoot ->
     Eff es [Module]
 runFrontend fe command baseline projectRoot = do
-    (cfg, ws) <-
+    (cfg, cfgWs) <-
         loadConfig fe projectRoot
             >>= either (throwError . FrontendError . R.render) pure
-    traverse_ (\(Warning w) -> cliLog CLI.Warning $ "WARNING: " <> w) ws
+    traverse_ (\(Warning w) -> logWarning w) cfgWs
     gitIgnore <- loadGitIgnore (ecosystemIgnored fe) projectRoot.path
     files <- discover fe cfg projectRoot gitIgnore
     runReader @ProjectRoot projectRoot $ do
@@ -65,8 +65,13 @@ runFrontend fe command baseline projectRoot = do
         traverse_ logModified . sort . mapMaybe rewritten $ writes
         let (unparsed, units) = partitionEithers results
         traverse_ logUnparsed unparsed
-        lower fe cfg units
+        (ms, lowerWs) <- lower fe cfg units
+        traverse_ (logWarning . R.render) lowerWs
+        pure ms
   where
+    logWarning :: (CLI :> es') => Text -> Eff es' ()
+    logWarning = cliLog CLI.Warning . ("WARNING: " <>)
+
     logModified = cliLog CLI.Change . ("  modified  " <>) . shown
     logUnparsed (Unparsed src err) =
         cliLog CLI.Error $ "❌ Error: " <> shown (relativePathTo projectRoot src) <> ": " <> R.render err
