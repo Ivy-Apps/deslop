@@ -1,0 +1,22 @@
+cabal-version: 3.0
+name:          hs-tiny
+version:       0.1.0
+
+library
+  hs-source-dirs:  src
+  exposed-modules:
+    Tiny.A
+    Tiny.B
+    Tiny.C
+    Tiny.D
+  build-depends:   base, text
+
+executable hs-tiny
+  hs-source-dirs: app
+  main-is:        Main.hs
+  build-depends:  base, hs-tiny
+
+executable hs-tiny-tool
+  hs-source-dirs: tool
+  main-is:        Main.hs
+  build-depends:  base, hs-tiny

@@ -87,6 +87,7 @@ library
     FileSystem.Iterator
     FileSystem.Path
     Frontend
+    Frontend.Haskell
     Frontend.TypeScript
     Frontend.TypeScript.CST
     Frontend.TypeScript.Config
