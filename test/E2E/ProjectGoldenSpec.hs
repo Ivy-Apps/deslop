@@ -57,6 +57,7 @@ spec = describe "E2E.Project" $ do
     itChecks "ts-monorepo-project"
     itChecks "ts-barrel-project"
     itChecks "ts-unscanned-project"
+    itChecks "ts-not-utf8-project"
 
     itFailsToLoadRulebook "ts-invalid-rulebook-project"
     itFailsToLoadTsConfig "ts-broken-extends-project"

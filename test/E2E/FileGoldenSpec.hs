@@ -47,10 +47,9 @@ spec = do
             source <- decodeUtf8 <$> SFO.readFile' path
 
             -- When
-            let res = parseTs TsFile {path = absPathUnsafe path, content = source}
+            let p = parseTs TsFile {path = absPathUnsafe path, content = source}
 
             -- Then
-            p <- requireRight id res
             render p.cst `shouldBe` source
             return $ defaultGolden (testName <> "-parser") (ppShow p)
 

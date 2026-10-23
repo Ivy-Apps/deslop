@@ -56,24 +56,25 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
 
                 (outcome.written, outcome.transcript) `shouldBe` ([], [])
 
-    describe "parse errors" $ do
-        it "logs a file that does not parse and lowers the rest" $ do
+    describe "unreadable files" $ do
+        -- A module the frontend cannot read still exists, and an import of it
+        -- must still resolve to it.
+        it "lowers a file it cannot read alongside the rest" $ do
             outcome <-
                 runLines
                     CheckC
                     mempty
-                    [(inLines "broken.lines", "!oops"), (inLines "fine.lines", "ok")]
+                    [(inLines "unread.lines", "TODO\n\xff"), (inLines "fine.lines", "ok")]
 
-            outcome.transcript `shouldBe` [(Error, "❌ Error: broken.lines: cannot parse")]
-            fmap moduleName outcome.modules `shouldBe` ["fine.lines"]
+            fmap moduleName outcome.modules `shouldBe` ["fine.lines", "unread.lines"]
 
-        it "names a file that does not parse by its path from the project root" $ do
-            outcome <- runLines CheckC mempty [(inLines "src/deep/broken.lines", "!oops")]
+        it "logs what lower says about it, by its path from the project root" $ do
+            outcome <- runLines CheckC mempty [(inLines "src/deep/unread.lines", "\xff")]
 
-            outcome.transcript `shouldBe` [(Error, "❌ Error: src/deep/broken.lines: cannot parse")]
+            outcome.transcript `shouldBe` [(Warning, "WARNING: src/deep/unread.lines is not UTF-8")]
 
-        it "neither reports nor writes a file that does not parse" $ do
-            outcome <- runLines FixC mempty [(inLines "broken.lines", "TODO\n!oops")]
+        it "neither reports nor writes a file it cannot read" $ do
+            outcome <- runLines FixC mempty [(inLines "unread.lines", "TODO\n\xff")]
 
             (outcome.problems, outcome.written) `shouldBe` ([], [])
 

@@ -16,6 +16,7 @@ module Deslop.Frontend.Finding (
     applyFindings,
     fixable,
     unfixable,
+    within,
 ) where
 
 import Deslop.Problem (Problem)
@@ -50,3 +51,13 @@ fixable problem = Finding (problem True) . Rewrite
 -- | A Problem nothing can repair unattended.
 unfixable :: (Bool -> Problem) -> Finding u
 unfixable problem = Finding (problem False) NoFix
+
+{- | A Finding about one part of a unit, as a Finding about the whole: its repair
+edits that part, through @inside@, and leaves the rest as it was.
+-}
+within :: (Endo part -> Endo whole) -> Finding part -> Finding whole
+within inside finding = finding {fix = lifted finding.fix}
+  where
+    lifted = \case
+        NoFix -> NoFix
+        Rewrite edit -> Rewrite (inside edit)

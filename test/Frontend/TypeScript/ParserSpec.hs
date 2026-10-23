@@ -55,11 +55,7 @@ spec = do
         forM_ cases $ \(input, expected) ->
             it input $ do
                 let file = TsFile (absPathUnsafe [osp|test.ts|]) (T.pack input)
-                case parseTs file of
-                    Left err -> expectationFailure err
-                    Right program -> do
-                        let importsOnly = filter isImport program.cst
-                        importsOnly `shouldBe` [expected]
+                filter isImport (parseTs file).cst `shouldBe` [expected]
 
     -- What the parser calls the target is what `deslop fix` rewrites, so these
     -- pin the specifier against the two ways a re-export can hide something
@@ -116,10 +112,7 @@ spec = do
         forM_ cases $ \(input, expected) ->
             it input $ do
                 let file = TsFile (absPathUnsafe [osp|test.ts|]) (T.pack input)
-                case parseTs file of
-                    Left err -> expectationFailure err
-                    Right program ->
-                        filter isReExport program.cst `shouldBe` [expected]
+                filter isReExport (parseTs file).cst `shouldBe` [expected]
 
 isImport :: TsNode -> Bool
 isImport Import {} = True

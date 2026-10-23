@@ -34,10 +34,8 @@ import Git.Ignore (loadGitIgnore)
 import Renderable qualified as R
 
 {- | Lints every file of the project, repairs and writes back what @deslop fix@
-may, and lowers what parsed into 'Module's.
-
-A file that does not parse is logged under its project-relative path and left
-out; the run goes on without it.
+may, and lowers every one of them into 'Module's: 'parse' is total, so no file
+the walk found is missing from what 'lower' sees.
 -}
 runFrontend ::
     ( CompilerFrontend fe
@@ -61,11 +59,9 @@ runFrontend fe command baseline projectRoot = do
     gitIgnore <- loadGitIgnore (ecosystemIgnored fe cfg) projectRoot.path
     files <- discover fe cfg projectRoot gitIgnore
     runReader @ProjectRoot projectRoot $ do
-        (writes, results) <-
+        (writes, units) <-
             unzip <$> pooledMapConcurrentlyN poolSize (deslopFile fe cfg command baseline) files
         traverse_ logModified . sort . mapMaybe rewritten $ writes
-        let (unparsed, units) = partitionEithers results
-        traverse_ logUnparsed unparsed
         (ms, lowerWs) <- lower fe cfg units
         traverse_ (logWarning . R.render) lowerWs
         pure ms
@@ -73,13 +69,7 @@ runFrontend fe command baseline projectRoot = do
     logWarning :: (CLI :> es') => Text -> Eff es' ()
     logWarning = cliLog CLI.Warning . ("WARNING: " <>)
 
-    logModified = cliLog CLI.Change . ("  modified  " <>) . shown
-    logUnparsed (Unparsed src err) =
-        cliLog CLI.Error $ "❌ Error: " <> shown (relativePathTo projectRoot src) <> ": " <> R.render err
-    shown = decodeOsPath . (.osPath)
-
--- | A file that did not parse, and why: its error never names the file itself.
-data Unparsed e = Unparsed !AbsPath !e
+    logModified = cliLog CLI.Change . ("  modified  " <>) . decodeOsPath . (.osPath)
 
 -- | Whether a file's bytes were written back, and where it lives if so.
 data WriteBack
@@ -108,22 +98,18 @@ deslopFile ::
     Command ->
     Baseline ->
     AbsPath ->
-    Eff es (WriteBack, Either (Unparsed (ParseError fe)) (Unit fe))
+    Eff es (WriteBack, Unit fe)
 deslopFile fe cfg command baseline src = do
     bytes <- fsReadFile src
-    case parse fe cfg src bytes of
-        Left err -> pure (Untouched, Left (Unparsed src err))
-        Right unit -> fmap Right <$> lintUnit bytes unit
-  where
-    lintUnit bytes unit = do
-        findings <- lint fe cfg unit
-        traverse_ (report . (.problem)) findings
-        let repaired = applyFindings baseline unit findings
-        written <- case command of
-            FixC -> writeBack src bytes . render fe $ repaired
-            CheckC -> pure Untouched
-            BaselineC -> pure Untouched
-        pure (written, repaired)
+    let unit = parse fe cfg src bytes
+    findings <- lint fe cfg unit
+    traverse_ (report . (.problem)) findings
+    let repaired = applyFindings baseline unit findings
+    written <- case command of
+        FixC -> writeBack src bytes . render fe $ repaired
+        CheckC -> pure Untouched
+        BaselineC -> pure Untouched
+    pure (written, repaired)
 
 -- | Writes a repaired file, but only one whose bytes actually changed.
 writeBack ::

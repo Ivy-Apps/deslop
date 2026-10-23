@@ -5,20 +5,22 @@ root, whose @.ts@ and @.tsx@ files lower to one 'Deslop.Module.Module' each.
 -}
 module Frontend.TypeScript (
     TsFrontend (..),
-    TsParseError (..),
+    TsUnit (..),
+    TsLowerError (..),
 ) where
 
 import Data.Text.Encoding qualified as TE
-import Deslop.Error (VoidError, Warning (..))
+import Deslop.Error (Warning (..))
 import Deslop.Frontend (CompilerFrontend (..))
+import Deslop.Frontend.Finding (within)
 import Deslop.Problem.Formatter (CodeFence (..))
 import Effectful (Eff, type (:>))
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
-import Effectful.Reader.Static (runReader)
+import Effectful.Reader.Static (ask, runReader)
 import Effects.Concurrency (poolSize)
 import Effects.FileSystem (RoFileSystem, fsFileExists, fsIsSymlink, fsListDirectory)
-import FileSystem.Path (AbsPath, ProjectRoot (..), withAbsBaseUnsafe)
-import Frontend.TypeScript.CST (TsProgram (cst))
+import FileSystem.Path (AbsPath, ProjectRelativePath, ProjectRoot (..), portablePath, relativePathTo, withAbsBaseUnsafe)
+import Frontend.TypeScript.CST (TsProgram (..))
 import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.Config.Loader (TsConfigLoadError, loadTsConfig, renderSkippedExtends, renderTsConfigLoadError)
 import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
@@ -34,14 +36,21 @@ import System.OsPath (osp)
 data TsFrontend = TsFrontend
     deriving stock (Show, Eq)
 
-{- | Megaparsec's report on a file the lexer could not read, already rendered.
-It starts at the line and column; the driver names the file.
+{- | One TypeScript file as read: its syntax, or - when its bytes are not UTF-8 -
+the bytes themselves, kept whole so that rendering still gives them back and
+the file is still a module 'lower' sees.
 -}
-newtype TsParseError = TsParseError String
+data TsUnit
+    = Readable TsProgram
+    | NotUtf8 AbsPath ByteString
     deriving stock (Show, Eq)
 
-instance Renderable TsParseError where
-    render (TsParseError err) = toText err
+-- | A file whose bytes are not UTF-8: its module exists, but its imports are unknown.
+newtype TsLowerError = ImportsNotRead ProjectRelativePath
+    deriving stock (Show, Eq)
+
+instance Renderable TsLowerError where
+    render (ImportsNotRead path) = portablePath path <> " is not UTF-8, so its imports were not read."
 
 data TsConfigError = TsConfigError !ProjectRoot !TsConfigLoadError
     deriving stock (Show, Eq)
@@ -52,9 +61,8 @@ instance Renderable TsConfigError where
 instance CompilerFrontend TsFrontend where
     type Config TsFrontend = TsConfig
     type ConfigError TsFrontend = TsConfigError
-    type Unit TsFrontend = TsProgram
-    type ParseError TsFrontend = TsParseError
-    type LowerError TsFrontend = VoidError
+    type Unit TsFrontend = TsUnit
+    type LowerError TsFrontend = TsLowerError
 
     detect projectRoot = bool Nothing (Just TsFrontend) <$> hasTsConfig projectRoot
     label _ = "TypeScript"
@@ -64,13 +72,28 @@ instance CompilerFrontend TsFrontend where
     ecosystemIgnored _ _ = jsEcosystemIgnored
     loadConfig _ = tsConfig
     discover _ _ projectRoot gitIgnore = getTsFiles gitIgnore projectRoot.path
-    parse _ _ path = first TsParseError . parseTs . TsFile path . TE.decodeUtf8
-    render _ = TE.encodeUtf8 . Renderable.render . (.cst)
-    lint _ cfg = runReader cfg . noRelativeSpecifiers
-    lower _ cfg = do
-        runReader cfg
-            . pooledMapConcurrentlyN poolSize parseModule
-            >=> (\ms -> pure (ms, []))
+    parse _ _ path bytes = case TE.decodeUtf8' bytes of
+        Right content -> Readable . parseTs $ TsFile path content
+        Left _ -> NotUtf8 path bytes
+    render _ = \case
+        Readable program -> TE.encodeUtf8 . Renderable.render $ program.cst
+        NotUtf8 _ bytes -> bytes
+    lint _ cfg = \case
+        Readable program -> fmap (within onReadable) <$> runReader cfg (noRelativeSpecifiers program)
+        NotUtf8 {} -> pure []
+      where
+        onReadable (Endo edit) = Endo $ \case
+            Readable program -> Readable (edit program)
+            unread@NotUtf8 {} -> unread
+    lower _ cfg units = do
+        projectRoot <- ask @ProjectRoot
+        ms <- runReader cfg . pooledMapConcurrentlyN poolSize parseModule $ programOf <$> units
+        pure (ms, [ImportsNotRead (relativePathTo projectRoot path) | NotUtf8 path _ <- units])
+      where
+        -- Still a module, named by its path; it is its imports nobody knows.
+        programOf = \case
+            Readable program -> program
+            NotUtf8 path _ -> TsModule {path, cst = []}
 
 tsConfigPath :: ProjectRoot -> AbsPath
 tsConfigPath projectRoot = withAbsBaseUnsafe projectRoot.path [osp|tsconfig.json|]

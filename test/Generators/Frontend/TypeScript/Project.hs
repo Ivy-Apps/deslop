@@ -42,7 +42,6 @@ import Effectful.Reader.Static (runReader)
 import FileSystem.Path (AbsPath, ProjectRoot (..), absPathUnsafe, encodeOsPath)
 import Fixtures.Frontend.TypeScript.Config (mkMapping)
 import Frontend.TypeScript.Config (Pattern (..), TsConfig (..))
-import Frontend.TypeScript.CST (TsProgram (..))
 import Frontend.TypeScript.Module (parseModule)
 import Frontend.TypeScript.Parser (TsFile (..), parseTs)
 import Hedgehog (Gen)
@@ -183,9 +182,7 @@ projectAsts project sources =
         . runReader projectRoot
         $ traverse (parseModule . program) sources
   where
-    program (path, content) = case parseTs TsFile {path = path, content = content} of
-        Left err -> TsModule {path = path, cst = error (toText err)}
-        Right prog -> prog
+    program (path, content) = parseTs TsFile {path = path, content = content}
 
 {- | What every module can reach, by name. The relation a Rulebook Rule is
 judged against, and the thing respelling a project must leave alone.

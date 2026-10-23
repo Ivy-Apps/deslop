@@ -13,7 +13,7 @@ module Frontend.TypeScript.ParserPropSpec (spec) where
 import Frontend.TypeScript.CST (TsNode (..), TsProgram (cst))
 import Frontend.TypeScript.Parser (TsFile (..), parseTs)
 import Generators.Frontend.TypeScript.CST (edgesOf, genNonEdgeProgram, genTsProgram)
-import Hedgehog (PropertyT, annotate, failure, forAll, (===))
+import Hedgehog (PropertyT, forAll, (===))
 import Renderable (Renderable (render))
 import Test.Hspec
 import TestUtils (ap, prop)
@@ -42,10 +42,7 @@ spec = describe "Frontend.TypeScript.Parser properties" $ do
         edgesOf parsed === []
 
 parseSource :: Text -> PropertyT IO [TsNode]
-parseSource source =
-    case parseTs TsFile {path = ap "/home/repo/src/generated.ts", content = source} of
-        Left err -> annotate err >> failure
-        Right prog -> pure prog.cst
+parseSource source = pure (parseTs TsFile {path = ap "/home/repo/src/generated.ts", content = source}).cst
 
 isEdge :: TsNode -> Bool
 isEdge Import {} = True

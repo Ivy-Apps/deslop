@@ -5,14 +5,15 @@ language shares: the driver, the registry.
 
 A Lines project has a @lines.project@ at its root and its sources are @.lines@
 files. Each line is a statement. @TODO@ breaks a rule and is repaired to
-@DONE@; @FIXME@ breaks another that cannot be repaired; a line starting with @!@
-does not parse. Every file lowers to a 'Module' with no dependencies, named by
-its path.
+@DONE@; @FIXME@ breaks another that cannot be repaired. A file whose bytes are
+not UTF-8 is kept as those bytes, unread, as every frontend's 'parse' is total.
+Every file lowers to a 'Module' with no dependencies, named by its path.
 -}
 module Doubles.Frontend (
     LinesFrontend (..),
+    LinesUnit (..),
     LinesFile (..),
-    LinesParseError (..),
+    LinesLowerError (..),
     LinesConfigError,
     todoRule,
     fixmeRule,
@@ -20,16 +21,15 @@ module Doubles.Frontend (
 
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
-import Deslop.Error (VoidError)
 import Deslop.Frontend (CompilerFrontend (..))
-import Deslop.Frontend.Finding (fixable, unfixable)
+import Deslop.Frontend.Finding (fixable, unfixable, within)
 import Deslop.Module (Location (..), Module (..), moduleIdUnsafe, moduleNameUnsafe)
 import Deslop.Problem (LintRuleId (..), Problem (..))
 import Deslop.Problem.Formatter (CodeFence (..))
 import Effectful.Reader.Static (ask)
 import Effects.FileSystem (fsFileExists)
 import FileSystem.Iterator (Entry (..), walkDir)
-import FileSystem.Path (AbsPath (..), ProjectRoot (..), decodeOsPath, portablePath, relativePathTo, withAbsBaseUnsafe)
+import FileSystem.Path (AbsPath (..), ProjectRelativePath, ProjectRoot (..), decodeOsPath, portablePath, relativePathTo, withAbsBaseUnsafe)
 import Git.Ignore (isIgnored)
 import Renderable (Renderable)
 import Renderable qualified
@@ -38,18 +38,23 @@ import System.OsPath (osp, takeExtension, takeFileName)
 data LinesFrontend = LinesFrontend
     deriving stock (Show, Eq)
 
+-- | A file as read: its statements, or the bytes themselves when they are not UTF-8.
+data LinesUnit
+    = Readable LinesFile
+    | NotUtf8 AbsPath ByteString
+    deriving stock (Show, Eq)
+
 data LinesFile = LinesFile
     { path :: AbsPath
     , statements :: [Text]
     }
     deriving stock (Show, Eq)
 
--- | A statement starts with @!@, or the bytes are not UTF-8.
-data LinesParseError = LinesParseError
+newtype LinesLowerError = StatementsNotRead ProjectRelativePath
     deriving stock (Show, Eq)
 
-instance Renderable LinesParseError where
-    render LinesParseError = "cannot parse"
+instance Renderable LinesLowerError where
+    render (StatementsNotRead path) = portablePath path <> " is not UTF-8"
 
 -- | A Lines project has nothing to configure, so its configuration never fails.
 data LinesConfigError
@@ -67,9 +72,8 @@ fixmeRule = LintRuleId "no-fixme"
 instance CompilerFrontend LinesFrontend where
     type Config LinesFrontend = ()
     type ConfigError LinesFrontend = LinesConfigError
-    type Unit LinesFrontend = LinesFile
-    type ParseError LinesFrontend = LinesParseError
-    type LowerError LinesFrontend = VoidError
+    type Unit LinesFrontend = LinesUnit
+    type LowerError LinesFrontend = LinesLowerError
 
     detect projectRoot =
         bool Nothing (Just LinesFrontend)
@@ -83,15 +87,22 @@ instance CompilerFrontend LinesFrontend where
     discover _ _ projectRoot gitIgnore = walkDir (isIgnored gitIgnore) source projectRoot.path
       where
         source entry = entry.path <$ guard (not entry.isDir && takeExtension entry.path.osPath == [osp|.lines|])
-    parse _ _ path bytes = case T.splitOn "\n" <$> decodeUtf8' bytes of
-        Right statements | not (any ("!" `T.isPrefixOf`) statements) -> Right LinesFile {path, statements}
-        _ -> Left LinesParseError
-    render _ = TE.encodeUtf8 . T.intercalate "\n" . (.statements)
-    lint _ _ file = do
-        projectRoot <- ask @ProjectRoot
-        let located = relativePathTo projectRoot file.path
-        pure . catMaybes . zipWith (findingAt located) [1 ..] $ file.statements
+    parse _ _ path bytes = case decodeUtf8' bytes of
+        Right content -> Readable LinesFile {path, statements = T.splitOn "\n" content}
+        Left _ -> NotUtf8 path bytes
+    render _ = \case
+        Readable file -> TE.encodeUtf8 . T.intercalate "\n" $ file.statements
+        NotUtf8 _ bytes -> bytes
+    lint _ _ = \case
+        Readable file -> do
+            projectRoot <- ask @ProjectRoot
+            let located = relativePathTo projectRoot file.path
+            pure . fmap (within onReadable) . catMaybes . zipWith (findingAt located) [1 ..] $ file.statements
+        NotUtf8 {} -> pure []
       where
+        onReadable (Endo edit) = Endo $ \case
+            Readable file -> Readable (edit file)
+            unread@NotUtf8 {} -> unread
         findingAt located line statement = case statement of
             "TODO" -> Just . fixable (problemAt todoRule located line statement) . Endo $ repair line
             "FIXME" -> Just . unfixable $ problemAt fixmeRule located line statement
@@ -105,14 +116,20 @@ instance CompilerFrontend LinesFrontend where
                 , fix = "Finish it."
                 , autoFixable
                 }
-    lower _ _ files = do
+    lower _ _ units = do
         projectRoot <- ask @ProjectRoot
-        pure (moduleOf projectRoot <$> files, [])
+        pure
+            ( moduleOf projectRoot . pathOf <$> units
+            , [StatementsNotRead (relativePathTo projectRoot path) | NotUtf8 path _ <- units]
+            )
       where
-        moduleOf projectRoot file =
-            let located = relativePathTo projectRoot file.path
+        pathOf = \case
+            Readable file -> file.path
+            NotUtf8 path _ -> path
+        moduleOf projectRoot path =
+            let located = relativePathTo projectRoot path
              in Module
-                    { id = moduleIdUnsafe (decodeOsPath file.path.osPath)
+                    { id = moduleIdUnsafe (decodeOsPath path.osPath)
                     , names = moduleNameUnsafe (portablePath located) :| []
                     , path = located
                     , edges = []

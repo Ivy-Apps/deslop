@@ -59,7 +59,7 @@ spec = describe "Frontend.TypeScript.Module" $ do
                 , edges =
                     [ DependencyEdge
                         { specifier = specifierUnsafe "@/types/errors"
-                        , target = External (specifierUnsafe "@/types/errors")
+                        , target = External (moduleNameUnsafe "@/types/errors")
                         , kind = ImportEdge
                         , location =
                             Location
@@ -99,7 +99,7 @@ spec = describe "Frontend.TypeScript.Module" $ do
                 ,
                     [ DependencyEdge
                         { specifier = specifierUnsafe "react"
-                        , target = External (specifierUnsafe "react")
+                        , target = External (moduleNameUnsafe "react")
                         , kind = ImportEdge
                         , location =
                             Location
@@ -110,7 +110,7 @@ spec = describe "Frontend.TypeScript.Module" $ do
                         }
                     , DependencyEdge
                         { specifier = specifierUnsafe "src/types/errors"
-                        , target = External (specifierUnsafe "src/types/errors")
+                        , target = External (moduleNameUnsafe "src/types/errors")
                         , kind = ImportEdge
                         , location =
                             Location
@@ -221,14 +221,9 @@ spec = describe "Frontend.TypeScript.Module" $ do
                 , [osp|/home/repo/src/features/home/service.ts|]
                 ]
         let path = absPathUnsafe [osp|/home/repo/src/features/home/index.ts|]
-        let parseOf source =
-                either (fail . toString) pure
-                    . first toText
-                    . parseTs
-                    $ TsFile {path = path, content = source}
-
-        imported <- parseOf "import { A as B } from '@/features/home/service';\n"
-        reExported <- parseOf "export { A as B } from '@/features/home/service';\n"
+        let parseOf source = parseTs TsFile {path = path, content = source}
+            imported = parseOf "import { A as B } from '@/features/home/service';\n"
+            reExported = parseOf "export { A as B } from '@/features/home/service';\n"
         importAst <- runParseAst defaultTsConfig existingFiles imported
         reExportAst <- runParseAst defaultTsConfig existingFiles reExported
 
@@ -243,11 +238,7 @@ spec = describe "Frontend.TypeScript.Module" $ do
                 , [osp|/home/repo/src/features/home/service.ts|]
                 ]
         let path = absPathUnsafe [osp|/home/repo/src/features/home/index.ts|]
-        prog <-
-            either (fail . toString) pure
-                . first toText
-                . parseTs
-                $ TsFile {path = path, content = "export { svc } from './service';\n"}
+        let prog = parseTs TsFile {path = path, content = "export { svc } from './service';\n"}
         ast <- runParseAst defaultTsConfig existingFiles prog
         map (.target) ast.edges
             `shouldBe` [ Resolved

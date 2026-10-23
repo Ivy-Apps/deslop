@@ -26,6 +26,7 @@ import Deslop.Module (
     Module (..),
     ModuleId,
     ModuleName,
+    Specifier (text),
     moduleIdUnsafe,
     moduleNameUnsafe,
     specifierUnsafe,
@@ -130,5 +131,7 @@ edgeOf importer file (line, node) = case node of
 
     targetOf specifier =
         resolve importer specifier >>= \case
-            Nothing -> pure . External $ specifier
+            -- Unresolved only when not relative, so it names the same
+            -- package to every reader: its text is already its name.
+            Nothing -> pure . External . moduleNameUnsafe $ specifier.text
             Just resolved -> Resolved (moduleIdOf resolved) <$> namesFor resolved

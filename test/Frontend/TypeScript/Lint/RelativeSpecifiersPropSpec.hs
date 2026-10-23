@@ -38,7 +38,7 @@ import Generators.Frontend.TypeScript.Project (
     reachability,
     renderProject,
  )
-import Hedgehog (PropertyT, annotate, cover, failure, forAll, (===))
+import Hedgehog (PropertyT, cover, forAll, (===))
 import Renderable (Renderable (render))
 import System.OsPath (OsPath)
 import Test.Hspec
@@ -158,7 +158,4 @@ lintedAsts project sources baseline = do
         pure (fst source, renderCst nodes)
 
 parseSource :: (AbsPath, Text) -> PropertyT IO [TsNode]
-parseSource (path, content) =
-    case parseTs TsFile {path = path, content = content} of
-        Left err -> annotate err >> failure
-        Right prog -> pure prog.cst
+parseSource (path, content) = pure (parseTs TsFile {path = path, content = content}).cst

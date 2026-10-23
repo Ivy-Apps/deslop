@@ -23,8 +23,6 @@ import Deslop.Module (
     Location (..),
     Module (..),
     ModuleName (..),
-    Specifier (..),
-    moduleNameUnsafe,
  )
 import Deslop.Problem (ProblemId (..), problemId)
 import Deslop.Problem.Baseline (Baseline)
@@ -33,7 +31,6 @@ import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import FileSystem.Path (AbsPath (..), ProjectRoot (..), decodeOsPath, portablePath)
-import Frontend.TypeScript.CST (TsProgram (..))
 import Frontend.TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers)
 import Frontend.TypeScript.Parser (TsFile (..), parseTs)
 import Generators.Frontend.TypeScript.Project (
@@ -142,7 +139,7 @@ namesIn mg = foldMap (namesOf . nodeAt) (vertices mg.graph)
     namesOf (UnscannedModule names) = toList names
     -- A relative specifier always resolves to some path, so this should never
     -- hold a relative one either. Checked rather than assumed.
-    namesOf (ExternalModule written) = [moduleNameUnsafe written.text]
+    namesOf (ExternalModule name) = [name]
 
 {- | The project as Deslop would see it with one module left unscanned, once per
 module. Empty for a single-module project, which has nothing to leave out.
@@ -187,6 +184,4 @@ lintIds project sources =
             traverse_ (noRelativeSpecifiers . program) sources
             sort . map ((.text) . problemId) <$> getProblems
   where
-    program (path, content) = case parseTs TsFile {path = path, content = content} of
-        Left err -> TsModule {path = path, cst = error (toText err)}
-        Right prog -> prog
+    program (path, content) = parseTs TsFile {path = path, content = content}

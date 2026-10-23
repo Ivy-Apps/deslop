@@ -95,7 +95,7 @@ the first can be followed any further:
 |---|---|---|
 | `ParsedModule` | lowered by a frontend | its own names |
 | `UnscannedModule` | resolved, never read: gitignored, outside the scanned tree, or not a source file | the names the edge carried |
-| `ExternalModule` | `react`: nothing in the project answers to it | its specifier |
+| `ExternalModule` | `react`: nothing in the project answers to it | the name its frontend minted |
 
 **Nothing machine-specific crosses the seam.** A `Module`'s path is a
 `ProjectRelativePath`, minted by the frontend against the root it already holds,

@@ -147,7 +147,9 @@ Where new code goes:
 - **`Frontend/<Lang>/`** - anything that knows a language's syntax, its config
   (`tsconfig`) or its file extensions. A language is `Frontend/<Lang>.hs`, an
   instance of `CompilerFrontend`, plus its internals under `Frontend/<Lang>/`,
-  and one line in `Frontend.supported`. Its `lint` returns Findings and never
+  and one line in `Frontend.supported`. Its `parse` is total and lossless (an
+  island grammar: what it does not recognise is kept raw, undecodable bytes
+  are one opaque island). Its `lint` returns Findings and never
   reports or writes; its `lower` sees the whole program and produces
   `Deslop.Module`, the seam both sides meet at. Nothing crossing it is a tree: a
   frontend hands over a flat list of modules and the edges between them, having

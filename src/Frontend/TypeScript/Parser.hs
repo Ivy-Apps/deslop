@@ -18,14 +18,12 @@ data TsFile = TsFile
     }
     deriving (Show, Eq)
 
-parseTs :: TsFile -> Either String TsProgram
-parseTs f =
-    first errorBundlePretty $
-        TsModule f.path . buildCST
-            <$> runParser lexer noSourceName f.content
-  where
-    -- The driver names the file, so the error starts at the line and column.
-    noSourceName = ""
+{- | Total. The lexer is an island grammar: what it does not recognise is a raw
+token, so it reads any text. Were it ever to fail, the file would be one raw
+island, which still renders back to itself.
+-}
+parseTs :: TsFile -> TsProgram
+parseTs f = TsModule f.path . either (const [Source f.content]) buildCST $ runParser lexer "" f.content
 
 buildCST :: [TsToken] -> [TsNode]
 buildCST = fmap node
