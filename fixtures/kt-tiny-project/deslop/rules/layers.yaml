@@ -1,0 +1,13 @@
+id: layers
+name: Layers
+description: >-
+  The model is the innermost layer.
+rules:
+  - id: model-is-pure
+    description: >-
+      The model package must not depend on the core package.
+    target: "com/example/model"
+    forbids:
+      - import: "com/example/core"
+    fix: >-
+      Pass what the model needs in, instead of reaching into core.
