@@ -13,6 +13,7 @@ module Doubles.Frontend (
     LinesFrontend (..),
     LinesFile (..),
     LinesParseError (..),
+    LinesConfigError,
     todoRule,
     fixmeRule,
 ) where
@@ -49,6 +50,13 @@ data LinesParseError = LinesParseError
 instance Renderable LinesParseError where
     render LinesParseError = "cannot parse"
 
+-- | A Lines project has nothing to configure, so its configuration never fails.
+data LinesConfigError
+    deriving stock (Show, Eq)
+
+instance Renderable LinesConfigError where
+    render e = case e of {}
+
 todoRule :: LintRuleId
 todoRule = LintRuleId "no-todo"
 
@@ -57,6 +65,7 @@ fixmeRule = LintRuleId "no-fixme"
 
 instance CompilerFrontend LinesFrontend where
     type Config LinesFrontend = ()
+    type ConfigError LinesFrontend = LinesConfigError
     type Unit LinesFrontend = LinesFile
     type ParseError LinesFrontend = LinesParseError
 
@@ -68,7 +77,7 @@ instance CompilerFrontend LinesFrontend where
     codeFence _ = CodeFence "lines"
     builtInRules _ = [todoRule, fixmeRule]
     ecosystemIgnored _ = (== [osp|generated|]) . takeFileName . (.osPath) . (.path)
-    loadConfig _ _ = pure ()
+    loadConfig _ _ = pure $ Right ((), [])
     discover _ _ projectRoot gitIgnore = walkDir (isIgnored gitIgnore) source projectRoot.path
       where
         source entry = entry.path <$ guard (not entry.isDir && takeExtension entry.path.osPath == [osp|.lines|])

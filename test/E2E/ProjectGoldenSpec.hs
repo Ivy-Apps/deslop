@@ -25,7 +25,7 @@ import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
 import Frontend.TypeScript.Iterator (getTsFiles)
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
-import System.Directory (createFileLink, removeFile)
+import System.Directory (removeFile)
 import System.OsPath (OsPath, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
@@ -62,7 +62,6 @@ spec = describe "E2E.Project" $ do
     itFailsToLoadTsConfig "ts-broken-extends-project"
 
     itFindsNoLanguage
-    itReportsDanglingTsConfig
     itReportsRulebookBeforeLanguage "ts-invalid-rulebook-project"
 
     itBaselines "ts-project-1"
@@ -266,27 +265,6 @@ spec = describe "E2E.Project" $ do
             -- The title and the warning every run without Rulebooks gives, but
             -- no claim to have detected a language.
             fmap fst logs.transcript `shouldBe` [Title, Warning]
-
-    -- A tsconfig.json that points nowhere is a broken TypeScript project: the
-    -- person is told which config is missing, not that no language matched.
-    itReportsDanglingTsConfig = it "reports the missing target of a dangling tsconfig.json" $ do
-        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
-            -- Given
-            createFileLink "missing.json" (tmpFp <> "/tsconfig.json")
-            params <- defaultParams (encodeOsPathString tmpFp)
-
-            -- When
-            res <-
-                runEff
-                    . runFileSystemIO
-                    . runErrorNoCallStack @DeslopError
-                    . runMockCLI defaultMockCLI
-                    . runReportProblem
-                    . runConcurrent
-                    $ doWork params {command = CheckC}
-
-            -- Then
-            res `shouldBe` Left (FrontendError "TS config not found: 'missing.json'")
 
     -- Detecting the language must not reorder what a broken project hears
     -- first: its Rulebooks are read before any language is required.

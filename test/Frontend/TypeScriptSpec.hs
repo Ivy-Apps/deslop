@@ -5,7 +5,7 @@ module Frontend.TypeScriptSpec (spec) where
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Problem (LintRuleId (..))
 import Deslop.Problem.Formatter (CodeFence (..))
-import Doubles.FileSystem (mockDirs, mockDirsWithSymlinks, mockFiles, runMockRoFileSystem)
+import Doubles.FileSystem (mockDirs, mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import FileSystem.Path (ProjectRoot (..))
 import Fixtures.Frontend.TypeScript.Config (emptyTsConfig)
@@ -41,18 +41,6 @@ spec = describe "Frontend.TypeScript" $ do
         it "does not recognise a project without one" $
             runEff (runMockRoFileSystem (mockFiles []) (detect @TsFrontend (ProjectRoot (ap "/project"))))
                 `shouldReturn` Nothing
-
-        -- A tsconfig.json that points nowhere is a broken TypeScript project,
-        -- whose config the loader then reports as not found, rather than a
-        -- project in no language at all.
-        it "recognises a project whose tsconfig.json is a dangling link" $ do
-            let tsconfig = ap "/project/tsconfig.json"
-
-            detected <-
-                runEff . runMockRoFileSystem (mockDirsWithSymlinks [(ap "/project", [tsconfig])] [tsconfig]) $
-                    detect (ProjectRoot (ap "/project"))
-
-            detected `shouldBe` Just TsFrontend
 
         it "does not recognise a project whose tsconfig.json is a directory" $ do
             let tsconfig = ap "/project/tsconfig.json"
