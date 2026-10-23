@@ -18,8 +18,9 @@ import Data.Text qualified as T
 import Data.Time.Clock (NominalDiffTime)
 import Deslop.Error (DeslopError (..))
 import Deslop.Problem (Problem)
-import Deslop.Problem.Formatter (formatProblem)
+import Deslop.Problem.Formatter (CodeFence, formatProblem)
 import Deslop.RunReport (ModuleCount (..), ProblemCounts (..), RuleCount (..), RunSummary (..))
+import FileSystem.Path (AbsPath (osPath), ProjectRoot (..), decodeOsPath)
 import Fmt
 import Utils (pluralise)
 
@@ -52,15 +53,16 @@ duration d
   where
     t = realToFrac d :: Double
 
-newtype ProblemsLog = ProblemsLog [Problem]
+-- | Problems, each with its statements fenced in the language they were written in.
+data ProblemsLog = ProblemsLog CodeFence [Problem]
 
 instance Buildable ProblemsLog where
-    build (ProblemsLog ps) =
+    build (ProblemsLog fence ps) =
         mconcat $
-            intersperse "\n---------\n\n" (build . formatProblem <$> ps)
+            intersperse "\n---------\n\n" (build . formatProblem fence <$> ps)
 
-problemsLogText :: [Problem] -> Text
-problemsLogText = T.pack . pretty . ProblemsLog
+problemsLogText :: CodeFence -> [Problem] -> Text
+problemsLogText fence = T.pack . pretty . ProblemsLog fence
 
 humanReadable :: DeslopError -> Text
 -- Both loaders' reports already name every file they are about - and the
@@ -68,6 +70,11 @@ humanReadable :: DeslopError -> Text
 -- twice. A frontend's error arrives rendered for the same reason: the
 -- vocabulary is its own.
 humanReadable (FrontendError msg) = msg
+humanReadable (NoFrontendDetected root lookedFor) =
+    "No supported project found in "
+        <> decodeOsPath root.path.osPath
+        <> ". Looked for: "
+        <> T.intercalate ", " lookedFor
 humanReadable (RulebookError msg) = msg
 humanReadable (InvalidRuleConfig msg) =
     "Invalid rule configuration: " <> msg

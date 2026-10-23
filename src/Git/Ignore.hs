@@ -123,54 +123,41 @@ data IgnoreScope = IgnoreScope
     }
     deriving (Show, Eq)
 
-{- | Every @.gitignore@ under a project, merged.
+{- | Every @.gitignore@ under a project, merged, and what the language's own
+tooling generates.
 
 INVARIANT: @scopes@ runs shallowest-first, which is what makes a deeper
 @.gitignore@ override a shallower one during the fold in 'isIgnored'.
 -}
 data GitIgnore = GitIgnore
     { root :: !AbsPath
+    , ecosystem :: !(Entry -> Bool)
+    -- ^ What the language's tooling generates - dependency folders, build
+    -- output. Like 'alwaysIgnored', no rule can re-include it.
     , scopes :: ![IgnoreScope]
     }
-    deriving (Show, Eq)
 
-emptyGitIgnore :: AbsPath -> GitIgnore
-emptyGitIgnore r = GitIgnore {root = r, scopes = []}
+-- | No @.gitignore@ at all; only what is always ignored and the ecosystem's.
+emptyGitIgnore :: (Entry -> Bool) -> AbsPath -> GitIgnore
+emptyGitIgnore ecosystem r = GitIgnore {root = r, ecosystem, scopes = []}
 
 --------------------------------------------------------------------------------
 -- Always-ignored directories
 --------------------------------------------------------------------------------
 
-{- | Directories and files never traversed, for any reason.
+{- | Directories and files never traversed, whatever the language.
 
-These are pruned greedily and are not even scanned for @.gitignore@ files:
-they are large enough that walking them costs more than every other part of a
-run combined. Unlike a gitignored path, no rule can re-include one.
+These are pruned greedily and are not even scanned for @.gitignore@ files.
+Unlike a gitignored path, no rule can re-include one. What a language's own
+tooling generates - @node_modules@, build output - is that frontend's to add,
+see 'GitIgnore'.
 -}
 alwaysIgnoredNames :: [Text]
 alwaysIgnoredNames =
-    [ "node_modules"
-    , ".git"
-    , "dist"
-    , ".next"
-    , "next-env.d.ts"
-    , ".next-env.d.ts"
-    , "build"
-    , "out"
-    , ".output"
-    , "storybook-static"
-    , "coverage"
+    [ ".git"
     , ".direnv"
     , ".devenv"
-    , ".turbo"
     , ".cache"
-    , ".parcel-cache"
-    , ".yarn"
-    , ".svelte-kit"
-    , ".nuxt"
-    , ".astro"
-    , ".vercel"
-    , ".wrangler"
     , ".claude"
     , ".codex"
     , ".cursor"
@@ -191,16 +178,18 @@ alwaysIgnored = (`Set.member` alwaysIgnoredPaths) . takeFileName . (.osPath) . (
 gitIgnoreName :: OsPath
 gitIgnoreName = [osp|.gitignore|]
 
-{- | Walks the project once, collecting and parsing every @.gitignore@.
+{- | Walks the project once, collecting and parsing every @.gitignore@, and
+keeps what the language's tooling generates so that 'isIgnored' honours it.
 
-Pruning is by 'alwaysIgnored' only: this is the pass that discovers the rules,
-so it cannot yet prune by them.
+Pruning is by 'alwaysIgnored' and by what the language's tooling generates
+only: this is the pass that discovers the rules, so it cannot yet prune by them.
 -}
-loadGitIgnore :: (RoFileSystem :> es) => AbsPath -> Eff es GitIgnore
-loadGitIgnore projectRoot =
-    walkDir alwaysIgnored ignoreFile projectRoot
-        >>= fmap (GitIgnore projectRoot . sortOn depth) . traverse readScope
+loadGitIgnore :: (RoFileSystem :> es) => (Entry -> Bool) -> AbsPath -> Eff es GitIgnore
+loadGitIgnore ecosystem projectRoot =
+    walkDir (isIgnored unruled) ignoreFile projectRoot
+        >>= fmap (\scopes -> unruled {scopes = sortOn depth scopes}) . traverse readScope
   where
+    unruled = emptyGitIgnore ecosystem projectRoot
     ignoreFile e = e.path <$ guard (not e.isDir && takeFileName e.path.osPath == gitIgnoreName)
     depth = length . splitDirectories . (.osPath) . (.base)
 
@@ -364,7 +353,8 @@ escapeInClass c = bool (T.singleton c) ("\\" <> T.singleton c) (c `elem` ("]\\-!
 -- Matching
 --------------------------------------------------------------------------------
 
-{- | Whether git would ignore this entry.
+{- | Whether a walk should skip this entry: it is always ignored, the
+language's tooling generated it, or git would ignore it.
 
 Self-contained: an entry inside an ignored directory is ignored, so this walks
 the entry's whole ancestor chain rather than testing the entry alone. Callers
@@ -374,7 +364,7 @@ short-circuits at the first component.
 isIgnored :: GitIgnore -> Entry -> Bool
 isIgnored gi = any component . ancestry gi.root
   where
-    component e = alwaysIgnored e || fromMaybe False (verdict gi e)
+    component e = alwaysIgnored e || gi.ecosystem e || fromMaybe False (verdict gi e)
 
 {- | The chain from the outermost component under the root down to the entry.
 

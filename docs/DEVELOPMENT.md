@@ -88,8 +88,9 @@ additional workflows (`just --list` for all of them):
 | Path | Contents |
 |------|----------|
 | `app/Main.hs` | Executable entry point |
-| `src/Deslop/` | Rulebook parsing, code graph, rule enforcement, baseline, problem formatting |
-| `src/TypeScript/` | TypeScript lexer, parser, CST, module resolver, tsconfig handling |
+| `src/Deslop/` | Rulebook parsing, code graph, rule enforcement, baseline, problem formatting, the `CompilerFrontend` class and its driver |
+| `src/Frontend.hs` | The registry of supported languages, tried in order |
+| `src/Frontend/TypeScript/` | TypeScript lexer, parser, CST, module resolver, tsconfig handling |
 | `src/Effects/` | `effectful` effects for CLI, file system, and problem reporting |
 | `test/` | hspec suites, plus `test/E2E/` golden tests |
 | `fixtures/` | Sample TypeScript projects and rulebooks used by tests |

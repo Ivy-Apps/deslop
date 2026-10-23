@@ -1,0 +1,12 @@
+id: boundaries
+name: Boundaries
+description: >-
+  legacy.ts is Latin-1, not UTF-8. Deslop cannot read its imports, but it is
+  still a module: page.ts imports it, and every other file is still checked.
+rules:
+  - id: app-must-not-use-server
+    description: No app module may depend on @/server/**.
+    target: "@/app/*"
+    forbids:
+      - import: "@/server/**"
+    fix: Go through an API route instead.

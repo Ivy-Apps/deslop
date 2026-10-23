@@ -33,19 +33,17 @@ import Deslop.Module (
     Module (..),
     ModuleId,
     ModuleName,
-    Specifier (..),
-    moduleNameUnsafe,
  )
 import Effectful (Eff, (:>))
 import Effectful.Reader.Static (Reader, ask)
 
 {- | What a vertex is keyed by. Identity for anything a specifier resolved to,
-and the written specifier for anything it did not, which is the only thing we
-know about @react@.
+and the name the frontend minted for anything outside the project, which is the
+only thing we know about @react@.
 -}
 data GraphKey
     = ModuleKey ModuleId
-    | ExternalKey Specifier
+    | ExternalKey ModuleName
     deriving stock (Show, Eq, Ord)
 
 {- | The vertex a dependency leads to. Pure, because the frontend already did
@@ -54,7 +52,7 @@ the resolving - see "Deslop.Module".
 graphKeyOf :: DependencyEdge -> GraphKey
 graphKeyOf edge = case edge.target of
     Resolved mid _ -> ModuleKey mid
-    External spec -> ExternalKey spec
+    External name -> ExternalKey name
 
 {- | A vertex in the architectural graph. Three situations, kept apart because
 they are three different facts about a dependency and only the first can be
@@ -71,7 +69,7 @@ data ModuleNode
       UnscannedModule (NonEmpty ModuleName)
     | -- | @react@: nothing in the project answers to it. A chain ending here
       -- has genuinely ended.
-      ExternalModule Specifier
+      ExternalModule ModuleName
     deriving stock (Show, Eq)
 
 {- | A vertex as the rest of Deslop sees it: how to find it again, and every
@@ -110,7 +108,7 @@ Everything those modules reach also gets a vertex, or 'graphFromEdges' would
 drop the edge silently and a chain would end without saying so. Nothing here
 invents a name for one: an edge to something unparsed carries the names the
 frontend minted when it resolved the specifier, and an edge to @react@ carries
-only the specifier, which is all anyone knows.
+the name the frontend minted for it, which is all anyone knows.
 
 Which is why 'Map.fromList' may keep whichever entry it likes when two edges
 reach one vertex. They agree: both carry what the frontend made of the same
@@ -151,7 +149,7 @@ buildModuleGraph modules =
     reachedNode :: DependencyEdge -> ModuleNode
     reachedNode edge = case edge.target of
         Resolved _ names -> UnscannedModule names
-        External spec -> ExternalModule spec
+        External name -> ExternalModule name
 
 -- | What the graph knows about the vertex a key leads to, if it has one.
 refOfKey :: (Reader ModuleGraph :> es) => GraphKey -> Eff es (Maybe ModuleRef)
@@ -260,15 +258,11 @@ refOf mg v =
     let (node, key, _) = mg.nodeFromV v
      in ModuleRef {key = key, names = namesOf node}
 
-{- | The names a vertex answers to. This is the one place a 'Specifier' becomes
-a 'ModuleName', and it is legitimate here and nowhere else: a Rule saying
-@forbids: react@ has to have something to match against, and an external
-specifier is never relative, so it does name the same thing to every reader.
--}
+-- | The names a vertex answers to, every one of them minted by the frontend.
 namesOf :: ModuleNode -> NonEmpty ModuleName
 namesOf (ParsedModule m) = m.names
 namesOf (UnscannedModule names) = names
-namesOf (ExternalModule spec) = moduleNameUnsafe spec.text :| []
+namesOf (ExternalModule name) = name :| []
 
 moduleOf :: ModuleGraph -> Vertex -> Maybe Module
 moduleOf mg v = case mg.nodeFromV v of

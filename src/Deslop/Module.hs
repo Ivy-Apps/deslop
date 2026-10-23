@@ -17,12 +17,13 @@ apart - see
 * a 'ModuleId' says /which/ module this is. Exactly one per module, and never
   rendered.
 * a 'ModuleName' says what it is /called/. Several per module, and what
-  Rulebook Rules and reports are written in.
+  Rulebook Rules and reports are written in. A module outside the project has
+  one too, minted by the same frontend in the same spelling.
 * a 'Specifier' is what an author /typed/. A fact of one file, and not a name:
   @.\/helper@ names nothing, it points somewhere from where its writer stood.
 * a 'Module' is the thing itself.
 
-Producing one from TypeScript is "TypeScript.Module".
+Producing one from TypeScript is "Frontend.TypeScript.Module".
 -}
 module Deslop.Module (
     ModuleId (text),
@@ -91,7 +92,7 @@ denotes a different module for every file that writes it. A name means the same
 thing to every reader.
 
 The two answer different questions, which is why an edge carries both:
-"TypeScript.Lint.RelativeSpecifiers" judges what was /written/, and a Rule's
+"Frontend.TypeScript.Lint.RelativeSpecifiers" judges what was /written/, and a Rule's
 @forbids@ judges what was /reached/.
 -}
 newtype Specifier = Specifier
@@ -129,7 +130,9 @@ there is.
 'Resolved' carries the names because only the frontend can produce them: a Go
 frontend answers "one import path" and a Rust one "the crate path plus every
 @pub use@ alias". The core would have to invent them, and the only material it
-could invent them from is the specifier, which is not a name.
+could invent them from is the specifier, which is not a name. 'External'
+carries a name for the same reason: @import Data.Text@ is written with dots,
+and only the Haskell frontend knows it names @Data\/Text@.
 -}
 data EdgeTarget
     = -- | Resolved to a module the frontend recognises, and every name that
@@ -137,8 +140,11 @@ data EdgeTarget
       -- nobody parsed - gitignored, or outside the scanned tree - which is
       -- why the names travel with the edge rather than being looked up.
       Resolved ModuleId (NonEmpty ModuleName)
-    | -- | @react@, or a specifier that names nothing the frontend can resolve.
-      External Specifier
+    | -- | @react@ or @Data\/Text@: a module outside the project, named the way
+      -- the frontend names its own modules, so a Rule is written in one
+      -- spelling for both. What the source wrote stays on the edge's
+      -- 'specifier'.
+      External ModuleName
     deriving stock (Show, Eq, Ord)
 
 {- | Whether a dependency is private to the module or part of the surface it
@@ -181,7 +187,10 @@ data Module = Module
     deriving stock (Show, Eq)
 
 {- | The name a report prints and a baseline id is built from. Fixed per module
-so that a Problem keeps the same id from run to run.
+so that a Problem keeps the same id from run to run, and unique within the
+project: two modules sharing one would share every Baseline entry. A frontend
+qualifies it with whatever tells its modules apart and keeps the shorter name
+as an alias - see @docs\/adr\/0020@.
 -}
 canonicalName :: Module -> ModuleName
 canonicalName = NE.head . (.names)

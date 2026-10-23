@@ -46,7 +46,7 @@ inProject p = ap ("/proj/" <> p)
 directory. Scopes must be listed shallowest-first, as 'loadGitIgnore' sorts them.
 -}
 gitIgnoreOf :: [(Text, Text)] -> GitIgnore
-gitIgnoreOf ss = GitIgnore {root = projectRoot, scopes = fmap mkScope ss}
+gitIgnoreOf ss = GitIgnore {root = projectRoot, ecosystem = const False, scopes = fmap mkScope ss}
   where
     mkScope (dir, content) = IgnoreScope (inProject dir) (parseIgnoreFile content)
 
@@ -243,6 +243,7 @@ spec = describe "Git.Ignore" $ do
     matchingSpec
     scopeSpec
     alwaysIgnoredSpec
+    ecosystemSpec
     orderingProps
     anchoringProps
     lexerProps
@@ -365,14 +366,35 @@ scopeSpec = describe "scopes" $ do
 
 alwaysIgnoredSpec :: Spec
 alwaysIgnoredSpec = describe "always-ignored directories" $ do
-    it "ignores node_modules regardless of any rule" $
-        ignoresDir (rootOnly "!node_modules") "node_modules" `shouldBe` True
+    it "ignores .git regardless of any rule" $
+        ignoresDir (rootOnly "!.git") ".git" `shouldBe` True
 
     it "ignores files beneath an always-ignored directory" $
-        ignoresFile (rootOnly "") "node_modules/pkg/index.ts" `shouldBe` True
+        ignoresFile (rootOnly "") ".git/hooks/pre-commit.ts" `shouldBe` True
 
     it "matches an always-ignored name exactly, not as a prefix" $
-        alwaysIgnored Entry {path = inProject "node_modules_backup", isDir = True} `shouldBe` False
+        alwaysIgnored Entry {path = inProject ".git_backup", isDir = True} `shouldBe` False
+
+    -- What a language's tooling generates is that frontend's to ignore: a
+    -- directory called `build` or `out` is source in some languages.
+    it "leaves a language's generated directories to that language" $
+        ignoresDir (rootOnly "") "node_modules" `shouldBe` False
+
+ecosystemSpec :: Spec
+ecosystemSpec = describe "what the language's tooling generates" $ do
+    it "ignores a directory the ecosystem names" $
+        ignoresDir (withVendor . rootOnly $ "") "vendor" `shouldBe` True
+
+    it "ignores files beneath a directory the ecosystem names" $
+        ignoresFile (withVendor . rootOnly $ "") "vendor/dep.ts" `shouldBe` True
+
+    it "ignores it even when a rule re-includes it" $
+        ignoresDir (withVendor . rootOnly $ "!vendor") "vendor" `shouldBe` True
+
+    it "still honours the gitignore rules alongside it" $
+        ignoresFile (withVendor . rootOnly $ "*.log") "debug.log" `shouldBe` True
+  where
+    withVendor gi = gi {ecosystem = (== inProject "vendor") . (.path)} :: GitIgnore
 
 orderingProps :: Spec
 orderingProps = describe "ordering and negation laws" $ do

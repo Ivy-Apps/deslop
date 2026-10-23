@@ -1,5 +1,6 @@
 module Deslop.Rule.Lint.CycleDetection (
     noImportCycles,
+    noImportCyclesRule,
 ) where
 
 import Data.List.NonEmpty qualified as NE
@@ -17,7 +18,7 @@ the import statement that enters it.
 importCycle :: ModuleCycle -> Problem
 importCycle (ModuleCycle loop) =
     LintProblem
-        { lintRule = LintRuleId "no-import-cycles"
+        { lintRule = noImportCyclesRule
         , location = enteringImport start nextHop
         , description = "Circular dependency (import cycle) detected: " <> renderLoop loop
         , fix =
@@ -48,6 +49,10 @@ importCycle (ModuleCycle loop) =
     strip loc = loc {code = T.strip loc.code}
     whole importer target =
         Location {file = importer.path, line = 1, code = (canonicalName target).text}
+
+-- | The rule an import cycle is reported under, whatever the language.
+noImportCyclesRule :: LintRuleId
+noImportCyclesRule = LintRuleId "no-import-cycles"
 
 noImportCycles ::
     ( Reader ModuleGraph :> es

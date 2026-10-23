@@ -1,4 +1,5 @@
 [Title] 🚀 Baselining project: ts-gitignore-project
+[Plain] TypeScript project detected.
 [Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
 Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
 [Success] ✅ Success: Baseline generated with 4 problems.

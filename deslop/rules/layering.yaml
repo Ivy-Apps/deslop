@@ -1,0 +1,74 @@
+id: layering
+name: Deslop's own layering
+description: >-
+  The layers of ADR 13 and ADR 20, stated as Rules over Haskell Module Names
+  spelled with slashes (ADR 19): orchestration, then the registry, then each
+  language, then the language-agnostic core, then infrastructure. Imports only
+  ever point inward.
+rules:
+  - id: core-is-language-agnostic
+    description: >-
+      The core is true of every language. It must not know any language, nor
+      the command line or the text Deslop prints.
+    target: "Deslop/**"
+    exclude:
+      - "Deslop"
+      - "**/*Spec"
+    forbids:
+      - import: "Frontend/**"
+        transitive: true
+      - import: "Frontend"
+        transitive: true
+      - import: "Params"
+      - import: "UI"
+    fix: >-
+      Move what knows a language under Frontend/<Lang>/, and reach it through
+      the CompilerFrontend class in Deslop/Frontend.
+
+  - id: languages-are-isolated
+    description: >-
+      A language knows the core and itself, never another language, the
+      registry or the orchestration around it.
+    target: "Frontend/{{LanguageName}}/**"
+    forbids:
+      - import: "Frontend/**"
+      - import: "Frontend"
+      - import: "Deslop"
+      - import: "Params"
+      - import: "UI"
+    allows:
+      - import: "Frontend/{{LanguageName}}/**"
+    fix: >-
+      Move what two languages share into the core, under Deslop/.
+
+  - id: only-the-registry-imports-languages
+    description: >-
+      Frontend.hs is the one module that names a language, so supporting one
+      more is a single line there.
+    target: "**"
+    exclude:
+      - "Frontend"
+      - "Frontend/**"
+      - "Fixtures/Frontend/**"
+      - "Generators/Frontend/**"
+      - "E2E/**"
+    forbids:
+      - import: "Frontend/*/**"
+    fix: >-
+      Go through Frontend (the registry) or Deslop/Frontend (the class)
+      instead of importing a language directly.
+
+  - id: effects-are-domain-free
+    description: >-
+      Effects name nothing from the domain, except the Problem that
+      ReportProblem carries (ADR 13).
+    target: "Effects/**"
+    forbids:
+      - import: "Deslop/**"
+      - import: "Frontend/**"
+      - import: "Params"
+      - import: "UI"
+    allows:
+      - import: "Deslop/Problem"
+    fix: >-
+      Move the domain logic out of the effect, into the code that uses it.

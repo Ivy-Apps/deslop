@@ -1,0 +1,19 @@
+[Title] 🚀 Checking project: ts-not-utf8-project
+[Plain] TypeScript project detected.
+[Plain] 📚 Loaded 1 rulebook, 1 rule
+[Warning] WARNING: src/app/legacy.ts is not UTF-8, so its imports were not read.
+[Error] Found 1 problem:
+[Error] ─────────────────────────────────────────
+[Error] # boundaries#app-must-not-use-server#@/app/page
+src/app/page.ts:2
+No app module may depend on @/server/**.
+
+Module '@/app/page' directly imports '@/server/secret'.
+```ts
+import { secret } from "@/server/secret";
+```
+FIX: Go through an API route instead.
+[Error] ─────────────────────────────────────────
+[summary] Checked 3 modules enforcing 4 rules
+[exit] Found 1 problem, none auto-fixable.
+   Run `deslop baseline` to silence all 1 problem.

@@ -1,4 +1,5 @@
 [Title] 🚀 Checking project: ts-invalid-rulebook-project
+[Plain] TypeScript project detected.
 [exit] Could not load 4 rulebooks.
 
 deslop/rules/also-broken.yaml
@@ -49,7 +50,7 @@ deslop/rules/broken.yaml
     target: "@/client/../shared/**"
       ".." cannot be used in a target pattern.
         A target is matched against whole module ids, so there is nothing
-        for ".." to be relative to. Write the path you mean, e.g. "@/shared/**".
+        for ".." to be relative to. Write the path you mean, e.g. "shared/**".
         ".." belongs in a clause, where it is relative to the directory
         of the file the target matched:
           allows: "{{TARGET_DIR}}/../shared/**"
@@ -58,7 +59,7 @@ deslop/rules/broken.yaml
       ".." cannot be used in an exclude pattern.
         An exclude pattern filters the target and is matched against whole
         module ids, so there is nothing for ".." to be relative to. Write
-        the path you mean, e.g. "@/shared/**".
+        the path you mean, e.g. "shared/**".
         ".." belongs in a clause, where it is relative to the directory
         of the file the target matched:
           allows: "{{TARGET_DIR}}/../shared/**"

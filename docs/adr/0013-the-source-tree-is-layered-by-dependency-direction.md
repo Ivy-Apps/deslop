@@ -4,7 +4,10 @@ Date: 2026-08-23
 
 ## Status
 
-Accepted
+Accepted. Partly superseded by
+[ADR 20](0020-languages-plug-in-through-a-staged-compiler-frontend.md): a
+language frontend now lives under `Frontend/<Lang>/` and plugs in through
+`Deslop.Frontend`, so `Deslop.hs` no longer names a language.
 
 ## Context
 

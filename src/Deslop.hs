@@ -1,58 +1,41 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module Deslop (
-    deslopFile,
     doWork,
     runDeslop,
 ) where
 
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as TE
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
 import Deslop.Error (DeslopError (..))
-import Deslop.Module (Module)
-import Deslop.Problem (Problem, isAutoFixable)
-import Deslop.Problem.Baseline (Baseline, applyBaseline, emptyBaseline, loadBaseline, saveBaseline)
+import Deslop.Frontend (CompilerFrontend (..), SomeFrontend (..))
+import Deslop.Frontend.Pipeline (runFrontend)
+import Deslop.Problem (LintRuleId, Problem, isAutoFixable)
+import Deslop.Problem.Baseline (Baseline, applyBaseline, loadBaseline, saveBaseline)
+import Deslop.Problem.Formatter (CodeFence)
 import Deslop.Problem.Shrinker (compactProblems)
 import Deslop.Rule.Book (Rulebook (..))
 import Deslop.Rule.Book.Loader (loadRulebooks)
 import Deslop.Rule.Enforcer (enforceRulebooks)
-import Deslop.Rule.Lint.CycleDetection (noImportCycles)
+import Deslop.Rule.Lint.CycleDetection (noImportCycles, noImportCyclesRule)
 import Deslop.RunReport
 import Effectful (Eff, IOE, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
-import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
-import Effectful.Reader.Static (Reader, ask, asks, runReader)
+import Effectful.Reader.Static (runReader)
 import Effects.CLI (CLI, LogStyle (..), cliLog, runCLI)
 import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
-    fsReadFile,
-    fsWriteFile,
     runFileSystemIO,
  )
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import FileSystem.Path (
     AbsPath (osPath),
     ProjectRoot (..),
-    ProjectRelativePath (osPath),
     decodeOsPath,
-    relativePathTo,
-    withAbsBaseUnsafe,
  )
-import Git.Ignore (loadGitIgnore)
-import Params
-import Renderable (Renderable (render))
-import System.OsPath (osp, takeFileName)
-import TypeScript.Config (TsConfig (..))
-import TypeScript.Config.Loader (loadTsConfig, renderSkippedExtends, renderTsConfigLoadError)
-import TypeScript.CST
-import TypeScript.Iterator (getTsFiles)
-import TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers)
-import TypeScript.Module (parseModule)
-import TypeScript.Parser (TsFile (TsFile, content, path), parseTs)
+import Frontend (detectFrontend, lookedFor)
+import Params (Command (..), Params (..), ParamsDto (..), paramsFromDto)
+import System.OsPath (takeFileName)
 import UI (divider, humanReadable, problemsFoundText, problemsLogText, summaryLine)
 import Utils (pluralise)
 
@@ -93,24 +76,26 @@ doWork ::
     Params ->
     Eff es RunReport
 doWork params = do
-    logTitle params
+    mfe <- detectFrontend projectRoot
+    logTitle params mfe
+    baseline <- baselineForCmd params
+    rulebooks <- rulebooksOf projectRoot
+    logRulebooks params.command rulebooks
+    SomeFrontend fe <- maybe (throwError $ NoFrontendDetected projectRoot lookedFor) pure mfe
+    summary <- deslopProject params fe rulebooks baseline
     case params.command of
         FixC -> do
-            baseline <- loadBaseline params.projectPath
-            summary <- deslopProject params baseline
             ps <- compactProblems . applyBaseline baseline <$> getProblems
             logFixSummary . length . filter isAutoFixable $ ps
             pure RunReport {summary = summary, verdict = Clean}
         CheckC -> do
-            baseline <- loadBaseline params.projectPath
-            summary <- deslopProject params baseline
             ps <- compactProblems . applyBaseline baseline <$> getProblems
             verdict <- case ps of
                 [] -> do
                     cliLog Success "✅ Success: No problems found."
                     pure Clean
-                _ -> do
-                    logProblems ps
+                _anyProblemsFound -> do
+                    logProblems (codeFence fe) ps
                     pure . ProblemsFound $
                         ProblemCounts
                             { total = length ps
@@ -118,7 +103,6 @@ doWork params = do
                             }
             pure RunReport {summary = summary, verdict = verdict}
         BaselineC -> do
-            summary <- deslopProject params emptyBaseline
             ps <- compactProblems <$> getProblems
             saveBaseline params.projectPath ps
             cliLog Success $
@@ -126,14 +110,26 @@ doWork params = do
                     <> pluralise (length ps) "problem"
                     <> "."
             pure RunReport {summary = summary, verdict = Clean}
+  where
+    projectRoot = ProjectRoot params.projectPath
 
-logTitle :: (CLI :> es) => Params -> Eff es ()
-logTitle params = do
+baselineForCmd :: (RoFileSystem :> es) => Params -> Eff es Baseline
+baselineForCmd (Params BaselineC _) = pure mempty
+baselineForCmd (Params _ projectPath) = loadBaseline projectPath
+
+rulebooksOf :: (RoFileSystem :> es, Error DeslopError :> es) => ProjectRoot -> Eff es [Rulebook]
+rulebooksOf projectRoot =
+    loadRulebooks projectRoot >>= either (throwError . RulebookError) pure
+
+logTitle :: (CLI :> es) => Params -> Maybe SomeFrontend -> Eff es ()
+logTitle params detected = do
     cliLog Title $
         "🚀 "
             <> commandTitle params.command
             <> " project: "
             <> decodeOsPath (takeFileName params.projectPath.osPath)
+    for_ detected $ \(SomeFrontend fe) ->
+        cliLog Plain $ label fe <> " project detected."
     case params.command of
         FixC -> cliLog Plain "Changelog:"
         _ -> pure ()
@@ -143,11 +139,11 @@ commandTitle CheckC = "Checking"
 commandTitle FixC = "Fixing"
 commandTitle BaselineC = "Baselining"
 
-logProblems :: (CLI :> es) => [Problem] -> Eff es ()
-logProblems ps = do
+logProblems :: (CLI :> es) => CodeFence -> [Problem] -> Eff es ()
+logProblems fence ps = do
     cliLog Error $ "Found " <> pluralise (length ps) "problem" <> ":"
     cliLog Error divider
-    cliLog Error . problemsLogText $ ps
+    cliLog Error . problemsLogText fence $ ps
     cliLog Error divider
 
 -- | Reports how many auto-fixable Problems @deslop fix@ resolved.
@@ -160,7 +156,8 @@ logFixSummary fixed = do
     cliLog Plain divider
 
 deslopProject ::
-    ( WrFileSystem :> es
+    ( CompilerFrontend fe
+    , WrFileSystem :> es
     , RoFileSystem :> es
     , Error DeslopError :> es
     , CLI :> es
@@ -168,40 +165,28 @@ deslopProject ::
     , Concurrent :> es
     ) =>
     Params ->
+    fe ->
+    [Rulebook] ->
     Baseline ->
     Eff es RunSummary
-deslopProject params baseline = do
-    rulebookRes <- loadRulebooks projectRoot
-    rulebook <- case rulebookRes of
-        Right rb -> pure rb
-        Left e -> throwError . RulebookError $ e
-    logRulebooks params.command rulebook
-
-    cfg <- tsConfig projectRoot
-    gitIgnore <- loadGitIgnore params.projectPath
-    files <- getTsFiles gitIgnore params.projectPath
-    runReader @ProjectRoot projectRoot $ do
-        (lintErrors, asts) <-
-            fmap partitionEithers
-                . runReader @TsConfig cfg
-                . runReader @Params params
-                . runReader @Baseline baseline
-                $ pooledMapConcurrentlyN 32 deslopFile files
-        traverse_ (cliLog Error . ("❌ Error: " <>) . T.pack) lintErrors
-        when
-            (params.command /= FixC)
-            $ do
-                let mg = buildModuleGraph asts
-                runReader @ModuleGraph mg $ do
+deslopProject params fe rulebook baseline = do
+    asts <- runFrontend fe params.command baseline projectRoot
+    when
+        (params.command /= FixC)
+        $ do
+            let mg = buildModuleGraph asts
+            runReader @ProjectRoot projectRoot
+                . runReader @ModuleGraph mg
+                $ do
                     noImportCycles
                     runReader @[Rulebook] rulebook
                         . traverse_ enforceRulebooks
                         $ asts
-        pure $
-            summaryOf
-                params.command
-                (ModuleCount . length $ asts)
-                (enforcedRules rulebook)
+    pure $
+        summaryOf
+            params.command
+            (ModuleCount . length $ asts)
+            (enforcedRules (builtInRules fe) rulebook)
   where
     projectRoot = ProjectRoot params.projectPath
 
@@ -216,14 +201,12 @@ summaryOf FixC ms _ = Scanned ms
 {- | Every Rule the run enforced: the Rulebooks' own, plus the built-in ones
 that hold with no Rulebook at all.
 -}
-enforcedRules :: [Rulebook] -> RuleCount
-enforcedRules rulebooks = RuleCount $ rulebookRules + buildInRulesCount
+enforcedRules :: [LintRuleId] -> [Rulebook] -> RuleCount
+enforcedRules frontendRules rulebooks = RuleCount $ rulebookRules + length builtIn
   where
     RuleCount rulebookRules = countRules rulebooks
-
--- | No relative imports, no relative re-exports and no import cycles.
-buildInRulesCount :: Int
-buildInRulesCount = 3
+    -- The language's own lint rules, and the graph's: no import cycles.
+    builtIn = frontendRules <> [noImportCyclesRule]
 
 -- | What the Rulebooks themselves define, built-in Rules aside.
 countRules :: [Rulebook] -> RuleCount
@@ -251,65 +234,3 @@ logRulebooks _ rulebooks = do
     noRulesWarning =
         "WARNING: No architecture rules loaded. Deslop is only running its built-in checks.\n"
             <> "Define your own rules in deslop/rules/*.yaml - see https://deslop.dev"
-
-deslopFile ::
-    ( RoFileSystem :> es
-    , WrFileSystem :> es
-    , Reader TsConfig :> es
-    , Reader ProjectRoot :> es
-    , Reader Params :> es
-    , Reader Baseline :> es
-    , CLI :> es
-    , ReportProblem :> es
-    ) =>
-    AbsPath ->
-    Eff es (Either String Module)
-deslopFile src = do
-    c <- fsReadFile src
-    cstRes <- lintFile src c
-    let c' = either (const c) renderProgram cstRes
-    cmd <- asks @Params (.command)
-    when (c /= c' && cmd == FixC) $ do
-        fsWriteFile src c'
-        projectRoot <- ask @ProjectRoot
-        cliLog Change $
-            "  modified  " <> decodeOsPath (relativePathTo projectRoot src).osPath
-    traverse parseModule cstRes
-  where
-    renderProgram = TE.encodeUtf8 . render . (.cst)
-
-lintFile ::
-    ( Reader TsConfig :> es
-    , Reader ProjectRoot :> es
-    , Reader Baseline :> es
-    , ReportProblem :> es
-    , RoFileSystem :> es
-    ) =>
-    AbsPath ->
-    ByteString ->
-    Eff es (Either String TsProgram)
-lintFile p c =
-    traverse deslop . parseTs $
-        TsFile {path = p, content = TE.decodeUtf8 c}
-  where
-    deslop = foldr (>=>) pure [noRelativeSpecifiers]
-
-{- | The project's effective TypeScript configuration, @extends@ chain and all.
-
-An @extends@ Deslop declines to follow is a warning rather than a failure: the
-project is not broken, we simply cannot see what that package declares.
--}
-tsConfig ::
-    ( RoFileSystem :> es
-    , Error DeslopError :> es
-    , CLI :> es
-    ) =>
-    ProjectRoot ->
-    Eff es TsConfig
-tsConfig projectRoot = do
-    res <- loadTsConfig $ withAbsBaseUnsafe projectRoot.path [osp|tsconfig.json|]
-    case res of
-        Left err -> throwError . FrontendError . renderTsConfigLoadError projectRoot $ err
-        Right (cfg, skipped) -> cfg <$ traverse_ logSkipped skipped
-  where
-    logSkipped = cliLog Warning . ("WARNING: " <>) . renderSkippedExtends projectRoot

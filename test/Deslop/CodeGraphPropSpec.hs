@@ -18,7 +18,7 @@ module Deslop.CodeGraphPropSpec (spec) where
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Deslop.Module (Module)
-import Generators.TypeScript.Project (
+import Generators.Frontend.TypeScript.Project (
     Naming (..),
     Project (..),
     ProjectModule (..),

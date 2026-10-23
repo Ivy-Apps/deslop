@@ -233,3 +233,15 @@ export const capitalize = (str: string): string => {
   return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
+
+>>> changelog
+  modified  src/app/[locale]/login/page.tsx
+  modified  src/app/[locale]/page.tsx
+  modified  src/features/auth/auth-service.ts
+  modified  src/features/home/data/bad-repository.ts
+  modified  src/features/home/home-component.ts
+  modified  src/features/home/home-screen.tsx
+  modified  src/features/home/home.spec.ts
+  modified  src/features/login/login-form.ts
+  modified  src/features/login/login.spec.ts
+  modified  src/features/profile/data/profile-repository.ts

@@ -47,3 +47,7 @@ import { helper } from "@/lib/helper";
 export * from "@/lib/helper";
 
 export const tricky = [apostrophes, escaped, divided, regex, nested, notAStatement, helper];
+
+>>> changelog
+  modified  src/lib/index.ts
+  modified  src/lib/tricky.tsx

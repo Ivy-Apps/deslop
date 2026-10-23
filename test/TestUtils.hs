@@ -2,7 +2,7 @@
 combinators that keep a failing assertion readable.
 
 Deliberately domain-free. A helper that builds a 'Deslop.Module.Module' or a
-'TypeScript.Config.TsConfig' belongs under @Fixtures.@ next to the module whose
+'Frontend.TypeScript.Config.TsConfig' belongs under @Fixtures.@ next to the module whose
 type it builds; a helper that only knows about hspec, Hedgehog or the
 filesystem belongs here.
 -}
@@ -71,7 +71,7 @@ renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
 directory the suite runs from replaced so the snapshot is the same on every
 machine.
 
-For internal domain values only - a 'TypeScript.Config.TsConfig' carries an
+For internal domain values only - a 'Frontend.TypeScript.Config.TsConfig' carries an
 absolute paths base because the resolver has to open files with it. Never for
 what Deslop prints: every path a run reports is relative to the project root,
 and scrubbing that output would hide an absolute one rather than fail on it,

@@ -10,6 +10,7 @@ import Doubles.FileSystem (runMockWrFileSystem)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
+import Effects.CLI (LogStyle (..))
 import Effects.FileSystem (runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
 import FileSystem.Path (
@@ -20,13 +21,15 @@ import FileSystem.Path (
     encodeOsPathString,
     relativePathTo,
  )
+import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
+import Frontend.TypeScript.Iterator (getTsFiles)
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
+import System.Directory (removeFile)
 import System.OsPath (OsPath, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (copyDir, fixturesPath, mkAbsolute, requireJust, snapshot)
-import TypeScript.Iterator (getTsFiles)
 import UI (coverage, humanReadable, problemsFoundText)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -54,9 +57,14 @@ spec = describe "E2E.Project" $ do
     itChecks "ts-monorepo-project"
     itChecks "ts-barrel-project"
     itChecks "ts-unscanned-project"
+    itChecks "ts-not-utf8-project"
 
     itFailsToLoadRulebook "ts-invalid-rulebook-project"
     itFailsToLoadTsConfig "ts-broken-extends-project"
+
+    itFindsNoLanguage
+    itFindsNoLanguageInMissingPath
+    itReportsRulebookBeforeLanguage "ts-invalid-rulebook-project"
 
     itBaselines "ts-project-1"
     itBaselines "ixartz-next-js-boilerplate"
@@ -165,7 +173,7 @@ spec = describe "E2E.Project" $ do
         -- When
         files <-
             runEff . runRoFileSystemIO $
-                loadGitIgnore absProjectPath >>= (`getTsFiles` absProjectPath)
+                loadGitIgnore jsEcosystemIgnored absProjectPath >>= (`getTsFiles` absProjectPath)
 
         -- Then
         pure . defaultGolden ("iterated-" <> project) . T.unpack . T.unlines . sort $
@@ -234,6 +242,78 @@ spec = describe "E2E.Project" $ do
         pure . defaultGolden ("tsconfig-error-" <> project) . T.unpack $
             renderTranscript logs <> renderResult res
 
+    -- A directory no frontend recognises cannot be checked at all; saying so
+    -- names what was looked for, rather than complaining about one language's
+    -- config file in a project that was never written in it.
+    itFindsNoLanguage = it "refuses to run a project no language recognises" $ do
+        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
+            -- Given
+            params <- defaultParams (encodeOsPathString tmpFp)
+            logsRef <- newIORef (TestLogs [])
+
+            -- When
+            res <-
+                runEff
+                    . runFileSystemIO
+                    . runErrorNoCallStack @DeslopError
+                    . runMockCLI defaultMockCLI {logsRef = Just logsRef}
+                    . runReportProblem
+                    . runConcurrent
+                    $ doWork params {command = CheckC}
+
+            -- Then
+            res `shouldBe` Left (NoFrontendDetected (ProjectRoot params.projectPath) ["TypeScript (tsconfig.json)"])
+            logs <- readIORef logsRef
+            -- The title and the warning every run without Rulebooks gives, but
+            -- no claim to have detected a language.
+            fmap fst logs.transcript `shouldBe` [Title, Warning]
+
+    -- A path that is not a directory holds no tsconfig.json: the person is told
+    -- no language matched, not shown a raw IO exception.
+    itFindsNoLanguageInMissingPath = it "refuses to run a project path that does not exist" $ do
+        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
+            -- Given
+            params <- defaultParams (encodeOsPathString $ tmpFp <> "/missing")
+
+            -- When
+            res <-
+                runEff
+                    . runFileSystemIO
+                    . runErrorNoCallStack @DeslopError
+                    . runMockCLI defaultMockCLI
+                    . runReportProblem
+                    . runConcurrent
+                    $ doWork params {command = CheckC}
+
+            -- Then
+            res `shouldBe` Left (NoFrontendDetected (ProjectRoot params.projectPath) ["TypeScript (tsconfig.json)"])
+
+    -- Detecting the language must not reorder what a broken project hears
+    -- first: its Rulebooks are read before any language is required.
+    itReportsRulebookBeforeLanguage project =
+        it ("reports the broken rulebooks of " <> project <> " before finding no language") $
+            withSystemTempDirectory "deslop-test" $ \tmpFp -> do
+                -- Given
+                let tmpDir = encodeOsPathString tmpFp
+                copyDir (fixturesPath </> encodeOsPathString project) tmpDir
+                removeFile (tmpFp <> "/tsconfig.json")
+                params <- defaultParams tmpDir
+
+                -- When
+                res <-
+                    runEff
+                        . runFileSystemIO
+                        . runErrorNoCallStack @DeslopError
+                        . runMockCLI defaultMockCLI
+                        . runReportProblem
+                        . runConcurrent
+                        $ doWork params {command = CheckC}
+
+                -- Then
+                res `shouldSatisfy` \case
+                    Left (RulebookError _) -> True
+                    _ -> False
+
     itChecks project = it ("checks " <> project) $ do
         -- Given
         let projectPath = fixturesPath </> encodeOsPathString project
@@ -299,18 +379,24 @@ spec = describe "E2E.Project" $ do
             let projectPath = fixturesPath </> encodeOsPathString project
             copyDir projectPath tmpDir
             params <- defaultParams tmpDir
+            logsRef <- newIORef (TestLogs [])
 
             -- When
             res <-
                 runEff
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
-                    . runMockCLI defaultMockCLI
+                    . runMockCLI defaultMockCLI {logsRef = Just logsRef}
                     . runReportProblem
                     . runConcurrent
                     $ doWork params
 
             -- Then
             fmap (.verdict) res `shouldBe` Right Clean
+            logs <- readIORef logsRef
+            let modified = [msg | (Change, msg) <- logs.transcript]
+            -- Files are repaired concurrently; the changelog must not say so.
+            modified `shouldBe` sort modified
             fullSnapshot <- snapshot tmpDir filesToCheck
-            return $ defaultGolden ("fix-" <> project) fullSnapshot
+            return . defaultGolden ("fix-" <> project) $
+                fullSnapshot <> "\n>>> changelog\n" <> T.unpack (T.unlines modified)

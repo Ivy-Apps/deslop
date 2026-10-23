@@ -6,7 +6,6 @@ module Deslop.Problem.Baseline (
     applyBaseline,
     inBaseline,
     saveBaseline,
-    emptyBaseline,
     Baseline (..),
 ) where
 
@@ -27,16 +26,15 @@ import Effects.FileSystem (
 import FileSystem.Path (AbsPath, withAbsBaseUnsafe)
 import System.OsPath (OsPath, osp)
 
-newtype Baseline = Baseline (HashSet ProblemId) deriving (Show, Eq)
+newtype Baseline = Baseline (HashSet ProblemId)
+    deriving stock (Show, Eq)
+    deriving newtype (Semigroup, Monoid)
 
 applyBaseline :: Baseline -> [Problem] -> [Problem]
 applyBaseline baseline = filter (not . inBaseline baseline)
 
 inBaseline :: Baseline -> Problem -> Bool
 inBaseline (Baseline bs) = (`HS.member` bs) . problemId
-
-emptyBaseline :: Baseline
-emptyBaseline = Baseline HS.empty
 
 baselinePath :: OsPath
 baselinePath = [osp|deslop/baseline.yaml|]
@@ -49,8 +47,8 @@ loadBaselineFromFile fp = do
     exists <- fsFileExists fp
     if exists
         then
-            fsReadFile fp >>= pure . fromRight emptyBaseline . parseBasline
-        else pure emptyBaseline
+            fsReadFile fp >>= pure . fromRight mempty . parseBasline
+        else pure mempty
 
 parseBasline :: ByteString -> Either Text Baseline
 parseBasline bs =

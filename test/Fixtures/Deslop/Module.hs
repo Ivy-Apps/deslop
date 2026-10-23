@@ -60,7 +60,7 @@ mkImportEdge file line dep =
 
 Lets a spec about rule enforcement say where a violation points without
 restating how the fixture lays a module out. Where the line itself is the
-behaviour under test, "TypeScript.ModuleSpec" and P13-P15 assert it directly.
+behaviour under test, "Frontend.TypeScript.ModuleSpec" and P13-P15 assert it directly.
 -}
 edgeTo :: Module -> Text -> Location
 edgeTo m dep =

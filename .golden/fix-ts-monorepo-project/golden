@@ -14,3 +14,7 @@ import { Button } from '@ui/Button';
 export function checkout(): string {
   return Button('Checkout');
 }
+
+>>> changelog
+  modified  packages/app/src/checkout.ts
+  modified  packages/app/src/main.ts

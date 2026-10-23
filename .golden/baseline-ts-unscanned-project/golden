@@ -1,4 +1,5 @@
 [Title] 🚀 Baselining project: ts-unscanned-project
+[Plain] TypeScript project detected.
 [Plain] 📚 Loaded 1 rulebook, 1 rule
 [Success] ✅ Success: Baseline generated with 3 problems.
 [summary] Baselined 3 modules enforcing 4 rules
