@@ -10,7 +10,7 @@ module Deslop.Frontend.Pipeline (runFrontend) where
 import Deslop.Command (Command (..))
 import Deslop.Error (DeslopError (FrontendError), Warning (..))
 import Deslop.Frontend (CompilerFrontend (..))
-import Deslop.Frontend.Finding (Finding (..), applyFindings)
+import Deslop.Frontend.Finding (applyFindings, problem)
 import Deslop.Module (Module)
 import Deslop.Problem.Baseline (Baseline)
 import Effectful (Eff, type (:>))
@@ -103,7 +103,7 @@ deslopFile fe cfg command baseline src = do
     bytes <- fsReadFile src
     let unit = parse fe cfg src bytes
     findings <- lint fe cfg unit
-    traverse_ (report . (.problem)) findings
+    traverse_ (report . problem) findings
     let repaired = applyFindings baseline unit findings
     written <- case command of
         FixC -> writeBack src bytes . render fe $ repaired

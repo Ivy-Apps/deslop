@@ -1,6 +1,6 @@
 module Deslop.Frontend.FindingSpec (spec) where
 
-import Deslop.Frontend.Finding (Finding (..), applyFindings, fixable, unfixable)
+import Deslop.Frontend.Finding (Finding, applyFindings, fixable, problem, unfixable)
 import Deslop.Module (Location (..))
 import Deslop.Problem (LintRuleId (..), Problem (..), isAutoFixable)
 import FileSystem.Path (encodeOsPath, relativePathUnsafe)
@@ -14,13 +14,13 @@ spec = describe "Deslop.Frontend.Finding" $ do
     it "a fixable Finding reports an auto-fixable Problem and repairs the unit" $ do
         let finding = fixable unfinished (Endo (+ 1))
 
-        isAutoFixable finding.problem `shouldBe` True
+        isAutoFixable (problem finding) `shouldBe` True
         repaired finding `shouldBe` 1
 
     it "an unfixable Finding reports a Problem that is not auto-fixable and leaves the unit alone" $ do
         let finding = unfixable unfinished
 
-        isAutoFixable finding.problem `shouldBe` False
+        isAutoFixable (problem finding) `shouldBe` False
         repaired finding `shouldBe` 0
 
 -- | The unit, counting from zero, after the Finding's repair with nothing baselined.

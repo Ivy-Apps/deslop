@@ -12,7 +12,7 @@ edges from whatever this pass left behind.
 -}
 module Frontend.TypeScript.Lint.RelativeSpecifiersPropSpec (spec) where
 
-import Deslop.Frontend.Finding (Finding (..), applyFindings)
+import Deslop.Frontend.Finding (applyFindings, problem)
 import Deslop.Module (Module)
 import Deslop.Problem (Problem, ProblemId (..), problemId)
 import Deslop.Problem.Baseline (Baseline)
@@ -140,7 +140,7 @@ lintReporting cfg baseline files path nodes =
         $ do
             let prog = TsModule {path = path, cst = nodes}
             findings <- noRelativeSpecifiers prog
-            pure ((applyFindings baseline prog findings).cst, map (.problem) findings)
+            pure ((applyFindings baseline prog findings).cst, map problem findings)
 
 {- | Every module of the project, linted under one baseline and then lowered.
 

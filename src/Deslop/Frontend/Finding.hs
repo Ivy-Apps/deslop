@@ -12,7 +12,8 @@ Finding that claims a fix it does not carry, or carries one it does not claim,
 cannot be built.
 -}
 module Deslop.Frontend.Finding (
-    Finding (..),
+    Finding,
+    problem,
     applyFindings,
     fixable,
     unfixable,
@@ -22,10 +23,11 @@ module Deslop.Frontend.Finding (
 import Deslop.Problem (Problem)
 import Deslop.Problem.Baseline (Baseline, inBaseline)
 
-data Finding u = Finding
-    { problem :: !Problem
-    , fix :: !(Fix u)
-    }
+data Finding u = Finding !Problem !(Fix u)
+
+-- | What a Finding reports.
+problem :: Finding u -> Problem
+problem (Finding p _) = p
 
 -- | A repair a Finding offers, as an edit of the unit it was found in.
 data Fix u
@@ -38,7 +40,7 @@ the author wrote it.
 -}
 applyFindings :: Baseline -> u -> [Finding u] -> u
 applyFindings baseline unit =
-    (`appEndo` unit) . foldMap repair . filter (not . inBaseline baseline . (.problem))
+    (`appEndo` unit) . foldMap repair . filter (not . inBaseline baseline . problem)
   where
     repair = \case
         Finding _ NoFix -> mempty
@@ -46,17 +48,17 @@ applyFindings baseline unit =
 
 -- | A Problem that @deslop fix@ repairs with this edit.
 fixable :: (Bool -> Problem) -> Endo u -> Finding u
-fixable problem = Finding (problem True) . Rewrite
+fixable problemOf = Finding (problemOf True) . Rewrite
 
 -- | A Problem nothing can repair unattended.
 unfixable :: (Bool -> Problem) -> Finding u
-unfixable problem = Finding (problem False) NoFix
+unfixable problemOf = Finding (problemOf False) NoFix
 
 {- | A Finding about one part of a unit, as a Finding about the whole: its repair
 edits that part, through @inside@, and leaves the rest as it was.
 -}
 within :: (Endo part -> Endo whole) -> Finding part -> Finding whole
-within inside finding = finding {fix = lifted finding.fix}
+within inside (Finding p offered) = Finding p (lifted offered)
   where
     lifted = \case
         NoFix -> NoFix

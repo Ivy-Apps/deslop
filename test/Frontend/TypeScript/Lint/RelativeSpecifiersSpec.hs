@@ -1,7 +1,7 @@
 module Frontend.TypeScript.Lint.RelativeSpecifiersSpec (spec) where
 
 import Data.Text qualified as T
-import Deslop.Frontend.Finding (Finding (..), applyFindings)
+import Deslop.Frontend.Finding (applyFindings, problem)
 import Deslop.Module (Location (..))
 import Deslop.Problem (LintRuleId (..), Problem (..), ProblemId (..), problemId)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
@@ -32,7 +32,7 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers" $ do
                 . runReader cfg
                 $ do
                     findings <- noRelativeSpecifiers prog
-                    pure (applyFindings baseline prog findings, map (.problem) findings)
+                    pure (applyFindings baseline prog findings, map problem findings)
 
     let runTest = runTestIn repoRoot
     let runTestNoBaseline cfg = runTest cfg (baselineOf [])
