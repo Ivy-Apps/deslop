@@ -87,6 +87,11 @@ library
     FileSystem.Iterator
     FileSystem.Path
     Frontend
+    Frontend.Python
+    Frontend.Python.Config
+    Frontend.Python.Lint
+    Frontend.Python.Module
+    Frontend.Python.Parser
     Frontend.TypeScript
     Frontend.TypeScript.CST
     Frontend.TypeScript.Config

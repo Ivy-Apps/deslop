@@ -1,0 +1,21 @@
+id: layers
+name: Tiny layers
+description: >-
+  Models are the bottom layer and know nothing of the core.
+rules:
+  - id: models-are-leaves
+    description: >-
+      tiny/models must not import tiny/core.
+    target: "tiny/models"
+    forbids:
+      - import: "tiny/core"
+    fix: >-
+      Move what models needs from core into models.
+  - id: helpers-do-not-import-core
+    description: >-
+      Helpers sit below the core.
+    target: "tiny/helpers"
+    forbids:
+      - import: "tiny/core"
+    fix: >-
+      Pass what helpers needs in as an argument.
