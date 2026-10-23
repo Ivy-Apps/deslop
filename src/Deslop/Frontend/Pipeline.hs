@@ -8,7 +8,7 @@ files happened to finish - and how many files are worked on at once. A frontend 
 module Deslop.Frontend.Pipeline (runFrontend) where
 
 import Deslop.Command (Command (..))
-import Deslop.Error (DeslopError)
+import Deslop.Error (DeslopError (FrontendError), Warning (..))
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Frontend.Finding (applyFindings)
 import Deslop.Module (Module)
@@ -16,9 +16,10 @@ import Deslop.Problem.Baseline (Baseline)
 import Effectful (Eff, type (:>))
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
-import Effectful.Error.Static (Error)
+import Effectful.Error.Static (Error, throwError)
 import Effectful.Reader.Static (Reader, ask, runReader)
-import Effects.CLI (CLI, LogStyle (..), cliLog)
+import Effects.CLI (CLI, cliLog)
+import Effects.CLI qualified as CLI
 import Effects.FileSystem (RoFileSystem, WrFileSystem, fsReadFile, fsWriteFile)
 import Effects.ReportProblem (ReportProblem, report)
 import FileSystem.Path (
@@ -29,7 +30,7 @@ import FileSystem.Path (
     relativePathTo,
  )
 import Git.Ignore (loadGitIgnore)
-import Renderable qualified
+import Renderable qualified as R
 
 {- | Lints every file of the project, repairs and writes back what @deslop fix@
 may, and lowers what parsed into 'Module's.
@@ -52,7 +53,10 @@ runFrontend ::
     ProjectRoot ->
     Eff es [Module]
 runFrontend fe command baseline projectRoot = do
-    cfg <- loadConfig fe projectRoot
+    (cfg, ws) <-
+        loadConfig fe projectRoot
+            >>= either (throwError . FrontendError . R.render) pure
+    traverse_ (\(Warning w) -> cliLog CLI.Warning $ "WARNING: " <> w) ws
     gitIgnore <- loadGitIgnore (ecosystemIgnored fe) projectRoot.path
     files <- discover fe cfg projectRoot gitIgnore
     runReader @ProjectRoot projectRoot $ do
@@ -63,18 +67,18 @@ runFrontend fe command baseline projectRoot = do
         traverse_ logUnparsed unparsed
         lower fe cfg units
   where
-    logModified = cliLog Change . ("  modified  " <>) . shown
+    logModified = cliLog CLI.Change . ("  modified  " <>) . shown
     logUnparsed (Unparsed src err) =
-        cliLog Error $ "❌ Error: " <> shown (relativePathTo projectRoot src) <> ": " <> Renderable.render err
+        cliLog CLI.Error $ "❌ Error: " <> shown (relativePathTo projectRoot src) <> ": " <> R.render err
     shown = decodeOsPath . (.osPath)
 
 -- | A file that did not parse, and why: its error never names the file itself.
-data Unparsed e = Unparsed AbsPath e
+data Unparsed e = Unparsed !AbsPath !e
 
 -- | Whether a file's bytes were written back, and where it lives if so.
 data WriteBack
     = Untouched
-    | Rewritten ProjectRelativePath
+    | Rewritten !ProjectRelativePath
 
 rewritten :: WriteBack -> Maybe ProjectRelativePath
 rewritten Untouched = Nothing

@@ -14,16 +14,14 @@ module Deslop.Frontend (
     lookingForAny,
 ) where
 
-import Deslop.Error (DeslopError)
+import Deslop.Error (Warning)
 import Deslop.Frontend.Finding (Finding)
 import Deslop.Module (Module)
 import Deslop.Problem (LintRuleId)
 import Deslop.Problem.Formatter (CodeFence)
 import Effectful (Eff, type (:>))
 import Effectful.Concurrent (Concurrent)
-import Effectful.Error.Static (Error)
 import Effectful.Reader.Static (Reader)
-import Effects.CLI (CLI)
 import Effects.FileSystem (RoFileSystem)
 import FileSystem.Iterator (Entry)
 import FileSystem.Path (AbsPath, ProjectRoot)
@@ -36,9 +34,11 @@ every Rule is judged against.
 @fe@ is a witness that the language was detected; every method takes it so
 that the associated types below are never ambiguous.
 -}
-class (Renderable (ParseError fe)) => CompilerFrontend fe where
+class (Renderable (ParseError fe), Renderable (ConfigError fe)) => CompilerFrontend fe where
     -- | The project's own configuration, e.g. a resolved @tsconfig.json@.
     type Config fe
+
+    type ConfigError fe
 
     -- | One parsed file. Lossless: rendering it gives back its bytes.
     type Unit fe
@@ -73,10 +73,9 @@ class (Renderable (ParseError fe)) => CompilerFrontend fe where
     -}
     ecosystemIgnored :: fe -> Entry -> Bool
 
-    -- | Reads the project's configuration, warning on the CLI about what it skipped.
     loadConfig ::
-        (RoFileSystem :> es, CLI :> es, Error DeslopError :> es) =>
-        fe -> ProjectRoot -> Eff es (Config fe)
+        (RoFileSystem :> es) =>
+        fe -> ProjectRoot -> Eff es (Either (ConfigError fe) (Config fe, [Warning]))
 
     {- | Every source file of the project. A walk prunes whatever
     "Git.Ignore.isIgnored" says the 'GitIgnore' ignores - what is always

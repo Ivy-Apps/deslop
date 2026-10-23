@@ -9,19 +9,18 @@ module Frontend.TypeScript (
 ) where
 
 import Data.Text.Encoding qualified as TE
-import Deslop.Error (DeslopError (..))
+import Deslop.Error (DeslopError (..), Warning (..))
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Problem.Formatter (CodeFence (..))
 import Effectful (Eff, type (:>))
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Reader.Static (runReader)
-import Effects.CLI (CLI, LogStyle (..), cliLog)
 import Effects.FileSystem (RoFileSystem, fsFileExists, fsIsSymlink, fsListDirectory)
 import FileSystem.Path (AbsPath, ProjectRoot (..), withAbsBaseUnsafe)
-import Frontend.TypeScript.Config (TsConfig)
-import Frontend.TypeScript.Config.Loader (loadTsConfig, renderSkippedExtends, renderTsConfigLoadError)
 import Frontend.TypeScript.CST (TsProgram (cst))
+import Frontend.TypeScript.Config (TsConfig)
+import Frontend.TypeScript.Config.Loader (TsConfigLoadError, loadTsConfig, renderSkippedExtends, renderTsConfigLoadError)
 import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
 import Frontend.TypeScript.Iterator (getTsFiles)
 import Frontend.TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers, relativeSpecifierRules)
@@ -44,8 +43,15 @@ newtype TsParseError = TsParseError String
 instance Renderable TsParseError where
     render (TsParseError err) = toText err
 
+data TsConfigError = TsConfigError !ProjectRoot !TsConfigLoadError
+    deriving stock (Show, Eq)
+
+instance Renderable TsConfigError where
+    render (TsConfigError pRoot e) = renderTsConfigLoadError pRoot e
+
 instance CompilerFrontend TsFrontend where
     type Config TsFrontend = TsConfig
+    type ConfigError TsFrontend = TsConfigError
     type Unit TsFrontend = TsProgram
     type ParseError TsFrontend = TsParseError
 
@@ -65,34 +71,15 @@ instance CompilerFrontend TsFrontend where
 tsConfigPath :: ProjectRoot -> AbsPath
 tsConfigPath projectRoot = withAbsBaseUnsafe projectRoot.path [osp|tsconfig.json|]
 
-{- | Whether the root holds a @tsconfig.json@, even a link that points nowhere.
-
-A dangling link is still a TypeScript project, just a broken one: 'loadConfig'
-then names the config it could not find. Checking for the link itself needs it
-to be listed first, as a link that is not there cannot be asked about.
--}
 hasTsConfig :: (RoFileSystem :> es) => ProjectRoot -> Eff es Bool
-hasTsConfig projectRoot = fsFileExists path >>= bool danglingLink (pure True)
-  where
-    path = tsConfigPath projectRoot
-    danglingLink = fsListDirectory projectRoot.path >>= bool (pure False) (fsIsSymlink path) . elem path
+hasTsConfig projectRoot = fsFileExists (tsConfigPath projectRoot)
 
-{- | The project's effective TypeScript configuration, @extends@ chain and all.
-
-An @extends@ Deslop declines to follow is a warning rather than a failure: the
-project is not broken, we simply cannot see what that package declares.
--}
 tsConfig ::
-    ( RoFileSystem :> es
-    , Error DeslopError :> es
-    , CLI :> es
-    ) =>
-    ProjectRoot ->
-    Eff es TsConfig
+    (RoFileSystem :> es) =>
+    ProjectRoot -> Eff es (Either TsConfigError (TsConfig, [Warning]))
 tsConfig projectRoot = do
-    res <- loadTsConfig $ tsConfigPath projectRoot
-    case res of
-        Left err -> throwError . FrontendError . renderTsConfigLoadError projectRoot $ err
-        Right (cfg, skipped) -> cfg <$ traverse_ logSkipped skipped
+    bimap renderableError (\(cfg, skipped) -> (cfg, mapWarnings skipped))
+        <$> loadTsConfig (tsConfigPath projectRoot)
   where
-    logSkipped = cliLog Warning . ("WARNING: " <>) . renderSkippedExtends projectRoot
+    renderableError e = TsConfigError projectRoot e
+    mapWarnings = fmap (Warning . renderSkippedExtends projectRoot)

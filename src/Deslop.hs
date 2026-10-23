@@ -34,7 +34,7 @@ import FileSystem.Path (
     decodeOsPath,
  )
 import Frontend (detectFrontend, lookedFor)
-import Params
+import Params (Command (..), Params (..), ParamsDto (..), paramsFromDto)
 import System.OsPath (takeFileName)
 import UI (divider, humanReadable, problemsFoundText, problemsLogText, summaryLine)
 import Utils (pluralise)
@@ -76,14 +76,12 @@ doWork ::
     Params ->
     Eff es RunReport
 doWork params = do
-    detected <- detectFrontend projectRoot
-    logTitle params detected
-    baseline <- baselineFor params
+    mfe <- detectFrontend projectRoot
+    logTitle params mfe
+    baseline <- baselineForCmd params
     rulebooks <- rulebooksOf projectRoot
     logRulebooks params.command rulebooks
-    -- Only now, so that a project whose Rulebooks are broken hears about them
-    -- first, as it did before any language had to be detected.
-    SomeFrontend fe <- maybe (throwError $ NoFrontendDetected projectRoot lookedFor) pure detected
+    SomeFrontend fe <- maybe (throwError $ NoFrontendDetected projectRoot lookedFor) pure mfe
     summary <- deslopProject params fe rulebooks baseline
     case params.command of
         FixC -> do
@@ -96,7 +94,7 @@ doWork params = do
                 [] -> do
                     cliLog Success "✅ Success: No problems found."
                     pure Clean
-                _ -> do
+                _anyProblemsFound -> do
                     logProblems (codeFence fe) ps
                     pure . ProblemsFound $
                         ProblemCounts
@@ -115,12 +113,9 @@ doWork params = do
   where
     projectRoot = ProjectRoot params.projectPath
 
--- | What has been accepted so far. Baselining starts over, accepting nothing.
-baselineFor :: (RoFileSystem :> es) => Params -> Eff es Baseline
-baselineFor params = case params.command of
-    BaselineC -> pure emptyBaseline
-    FixC -> loadBaseline params.projectPath
-    CheckC -> loadBaseline params.projectPath
+baselineForCmd :: (RoFileSystem :> es) => Params -> Eff es Baseline
+baselineForCmd (Params BaselineC _) = pure emptyBaseline
+baselineForCmd (Params _ projectPath) = loadBaseline projectPath
 
 rulebooksOf :: (RoFileSystem :> es, Error DeslopError :> es) => ProjectRoot -> Eff es [Rulebook]
 rulebooksOf projectRoot =

@@ -22,8 +22,8 @@ import Paths_deslop (version)
 import System.OsPath (OsPath, osp)
 
 data Params = Params
-    { projectPath :: AbsPath
-    , command :: Command
+    { command :: Command
+    , projectPath :: AbsPath
     }
     deriving (Show, Eq)
 
