@@ -82,16 +82,17 @@ library
     Deslop.Rule.Lint.CycleDetection
     Deslop.RunReport
     Effects.CLI
+    Effects.Concurrency
     Effects.FileSystem
     Effects.ReportProblem
     FileSystem.Iterator
     FileSystem.Path
     Frontend
     Frontend.TypeScript
-    Frontend.TypeScript.CST
     Frontend.TypeScript.Config
     Frontend.TypeScript.Config.Dto
     Frontend.TypeScript.Config.Loader
+    Frontend.TypeScript.CST
     Frontend.TypeScript.Ignore
     Frontend.TypeScript.Iterator
     Frontend.TypeScript.Lexer
@@ -180,15 +181,15 @@ test-suite deslop-test
     Effects.ReportProblemSpec
     FileSystem.IteratorSpec
     FileSystem.PathSpec
-    Fixtures.Deslop.Module
     Fixtures.Deslop.Frontend.Pipeline
+    Fixtures.Deslop.Module
     Fixtures.Deslop.Problem.Baseline
     Fixtures.Deslop.Rule.Book.Dto
     Fixtures.Frontend.TypeScript.Config
-    Frontend.TypeScript.CSTSpec
     Frontend.TypeScript.Config.DtoSpec
     Frontend.TypeScript.Config.LoaderSpec
     Frontend.TypeScript.ConfigSpec
+    Frontend.TypeScript.CSTSpec
     Frontend.TypeScript.IgnoreSpec
     Frontend.TypeScript.IteratorSpec
     Frontend.TypeScript.LexerSpec

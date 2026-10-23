@@ -15,6 +15,7 @@ import Deslop.Problem.Formatter (CodeFence (..))
 import Effectful (Eff, type (:>))
 import Effectful.Concurrent.Async (pooledMapConcurrentlyN)
 import Effectful.Reader.Static (runReader)
+import Effects.Concurrency (poolSize)
 import Effects.FileSystem (RoFileSystem, fsFileExists, fsIsSymlink, fsListDirectory)
 import FileSystem.Path (AbsPath, ProjectRoot (..), withAbsBaseUnsafe)
 import Frontend.TypeScript.CST (TsProgram (cst))
@@ -60,7 +61,7 @@ instance CompilerFrontend TsFrontend where
     lookingFor _ = "TypeScript (tsconfig.json)"
     codeFence _ = CodeFence "ts"
     builtInRules _ = relativeSpecifierRules
-    ecosystemIgnored _ = jsEcosystemIgnored
+    ecosystemIgnored _ _ = jsEcosystemIgnored
     loadConfig _ = tsConfig
     discover _ _ projectRoot gitIgnore = getTsFiles gitIgnore projectRoot.path
     parse _ _ path = first TsParseError . parseTs . TsFile path . TE.decodeUtf8
@@ -68,7 +69,7 @@ instance CompilerFrontend TsFrontend where
     lint _ cfg = runReader cfg . noRelativeSpecifiers
     lower _ cfg = do
         runReader cfg
-            . pooledMapConcurrentlyN 32 parseModule
+            . pooledMapConcurrentlyN poolSize parseModule
             >=> (\ms -> pure (ms, []))
 
 tsConfigPath :: ProjectRoot -> AbsPath

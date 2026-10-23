@@ -20,6 +20,7 @@ import Effectful.Error.Static (Error, throwError)
 import Effectful.Reader.Static (Reader, ask, runReader)
 import Effects.CLI (CLI, cliLog)
 import Effects.CLI qualified as CLI
+import Effects.Concurrency (poolSize)
 import Effects.FileSystem (RoFileSystem, WrFileSystem, fsReadFile, fsWriteFile)
 import Effects.ReportProblem (ReportProblem, report)
 import FileSystem.Path (
@@ -57,11 +58,11 @@ runFrontend fe command baseline projectRoot = do
         loadConfig fe projectRoot
             >>= either (throwError . FrontendError . R.render) pure
     traverse_ (\(Warning w) -> logWarning w) cfgWs
-    gitIgnore <- loadGitIgnore (ecosystemIgnored fe) projectRoot.path
+    gitIgnore <- loadGitIgnore (ecosystemIgnored fe cfg) projectRoot.path
     files <- discover fe cfg projectRoot gitIgnore
     runReader @ProjectRoot projectRoot $ do
         (writes, results) <-
-            unzip <$> pooledMapConcurrentlyN 32 (deslopFile fe cfg command baseline) files
+            unzip <$> pooledMapConcurrentlyN poolSize (deslopFile fe cfg command baseline) files
         traverse_ logModified . sort . mapMaybe rewritten $ writes
         let (unparsed, units) = partitionEithers results
         traverse_ logUnparsed unparsed

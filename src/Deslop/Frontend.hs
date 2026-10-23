@@ -79,7 +79,7 @@ class
     The driver hands it to "Git.Ignore.loadGitIgnore", so the 'GitIgnore'
     'discover' is given already honours it.
     -}
-    ecosystemIgnored :: fe -> Entry -> Bool
+    ecosystemIgnored :: fe -> Config fe -> Entry -> Bool
 
     loadConfig ::
         (RoFileSystem :> es) =>

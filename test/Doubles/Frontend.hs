@@ -78,7 +78,7 @@ instance CompilerFrontend LinesFrontend where
     lookingFor _ = "Lines (lines.project)"
     codeFence _ = CodeFence "lines"
     builtInRules _ = [todoRule, fixmeRule]
-    ecosystemIgnored _ = (== [osp|generated|]) . takeFileName . (.osPath) . (.path)
+    ecosystemIgnored _ _ = (== [osp|generated|]) . takeFileName . (.osPath) . (.path)
     loadConfig _ _ = pure $ Right ((), [])
     discover _ _ projectRoot gitIgnore = walkDir (isIgnored gitIgnore) source projectRoot.path
       where
