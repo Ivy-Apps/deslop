@@ -1,0 +1,18 @@
+id: layers
+name: Tiny's layers
+description: A library the packages build on, and packages that use the flake's own nixpkgs.
+rules:
+  - id: lib-stands-alone
+    description: The library never reaches a package, even transitively.
+    target: "lib/**"
+    forbids:
+      - import: "packages/**"
+        transitive: true
+    fix: Move what the library needs from a package into the library.
+
+  - id: packages-use-the-pinned-nixpkgs
+    description: Packages build on the flake's pinned nixpkgs, never on the <nixpkgs> channel.
+    target: "packages/**"
+    forbids:
+      - import: "nixpkgs"
+    fix: Take pkgs as an argument, built from inputs.nixpkgs.

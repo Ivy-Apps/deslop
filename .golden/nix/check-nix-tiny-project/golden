@@ -1,0 +1,63 @@
+[Title] 🚀 Checking project: nix-tiny-project
+[Plain] Nix project detected.
+[Plain] 📚 Loaded 1 rulebook, 2 rules
+[Warning] WARNING: broken.nix could not be read as Nix, so what it refers to was not read.
+[Warning] WARNING: foo.nix, foo/default.nix share the name foo, so a Rule cannot tell them apart; rename or move all but one.
+[Error] Found 5 problems:
+[Error] ─────────────────────────────────────────
+[Error] # no-import-cycles#modules/a.nix
+modules/a.nix:1
+Circular dependency (import cycle) detected: modules/a → modules/b → modules/a
+```nix
+{ imports = [ ./b.nix ]; }
+```
+FIX: Import cycles are not allowed. Break the loop by removing one of its imports - usually by extracting the shared code into a module that both sides can depend on.
+---------
+
+# layers#lib-stands-alone#lib/default
+lib/default.nix:6
+The library never reaches a package, even transitively.
+
+Module 'lib/default' transitively imports 'packages/hello' (1 hop) via: lib/default → packages/hello.
+```nix
+hello = import ../packages/hello.nix;
+```
+Also reaches 1 more forbidden module through this import.
+FIX: Move what the library needs from a package into the library.
+---------
+
+# layers#packages-use-the-pinned-nixpkgs#packages/default
+packages/default.nix:4
+Packages build on the flake's pinned nixpkgs, never on the <nixpkgs> channel.
+
+Module 'packages/default' directly imports 'nixpkgs'.
+```nix
+pkgs = import <nixpkgs> { };
+```
+FIX: Take pkgs as an argument, built from inputs.nixpkgs.
+---------
+
+# layers#packages-use-the-pinned-nixpkgs#packages/default#unresolved#./gone.nix
+packages/default.nix:11
+Packages build on the flake's pinned nixpkgs, never on the <nixpkgs> channel.
+
+Module 'packages/default' imports './gone.nix', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+```nix
+gone = import ./gone.nix;
+```
+FIX: Take pkgs as an argument, built from inputs.nixpkgs.
+---------
+
+# layers#packages-use-the-pinned-nixpkgs#packages/default#unresolved#dir + "/extra.nix"
+packages/default.nix:10
+Packages build on the flake's pinned nixpkgs, never on the <nixpkgs> channel.
+
+Module 'packages/default' imports 'dir + "/extra.nix"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+```nix
+extra = import (dir + "/extra.nix");
+```
+FIX: Take pkgs as an argument, built from inputs.nixpkgs.
+[Error] ─────────────────────────────────────────
+[summary] Checked 14 modules enforcing 3 rules
+[exit] Found 5 problems, none auto-fixable.
+   Run `deslop baseline` to silence all 5 problems.

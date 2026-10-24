@@ -54,7 +54,7 @@ import Distribution.Types.TestSuiteInterface qualified as C
 import Distribution.Types.UnqualComponentName (unUnqualComponentName)
 import Distribution.Utils.Path (getSymbolicPath)
 import Effectful (Eff, type (:>))
-import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsFileExists, fsListDirectory, fsReadFile)
+import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsFileExists, fsListDirectory, fsReadFile, fsReadFileIfExists)
 import FileSystem.Path (AbsPath (..), ProjectRoot (..), absPathUnsafe, decodeOsPath, encodeOsPath, encodeOsPathString, withAbsBaseUnsafe)
 import Frontend.Haskell.ModuleName (HsModuleName, hsModuleName)
 import Frontend.Haskell.Preprocessor (Request, requestedByExtensions, requestedByOptions)
@@ -164,10 +164,7 @@ root @.cabal@ file.
 checkCabalProject :: (RoFileSystem :> es) => ProjectRoot -> AbsPath -> Eff es (Either CabalError ())
 checkCabalProject projectRoot cabalFile = do
     let projectFile = withAbsBaseUnsafe projectRoot.path [osp|cabal.project|]
-    exists <- fsFileExists projectFile
-    if not exists
-        then pure (Right ())
-        else fsReadFile projectFile >>= judge projectFile . readFields
+    fsReadFileIfExists projectFile >>= maybe (pure (Right ())) (judge projectFile . readFields)
   where
     judge projectFile = \case
         Left err -> pure . Left $ CabalProjectUnreadable projectFile (show err)

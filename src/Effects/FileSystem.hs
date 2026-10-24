@@ -9,6 +9,7 @@ module Effects.FileSystem (
     WrFileSystem (..),
     fsFileExists,
     fsReadFile,
+    fsReadFileIfExists,
     fsWriteFile,
     fsMkDirP,
     fsDirectoryExists,
@@ -45,6 +46,12 @@ type instance DispatchOf WrFileSystem = Dynamic
 
 fsReadFile :: (RoFileSystem :> es) => AbsPath -> Eff es ByteString
 fsReadFile = send . ReadFile
+
+-- | The file's bytes, or 'Nothing' when there is no file there.
+fsReadFileIfExists :: (RoFileSystem :> es) => AbsPath -> Eff es (Maybe ByteString)
+fsReadFileIfExists path = do
+    exists <- fsFileExists path
+    if exists then Just <$> fsReadFile path else pure Nothing
 
 fsFileExists :: (RoFileSystem :> es) => AbsPath -> Eff es Bool
 fsFileExists = send . FileExists

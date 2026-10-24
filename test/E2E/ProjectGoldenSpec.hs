@@ -63,6 +63,14 @@ spec = describe "E2E.Project" $ do
     itFailsToLoadConfig Haskell "cabal-error" "hs-two-packages-project" "a.cabal"
     itChecksItself
 
+    itChecks Nix "nix-tiny-project"
+    itBaselines Nix "nix-tiny-project"
+    -- Nix has no built-in rule that rewrites code, so fix changes nothing.
+    itFixes Nix "nix-tiny-project" ["flake.nix", "packages/default.nix"]
+    itChecks Nix "nix-nixos-config"
+    itBaselines Nix "nix-nixos-config"
+    itFailsToLoadConfig Nix "nix-config-error" "nix-broken-config-project" "deslop/nix.yaml"
+
     itFindsNoLanguage
     itFindsNoLanguageInMissingPath
     itReportsRulebookBeforeLanguage "ts-invalid-rulebook-project"
@@ -336,7 +344,8 @@ itFailsToLoadRulebook language project = it ("refuses to run " <> project) $ do
 
 {- | A project configuration Deslop cannot use must abort the run before any
 file is checked, naming the file at fault: a tsconfig whose @extends@ names a
-file that is not there, a cabal.project of several packages, two .cabal files.
+file that is not there, a cabal.project of several packages, two .cabal files,
+a @deslop/nix.yaml@ that is not YAML.
 -}
 itFailsToLoadConfig :: Language -> String -> String -> Text -> Spec
 itFailsToLoadConfig language kind project culprit = it ("refuses to run " <> project) $ do
@@ -358,7 +367,7 @@ itFindsNoLanguage = it "refuses to run a project no language recognises" . inEmp
 
     run <- runDeslopOn ToDisk CheckC tmpDir
 
-    run.result `shouldBe` Left (NoFrontendDetected projectRoot ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"])
+    run.result `shouldBe` Left (NoFrontendDetected projectRoot ["TypeScript (tsconfig.json)", "Haskell (*.cabal)", "Nix (flake.nix or default.nix)"])
     -- The title and the warning every run without Rulebooks gives, but no
     -- claim to have detected a language.
     fmap fst run.logs.transcript `shouldBe` [Title, Warning]
@@ -373,7 +382,7 @@ itFindsNoLanguageInMissingPath = it "refuses to run a project path that does not
 
     run <- runDeslopOn ToDisk CheckC missing
 
-    run.result `shouldBe` Left (NoFrontendDetected projectRoot ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"])
+    run.result `shouldBe` Left (NoFrontendDetected projectRoot ["TypeScript (tsconfig.json)", "Haskell (*.cabal)", "Nix (flake.nix or default.nix)"])
 
 {- | Detecting the language must not reorder what a broken project hears
 first: its Rulebooks are read before any language is required.

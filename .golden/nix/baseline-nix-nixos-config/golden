@@ -1,0 +1,95 @@
+[Title] 🚀 Baselining project: nix-nixos-config
+[Plain] Nix project detected.
+[Plain] 📚 Loaded 1 rulebook, 11 rules
+[Success] ✅ Success: Baseline generated with 50 problems.
+[summary] Baselined 125 modules enforcing 12 rules
+
+>>> baseline.yaml
+- architecture#darwin-is-not-nixos#programs/agents/skills/lib#unresolved#builtins.readDir
+  dir
+- architecture#darwin-is-not-nixos#programs/agents/skills/lib#unresolved#dir + "/${name}"
+- architecture#darwin-is-not-nixos#programs/agents/skills/lib#unresolved#source.src
+  + "/${root}"
+- architecture#darwin-is-not-nixos#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+- architecture#lib-is-private-to-the-flake#modules/home/claude-code
+- architecture#lib-is-private-to-the-flake#modules/home/factory/claude-factory
+- architecture#lib-is-private-to-the-flake#programs/agents/skills/lib#unresolved#builtins.readDir
+  dir
+- architecture#lib-is-private-to-the-flake#programs/agents/skills/lib#unresolved#dir
+  + "/${name}"
+- architecture#lib-is-private-to-the-flake#programs/agents/skills/lib#unresolved#source.src
+  + "/${root}"
+- architecture#lib-is-private-to-the-flake#programs/agents/skills/lib#unresolved#sub
+  + "/SKILL.md"
+- architecture#lib-is-private-to-the-flake#programs/software-factory/default#unresolved#builtins.readFile
+  script
+- architecture#lib-is-private-to-the-flake#shells/darwin-install
+- architecture#lib-is-private-to-the-flake#shells/nixos-install
+- architecture#nixos-is-not-darwin#programs/agents/skills/lib#unresolved#builtins.readDir
+  dir
+- architecture#nixos-is-not-darwin#programs/agents/skills/lib#unresolved#dir + "/${name}"
+- architecture#nixos-is-not-darwin#programs/agents/skills/lib#unresolved#source.src
+  + "/${root}"
+- architecture#nixos-is-not-darwin#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+- architecture#nixos-is-not-darwin#programs/software-factory/default#unresolved#builtins.readFile
+  script
+- architecture#nothing-imports-the-flake#programs/agents/skills/lib#unresolved#builtins.readDir
+  dir
+- architecture#nothing-imports-the-flake#programs/agents/skills/lib#unresolved#dir
+  + "/${name}"
+- architecture#nothing-imports-the-flake#programs/agents/skills/lib#unresolved#source.src
+  + "/${root}"
+- architecture#nothing-imports-the-flake#programs/agents/skills/lib#unresolved#sub
+  + "/SKILL.md"
+- architecture#nothing-imports-the-flake#programs/software-factory/default#unresolved#builtins.readFile
+  script
+- architecture#only-lib-assembles-hosts#programs/agents/skills/lib#unresolved#builtins.readDir
+  dir
+- architecture#only-lib-assembles-hosts#programs/agents/skills/lib#unresolved#dir
+  + "/${name}"
+- architecture#only-lib-assembles-hosts#programs/agents/skills/lib#unresolved#source.src
+  + "/${root}"
+- architecture#only-lib-assembles-hosts#programs/agents/skills/lib#unresolved#sub
+  + "/SKILL.md"
+- architecture#only-lib-assembles-hosts#programs/software-factory/default#unresolved#builtins.readFile
+  script
+- architecture#programs-are-host-agnostic#programs/agents/skills/lib#unresolved#builtins.readDir
+  dir
+- architecture#programs-are-host-agnostic#programs/agents/skills/lib#unresolved#dir
+  + "/${name}"
+- architecture#programs-are-host-agnostic#programs/agents/skills/lib#unresolved#source.src
+  + "/${root}"
+- architecture#programs-are-host-agnostic#programs/agents/skills/lib#unresolved#sub
+  + "/SKILL.md"
+- architecture#programs-are-host-agnostic#programs/software-factory/default#unresolved#builtins.readFile
+  script
+- architecture#programs-are-isolated#programs/agents/skills/lib#unresolved#builtins.readDir
+  dir
+- architecture#programs-are-isolated#programs/agents/skills/lib#unresolved#dir + "/${name}"
+- architecture#programs-are-isolated#programs/agents/skills/lib#unresolved#source.src
+  + "/${root}"
+- architecture#programs-are-isolated#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+- architecture#programs-are-isolated#programs/claude-code/default
+- architecture#programs-are-isolated#programs/software-factory/check
+- architecture#programs-are-isolated#programs/software-factory/default#unresolved#builtins.readFile
+  script
+- architecture#secrets-are-read-in-one-place#programs/agents/skills/lib#unresolved#builtins.readDir
+  dir
+- architecture#secrets-are-read-in-one-place#programs/agents/skills/lib#unresolved#dir
+  + "/${name}"
+- architecture#secrets-are-read-in-one-place#programs/agents/skills/lib#unresolved#source.src
+  + "/${root}"
+- architecture#secrets-are-read-in-one-place#programs/agents/skills/lib#unresolved#sub
+  + "/SKILL.md"
+- architecture#secrets-are-read-in-one-place#programs/software-factory/default#unresolved#builtins.readFile
+  script
+- architecture#server-modules-are-server-only#programs/agents/skills/lib#unresolved#builtins.readDir
+  dir
+- architecture#server-modules-are-server-only#programs/agents/skills/lib#unresolved#dir
+  + "/${name}"
+- architecture#server-modules-are-server-only#programs/agents/skills/lib#unresolved#source.src
+  + "/${root}"
+- architecture#server-modules-are-server-only#programs/agents/skills/lib#unresolved#sub
+  + "/SKILL.md"
+- architecture#server-modules-are-server-only#programs/software-factory/default#unresolved#builtins.readFile
+  script

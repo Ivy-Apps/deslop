@@ -101,6 +101,18 @@ library
     Frontend.Haskell.Preprocessor
     Frontend.Haskell.Tokens
     Frontend.Haskell.Unit
+    Frontend.Nix
+    Frontend.Nix.Config
+    Frontend.Nix.FlakeInputs
+    Frontend.Nix.Ignore
+    Frontend.Nix.Iterator
+    Frontend.Nix.Lexeme
+    Frontend.Nix.Lexer
+    Frontend.Nix.Module
+    Frontend.Nix.ModuleName
+    Frontend.Nix.PathResolver
+    Frontend.Nix.Reference
+    Frontend.Nix.Unit
     Frontend.TypeScript
     Frontend.TypeScript.Config
     Frontend.TypeScript.Config.Dto
@@ -201,6 +213,7 @@ test-suite deslop-test
     Effects.ReportProblemSpec
     FileSystem.IteratorSpec
     FileSystem.PathSpec
+    Fixtures.Deslop.Frontend
     Fixtures.Deslop.Frontend.Pipeline
     Fixtures.Deslop.GlobPlus
     Fixtures.Deslop.Module
@@ -211,6 +224,7 @@ test-suite deslop-test
     Fixtures.FileSystem.Path
     Fixtures.Frontend.Haskell.CST
     Fixtures.Frontend.Haskell.Project
+    Fixtures.Frontend.Nix.Reference
     Fixtures.Frontend.TypeScript.Config
     Fixtures.Git.Ignore
     Fixtures.OnDisk
@@ -230,6 +244,20 @@ test-suite deslop-test
     Frontend.Haskell.TokensSpec
     Frontend.Haskell.UnitSpec
     Frontend.HaskellSpec
+    Frontend.Nix.ConfigSpec
+    Frontend.Nix.FlakeInputsSpec
+    Frontend.Nix.IgnoreSpec
+    Frontend.Nix.IteratorSpec
+    Frontend.Nix.LexemeSpec
+    Frontend.Nix.LexerPropSpec
+    Frontend.Nix.LexerSpec
+    Frontend.Nix.ModuleNameSpec
+    Frontend.Nix.ModuleSpec
+    Frontend.Nix.NixCorpusSpec
+    Frontend.Nix.PathResolverSpec
+    Frontend.Nix.ReferenceSpec
+    Frontend.Nix.UnitSpec
+    Frontend.NixSpec
     Frontend.TypeScript.Config.DtoSpec
     Frontend.TypeScript.Config.LoaderSpec
     Frontend.TypeScript.ConfigSpec
@@ -248,6 +276,7 @@ test-suite deslop-test
     Frontend.TypeScriptSpec
     FrontendSpec
     Generators.Frontend.Haskell.Source
+    Generators.Frontend.Nix.Source
     Generators.Frontend.TypeScript.CST
     Generators.Frontend.TypeScript.Project
     Git.IgnoreSpec

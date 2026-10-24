@@ -7,7 +7,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/Ivy-Apps/deslop?style=social)](https://github.com/Ivy-Apps/deslop)
 [![Quality](https://github.com/Ivy-Apps/deslop/actions/workflows/quality.yaml/badge.svg?branch=main)](https://github.com/Ivy-Apps/deslop/actions/workflows/quality.yaml)
 
-**Static import-graph analyzer for TypeScript and Haskell. You write architecture rules in YAML; Deslop checks them on every run.**
+**Static import-graph analyzer for TypeScript, Haskell and Nix. You write architecture rules in YAML; Deslop checks them on every run.**
 
 You define your architecture once — what modules may import, what they must import, and what companion files must exist (unit tests, Storybook stories). When a rule breaks, Deslop reports exactly what broke and how to fix it, in plain language that both your team and your AI agents can act on.
 
@@ -124,6 +124,22 @@ A directory with a `*.cabal` file at its root is read as a Haskell project (a `t
 - **Not read:** files behind CPP or another `-F -pgmF` preprocessor (hspec-discover too, when a component's `ghc-options` asks for it) stay modules without imports, with a warning. `.hs-boot` and `.lhs` files are not read, and a `{-# SOURCE #-}` import is a plain import.
 
 See [ADR 21](docs/adr/0021-haskell-is-read-as-one-cabal-package.md) for the details.
+
+### Nix projects
+
+A directory with a `flake.nix` or a `default.nix` at its root is read as a Nix project (TypeScript and Haskell are tried first, so a Haskell project with a `flake.nix` is still Haskell). Every `.nix` file is a module, and it depends on every path it writes outside a comment, whatever the path is for: `import ./x.nix`, `imports = [ ./x.nix ]` and `builtins.readFile ./x.sh` are all edges. Deslop reads what is written and never evaluates it.
+
+- **Module names** are paths from the root without `.nix`: `modules/home/git`. A `default.nix` is canonically `lib/default` and aliased `lib`, so a rule may say either. `flake.nix` is `flake`. A file that is not Nix but that a path reaches, such as a script, a secret or a directory without a `default.nix`, is a module too, named with its extension: `secrets/common.yaml`.
+- **The project root** is `self`, so `"${self}/modules/x.nix"` and `self + "/x"` resolve from the root. Name the other identifiers your configuration binds it to in `deslop/nix.yaml`:
+
+  ```yaml
+  roots: [root]   # specialArgs = { root = self; }
+  ```
+- **Computed paths** with a literal base, such as `"${root}/hosts/${hostname}/configuration.nix"` or `./plugins/${name}.nix`, reach every file on disk the pattern can match. A path only evaluation can name (`dir + "/${name}"`, `builtins.readDir dir`), a path to nothing and a path outside the project are unresolved, and a `forbids` reports each one it would have had to judge as "cannot be judged", once per rule, at the file that wrote it.
+- **Outside the project:** `inputs.home-manager.nixosModules.home-manager` is `inputs/home-manager/nixosModules/home-manager` for every input the root `flake.nix` declares, cut at the first computed attribute; `modulesPath + "/profiles/qemu-guest.nix"` is `inputs/nixpkgs/nixos/modules/profiles/qemu-guest`; `<nixpkgs>` is `nixpkgs`.
+- **Not read:** a file that is not UTF-8 or does not lex (an unterminated string) stays a module without edges, with a warning, and so does `foo.nix` beside `foo/default.nix`, which share the name `foo`. There are no built-in Nix checks yet.
+
+See [ADR 23](docs/adr/0023-nix-is-read-as-the-paths-it-writes.md) for the details.
 
 ### Built-in Checks
 
@@ -395,6 +411,8 @@ forbids:
 ```
 
 `transitive: true` checks the entire reachable import graph — if the module is reachable via any chain, it's a violation.
+
+A dependency Deslop cannot resolve to a module, such as a path only evaluation computes, cannot be judged against any pattern. A `forbids` rule reports each one it would have had to judge (the target's own, or every one it reaches when transitive) as a violation that "cannot be judged", whatever its patterns and `allows`. It is reported once per rule at the module that wrote it, however many targets reach it, naming one target that does. Baseline the ones you accept; each has its own id.
 
 Use Glob+ variables to make patterns relative to the matched target:
 

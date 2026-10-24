@@ -90,6 +90,34 @@ behind CPP or another preprocessor, a header that does not parse. Still a
 Module, with no Dependency Edges, and named in a warning.
 _Avoid_: Skipped file, parse error (there is none: parsing is total)
 
+### Nix projects
+
+**Path Reference**:
+Anything a Nix file writes that names a path, whatever it is used for: a path
+literal (`./x.nix`), a string headed by a Root Name (`"${root}/modules"`), a
+path with strings appended (`./dir + "/${n}"`), a Flake Input,
+`modulesPath + "/..."` or `<nixpkgs>`. Each becomes a Dependency Edge.
+_Avoid_: Import (Nix has `import`, and it is only one way to write one)
+
+**Root Name**:
+An identifier bound to the Project Root: `self`, always, and every name
+`deslop/nix.yaml` lists under `roots`. `"${root}/x"` is read from the Project
+Root only when `root` is one.
+_Avoid_: Flake root, `src`
+
+**Path Pattern**:
+A Path Reference with a literal base and computed segments,
+`"${root}/hosts/${hostname}/configuration.nix"`. It reaches every entry on disk
+its literal parts allow, one directory level per computed segment; one with no
+literal base is an Unresolved Dependency.
+_Avoid_: Glob (no one wrote one), dynamic import
+
+**Flake Input**:
+An input the root `flake.nix` declares. `inputs.<name>.<attr>...` is an
+External Module named `inputs/<name>/<attr>...`, cut at the first computed
+attribute.
+_Avoid_: Package, dependency
+
 ### Modules and dependencies
 
 **Module**:
@@ -126,10 +154,19 @@ _Avoid_: Import path, module id, target
 
 **Unscanned Module**:
 A Module a Specifier resolved to that Deslop never read - gitignored, outside
-the tree it was pointed at, or not a source file. It is a vertex like any other
+the tree it was pointed at, or not a source file, such as the script or the
+directory a Nix path names. It is a vertex like any other
 and carries the names the frontend minted for it, but it has no dependencies of
 its own, so a transitive chain stops there.
 _Avoid_: External module (that is `react`, which resolved to nothing at all)
+
+**Unresolved Dependency**:
+A dependency a frontend knows exists but cannot name: a path only evaluation
+computes (`import (./. + "/${n}.nix")`), or a literal path to nothing in the
+project. It is no vertex, satisfies no `uses`, closes no cycle, and a `forbids`
+reports each one it would have had to judge as a Problem that "cannot be
+judged", once per Rule, at the module that wrote it (ADR 20).
+_Avoid_: External module (that is a package that exists), dynamic import
 
 **Location**:
 Where something was written and what the source says there: a Project Relative

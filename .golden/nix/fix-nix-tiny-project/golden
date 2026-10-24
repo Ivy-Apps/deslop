@@ -1,0 +1,32 @@
+>>> FILE: flake.nix
+{
+  description = "A tiny Nix project for Deslop's tests";
+
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+  outputs =
+    { self, ... }@inputs:
+    {
+      lib = import ./lib { inherit inputs; };
+      packages = import ./packages { inherit inputs; };
+      nixosModules.default = import "${self}/modules/a.nix";
+    };
+}
+
+
+
+>>> FILE: packages/default.nix
+{ inputs }:
+let
+  # The channel, not the flake's pinned nixpkgs.
+  pkgs = import <nixpkgs> { };
+  dir = ./plugins;
+in
+{
+  hello = import ./hello.nix { inherit pkgs; };
+  plugins = map (name: import (./plugins + "/${name}.nix")) [ "a" "b" ];
+  extra = import (dir + "/extra.nix");
+  gone = import ./gone.nix;
+}
+
+>>> changelog

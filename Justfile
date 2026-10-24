@@ -67,6 +67,10 @@ update-resolution-corpus:
 update-ghc-corpus:
     node scripts/update-ghc-corpus.mjs
 
+# Re-record what `nix-instantiate --parse` says the paths of each case in fixtures/nix/nix-corpus.json are
+update-nix-corpus:
+    node scripts/update-nix-corpus.mjs
+
 # Measure performance and fail if it regressed against bench/reference.yaml
 benchmark:
     cabal bench deslop-bench

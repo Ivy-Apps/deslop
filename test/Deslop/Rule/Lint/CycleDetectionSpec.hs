@@ -8,7 +8,7 @@ import Deslop.Rule.Lint.CycleDetection (noImportCycles)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
-import Fixtures.Deslop.Module (mkModule, mkModuleAt)
+import Fixtures.Deslop.Module (mkModule, mkModuleAt, withUnresolved)
 import Fixtures.Deslop.Problem (describedAs, lintProblemAt, locatedAt, withFix)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
 import Test.Hspec
@@ -37,6 +37,13 @@ cycleFix =
 
 spec :: Spec
 spec = describe "Deslop.Rule.Lint.CycleDetection" $ do
+    -- What an unresolved dependency points at is unknown, so a loop through
+    -- it is one nobody knows is there.
+    it "ignores a dependency nobody can name, even one spelled like its importer" $ do
+        let a = mkModule "a" ["b"]
+            b = withUnresolved "a" $ mkModule "b" []
+        runNoImportCycles [a, b] `shouldReturn` []
+
     it "reports a two-module cycle" $ do
         let a = mkModule "a" ["b"]
             b = mkModule "b" ["a"]

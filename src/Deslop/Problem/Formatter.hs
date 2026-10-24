@@ -5,7 +5,7 @@ module Deslop.Problem.Formatter (
 
 import Data.List.NonEmpty qualified as NE
 import Data.Text qualified as T
-import Deslop.Module (EdgeKind (..), Location (..), ModuleName (..))
+import Deslop.Module (EdgeKind (..), Location (..), ModuleName (..), Specifier (..))
 import Deslop.Problem (Problem (..), ProblemId (..), ViolationKind (..), problemId)
 import FileSystem.Path (ProjectRelativePath, portablePath)
 import Utils (pluralise)
@@ -42,6 +42,7 @@ whereViolated :: ProjectRelativePath -> ViolationKind -> Text
 whereViolated _ DirectImport {location} = at location
 whereViolated modulePath TransitiveImport {firstImport} =
     maybe (portablePath modulePath) at firstImport
+whereViolated _ UnjudgedImport {location} = at location
 whereViolated modulePath MissingUse {} = portablePath modulePath
 whereViolated modulePath MissingModule {} = portablePath modulePath
 
@@ -71,13 +72,29 @@ violation fence badModule TransitiveImport {chain, firstImport, alsoReached} =
         <> badModule.text
         <> "' transitively imports '"
         <> (NE.last chain).text
-        <> "' ("
-        <> pluralise (NE.length chain - 1) "hop"
-        <> ") via: "
-        <> T.intercalate " → " (map (.text) (toList chain))
+        <> "'"
+        <> via chain
         <> "."
         <> maybe "" (codeBlock fence . (.code)) firstImport
         <> absorbed (firstHop chain) alsoReached
+violation fence badModule UnjudgedImport {chain, specifier, edge, location} =
+    "Module '"
+        <> badModule.text
+        <> "' "
+        <> verb edge
+        <> " '"
+        <> specifier.text
+        <> "', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged."
+        <> codeBlock fence location.code
+        <> reachedFrom
+  where
+    -- How a target of the Rule gets to the module that wrote the dependency,
+    -- unless it wrote it itself.
+    reachedFrom = case NE.tail chain of
+        [] -> ""
+        _ -> "\nReached from '" <> (NE.head chain).text <> "'" <> via chain <> "."
+    verb ImportEdge = "imports"
+    verb ReExportEdge = "re-exports"
 violation _ badModule MissingUse {requiredImport, transitive} =
     "Module '"
         <> badModule.text
@@ -91,6 +108,14 @@ violation _ badModule MissingModule {requiredModule} =
         <> "' requires '"
         <> requiredModule.text
         <> "' to exist."
+
+-- | How a chain gets where it goes: @ (2 hops) via: a → b → c@.
+via :: NonEmpty ModuleName -> Text
+via chain =
+    " ("
+        <> pluralise (NE.length chain - 1) "hop"
+        <> ") via: "
+        <> T.intercalate " → " (map (.text) (toList chain))
 
 {- | What the compacted duplicates would have said. Their forbidden modules are
 left out on purpose - they are what made the un-compacted report unreadable.

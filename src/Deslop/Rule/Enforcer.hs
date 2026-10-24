@@ -9,6 +9,7 @@ import Deslop.CodeGraph (
     graphKeyOf,
     moduleExists,
     reachableFrom,
+    reachableModules,
     refName,
     refOfKey,
  )
@@ -17,6 +18,7 @@ import Deslop.GlobPlus (MatchEnv, ResolvedClause, Segments, hydrate, matchExclud
 import Deslop.GlobPlus.Compiler (interpolate)
 import Deslop.Module (
     DependencyEdge (..),
+    EdgeTarget (..),
     Location (..),
     Module (..),
     ModuleName (..),
@@ -88,7 +90,7 @@ enforceRulebooks ::
 enforceRulebooks m = do
     rulebooks <- ask @[Rulebook]
     reached <- reachableFrom (ModuleKey m.id)
-    imported <- traverse importCandidate m.edges
+    imported <- traverse importCandidate . mapMaybe keyed $ m.edges
     let candidates =
             Candidates
                 { self = segmentsOfName <$> m.names
@@ -97,11 +99,14 @@ enforceRulebooks m = do
                 }
     runReader candidates $ traverse_ (enforceRulebook m) rulebooks
   where
-    -- Every edge's target has a vertex, so the lookup always finds one; the
-    -- fallback exists only so this is total, and names the edge by what the
-    -- source wrote, which is the sole thing known without the graph.
-    importCandidate edge = do
-        let key = graphKeyOf edge
+    -- An 'Unresolved' edge has no vertex, so nothing can be matched against
+    -- it; it is judged apart, by 'enforceUnjudged'.
+    keyed edge = (edge,) <$> graphKeyOf edge
+
+    -- Every keyed edge's target has a vertex, so the lookup always finds one;
+    -- the fallback exists only so this is total, and names the edge by what
+    -- the source wrote, which is the sole thing known without the graph.
+    importCandidate (edge, key) = do
         found <- refOfKey key
         let r = fromMaybe ModuleRef {key = key, names = moduleNameUnsafe edge.specifier.text :| []} found
         pure ImportCandidate {edge = edge, ref = r, segments = segmentsOfRef r}
@@ -148,6 +153,7 @@ enforceRule m rule = do
         MatchEnv -> Eff es ()
     execute env = do
         for_ rule.forbids (traverse_ (enforceForbids m env))
+        for_ rule.forbids (enforceUnjudged m env)
         for_ rule.exists (traverse_ (enforceExists m env))
         for_ rule.uses (traverse_ (enforceUses m env))
 
@@ -209,7 +215,7 @@ enforceForbids m env (ForbidsImport target transitive) = do
             let firstHop = listToMaybe . drop 1 . toList $ p
                 -- Found by what the edge resolved to, not by the text it was
                 -- written with: one module answers to several names.
-                edgeInto hop = stripped . (.location) <$> find ((== hop.key) . graphKeyOf) m.edges
+                edgeInto hop = stripped . (.location) <$> find ((== Just hop.key) . graphKeyOf) m.edges
             report
                 =<< ruleViolation
                     env
@@ -220,6 +226,50 @@ enforceForbids m env (ForbidsImport target transitive) = do
                         , alsoReached = []
                         }
         | otherwise = pure ()
+
+{- | A @forbids@ cannot match a dependency nobody can name, so it reports each
+one it would have had to judge instead of passing it. Which ones depends on how
+far the Rule looks: a direct @forbids@ judges the module's own dependencies, a
+transitive one every dependency of every module the module reaches.
+
+Each is reported at the module that wrote it, with the chain from this target
+to there. Every target reaching the same dependency reports it under the same
+"Deslop.Problem.ProblemId", and "Deslop.Problem.Shrinker" keeps one, so a
+dependency is reported once per Rule however many targets reach it.
+
+Once per Rule, not per clause: every clause would ask the same question of the
+same dependency. An @allows@ cannot excuse one either, since it too can only
+match a name.
+-}
+enforceUnjudged ::
+    ( Reader ModuleGraph :> es
+    , Reader RulebookId :> es
+    , Reader Rule :> es
+    , ReportProblem :> es
+    ) =>
+    Module -> MatchEnv -> NonEmpty ForbidsClause -> Eff es ()
+enforceUnjudged m env clauses = do
+    writers <-
+        if any (.transitive) clauses
+            then traverse chainTo . filter (not . null . unresolvedOf) =<< reachableModules (ModuleKey m.id)
+            else pure [(canonicalName m :| [], m)]
+    for_ writers $ \(chain, writer) ->
+        for_ (unresolvedOf writer) $ \(specifier, edge) ->
+            report
+                =<< ruleViolation
+                    env
+                    writer
+                    UnjudgedImport
+                        { chain = chain
+                        , specifier = specifier
+                        , edge = edge.kind
+                        , location = stripped edge.location
+                        }
+  where
+    -- Asked only of a module with something to report: a path search for
+    -- every module reached would make a large project quadratic.
+    chainTo writer = (,writer) . fmap refName <$> findKnownPath (ModuleKey m.id) (ModuleKey writer.id)
+    unresolvedOf writer = [(specifier, edge) | edge <- writer.edges, Unresolved specifier <- [edge.target]]
 
 enforceUses ::
     ( Reader RulebookId :> es

@@ -126,11 +126,24 @@ it; the same rule applies as above: a failing corpus test is not a reason to
 run this. See
 [ADR 22](docs/adr/0022-haskell-dependencies-are-judged-against-ghc.md).
 
+### Updating the nix corpus
+
+```bash
+nix run .#update-nix-corpus
+```
+
+Re-records what Nix's parser says the path literals and search paths of each
+case in `fixtures/nix/nix-corpus.json` are, by running `nix-instantiate --parse`
+over a temp copy of each case. Only the `nix` field is written.
+`Frontend.Nix.NixCorpusSpec` judges the Nix lexer against it; the same rule
+applies as above: a failing corpus test is not a reason to run this. See
+[ADR 24](docs/adr/0024-nix-paths-are-judged-against-nix-instantiate.md).
+
 ### Test fixtures
 
 `fixtures/` is laid out by language, then kind; what no language owns is under
-`fixtures/shared/`. Goldens mirror it under `.golden/typescript/`
-and `.golden/haskell/`.
+`fixtures/shared/`. Goldens mirror it under `.golden/typescript/`,
+`.golden/haskell/` and `.golden/nix/`.
 
 | Path | Holds |
 |------|-------|
@@ -140,6 +153,8 @@ and `.golden/haskell/`.
 | `fixtures/typescript/resolution-corpus.json` | the tsc oracle corpus (ADR 18) |
 | `fixtures/haskell/projects/` | whole Haskell projects (`hs-*`) |
 | `fixtures/haskell/ghc-corpus.json` | the ghc oracle corpus (ADR 22) |
+| `fixtures/nix/projects/` | whole Nix projects (`nix-*`) |
+| `fixtures/nix/nix-corpus.json` | the nix-instantiate oracle corpus (ADR 24) |
 | `fixtures/shared/rulebook/` | rulebook files, valid and broken |
 | `fixtures/shared/static/` | a tree of names, for filesystem effects |
 
@@ -155,6 +170,10 @@ ignore must be force-added once, or it will silently never be committed:
 ```bash
 git add -f fixtures/typescript/projects/ts-gitignore-project/<path>
 ```
+
+`fixtures/nix/projects/nix-nixos-config/` is a vendored snapshot (see its
+`VENDORED.md`): never edit its `.nix` files; only its `deslop/` directory is
+ours.
 
 ## Architecture
 

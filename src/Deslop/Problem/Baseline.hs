@@ -18,9 +18,8 @@ import Effectful.Internal.Effect ((:>))
 import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
-    fsFileExists,
     fsMkDirP,
-    fsReadFile,
+    fsReadFileIfExists,
     fsWriteFile,
  )
 import FileSystem.Path (AbsPath, withAbsBaseUnsafe)
@@ -44,11 +43,7 @@ loadBaseline projectPath = loadBaselineFromFile (withAbsBaseUnsafe projectPath b
 
 loadBaselineFromFile :: (RoFileSystem :> es) => AbsPath -> Eff es Baseline
 loadBaselineFromFile fp = do
-    exists <- fsFileExists fp
-    if exists
-        then
-            fsReadFile fp >>= pure . fromRight mempty . parseBasline
-        else pure mempty
+    maybe mempty (fromRight mempty . parseBasline) <$> fsReadFileIfExists fp
 
 parseBasline :: ByteString -> Either Text Baseline
 parseBasline bs =

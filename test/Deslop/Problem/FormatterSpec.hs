@@ -1,7 +1,7 @@
 module Deslop.Problem.FormatterSpec (spec) where
 
 import Data.Text qualified as T
-import Deslop.Module (EdgeKind (..), Location (..), ModuleName (..), moduleNameUnsafe)
+import Deslop.Module (EdgeKind (..), Location (..), ModuleName (..), moduleNameUnsafe, specifierUnsafe)
 import Deslop.Problem (Problem (..), ViolationKind (..))
 import Deslop.Problem.Formatter (CodeFence (..), formatProblem)
 import Fixtures.Deslop.Problem (BrokenRule (..), autoFixable, brokenRule, describedAs, lintProblemAt, locatedAt, withFix)
@@ -21,7 +21,11 @@ ruleViolation = violationOf DirectImport {edge = ImportEdge, imported = moduleNa
 
 -- | @@/lib/util@ breaking the barrel rule, from its source at @src/lib/util.ts@.
 violationOf :: ViolationKind -> Problem
-violationOf = reportedFrom "src/lib/util.ts" . Fixture.violationOf barrelRule "@/lib/util"
+violationOf = violationBy "@/lib/util" "src/lib/util.ts"
+
+-- | A module breaking the barrel rule, from its source at the path.
+violationBy :: Text -> Text -> ViolationKind -> Problem
+violationBy bad path = reportedFrom path . Fixture.violationOf barrelRule bad
   where
     barrelRule =
         (brokenRule "architecture" "no-barrel-imports")
@@ -232,4 +236,45 @@ spec = describe "Deslop.Problem.Formatter" $ do
                         <> "src/lib/util.ts\n"
                         <> "Barrel imports are forbidden\n\n"
                         <> "Module '@/lib/util' requires '@/lib/util.spec' to exist.\n"
+                        <> "FIX: Import directly from the module"
+
+            it "says a dependency of the module's own cannot be judged, quoting it" $ do
+                let p =
+                        violationOf
+                            UnjudgedImport
+                                { chain = moduleNameUnsafe "@/lib/util" :| []
+                                , specifier = specifierUnsafe "./. + n"
+                                , edge = ImportEdge
+                                , location = statementAt 4 "import (./. + n)"
+                                }
+
+                formatProblem ts p
+                    `shouldBe` "# architecture#no-barrel-imports#@/lib/util#unresolved#./. + n\n"
+                        <> "src/lib/util.ts:4\n"
+                        <> "Barrel imports are forbidden\n\n"
+                        <> "Module '@/lib/util' imports './. + n', which Deslop cannot resolve to a module, "
+                        <> "so whether it breaks this Rule cannot be judged.\n"
+                        <> "```ts\nimport (./. + n)\n```\n"
+                        <> "FIX: Import directly from the module"
+
+            it "says which target reaches a dependency that cannot be judged, and how, after quoting it" $ do
+                let p =
+                        violationBy
+                            "@/forbids/store"
+                            "src/forbids/store.ts"
+                            UnjudgedImport
+                                { chain = twoHopChain
+                                , specifier = specifierUnsafe "./gone"
+                                , edge = ReExportEdge
+                                , location = locatedAt "src/forbids/store.ts" 2 "export * from './gone'"
+                                }
+
+                formatProblem ts p
+                    `shouldBe` "# architecture#no-barrel-imports#@/forbids/store#unresolved#./gone\n"
+                        <> "src/forbids/store.ts:2\n"
+                        <> "Barrel imports are forbidden\n\n"
+                        <> "Module '@/forbids/store' re-exports './gone', "
+                        <> "which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.\n"
+                        <> "```ts\nexport * from './gone'\n```\n"
+                        <> "Reached from '@/lib/util' (2 hops) via: @/lib/util → @/lib/a → @/forbids/store.\n"
                         <> "FIX: Import directly from the module"

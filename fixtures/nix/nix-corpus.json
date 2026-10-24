@@ -1,0 +1,693 @@
+{
+  "about": [
+    "What Nix itself says the path literals of each case are. The `nix` field is",
+    "recorded by `just update-nix-corpus`, which runs `nix-instantiate --parse`",
+    "over the case, and is never edited by hand: it is the parser's answer, and it",
+    "is what Frontend.Nix.NixCorpusSpec judges Deslop's Nix lexer against.",
+    "Everything else is authored. `source` is the literal contents of one file,",
+    "`/corpus/project/case.nix`, with `HOME` at `/corpus/home`. `nix` is either",
+    "`parses`: every path literal as Nix resolves it at parse time - the text",
+    "before its first interpolation, made absolute - and every search path, each",
+    "sorted; or `rejects`: the error Nix stops at.",
+    "A `knownGap` names what Deslop does not yet read the way Nix does; the spec",
+    "asserts those still differ, so closing one turns its test red."
+  ],
+  "cases": [
+    {
+      "name": "a relative path",
+      "source": "./a.nix\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a parent path",
+      "source": "../lib/b.nix\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/lib/b.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "the current and the parent directory",
+      "source": "[ ./. ../. ./.. ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus",
+            "/corpus",
+            "/corpus/project"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a nested path",
+      "source": "./a/b/c.nix\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a/b/c.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "an absolute path",
+      "source": "/etc/hosts\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/etc/hosts"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a path is canonicalised",
+      "source": "[ ./a/../b/./c.nix /etc/./nix/../hosts ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/b/c.nix",
+            "/etc/hosts"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a home path",
+      "source": "~/.config/x.nix\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/home/.config/x.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "path characters",
+      "source": "[ ./my-module_v2.nix ../foo+bar/x.nix ./a.nix.c ./.hidden ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/foo+bar/x.nix",
+            "/corpus/project/.hidden",
+            "/corpus/project/a.nix.c",
+            "/corpus/project/my-module_v2.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "search paths",
+      "source": "[ <nixpkgs> <nixpkgs/lib> <nixos-config> <a.b/c-d> ]\n",
+      "nix": {
+        "parses": {
+          "paths": [],
+          "searchPaths": [
+            "a.b/c-d",
+            "nixos-config",
+            "nixpkgs",
+            "nixpkgs/lib"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a comparison is no search path",
+      "source": "x: y: [ (x<y) (y > x) (x <= y) ]\n",
+      "nix": {
+        "parses": {
+          "paths": [],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a URI is no path",
+      "source": "[ https://example.org/a/b.nix github:NixOS/nixpkgs ]\n",
+      "nix": {
+        "parses": {
+          "paths": [],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a lambda without a space is a URI",
+      "source": "x:./a.nix\n",
+      "nix": {
+        "parses": {
+          "paths": [],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a lambda with a space binds a path",
+      "source": "x: ./a.nix\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "division with spaces, a path without",
+      "source": "a: b: [ (a / b) (a/b) (a /b) ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/b",
+            "/corpus/project/a/b"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a number before a slash is a path",
+      "source": "x: [ (x/2) (1/2) (2.5/x) ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/1/2",
+            "/corpus/project/2.5/x",
+            "/corpus/project/x/2"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a selection before a slash is a path",
+      "source": "a: c: [ a.b/c (a.b / c) ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a.b/c"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "the update operator is no path",
+      "source": "x: y: [ (x//y) (x // y) (x ///etc) ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/etc"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "plus signs are path characters",
+      "source": "a: b: x: [ (a++b/c) (a ++ b) (x+./a) ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a++b/c",
+            "/corpus/project/x+./a"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "an implication is no path",
+      "source": "a: b: a -> b\n",
+      "nix": {
+        "parses": {
+          "paths": [],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "comments hide paths",
+      "source": "# ./hidden.nix\n/* ./also/hidden.nix\n   # ./nested */\n./shown.nix # ./trailing\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/shown.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a comment right after a path",
+      "source": "[ ./a.nix#./b.nix\n./c ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a.nix",
+            "/corpus/project/c"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "an ellipsis is no path",
+      "source": "{ a, ... }@args: ./x.nix\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/x.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "let and inherit",
+      "source": "let a = ./a.nix; in { inherit a; inherit (./c) d e; f = (import ./g.nix).h; }\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a.nix",
+            "/corpus/project/c",
+            "/corpus/project/g.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a path in a string interpolation",
+      "source": "\"${./x.nix}\"\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/x.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a string's own text is no path",
+      "source": "\"./not/a/path ${\"./neither\"} /etc/hosts\"\n",
+      "nix": {
+        "parses": {
+          "paths": [],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "escaped interpolations are text",
+      "source": "\"\\${./no} $${./no} $\\${./no} ${./yes} $\"\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/yes"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "an import in an interpolation",
+      "source": "\"${import ./a.nix}\"\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "nested strings and braces in interpolations",
+      "source": "\"${\"${./deep.nix}\"} ${ { a = ./set.nix; }.a } ${ \"}\" } ${./after.nix}\"\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/after.nix",
+            "/corpus/project/deep.nix",
+            "/corpus/project/set.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "indented string escapes",
+      "source": "'' ''${./a} ''' ${./b} ''\\${./c} $${./d} '${./e} ''\\n ${''${./f}''} ''\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/b",
+            "/corpus/project/e",
+            "/corpus/project/f"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "an indented string ends at its first unescaped quotes",
+      "source": "[ ''it'''s ${./in.nix}'' ./after.nix ''x'' ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/after.nix",
+            "/corpus/project/in.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "interpolated paths",
+      "source": "n: [ ./a/${n}.nix ./${n} ./a${n} ~/${n} /${n} ./a/${n}/b/${n}c ./a.${n} ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/",
+            "/corpus/home/",
+            "/corpus/project/",
+            "/corpus/project/a",
+            "/corpus/project/a.",
+            "/corpus/project/a/",
+            "/corpus/project/a/"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a path inside a path's interpolation",
+      "source": "n: ./a/${import ./b.nix}/c\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a/",
+            "/corpus/project/b.nix"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a path in a dynamic attribute",
+      "source": "x: { ${toString ./k} = 1; }.${toString ./s}\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/k",
+            "/corpus/project/s"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "an unterminated string",
+      "source": "\"abc ${./x}\n",
+      "nix": {
+        "rejects": "syntax error, unexpected end of file, expecting '\"'"
+      }
+    },
+    {
+      "name": "an unterminated comment",
+      "source": "/* ./x.nix\n",
+      "nix": {
+        "rejects": "syntax error, unexpected '/'"
+      }
+    },
+    {
+      "name": "an unclosed interpolation",
+      "source": "\"${./x.nix\"\n",
+      "nix": {
+        "rejects": "syntax error, unexpected end of file, expecting '\"'"
+      }
+    },
+    {
+      "name": "a home path is not canonicalised",
+      "source": "[ ~/a/../b/. ~/a/${\"x\"}/b ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/home/a/",
+            "/corpus/home/a/../b/."
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "the root and above it",
+      "source": "[ /. /.. /a/../.. ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/",
+            "/",
+            "/"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "dots before a slash are a path",
+      "source": "[ ./a/../.. .../x ./a.nix.${\"x\"} ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus",
+            "/corpus/project/.../x",
+            "/corpus/project/a.nix."
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a path right after a selection brace",
+      "source": "{ a = 1; }.a/2\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/.a/2"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "an identifier before a dot and a slash is a path",
+      "source": "x: x./a\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/x./a"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a minus sign is a path character",
+      "source": "x: [ (-./a) (x-1/2) (!./b) ]\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/-./a",
+            "/corpus/project/b",
+            "/corpus/project/x-1/2"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a URI swallows a slash and a comment",
+      "source": "x:/*c*/./a\n",
+      "nix": {
+        "parses": {
+          "paths": [],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a search path between two identifiers",
+      "source": "x: [ (x<y>x) <./a> <nixpkgs> ]\n",
+      "nix": {
+        "parses": {
+          "paths": [],
+          "searchPaths": [
+            "./a",
+            "nixpkgs",
+            "y"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a path after a search path",
+      "source": "<nixpkgs>/a\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/a"
+          ],
+          "searchPaths": [
+            "nixpkgs"
+          ]
+        }
+      }
+    },
+    {
+      "name": "comments in an interpolation hide braces",
+      "source": "\"${/* } */ ./a} ${# }\n./b}\"\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a",
+            "/corpus/project/b"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "an indented string inside an interpolation",
+      "source": "\"${'' } ${./in} ''} ${./out}\"\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/in",
+            "/corpus/project/out"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a quote before an interpolation in an indented string",
+      "source": "'' a'${./a} $'' \n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "consecutive interpolations in a path",
+      "source": "x: y: ./a/${x}${y}/b\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a/"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a string with only escapes",
+      "source": "[ \"\\\"\" \"\\\\\" \"$\" \"\\${\" ''$'' ''x'''y'' '''' ]\n",
+      "nix": {
+        "parses": {
+          "paths": [],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a block comment of stars",
+      "source": "/**/ /***/ /*/ ./no */ ./yes\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/yes"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "keywords around paths",
+      "source": "with import <nixpkgs> {}; assert ./a == ./a; rec { b = ./b; c = if true then ./c else ./d; }\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/a",
+            "/corpus/project/a",
+            "/corpus/project/b",
+            "/corpus/project/c",
+            "/corpus/project/d"
+          ],
+          "searchPaths": [
+            "nixpkgs"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a non-ASCII string before a path",
+      "source": "\"é ${./x} ü\"\n",
+      "nix": {
+        "parses": {
+          "paths": [
+            "/corpus/project/x"
+          ],
+          "searchPaths": []
+        }
+      }
+    },
+    {
+      "name": "a trailing slash",
+      "source": "./a/\n",
+      "nix": {
+        "rejects": "path has a trailing slash"
+      }
+    },
+    {
+      "name": "a block comment right after a slash",
+      "source": "./a/*c*/\n",
+      "nix": {
+        "rejects": "path has a trailing slash"
+      }
+    },
+    {
+      "name": "an update right after a path",
+      "source": "a: b: c: a/b//c\n",
+      "nix": {
+        "rejects": "syntax error, unexpected PATH_END, expecting DOLLAR_CURLY"
+      }
+    }
+  ]
+}

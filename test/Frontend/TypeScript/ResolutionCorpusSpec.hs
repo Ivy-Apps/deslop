@@ -7,24 +7,23 @@ oracle without needing @tsc@, or even node, on the machine. See
 @docs\/adr\/0018-typescript-resolution-is-judged-against-tsc.md@.
 
 A case carrying a @knownGap@ is one Deslop does not yet resolve the way @tsc@
-does. Those are asserted to /still differ/: closing a gap turns its own test red
-and names what changed, rather than the gap quietly staying invisible.
+does; see 'TestUtils.corpusCase'.
 -}
 module Frontend.TypeScript.ResolutionCorpusSpec (spec) where
 
-import Data.Aeson (FromJSON, Value, eitherDecodeFileStrict', encode)
+import Data.Aeson (FromJSON, Value, encode)
 import Data.Map.Strict qualified as Map
 import Deslop.Module (specifierUnsafe)
 import Doubles.FileSystem (mockFileSystem, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
-import FileSystem.Path (AbsPath, ProjectRoot (..), absPathUnsafe, decodeOsPath, encodeOsPath, portablePath, relativePathTo)
+import FileSystem.Path (AbsPath, ProjectRoot (..), absPathUnsafe, encodeOsPath, portablePath, relativePathTo)
 import Fixtures.OnDisk (resolutionCorpus)
 import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.Config.Loader (loadTsConfig)
 import Frontend.TypeScript.ModuleResolver (resolve)
 import Test.Hspec
-import TestUtils (requireRight)
+import TestUtils (corpusCase, loadCorpus, requireRight)
 
 -- | One case, exactly as authored and recorded in the corpus file.
 data ResolutionCase = ResolutionCase
@@ -41,21 +40,11 @@ data ResolutionCase = ResolutionCase
     deriving stock (Generic, Show)
     deriving anyclass (FromJSON)
 
-newtype Corpus = Corpus {cases :: [ResolutionCase]}
-    deriving stock (Generic, Show)
-    deriving anyclass (FromJSON)
-
 spec :: Spec
 spec = describe "Frontend.TypeScript.ResolutionCorpus" $ do
-    corpus <- runIO loadCorpus
-    for_ corpus.cases $ \c ->
-        it (toString (label c)) $ do
-            actual <- resolveCase c
-            case c.knownGap of
-                Nothing -> actual `shouldBe` c.tsc
-                Just _ -> actual `shouldNotBe` c.tsc
-  where
-    label c = c.name <> " (" <> c.specifier <> ")" <> maybe "" (const " [known gap]") c.knownGap
+    cases <- runIO (loadCorpus @ResolutionCase resolutionCorpus)
+    for_ cases $ \c ->
+        corpusCase (c.name <> " (" <> c.specifier <> ")") c.knownGap (resolveCase c) c.tsc
 
 {- | What Deslop resolves the case's specifier to, spelled from the case root so
 that it can be compared with what @tsc@ recorded.
@@ -97,8 +86,3 @@ caseRoot = ProjectRoot (absPathUnsafe (encodeOsPath "/corpus"))
 
 pathIn :: Text -> AbsPath
 pathIn path = absPathUnsafe . encodeOsPath $ "/corpus/" <> path
-
-loadCorpus :: IO Corpus
-loadCorpus = do
-    decoded <- eitherDecodeFileStrict' . toString . decodeOsPath $ resolutionCorpus
-    requireRight ("reading the resolution corpus: " <>) decoded
