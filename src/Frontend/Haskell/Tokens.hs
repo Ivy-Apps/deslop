@@ -7,10 +7,14 @@ header and its imports needs - a number, say, is a run of 'OtherK' tokens.
 module Frontend.Haskell.Tokens (
     HsToken (..),
     HsTokenKind (..),
+    Positioned (..),
+    positioned,
     isTrivia,
     isKeyword,
 ) where
 
+import Data.List qualified as L
+import Data.Text qualified as T
 import Renderable (Renderable (..))
 
 data HsToken = HsToken
@@ -42,6 +46,24 @@ data HsTokenKind
     | -- | Anything else, one character at a time.
       OtherK
     deriving stock (Show, Eq, Ord)
+
+-- | A token and where it starts, 1-based.
+data Positioned = Positioned
+    { line :: Int
+    , column :: Int
+    , token :: HsToken
+    }
+
+positioned :: [HsToken] -> [Positioned]
+positioned = snd . L.mapAccumL place (1, 1)
+  where
+    place pos t = (T.foldl' advance pos t.raw, uncurry Positioned pos t)
+    advance (l, c) = \case
+        '\n' -> (l + 1, 1)
+        -- GHC's tab stops are 8 columns apart.
+        '\t' -> (l, ((c - 1) `div` 8 + 1) * 8 + 1)
+        '\xFEFF' -> (l, c)
+        _ -> (l, c + 1)
 
 -- | Whitespace and comments: what layout and grammar look straight through.
 isTrivia :: HsToken -> Bool

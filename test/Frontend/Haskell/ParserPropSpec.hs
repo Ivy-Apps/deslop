@@ -1,6 +1,7 @@
 module Frontend.Haskell.ParserPropSpec (spec) where
 
-import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), Qualification (..))
+import Fixtures.Frontend.Haskell.CST (headerNameOf, reExportsOf)
+import Frontend.Haskell.CST (HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), Qualification (..))
 import Frontend.Haskell.Lexer (lexHaskell)
 import Frontend.Haskell.ModuleName (dotted)
 import Frontend.Haskell.Parser (parseHaskell)
@@ -31,11 +32,7 @@ spec = describe "Frontend.Haskell.ParserProp" $ do
         maybe (pure ()) ((=== text) . Renderable.render) (parseHaskell (lexHaskell text))
   where
     said source =
-        ( case source.header of
-            ImplicitMain -> Nothing
-            Declared h -> Just (dotted h.name)
-        , case source.header of
-            ImplicitMain -> []
-            Declared h -> dotted . (.name) <$> h.reExports
+        ( headerNameOf source
+        , dotted . (.name) <$> reExportsOf source
         , [(i.decl.package, dotted i.decl.moduleName, i.decl.qualification == Qualified, dotted <$> i.decl.alias) | i <- source.imports]
         )

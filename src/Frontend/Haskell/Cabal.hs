@@ -328,15 +328,15 @@ sharing that directory, the first in the @.cabal@ file: deterministic, and
 what makes @src/@ inside a @.@ source directory belong to the component that
 names @src@.
 -}
-ownerOf :: HsConfig -> AbsPath -> Maybe Owner
-ownerOf cfg file = asMain <|> uncurry Owner . second PathNamed <$> listToMaybe (sourceNamesOf cfg file)
+ownerOf :: [Component] -> AbsPath -> Maybe Owner
+ownerOf components file = asMain <|> uncurry Owner . second PathNamed <$> listToMaybe (sourceNamesOf components file)
   where
     fileSegments = splitDirectories file.osPath
 
     asMain =
         listToMaybe
             [ Owner c MainModule
-            | c <- cfg.components
+            | c <- components
             , MainIs m <- maybeToList (mainIsOf c.kind)
             , dir <- toList c.sourceDirs
             , splitDirectories (lexicallyNormal (dir.osPath </> m)) == fileSegments
@@ -347,12 +347,12 @@ GHC looks the file up by from that directory: deepest directory first, then
 in @.cabal@ order. GHC compiles the file into each of them, so each may import
 it, though only the first owns it.
 -}
-sourceNamesOf :: HsConfig -> AbsPath -> [(Component, HsModuleName)]
-sourceNamesOf cfg file =
+sourceNamesOf :: [Component] -> AbsPath -> [(Component, HsModuleName)]
+sourceNamesOf components file =
     fmap snd
         . sortOn (Down . fst)
         $ [ (length dirSegments, (c, nameBelow rest))
-          | c <- cfg.components
+          | c <- components
           , dir <- toList c.sourceDirs
           , let dirSegments = splitDirectories dir.osPath
           , Just rest <- [nonEmpty =<< L.stripPrefix dirSegments (splitDirectories file.osPath)]

@@ -4,10 +4,7 @@ and tool caches.
 On top of "Git.Ignore.alwaysIgnored", which holds what is never walked in any
 language.
 -}
-module Frontend.Haskell.Ignore (
-    hsEcosystemIgnored,
-    hsEcosystemIgnoredNames,
-) where
+module Frontend.Haskell.Ignore (hsEcosystemIgnored) where
 
 import FileSystem.Iterator (Entry)
 import Git.Ignore (ignoredByName)

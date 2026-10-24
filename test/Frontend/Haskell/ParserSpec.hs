@@ -1,6 +1,7 @@
 module Frontend.Haskell.ParserSpec (spec) where
 
-import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), Qualification (..))
+import Fixtures.Frontend.Haskell.CST (headerNameOf, reExportsOf)
+import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), Qualification (..))
 import Frontend.Haskell.Lexer (lexHaskell)
 import Frontend.Haskell.ModuleName (dotted)
 import Frontend.Haskell.Parser (parseHaskell)
@@ -173,11 +174,4 @@ spec = describe "Frontend.Haskell.Parser" $ do
         source <- parsed text
 
         Renderable.render source `shouldBe` text
-  where
-    headerNameOf source = case source.header of
-        Declared h -> Just (dotted h.name)
-        ImplicitMain -> Nothing
-    reExportsOf source = case source.header of
-        Declared h -> h.reExports
-        ImplicitMain -> []
 

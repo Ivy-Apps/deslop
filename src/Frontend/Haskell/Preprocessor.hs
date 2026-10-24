@@ -18,7 +18,7 @@ module Frontend.Haskell.Preprocessor (
 
 import Data.Char (isSpace, toUpper)
 import Data.Text qualified as T
-import Frontend.Haskell.Tokens (HsToken (..), HsTokenKind (..), isTrivia)
+import Frontend.Haskell.Tokens (HsToken (..), HsTokenKind (..), Positioned (..), isTrivia, positioned)
 import System.FilePath (takeBaseName)
 
 data Preprocessor
@@ -51,9 +51,7 @@ requestedInFile = concatMap requests . pragmasOnLines . takeWhile isTrivia
     requests (line, t) = (`Request` ByPragma line (T.strip t.raw)) <$> pragmaPreprocessors t.raw
 
 pragmasOnLines :: [HsToken] -> [(Int, HsToken)]
-pragmasOnLines toks = [(line, t) | (line, t) <- zip (scanl advance 1 toks) toks, t.kind == PragmaK]
-  where
-    advance line t = line + T.count "\n" t.raw
+pragmasOnLines toks = [(p.line, p.token) | p <- positioned toks, p.token.kind == PragmaK]
 
 -- | @{-# LANGUAGE CPP #-}@, @{-# OPTIONS_GHC -F -pgmF hspec-discover #-}@.
 pragmaPreprocessors :: Text -> [Preprocessor]

@@ -12,7 +12,7 @@ module Frontend.Haskell.Unit (
 
 import Data.Text.Encoding qualified as TE
 import FileSystem.Path (AbsPath)
-import Frontend.Haskell.Cabal (Component (..), HsConfig, Owner (..), ownerOf)
+import Frontend.Haskell.Cabal (Component (..), Owner (..), ownerOf)
 import Frontend.Haskell.CST (HsProgram (..))
 import Frontend.Haskell.Lexer (lexHaskell)
 import Frontend.Haskell.Parser (parseHaskell)
@@ -38,12 +38,12 @@ data Opacity
 then by its component - because what CPP reads is not Haskell, and a guess at
 its imports would be read as fact.
 -}
-readUnit :: HsConfig -> AbsPath -> ByteString -> HsUnit
-readUnit cfg path bytes = case TE.decodeUtf8' bytes of
+readUnit :: [Component] -> AbsPath -> ByteString -> HsUnit
+readUnit components path bytes = case TE.decodeUtf8' bytes of
     Left _ -> Opaque path NotUtf8 bytes
     Right text ->
         let tokens = lexHaskell text
-            requests = requestedInFile tokens <> maybe [] (.component.preprocessors) (ownerOf cfg path)
+            requests = requestedInFile tokens <> maybe [] (.component.preprocessors) (ownerOf components path)
          in case (opaqueRequest requests, parseHaskell tokens) of
                 (Just request, _) -> Opaque path (Preprocessed request) bytes
                 (Nothing, Nothing) -> Opaque path Unparseable bytes

@@ -63,7 +63,7 @@ lowerProject projectRoot cfg units = do
     -- Canonicalised once per file, and used both for the module and for every
     -- edge into it, so the two can never disagree.
     ids <- traverse (fmap (moduleIdUnsafe . decodeOsPath . (.osPath)) . fsMkAbsolute . (.osPath) . unitPath) units
-    pure $ lowerNamed projectRoot cfg (zipWith (named projectRoot cfg) ids units)
+    pure $ lowerNamed projectRoot cfg (zipWith (named projectRoot cfg.components) ids units)
 
 -- | A unit, with who it is and what compiles it.
 data Named = Named
@@ -74,12 +74,12 @@ data Named = Named
     -- ^ What GHC calls it: @Main@ for a @main-is@.
     }
 
-named :: ProjectRoot -> HsConfig -> ModuleId -> HsUnit -> Named
-named projectRoot cfg moduleId unit =
+named :: ProjectRoot -> [Component] -> ModuleId -> HsUnit -> Named
+named projectRoot components moduleId unit =
     Named {id = moduleId, unit, owner, bare}
   where
     path = unitPath unit
-    owner = ownerOf cfg path
+    owner = ownerOf components path
     bare = case owner of
         Just (Owner _ MainModule) -> mainModule
         Just (Owner _ (PathNamed n)) -> n
@@ -107,7 +107,7 @@ lowerNamed projectRoot cfg entries = (fmap moduleOf entries, notRead <> disagree
             (flip Map.union)
             [ (qualifier c, Map.singleton n (reaching entry))
             | entry <- entries
-            , (c, n) <- sourceNamesOf cfg (unitPath entry.unit)
+            , (c, n) <- sourceNamesOf cfg.components (unitPath entry.unit)
             , not (isMainOf c entry)
             ]
     isMainOf c entry = case entry.owner of

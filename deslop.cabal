@@ -199,6 +199,7 @@ test-suite deslop-test
     Fixtures.Deslop.Module
     Fixtures.Deslop.Problem.Baseline
     Fixtures.Deslop.Rule.Book.Dto
+    Fixtures.Frontend.Haskell.CST
     Fixtures.Frontend.Haskell.Project
     Fixtures.Frontend.TypeScript.Config
     Frontend.Haskell.CabalSpec

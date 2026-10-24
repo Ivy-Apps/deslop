@@ -40,9 +40,7 @@ discoveredSpecs driver files =
 
 specName :: [Text] -> Maybe HsModuleName
 specName segments = do
-    (dirs, file) <- unsnoc segments
+    (dirs, file) <- L.unsnoc segments
     stem <- T.stripSuffix "Spec.hs" file
     guard (not (T.null stem))
     fromSegments (dirs <> [stem <> "Spec"])
-  where
-    unsnoc xs = (,) <$> viaNonEmpty init xs <*> viaNonEmpty last xs

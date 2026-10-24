@@ -7,7 +7,8 @@ module Fixtures.Frontend.Haskell.Project (
     inProject,
     Lowered (..),
     lowerFiles,
-    loadConfigOf,
+    cabalPackage,
+    configFrom,
     edgesFrom,
     moduleNamed,
 ) where
@@ -22,9 +23,9 @@ import Effectful.Reader.Static (runReader)
 import Effects.FileSystem (fsReadFile)
 import FileSystem.Path (AbsPath, ProjectRoot (..))
 import Frontend.Haskell (HsConfigError, HsFrontend (..), HsLowerError)
-import Frontend.Haskell.Cabal (HsConfig)
+import Frontend.Haskell.Cabal (HsConfig, loadHsConfig)
 import Git.Ignore (loadGitIgnore)
-import TestUtils (ap)
+import TestUtils (ap, requireRight)
 
 projectRoot :: ProjectRoot
 projectRoot = ProjectRoot (ap "/project")
@@ -51,11 +52,15 @@ lowerFiles files = do
                 units <- traverse (\path -> parse HsFrontend cfg path <$> fsReadFile path) paths
                 Right . uncurry Lowered <$> lower HsFrontend cfg units
 
--- | Just the configuration these files load to.
-loadConfigOf :: [(Text, ByteString)] -> IO (Either HsConfigError HsConfig)
-loadConfigOf files = do
-    fs <- newInMemoryFileSystem [(inProject path, bytes) | (path, bytes) <- files]
-    fmap (fmap fst) . runEff . runInMemoryFileSystem fs $ loadConfig HsFrontend projectRoot
+-- | The @.cabal@ file of a package @p@ holding these stanzas.
+cabalPackage :: [Text] -> Text
+cabalPackage stanzas = T.unlines (["cabal-version: 3.0", "name: p", "version: 0"] <> stanzas)
+
+-- | The configuration a @p.cabal@ holding this text loads to; the test fails when it does not load.
+configFrom :: Text -> IO HsConfig
+configFrom cabal = do
+    fs <- newInMemoryFileSystem [(inProject "p.cabal", encodeUtf8 cabal)]
+    fmap fst . requireRight show =<< runEff (runInMemoryFileSystem fs (loadHsConfig projectRoot))
 
 -- | The module whose canonical name this is.
 moduleNamed :: Text -> Lowered -> Maybe Module

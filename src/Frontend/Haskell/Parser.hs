@@ -14,7 +14,7 @@ import Data.List qualified as L
 import Data.Text qualified as T
 import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), Qualification (..))
 import Frontend.Haskell.ModuleName (HsModuleName, fromDotted)
-import Frontend.Haskell.Tokens (HsToken (..), HsTokenKind (..), isKeyword, isTrivia)
+import Frontend.Haskell.Tokens (HsToken (..), HsTokenKind (..), Positioned (..), isKeyword, isTrivia, positioned)
 import Renderable (Renderable (..))
 import Text.Megaparsec (Parsec, anySingle, eof, runParser, satisfy, token)
 
@@ -25,24 +25,6 @@ source gives back the tokens it was parsed from.
 -}
 parseHaskell :: [HsToken] -> Maybe HsSource
 parseHaskell = parseTokens . positioned
-
--- | A token and where it starts, 1-based.
-data Positioned = Positioned
-    { line :: Int
-    , column :: Int
-    , token :: HsToken
-    }
-
-positioned :: [HsToken] -> [Positioned]
-positioned = snd . L.mapAccumL place (1, 1)
-  where
-    place pos t = (T.foldl' advance pos t.raw, uncurry Positioned pos t)
-    advance (l, c) = \case
-        '\n' -> (l + 1, 1)
-        -- GHC's tab stops are 8 columns apart.
-        '\t' -> (l, ((c - 1) `div` 8 + 1) * 8 + 1)
-        '\xFEFF' -> (l, c)
-        _ -> (l, c + 1)
 
 -- | How the top-level declarations of a module are delimited.
 data Layout
@@ -154,12 +136,7 @@ nextDeclaration layout = \case
 
 -- | The bracket depth each token sits at, counted from the lead.
 depths :: [Positioned] -> [Int]
-depths = L.scanl' step 0 . fmap (.token)
-  where
-    step depth t
-        | any (`isSpecial` t) ["(", "[", "{"] = depth + 1
-        | any (`isSpecial` t) [")", "]", "}"] = max 0 (depth - 1)
-        | otherwise = depth
+depths = L.scanl' (\depth t -> max 0 (depth + bracketDelta t)) 0 . fmap (.token)
 
 splitTopLevel :: (HsToken -> Bool) -> [Positioned] -> [[Positioned]]
 splitTopLevel isSeparator toks = go (zip (depths toks) toks)
@@ -213,11 +190,7 @@ importDecl = rightToMaybe . runParser grammar "" . filter (not . isTrivia) . tok
     nested 0 = pure ()
     nested depth = do
         t <- anySingle
-        nested $ case t.raw of
-            _ | t.kind /= SpecialK -> depth
-            r | r `elem` ["(", "[", "{"] -> depth + 1
-            r | r `elem` [")", "]", "}"] -> depth - 1
-            _ -> depth
+        nested (depth + bracketDelta t)
 
 keyword :: Text -> TokenParser ()
 keyword word = void $ satisfy (isKeyword word)
@@ -233,6 +206,13 @@ moduleNameOf t = guard (t.kind == ConIdK) *> fromDotted t.raw
 
 isSpecial :: Text -> HsToken -> Bool
 isSpecial s t = t.kind == SpecialK && t.raw == s
+
+-- | How far a token moves the bracket depth: in by an opening one, out by a closing one.
+bracketDelta :: HsToken -> Int
+bracketDelta t
+    | any (`isSpecial` t) ["(", "[", "{"] = 1
+    | any (`isSpecial` t) [")", "]", "}"] = -1
+    | otherwise = 0
 
 trivia :: Positioned -> Bool
 trivia = isTrivia . (.token)

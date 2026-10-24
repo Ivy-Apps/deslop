@@ -1,8 +1,7 @@
 module Frontend.Haskell.ModuleSpec (spec) where
 
-import Data.Text qualified as T
 import Deslop.Module (DependencyEdge (..), Location (..), Module (..), ModuleName (..), canonicalName)
-import Fixtures.Frontend.Haskell.Project (Lowered (..), edgesFrom, lowerFiles, moduleNamed)
+import Fixtures.Frontend.Haskell.Project (Lowered (..), cabalPackage, edgesFrom, lowerFiles, moduleNamed)
 import FileSystem.Path (portablePath)
 import Renderable qualified
 import Test.Hspec
@@ -10,11 +9,8 @@ import TestUtils (requireJust, requireRight)
 
 cabal :: ByteString
 cabal =
-    encodeUtf8 . T.unlines $
-        [ "cabal-version: 3.0"
-        , "name: p"
-        , "version: 0"
-        , "library"
+    encodeUtf8 . cabalPackage $
+        [ "library"
         , "  hs-source-dirs: src"
         , "executable p"
         , "  main-is: Main.hs"
@@ -163,7 +159,7 @@ spec = describe "Frontend.Haskell.Module" $ do
             twice <-
                 requireRight (toString . Renderable.render)
                     =<< lowerFiles
-                        [ ("p.cabal", "cabal-version: 3.0\nname: p\nversion: 0\nlibrary\n  hs-source-dirs: src, more\n")
+                        [ ("p.cabal", encodeUtf8 (cabalPackage ["library\n  hs-source-dirs: src, more"]))
                         , ("src/A.hs", "module A where\n")
                         , ("more/A.hs", "module A where\n")
                         ]
@@ -176,7 +172,7 @@ spec = describe "Frontend.Haskell.Module" $ do
             runIO $
                 requireRight (toString . Renderable.render)
                     =<< lowerFiles
-                        [ ("p.cabal", "cabal-version: 3.0\nname: p\nversion: 0\nlibrary\n  hs-source-dirs: src\ntest-suite t\n  type: exitcode-stdio-1.0\n  main-is: Main.hs\n  hs-source-dirs: src, test\n")
+                        [ ("p.cabal", encodeUtf8 (cabalPackage ["library\n  hs-source-dirs: src", "test-suite t\n  type: exitcode-stdio-1.0\n  main-is: Main.hs\n  hs-source-dirs: src, test"]))
                         , ("src/A.hs", "module A where\n")
                         , ("test/Main.hs", "import A\nmain = pure ()\n")
                         ]
@@ -193,7 +189,7 @@ spec = describe "Frontend.Haskell.Module" $ do
             runIO $
                 requireRight (toString . Renderable.render)
                     =<< lowerFiles
-                        [ ("p.cabal", "cabal-version: 3.0\nname: p\nversion: 0\ntest-suite t\n  type: exitcode-stdio-1.0\n  main-is: Spec.hs\n  hs-source-dirs: test\n  ghc-options: -F -pgmF hspec-discover\n")
+                        [ ("p.cabal", encodeUtf8 (cabalPackage ["test-suite t\n  type: exitcode-stdio-1.0\n  main-is: Spec.hs\n  hs-source-dirs: test\n  ghc-options: -F -pgmF hspec-discover"]))
                         , ("test/Spec.hs", "module Main where\n")
                         , ("test/ASpec.hs", "module ASpec where\n")
                         ]

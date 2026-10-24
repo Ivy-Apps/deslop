@@ -14,7 +14,7 @@ import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Problem.Formatter (CodeFence (..))
 import Effectful.Reader.Static (ask)
 import FileSystem.Path (ProjectRoot (..), portablePath, relativePathTo)
-import Frontend.Haskell.Cabal (CabalError (..), HsConfig, cabalFilesIn, loadHsConfig)
+import Frontend.Haskell.Cabal (CabalError (..), HsConfig (..), cabalFilesIn, loadHsConfig)
 import Frontend.Haskell.Ignore (hsEcosystemIgnored)
 import Frontend.Haskell.Iterator (getHsFiles)
 import Frontend.Haskell.Module (HsLowerError (..), lowerProject)
@@ -64,8 +64,8 @@ instance CompilerFrontend HsFrontend where
     builtInRules _ = []
     ecosystemIgnored _ _ = hsEcosystemIgnored
     loadConfig _ projectRoot = first (HsConfigError projectRoot) <$> loadHsConfig projectRoot
-    discover _ cfg _ gitIgnore = getHsFiles gitIgnore cfg
-    parse _ = readUnit
+    discover _ cfg _ gitIgnore = getHsFiles gitIgnore cfg.components
+    parse _ cfg = readUnit cfg.components
     render _ = renderUnit
     lint _ _ _ = pure []
     lower _ cfg units = do

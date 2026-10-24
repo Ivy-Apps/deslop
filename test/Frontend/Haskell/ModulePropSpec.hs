@@ -1,7 +1,7 @@
 module Frontend.Haskell.ModulePropSpec (spec) where
 
 import Data.Text qualified as T
-import Fixtures.Frontend.Haskell.Project (Lowered (..), edgesFrom, lowerFiles)
+import Fixtures.Frontend.Haskell.Project (Lowered (..), cabalPackage, edgesFrom, lowerFiles)
 import Generators.Frontend.Haskell.Source (ImportShape (..), Shape (..), genShape, projectModules, spell)
 import Hedgehog (PropertyT, annotate, evalEither, forAll, (===))
 import Renderable qualified
@@ -16,7 +16,7 @@ edgesOfM text = do
     pure (edgesFrom "lib/p/M" lowered)
   where
     files =
-        ("p.cabal", "cabal-version: 3.0\nname: p\nversion: 0\nlibrary\n  hs-source-dirs: src\n")
+        ("p.cabal", encodeUtf8 (cabalPackage ["library\n  hs-source-dirs: src"]))
             : ("src/M.hs", encodeUtf8 text)
             : [("src/" <> T.replace "." "/" m <> ".hs", encodeUtf8 ("module " <> m <> " where\n")) | m <- projectModules]
 

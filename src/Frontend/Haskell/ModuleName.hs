@@ -12,9 +12,10 @@ module Frontend.Haskell.ModuleName (
     mainModule,
 ) where
 
-import Data.Char (isAlphaNum, isUpper)
+import Data.Char (isUpper)
 import Data.Text qualified as T
 import Deslop.Module (ModuleName, moduleNameUnsafe)
+import Frontend.Haskell.Lexer (isIdentChar)
 
 {- | The dot-separated segments of a module name, e.g. @Data@, @Text@.
 'fromDotted' and 'fromSegments' accept only what GHC would; 'hsModuleName'
@@ -36,9 +37,8 @@ fromSegments :: [Text] -> Maybe HsModuleName
 fromSegments = fmap HsModuleName . (nonEmpty <=< traverse conid)
   where
     conid segment = case T.uncons segment of
-        Just (c, rest) | isUpper c && T.all identChar rest -> Just segment
+        Just (c, rest) | isUpper c && T.all isIdentChar rest -> Just segment
         _ -> Nothing
-    identChar c = isAlphaNum c || c == '_' || c == '\''
 
 dotted :: HsModuleName -> Text
 dotted (HsModuleName segments) = T.intercalate "." (toList segments)

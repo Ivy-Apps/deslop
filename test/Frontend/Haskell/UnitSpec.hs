@@ -1,10 +1,7 @@
 module Frontend.Haskell.UnitSpec (spec) where
 
-import Data.Text qualified as T
-import Doubles.FileSystem (newInMemoryFileSystem, runInMemoryFileSystem)
-import Effectful (runEff)
-import Fixtures.Frontend.Haskell.Project (inProject, projectRoot)
-import Frontend.Haskell.Cabal (HsConfig, loadHsConfig)
+import Fixtures.Frontend.Haskell.Project (cabalPackage, configFrom, inProject)
+import Frontend.Haskell.Cabal (Component, HsConfig (..))
 import Frontend.Haskell.CST (HsProgram (..), HsSource (..))
 import Frontend.Haskell.Preprocessor (Preprocessor (..), Request (..), RequestedBy (..))
 import Frontend.Haskell.Unit (HsUnit (..), Opacity (..), readUnit, renderUnit, unitPath)
@@ -12,17 +9,15 @@ import Hedgehog (forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import Test.Hspec
-import TestUtils (prop, requireRight)
+import TestUtils (prop)
 
-configWith :: [Text] -> IO HsConfig
-configWith libraryFields = do
-    let cabal = T.unlines (["cabal-version: 3.0", "name: p", "version: 0", "library", "  hs-source-dirs: src"] <> fmap ("  " <>) libraryFields)
-    fs <- newInMemoryFileSystem [(inProject "p.cabal", encodeUtf8 cabal)]
-    fmap fst . requireRight show =<< runEff (runInMemoryFileSystem fs (loadHsConfig projectRoot))
+configWith :: [Text] -> IO [Component]
+configWith libraryFields =
+    (.components) <$> configFrom (cabalPackage (["library", "  hs-source-dirs: src"] <> fmap ("  " <>) libraryFields))
 
 -- | Why the file at @src/A.hs@ holding these bytes was not read, if it was not.
-opacityOf :: HsConfig -> ByteString -> Maybe Opacity
-opacityOf cfg bytes = case readUnit cfg (inProject "src/A.hs") bytes of
+opacityOf :: [Component] -> ByteString -> Maybe Opacity
+opacityOf components bytes = case readUnit components (inProject "src/A.hs") bytes of
     Readable _ -> Nothing
     Opaque _ why _ -> Just why
 
@@ -56,9 +51,9 @@ spec = describe "Frontend.Haskell.Unit" $ do
                 `shouldBe` Just (Preprocessed (Request Cpp (ByPragma 1 "{-# LANGUAGE CPP #-}")))
 
         it "is one whose component enables CPP for all its files" $ do
-            cfg <- configWith ["default-extensions: CPP"]
+            components <- configWith ["default-extensions: CPP"]
 
-            opacityOf cfg "module A where\n" `shouldBe` Just (Preprocessed (Request Cpp (ByComponent "lib:p")))
+            opacityOf components "module A where\n" `shouldBe` Just (Preprocessed (Request Cpp (ByComponent "lib:p")))
 
         it "is one that asks for any other -pgmF preprocessor" $
             opacityOf plain "{-# OPTIONS_GHC -F -pgmF my-pp #-}\nmodule A where\n"

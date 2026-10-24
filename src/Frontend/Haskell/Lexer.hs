@@ -10,7 +10,7 @@ read as a comment or a keyword.
 Total: a character no rule claims is an 'OtherK' token, and an unterminated
 comment or string runs to where GHC would stop reading it.
 -}
-module Frontend.Haskell.Lexer (lexHaskell) where
+module Frontend.Haskell.Lexer (lexHaskell, isIdentChar) where
 
 import Data.Char (isAlphaNum, isAscii, isLower, isPunctuation, isSpace, isSymbol, isUpper)
 import Data.Text qualified as T
@@ -119,5 +119,6 @@ conIds = conId *> many (try (char '.' *> conId)) $> ()
   where
     conId = satisfy isUpper *> takeWhileP Nothing isIdentChar
 
+-- | What may follow the first letter of an identifier or a module name segment.
 isIdentChar :: Char -> Bool
 isIdentChar c = isAlphaNum c || c == '_' || c == '\''
