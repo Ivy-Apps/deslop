@@ -11,10 +11,10 @@ import Deslop.Command (Command (..))
 import Deslop.Problem (isAutoFixable, problemId)
 import Deslop.Problem.Baseline (Baseline, inBaseline)
 import Effects.CLI (LogStyle (..))
-import FileSystem.Path (AbsPath (..), decodeOsPath)
+import FileSystem.Path (AbsPath)
 import Fixtures.Deslop.Frontend.Pipeline (Outcome (..), runLines)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
-import Fixtures.FileSystem.Path (inProject)
+import Fixtures.FileSystem.Path (fromProject, inProject)
 import Hedgehog (Gen, assert, cover, evalIO, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
@@ -65,7 +65,7 @@ spec = describe "Deslop.Frontend.Pipeline properties" $ do
         [msg | (Change, msg) <- outcome.transcript] === (fmap modified . sort $ outcome.written)
 
 modified :: AbsPath -> Text
-modified = ("  modified  " <>) . fromMaybe "" . T.stripPrefix "/project/" . decodeOsPath . (.osPath)
+modified = ("  modified  " <>) . fromProject
 
 -- | A flat Lines project: a few files, each a few statements.
 genProject :: Gen [(AbsPath, ByteString)]

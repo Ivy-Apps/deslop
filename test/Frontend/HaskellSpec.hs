@@ -2,9 +2,10 @@ module Frontend.HaskellSpec (spec) where
 
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Frontend.Finding (problem)
-import Doubles.FileSystem (defaultMockRoFileSystem, newInMemoryFileSystem, runInMemoryFileSystem, runReadOnly)
+import Doubles.FileSystem (defaultMockRoFileSystem, runInMemoryFileSystem, runReadOnly)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
+import Fixtures.FileSystem.Path (projectFileSystem)
 import Fixtures.Frontend.Haskell.Project (cabalPackage, configFrom, inProject, lowerFiles, projectRoot)
 import Frontend.Haskell (HsFrontend (..))
 import Generators.Frontend.Haskell.Source (genShape, spell)
@@ -15,7 +16,7 @@ import TestUtils (prop)
 
 detectedIn :: [(Text, ByteString)] -> IO (Maybe HsFrontend)
 detectedIn files = do
-    fs <- newInMemoryFileSystem [(inProject path, bytes) | (path, bytes) <- files]
+    fs <- projectFileSystem files
     runEff . runInMemoryFileSystem fs $ detect projectRoot
 
 cabal :: ByteString

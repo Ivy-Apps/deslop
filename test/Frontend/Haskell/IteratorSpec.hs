@@ -1,10 +1,10 @@
 module Frontend.Haskell.IteratorSpec (spec) where
 
-import Data.Text qualified as T
-import Doubles.FileSystem (newInMemoryFileSystem, runInMemoryFileSystem)
+import Doubles.FileSystem (runInMemoryFileSystem)
 import Effectful (runEff)
-import FileSystem.Path (AbsPath (..), ProjectRoot (..), decodeOsPath)
-import Fixtures.Frontend.Haskell.Project (cabalPackage, inProject, projectRoot)
+import FileSystem.Path (ProjectRoot (..))
+import Fixtures.FileSystem.Path (fromProject, projectFileSystem)
+import Fixtures.Frontend.Haskell.Project (cabalPackage, projectRoot)
 import Frontend.Haskell.Cabal (HsConfig (..), loadHsConfig)
 import Frontend.Haskell.Ignore (hsEcosystemIgnored)
 import Frontend.Haskell.Iterator (getHsFiles)
@@ -17,12 +17,12 @@ discovered cabal = discoveredWith cabal . fmap (,"")
 
 discoveredWith :: Text -> [(Text, Text)] -> IO [Text]
 discoveredWith cabal files = do
-    fs <- newInMemoryFileSystem $ (inProject "p.cabal", encodeUtf8 cabal) : [(inProject p, encodeUtf8 c) | (p, c) <- files]
+    fs <- projectFileSystem $ ("p.cabal", encodeUtf8 cabal) : fmap (second encodeUtf8) files
     found <- runEff . runInMemoryFileSystem fs $ do
         loaded <- loadHsConfig projectRoot
         gitIgnore <- loadGitIgnore hsEcosystemIgnored projectRoot.path
         either (const (pure [])) (getHsFiles gitIgnore . (.components) . fst) loaded
-    pure $ mapMaybe (T.stripPrefix "/project/" . decodeOsPath . (.osPath)) found
+    pure $ fmap fromProject found
 
 spec :: Spec
 spec = describe "Frontend.Haskell.Iterator" $ do

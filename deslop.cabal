@@ -201,6 +201,7 @@ test-suite deslop-test
     Effects.ReportProblemSpec
     FileSystem.IteratorSpec
     FileSystem.PathSpec
+    Fixtures.Deslop.Frontend
     Fixtures.Deslop.Frontend.Pipeline
     Fixtures.Deslop.GlobPlus
     Fixtures.Deslop.Module
