@@ -1,6 +1,6 @@
 module Frontend.Haskell.ParserSpec (spec) where
 
-import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), declaredName)
+import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), Qualification (..), declaredName)
 import Frontend.Haskell.Lexer (lexHaskell)
 import Frontend.Haskell.ModuleName (dotted)
 import Frontend.Haskell.Parser (parseHaskell)
@@ -81,6 +81,11 @@ spec = describe "Frontend.Haskell.Parser" $ do
         it "reads an import list, nested parentheses and all" $
             modulesOf "import Data.Map (Map, (!), Foo (..), type (++), pattern P, data D)\nimport B\n"
                 `shouldReturn` ["Data.Map", "B"]
+
+        it "reads whether an import is qualified, before or after the name" $ do
+            source <- parsed "import qualified A\nimport B qualified\nimport C as Q\n"
+
+            fmap (.decl.qualification) source.imports `shouldBe` [Qualified, Qualified, Unqualified]
 
         it "reads hiding" $
             importsOf "import Prelude hiding (head)\n" `shouldReturn` [(Nothing, "Prelude", Nothing, 1)]

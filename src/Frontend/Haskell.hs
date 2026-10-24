@@ -55,11 +55,9 @@ instance CompilerFrontend HsFrontend where
     type Unit HsFrontend = HsUnit
     type LowerError HsFrontend = HsLowerError
 
-    -- One .cabal file at the root, not parsed: 'loadConfig' says what is
-    -- wrong with it.
-    detect projectRoot = bool Nothing (Just HsFrontend) . isSingle <$> cabalFilesIn projectRoot.path
-      where
-        isSingle = (== 1) . length
+    -- Any .cabal file at the root, not parsed: 'loadConfig' says what is
+    -- wrong with it, two of them included.
+    detect projectRoot = bool Nothing (Just HsFrontend) . not . null <$> cabalFilesIn projectRoot.path
     label _ = "Haskell"
     lookingFor _ = "Haskell (*.cabal)"
     codeFence _ = CodeFence "haskell"

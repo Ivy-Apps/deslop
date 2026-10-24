@@ -12,7 +12,7 @@ module Frontend.Haskell.Parser (parseHaskell) where
 
 import Data.List qualified as L
 import Data.Text qualified as T
-import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..))
+import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), Qualification (..))
 import Frontend.Haskell.ModuleName (HsModuleName, fromDotted)
 import Frontend.Haskell.Tokens (HsToken (..), HsTokenKind (..), isKeyword, isTrivia)
 import Renderable (Renderable (..))
@@ -193,15 +193,16 @@ importDecl = rightToMaybe . runParser grammar "" . filter (not . isTrivia) . tok
     grammar = do
         keyword "import"
         skip $ keyword "safe"
-        skip $ keyword "qualified"
+        before <- optional (keyword "qualified")
         package <- optional packageName
         moduleName <- modName
-        skip $ keyword "qualified"
+        after <- optional (keyword "qualified")
+        let qualification = bool Unqualified Qualified (isJust (before <|> after))
         alias <- optional (keyword "as" *> modName)
         skip $ keyword "hiding"
         skip importList
         eof
-        pure ImportDecl {package, moduleName, alias}
+        pure ImportDecl {package, moduleName, qualification, alias}
 
     skip = void . optional
     packageName = token (\t -> guard (t.kind == StringK) $> (T.dropEnd 1 . T.drop 1 $ t.raw)) mempty

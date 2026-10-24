@@ -24,9 +24,11 @@ module Frontend.Haskell.Cabal (
     qualifier,
     mainIsOf,
     ownerOf,
+    sourceNamesOf,
 ) where
 
 import Data.List.NonEmpty qualified as NE
+import Control.Monad (foldM)
 import Data.List qualified as L
 import Data.Text qualified as T
 import Deslop.Error (Warning (..))
@@ -53,7 +55,7 @@ import Distribution.Types.UnqualComponentName (unUnqualComponentName)
 import Distribution.Utils.Path (getSymbolicPath)
 import Effectful (Eff, type (:>))
 import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsFileExists, fsListDirectory, fsReadFile)
-import FileSystem.Path (AbsPath (..), ProjectRoot (..), absPathUnsafe, decodeOsPath, encodeOsPathString, withAbsBaseUnsafe)
+import FileSystem.Path (AbsPath (..), ProjectRoot (..), absPathUnsafe, decodeOsPath, encodeOsPath, encodeOsPathString, withAbsBaseUnsafe)
 import Frontend.Haskell.ModuleName (HsModuleName, hsModuleName)
 import Frontend.Haskell.Preprocessor (Request, requestedByExtensions, requestedByOptions)
 import Language.Haskell.Extension (Extension (..), KnownExtension (CPP))
@@ -78,8 +80,8 @@ data Component = Component
     -- ^ The project's own libraries its @build-depends@ names, by component
     -- name: whose modules it may import besides its own.
     , preprocessors :: [Request]
-    -- ^ What its @default-extensions@, @other-extensions@ and @ghc-options@
-    -- run over every one of its files.
+    -- ^ What its @default-extensions@ and @ghc-options@ run over every one of
+    -- its files. Not @other-extensions@, which enables nothing.
     }
     deriving stock (Show, Eq)
 
@@ -150,20 +152,25 @@ readPackage projectRoot cabalFile bytes = case runParseResult (parseGenericPacka
   where
     path = toString (decodeOsPath cabalFile.osPath)
 
--- | A root @cabal.project@ may only name the root package.
+{- | A root @cabal.project@ may only name the root package. Each @packages:@
+entry - a directory, a @.cabal@ file, a glob of either, relative or absolute -
+is resolved against the root as @cabal@ resolves it, and must name exactly the
+root @.cabal@ file.
+-}
 checkCabalProject :: (RoFileSystem :> es) => ProjectRoot -> AbsPath -> Eff es (Either CabalError ())
 checkCabalProject projectRoot cabalFile = do
     let projectFile = withAbsBaseUnsafe projectRoot.path [osp|cabal.project|]
     exists <- fsFileExists projectFile
     if not exists
         then pure (Right ())
-        else check projectFile . readFields <$> fsReadFile projectFile
+        else fsReadFile projectFile >>= judge projectFile . readFields
   where
-    check projectFile = \case
-        Left err -> Left (CabalProjectUnreadable projectFile (show err))
-        Right fields -> case filter (not . isRootPackage) (packagesIn fields) of
-            [] -> Right ()
-            others -> Left (MultiPackageProject projectFile others)
+    judge projectFile = \case
+        Left err -> pure . Left $ CabalProjectUnreadable projectFile (show err)
+        Right fields ->
+            filterM (fmap not . namesOnlyTheRoot) (packagesIn fields) <&> \case
+                [] -> Right ()
+                others -> Left (MultiPackageProject projectFile others)
 
     packagesIn fields =
         [ entry
@@ -173,8 +180,44 @@ checkCabalProject projectRoot cabalFile = do
         , not (T.null entry)
         ]
 
-    cabalName = decodeOsPath (takeFileName cabalFile.osPath)
-    isRootPackage entry = T.dropWhileEnd (== '/') (fromMaybe entry (T.stripPrefix "./" entry)) `elem` [".", "", cabalName]
+    namesOnlyTheRoot entry = (== [normalised cabalFile]) . sortNub . fmap normalised <$> cabalFilesNamedBy projectRoot entry
+    normalised = splitDirectories . lexicallyNormal . (.osPath)
+
+{- | The @.cabal@ files a @packages:@ entry names: those of a directory it
+names, or the file itself; @*@ matches within one path segment.
+-}
+cabalFilesNamedBy :: (RoFileSystem :> es) => ProjectRoot -> Text -> Eff es [AbsPath]
+cabalFilesNamedBy projectRoot entry = foldM step [start] segments >>= fmap concat . traverse packagesAt
+  where
+    (start, segments) = case T.stripPrefix "/" entry of
+        Just absolute -> (absPathUnsafe [osp|/|], T.splitOn "/" absolute)
+        Nothing -> (projectRoot.path, T.splitOn "/" entry)
+
+    step paths segment
+        | T.null segment || segment == "." = pure paths
+        | T.any (`elem` ['*', '?']) segment = concat <$> traverse (matching segment) paths
+        | otherwise = filterM exists (fmap (`withAbsBaseUnsafe` encodeOsPath segment) paths)
+
+    matching pattern dir =
+        fsDirectoryExists dir >>= \case
+            False -> pure []
+            True -> filter (globMatches (toString pattern) . toString . decodeOsPath . takeFileName . (.osPath)) <$> fsListDirectory dir
+
+    exists path = (||) <$> fsFileExists path <*> fsDirectoryExists path
+
+    packagesAt path =
+        fsDirectoryExists path >>= \case
+            True -> cabalFilesIn path
+            False -> pure [path | takeExtension path.osPath == [osp|.cabal|]]
+
+-- | A glob of @*@ (any run of characters) and @?@ (any one character).
+globMatches :: String -> String -> Bool
+globMatches pattern name = case (pattern, name) of
+    ([], []) -> True
+    ('*' : rest, _) -> any (globMatches rest) (tails name)
+    ('?' : rest, _ : more) -> globMatches rest more
+    (p : rest, n : more) -> p == n && globMatches rest more
+    _ -> False
 
 {- | Every component, each with all its conditional branches taken at once.
 Not "Distribution.PackageDescription.Configuration.flattenPackageDescription",
@@ -247,7 +290,8 @@ configOf projectRoot gpd =
         depName = toText . unPackageName . depPkgName $ dep
 
     preprocessorsOf label bi =
-        requestedByExtensions label (take 1 ["CPP" | EnableExtension CPP <- bi.defaultExtensions <> bi.otherExtensions])
+        -- other-extensions only declares what some file's own pragma enables.
+        requestedByExtensions label (take 1 ["CPP" | EnableExtension CPP <- bi.defaultExtensions])
             <> requestedByOptions label (toText <$> ghcOptions bi)
 
     ghcOptions bi = let PerCompilerFlavor ghc _ = bi.options in ghc
@@ -285,7 +329,7 @@ what makes @src/@ inside a @.@ source directory belong to the component that
 names @src@.
 -}
 ownerOf :: HsConfig -> AbsPath -> Maybe Owner
-ownerOf cfg file = asMain <|> byDirectory
+ownerOf cfg file = asMain <|> uncurry Owner . second PathNamed <$> listToMaybe (sourceNamesOf cfg file)
   where
     fileSegments = splitDirectories file.osPath
 
@@ -298,17 +342,22 @@ ownerOf cfg file = asMain <|> byDirectory
             , splitDirectories (lexicallyNormal (dir.osPath </> m)) == fileSegments
             ]
 
-    byDirectory =
-        fmap snd
-            . viaNonEmpty head
-            . sortOn (Down . fst)
-            $ [ (length dirSegments, Owner c (PathNamed (nameBelow rest)))
-              | c <- cfg.components
-              , dir <- toList c.sourceDirs
-              , let dirSegments = splitDirectories dir.osPath
-              , Just rest <- [nonEmpty =<< L.stripPrefix dirSegments fileSegments]
-              ]
-
+{- | Every component with a source directory holding the file, and the name
+GHC looks the file up by from that directory: deepest directory first, then
+in @.cabal@ order. GHC compiles the file into each of them, so each may import
+it, though only the first owns it.
+-}
+sourceNamesOf :: HsConfig -> AbsPath -> [(Component, HsModuleName)]
+sourceNamesOf cfg file =
+    fmap snd
+        . sortOn (Down . fst)
+        $ [ (length dirSegments, (c, nameBelow rest))
+          | c <- cfg.components
+          , dir <- toList c.sourceDirs
+          , let dirSegments = splitDirectories dir.osPath
+          , Just rest <- [nonEmpty =<< L.stripPrefix dirSegments (splitDirectories file.osPath)]
+          ]
+  where
     nameBelow segments =
         hsModuleName . fmap decodeOsPath $
             NE.prependList (NE.init segments) (fst (splitExtension (NE.last segments)) :| [])

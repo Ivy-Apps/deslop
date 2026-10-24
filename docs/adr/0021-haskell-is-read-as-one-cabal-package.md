@@ -33,20 +33,28 @@ has to answer questions TypeScript never asked:
 
 **Scope: what the Rules DSL needs, no more.** A file lowers to one Module with
 an `ImportEdge` per import and a `ReExportEdge` per import a `module X` export
-item names - every import whose alias, or whose own name when it has none, is
-`X`. `module M` in `M`'s own export list is no edge. Import lists, `hiding`
-and qualification are kept in the tokens and never interpreted: no Rule reads
-symbols. There are no built-in lints; `builtInRules` is empty.
+item names. As in Haskell 2010 (5.2), `module X` exports what the
+*unqualified* imports named `X` - by alias, or by their own name when they
+have none - bring into scope. A `qualified` import, prefix or postfix, brings
+nothing unqualified into scope, so no `module X` re-exports it. `module M` in
+`M`'s own export list exports `M`'s own declarations, which is no edge, and
+also every import aliased `as M`, which is. Import lists and `hiding` are kept
+in the tokens and never interpreted: no Rule reads symbols. There are no
+built-in lints; `builtInRules` is empty.
 
 **The project is one package, read with Cabal's own parser.** `detect` looks
-for exactly one `*.cabal` file at the root, without parsing it. `loadConfig`
+for any `*.cabal` file at the root, without parsing it; two or more are a
+`ConfigError` from `loadConfig` naming them, rather than "no supported
+project". `loadConfig`
 reads it with `Cabal-syntax`'s `parseGenericPackageDescription` - a GHC boot
 package, so no new transitive dependency - which resolves `common` stanzas the
 way `cabal` does. Every component's conditional branches are taken at once
 (`ignoreConditions` per component, in `.cabal` order): a Rule should hold in
 every build, not only in the one on this machine. A root `cabal.project` is
-accepted only when its `packages:` names that same package (`.` or the
-`.cabal` file); anything else is a `ConfigError` naming the other packages.
+accepted only when every `packages:` entry - a directory, a `.cabal` file or a
+glob of either (`*.cabal`, `./*.cabal`, `./`), relative or absolute - resolves
+against the root to exactly that package's `.cabal` file; an entry matching
+anything more or else is a `ConfigError` naming it.
 hpack-only and stack-only projects are not read.
 
 **Names, canonical first.** Every Module Name is slash-spelled
@@ -83,13 +91,22 @@ named by its path below that directory, as GHC searches. A `module` header
 naming anything else is a `LowerError` - Deslop goes by the path, as GHC's
 lookup does - except for a `main-is`, which is `Main` whatever it says.
 
+Ownership names a module, once. Resolution does not stop at it: GHC compiles
+a file into every component whose source directories hold it, so each of
+those components can import it, by the name its own directory gives it, and
+the import reaches the owner's Module. A test suite with
+`hs-source-dirs: src, test` sees the library's modules in `src` without any
+`build-depends` on the library, as GHC does.
+
 **Resolution.** A component sees its own modules first, then the modules of
 the project libraries its `build-depends` names - `p` for the main library,
 `p:sub` or a bare `sub` for a sub-library. A library sees only its own and the
 libraries it names. Everything else is `External` under its slashed name,
 including `Paths_*`. A package import names another package and is `External`,
 except `"this"`, which is the importing component, and the package's own name,
-which is what that component sees.
+which searches only the package's libraries the component can see - the main
+library and sub-libraries its `build-depends` names, and a library itself -
+never a test suite's or executable's own modules.
 
 **The parser is a lossless island grammar.** A Megaparsec lexer makes tokens
 of everything - nested `{- -}`, `{-# #-}` pragmas, strings, character
@@ -108,16 +125,22 @@ with no edges and a `LowerError`.
 `{-# OPTIONS_GHC -F -pgmF hspec-discover #-}` gets an `ImportEdge` to every
 file below its directory whose name ends in `Spec.hs` and whose path from
 there is a valid module name, which is what `hspec-discover` generates. The
-edges are quoted at the pragma.
+edges are quoted at the pragma. Only the file's own pragma is read this way:
+`-F -pgmF hspec-discover` in a component's `ghc-options` would run it over
+every file of the component, which Deslop cannot know the output of, so each
+of them is an opaque island and a `LowerError` names the component.
 
 ## Non-goals
 
 - **CPP.** A file with `{-# LANGUAGE CPP #-}`, `-XCPP` or `-cpp` in its header,
-  or whose component enables CPP in `default-extensions`, `other-extensions` or
-  `ghc-options`, is an opaque island plus a `LowerError` naming it. What CPP
+  or whose component enables CPP in `default-extensions` or `ghc-options`, is
+  an opaque island plus a `LowerError` naming it. What CPP
   reads is not Haskell, and a guess at its imports would be reported as fact.
+  `other-extensions: CPP` enables nothing - it declares what some file's own
+  pragma enables - so it islands nothing by itself.
 - **Other `-F -pgmF` preprocessors**, in a pragma or a component's
-  `ghc-options`: an island plus a `LowerError`, for the same reason.
+  `ghc-options` - hspec-discover included, in `ghc-options` - make an island
+  plus a `LowerError`, for the same reason.
 - **`{-# SOURCE #-}` imports** are plain `ImportEdge`s to the module itself; a
   cycle through one is reported by `no-import-cycles` like any other.
 - **`.hs-boot` and literate `.lhs` files** are not discovered.
@@ -137,8 +160,8 @@ edges are quoted at the pragma.
   entries. Qualifying always makes the id a fact of the module alone.
 - **One Module per file per component that compiles it.** Truer when two
   components share a source directory, but every Rule over `Deslop/**` would
-  then see each module twice. Ownership by the deepest directory is what
-  `cabal` projects are laid out for.
+  then see each module twice. Ownership by the deepest directory names each
+  file once; resolution still indexes it under every component compiling it.
 - **Reading through CPP** with a default set of macros. Rejected: the result
   depends on flags Deslop does not know, and a wrong edge is worse than a
   warning.

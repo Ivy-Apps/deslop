@@ -43,7 +43,8 @@ files =
           \import Data.Text (Text)\n\
           \import \"text\" Data.Text.IO\n\
           \import Paths_p\n\
-          \import Helper\n"
+          \import Helper\n\
+          \import Utils as P.A\n"
         )
     , ("src/P/B.hs", "module P.B where\n")
     , ("src/P/C.hs", "module P.C where\n")
@@ -53,7 +54,7 @@ files =
     , ("app/Main.hs", "import P.A\nimport Helper\nimport \"p\" P.B\nimport \"this\" P.C\nmain = pure ()\n")
     , ("app/Helper.hs", "module Helper where\n")
     , ("test/Spec.hs", "-- | The driver.\n{-# OPTIONS_GHC -F -pgmF hspec-discover #-}\n")
-    , ("test/P/ASpec.hs", "module P.ASpec where\nimport P.A\nimport Utils\n")
+    , ("test/P/ASpec.hs", "module P.ASpec where\nimport P.A\nimport Utils\nimport \"p\" Utils\n")
     , ("test/Utils.hs", "module Utils where\n")
     , ("bench/Bench.hs", "import P.A\nmain = pure ()\n")
     ]
@@ -96,8 +97,12 @@ spec = describe "Frontend.Haskell.Module" $ do
                            , ("Paths_p", "External:Paths_p", "ImportEdge")
                            , -- The library sees only its own modules.
                              ("Helper", "External:Helper", "ImportEdge")
+                           , ("Utils", "lib/p/Utils", "ImportEdge")
                            , ("P.B", "lib/p/P/B", "ReExportEdge")
-                           , ("X", "lib/p/P/C", "ReExportEdge")
+                           , -- module X names only the qualified import of P.C,
+                             -- which brings nothing unqualified into scope.
+                             -- module P.A is the import aliased as P.A.
+                             ("P.A", "lib/p/Utils", "ReExportEdge")
                            , ("Data.Text", "External:Data/Text", "ReExportEdge")
                            ]
 
@@ -112,7 +117,11 @@ spec = describe "Frontend.Haskell.Module" $ do
 
         it "resolve to the component's own module before the library's of the same name" $
             edgesFrom "test/p-test/P/ASpec" lowered
-                `shouldBe` [("P.A", "lib/p/P/A", "ImportEdge"), ("Utils", "test/p-test/Utils", "ImportEdge")]
+                `shouldBe` [ ("P.A", "lib/p/P/A", "ImportEdge")
+                           , ("Utils", "test/p-test/Utils", "ImportEdge")
+                           , -- A package import of the package itself searches its libraries only.
+                             ("Utils", "lib/p/Utils", "ImportEdge")
+                           ]
 
         it "are external for a component that does not depend on the library" $
             edgesFrom "bench/p-bench/Main" lowered `shouldBe` [("P.A", "External:P/A", "ImportEdge")]
@@ -126,8 +135,8 @@ spec = describe "Frontend.Haskell.Module" $ do
         it "quote a re-export at its export item" $ do
             m <- requireJust "P/A" (moduleNamed "lib/p/P/A" lowered)
 
-            fmap (\e -> (e.location.line, e.location.code)) (drop 6 m.edges)
-                `shouldBe` [(1, "module P.B"), (1, "module X"), (1, "module Data.Text")]
+            fmap (\e -> (e.location.line, e.location.code)) (drop 7 m.edges)
+                `shouldBe` [(1, "module P.B"), (1, "module P.A"), (1, "module Data.Text")]
 
     describe "an hspec-discover driver" $ do
         it "imports every spec below its directory" $
@@ -161,3 +170,39 @@ spec = describe "Frontend.Haskell.Module" $ do
 
             fmap Renderable.render twice.warnings
                 `shouldBe` ["more/A.hs src/A.hs are all lib/p/A, which GHC cannot tell apart; rename or move all but one."]
+
+    describe "a source directory two components share" $ do
+        shared <-
+            runIO $
+                requireRight (toString . Renderable.render)
+                    =<< lowerFiles
+                        [ ("p.cabal", "cabal-version: 3.0\nname: p\nversion: 0\nlibrary\n  hs-source-dirs: src\ntest-suite t\n  type: exitcode-stdio-1.0\n  main-is: Main.hs\n  hs-source-dirs: src, test\n")
+                        , ("src/A.hs", "module A where\n")
+                        , ("test/Main.hs", "import A\nmain = pure ()\n")
+                        ]
+
+        it "names its modules after their one owner" $
+            fmap (fmap (.text) . toList . (.names)) (moduleNamed "lib/p/A" shared) `shouldBe` Just ["lib/p/A", "A"]
+
+        -- GHC compiles src/A.hs into the test suite too, with no build-depends.
+        it "lets every component compiling it import its modules" $
+            edgesFrom "test/t/Main" shared `shouldBe` [("A", "lib/p/A", "ImportEdge")]
+
+    describe "a component preprocessing every file through hspec-discover" $ do
+        driven <-
+            runIO $
+                requireRight (toString . Renderable.render)
+                    =<< lowerFiles
+                        [ ("p.cabal", "cabal-version: 3.0\nname: p\nversion: 0\ntest-suite t\n  type: exitcode-stdio-1.0\n  main-is: Spec.hs\n  hs-source-dirs: test\n  ghc-options: -F -pgmF hspec-discover\n")
+                        , ("test/Spec.hs", "module Main where\n")
+                        , ("test/ASpec.hs", "module ASpec where\n")
+                        ]
+
+        it "reads none of its files, and synthesises no imports" $
+            fmap (.edges) driven.modules `shouldBe` [[], []]
+
+        it "names each file in a warning" $
+            fmap Renderable.render driven.warnings
+                `shouldBe` [ "test/ASpec.hs is preprocessed by hspec-discover (enabled for test:t), so its imports were not read."
+                           , "test/Spec.hs is preprocessed by hspec-discover (enabled for test:t), so its imports were not read."
+                           ]

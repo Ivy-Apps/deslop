@@ -33,8 +33,8 @@ import Deslop.Module (
 import Effectful (Eff, type (:>))
 import Effects.FileSystem (RoFileSystem, fsMkAbsolute)
 import FileSystem.Path (AbsPath (..), ProjectRelativePath (..), ProjectRoot, decodeOsPath, portablePath, relativePathTo)
-import Frontend.Haskell.Cabal (Component (..), ComponentKind (..), HsConfig (..), OwnedAs (..), Owner (..), ownerOf, qualifier)
-import Frontend.Haskell.CST (Header (..), HsProgram (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..))
+import Frontend.Haskell.Cabal (Component (..), ComponentKind (..), HsConfig (..), OwnedAs (..), Owner (..), ownerOf, qualifier, sourceNamesOf)
+import Frontend.Haskell.CST (Header (..), HsProgram (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), Qualification (..))
 import Frontend.Haskell.HspecDiscover (DiscoveredSpec (..), discoveredSpecs)
 import Frontend.Haskell.ModuleName (HsModuleName, dotted, hsModuleName, mainModule, slashed)
 import Frontend.Haskell.Preprocessor (Preprocessor (..), Request (..), RequestedBy (..), requestedInFile)
@@ -97,18 +97,28 @@ lowerNamed projectRoot cfg entries = (fmap moduleOf entries, notRead <> disagree
     -- What every edge into the module carries: its id, and every name it has.
     reaching entry = Resolved entry.id (namesOf entry)
 
-    -- Each component's modules by bare name; a main-is is imported by no one.
+    -- What each component compiles, by the name it looks each file up by:
+    -- every file in its source directories, including those another
+    -- component owns, reaching the owner's module. Its own main-is is
+    -- imported by no one.
     ownIndex :: Map Text (Map HsModuleName EdgeTarget)
     ownIndex =
         Map.fromListWith
             (flip Map.union)
             [ (qualifier c, Map.singleton n (reaching entry))
             | entry <- entries
-            , Just (Owner c (PathNamed n)) <- [entry.owner]
+            , (c, n) <- sourceNamesOf cfg (unitPath entry.unit)
+            , not (isMainOf c entry)
             ]
+    isMainOf c entry = case entry.owner of
+        Just (Owner owner MainModule) -> qualifier owner == qualifier c
+        _ -> False
     indexOf c = Map.findWithDefault mempty (qualifier c) ownIndex
+    librariesOf c = [indexOf lib | lib <- cfg.components, lib.kind == Library, lib.name `elem` c.libraries]
     -- Its own modules first, then those of the project libraries it depends on.
-    visibleTo c = Map.unions (indexOf c : [indexOf lib | lib <- cfg.components, lib.kind == Library, lib.name `elem` c.libraries])
+    visibleTo c = Map.unions (indexOf c : librariesOf c)
+    -- What @import "p" M@ searches, p being this package: its libraries only.
+    packageLibraries c = Map.unions ([indexOf c | c.kind == Library] <> librariesOf c)
 
     allPaths = unitPath . (.unit) <$> entries
     byPath = Map.fromList [(unitPath entry.unit, entry) | entry <- entries]
@@ -139,7 +149,7 @@ lowerNamed projectRoot cfg entries = (fmap moduleOf entries, notRead <> disagree
             index <- case decl.package of
                 Nothing -> Just (visibleTo c)
                 Just "this" -> Just (indexOf c)
-                Just p | p == cfg.package -> Just (visibleTo c)
+                Just p | p == cfg.package -> Just (packageLibraries c)
                 Just _ -> Nothing
             Map.lookup decl.moduleName index
 
@@ -175,10 +185,11 @@ importEdge file i target =
         , location = Location {file, line = i.line, code = render i.own}
         }
 
-{- | @module X@ in the export list re-exports what every import named @X@ - by
-its alias, or by its own name when it has none - brought into scope. The
-module's own name is no edge: @module M@ in @M@'s list exports @M@'s own
-declarations.
+{- | @module X@ in the export list re-exports what every unqualified import
+named @X@ - by its alias, or by its own name when it has none - brought into
+scope (Haskell 2010, 5.2). A qualified import brings nothing unqualified into
+scope, so it is exported by no @module X@. @module M@ in @M@'s own list
+exports @M@'s own declarations, and also every import aliased @as M@.
 -}
 reExportEdges :: ProjectRelativePath -> (ImportDecl -> EdgeTarget) -> HsSource -> [DependencyEdge]
 reExportEdges file resolveImport source = case source.header of
@@ -191,8 +202,8 @@ reExportEdges file resolveImport source = case source.header of
             , location = Location {file, line = export.line, code = export.code}
             }
         | export <- h.reExports
-        , export.name /= h.name
         , i <- source.imports
+        , i.decl.qualification == Unqualified
         , fromMaybe i.decl.moduleName i.decl.alias == export.name
         ]
 

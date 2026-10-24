@@ -63,6 +63,7 @@ genImport :: Gen ImportShape
 genImport = do
     name <- Gen.element (projectModules <> externalModules)
     package <- Gen.frequency [(5, pure Nothing), (1, Just <$> Gen.element ["base", "containers"])]
+    -- M is also the generated module's own name: module M then exports it.
     alias <- Gen.maybe (Gen.element ["T", "M", "X"])
     qualified <- Gen.bool
     source <- Gen.bool

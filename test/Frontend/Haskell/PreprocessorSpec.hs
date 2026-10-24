@@ -60,9 +60,14 @@ spec = describe "Frontend.Haskell.Preprocessor" $ do
         it "is CPP" $
             opaqueRequest [Request Cpp (ByComponent "lib:p")] `shouldBe` Just (Request Cpp (ByComponent "lib:p"))
 
-        it "is any -pgmF program but hspec-discover, whose output Deslop knows" $
-            opaqueRequest [Request HspecDiscover (ByComponent "c"), Request (Custom "pp") (ByComponent "c")]
+        it "is any -pgmF program but a file's own hspec-discover, whose output Deslop knows" $
+            opaqueRequest [Request HspecDiscover (ByPragma 1 "p"), Request (Custom "pp") (ByComponent "c")]
                 `shouldBe` Just (Request (Custom "pp") (ByComponent "c"))
 
-        it "is nothing when only hspec-discover is asked for" $
-            opaqueRequest [Request HspecDiscover (ByComponent "c")] `shouldBe` Nothing
+        it "is nothing when a file's own pragma asks for hspec-discover" $
+            opaqueRequest [Request HspecDiscover (ByPragma 1 "{-# OPTIONS_GHC -F -pgmF hspec-discover #-}")] `shouldBe` Nothing
+
+        -- Deslop knows what hspec-discover writes for one driver, not for
+        -- every file of a component.
+        it "is hspec-discover asked for by a component" $
+            opaqueRequest [Request HspecDiscover (ByComponent "c")] `shouldBe` Just (Request HspecDiscover (ByComponent "c"))

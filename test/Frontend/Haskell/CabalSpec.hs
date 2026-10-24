@@ -130,10 +130,11 @@ spec = describe "Frontend.Haskell.Cabal" $ do
 
             fmap (.preprocessors) (componentNamed "lib/p" cfg) `shouldBe` Just [Request Cpp (ByComponent "lib:p")]
 
-        it "are CPP when a component declares it among its other extensions" $ do
+        -- other-extensions only declares what some file enables in a pragma.
+        it "are nothing when a component lists CPP among its other extensions" $ do
             cfg <- config (package ["library\n  other-extensions: CPP"])
 
-            fmap (.preprocessors) (componentNamed "lib/p" cfg) `shouldBe` Just [Request Cpp (ByComponent "lib:p")]
+            fmap (.preprocessors) (componentNamed "lib/p" cfg) `shouldBe` Just []
 
         it "are a -pgmF program in a component's ghc-options" $ do
             cfg <- config (package ["executable e\n  main-is: Main.hs\n  ghc-options: -Wall -F -pgmF my-pp"])
@@ -153,6 +154,21 @@ spec = describe "Frontend.Haskell.Cabal" $ do
             result <- loaded [("p.cabal", package []), ("cabal.project", "packages: ./p.cabal\nindex-state: 2026-01-01T00:00:00Z\n")]
 
             fmap ((.package) . fst) result `shouldBe` Right "p"
+
+        it "accepts a cabal.project globbing only the root .cabal file" $ do
+            result <- loaded [("p.cabal", package []), ("cabal.project", "packages: *.cabal ./*.cabal ./\n")]
+
+            fmap ((.package) . fst) result `shouldBe` Right "p"
+
+        it "accepts a cabal.project naming the root package by its absolute path" $ do
+            result <- loaded [("p.cabal", package []), ("cabal.project", "packages: /project /project/p.cabal\n")]
+
+            fmap ((.package) . fst) result `shouldBe` Right "p"
+
+        it "refuses a cabal.project whose glob matches more than the root package" $ do
+            result <- loaded [("p.cabal", package []), ("lib/lib.cabal", package []), ("cabal.project", "packages: . */*.cabal\n")]
+
+            void result `shouldBe` Left (MultiPackageProject (inProject "cabal.project") ["*/*.cabal"])
 
         it "refuses a cabal.project naming other packages" $ do
             result <- loaded [("p.cabal", package []), ("cabal.project", "packages: .\n  other/\n  ./more\n")]

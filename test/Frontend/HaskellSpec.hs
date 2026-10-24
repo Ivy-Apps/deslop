@@ -56,8 +56,13 @@ spec = describe "Frontend.Haskell" $ do
         it "does not recognise a .cabal file below the root" $
             detectedIn [("packages/p/p.cabal", cabal)] `shouldReturn` Nothing
 
-        it "does not recognise a project with two, which is more than one package" $
-            detectedIn [("a.cabal", cabal), ("b.cabal", cabal)] `shouldReturn` Nothing
+        -- Loading then says why two packages are not read.
+        it "recognises a project with two, which loading then refuses" $
+            detectedIn [("a.cabal", cabal), ("b.cabal", cabal)] `shouldReturn` Just HsFrontend
+
+        it "refuses two .cabal files at the root, naming them" $
+            configErrorOf [("a.cabal", cabal), ("b.cabal", cabal)]
+                `shouldReturn` "Deslop reads a single Haskell package, with one .cabal file at the project root, but found 2: a.cabal, b.cabal."
 
     describe "loading the project" $ do
         it "refuses a cabal.project of several packages, naming them" $

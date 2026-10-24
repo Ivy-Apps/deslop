@@ -1,0 +1,5 @@
+[Title] 🚀 Checking project: hs-two-packages-project
+[Plain] Haskell project detected.
+[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
+Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
+[exit] Deslop reads a single Haskell package, with one .cabal file at the project root, but found 2: a.cabal, b.cabal.

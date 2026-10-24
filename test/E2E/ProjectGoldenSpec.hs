@@ -65,6 +65,7 @@ spec = describe "E2E.Project" $ do
     itChecks "hs-tiny-project"
     itBaselines "hs-tiny-project"
     itFailsToLoadConfig "cabal-error-" "hs-multi-package-project"
+    itFailsToLoadConfig "cabal-error-" "hs-two-packages-project"
     itChecksItself
 
     itFindsNoLanguage

@@ -115,13 +115,13 @@ A module answers to every name that resolves to it, and a rule matching any one 
 
 ### Haskell projects
 
-A directory with exactly one `*.cabal` file at its root is read as a Haskell project (a `tsconfig.json` beside it wins: TypeScript is tried first). Deslop reads that single package with Cabal's own parser. It resolves `common` stanzas and takes every `if` branch at once. A `cabal.project` may only name that same package.
+A directory with a `*.cabal` file at its root is read as a Haskell project (a `tsconfig.json` beside it wins: TypeScript is tried first). Deslop reads that single package with Cabal's own parser. It resolves `common` stanzas and takes every `if` branch at once. Two `.cabal` files at the root are an error, and a `cabal.project` may only name that same package.
 
 - **Module names** are slash-spelled. Every module's canonical name is qualified by its component, `<kind>/<component>/<Name>`, with kinds `lib`, `exe`, `test` and `bench`. Examples: `lib/my-app/Data/Store`, `test/my-app-test/Data/StoreSpec`, `exe/my-app/Main`. Canonical names therefore never clash, and reports and baseline ids show them. The bare GHC name (`Data/Store`, `Main`) is kept as an alias, and a rule may match either form. `lib/*/**` targets only the library; `Data/**` matches whichever component compiles it.
-- **Imports resolve** to the importing component's own modules, then to the project libraries its `build-depends` names. Everything else is external, slash-spelled the same way: `import Data.Text` reaches `Data/Text`.
-- **`module X` in an export list** re-exports the imports named `X`.
-- **hspec-discover drivers** (`{-# OPTIONS_GHC -F -pgmF hspec-discover #-}`) import every `*Spec.hs` below their directory.
-- **Not read:** files behind CPP or another `-F -pgmF` preprocessor stay modules without imports, with a warning. `.hs-boot` and `.lhs` files are not read, and a `{-# SOURCE #-}` import is a plain import.
+- **Imports resolve** to the modules the importing component compiles (every file in its source directories), then to the project libraries its `build-depends` names. Everything else is external, slash-spelled the same way: `import Data.Text` reaches `Data/Text`.
+- **`module X` in an export list** re-exports the unqualified imports named `X`, by alias or by name.
+- **hspec-discover drivers** (`{-# OPTIONS_GHC -F -pgmF hspec-discover #-}` in the file) import every `*Spec.hs` below their directory.
+- **Not read:** files behind CPP or another `-F -pgmF` preprocessor (hspec-discover too, when a component's `ghc-options` asks for it) stay modules without imports, with a warning. `.hs-boot` and `.lhs` files are not read, and a `{-# SOURCE #-}` import is a plain import.
 
 See [ADR 21](docs/adr/0021-haskell-is-read-as-one-cabal-package.md) for the details.
 

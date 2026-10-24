@@ -37,8 +37,8 @@ data Request = Request
 data RequestedBy
     = -- | A @LANGUAGE@ or @OPTIONS_GHC@ pragma: its 1-based line and its text.
       ByPragma Int Text
-    | -- | A component's @default-extensions@, @other-extensions@ or
-      -- @ghc-options@, named @lib:deslop@-style.
+    | -- | A component's @default-extensions@ or @ghc-options@, named
+      -- @lib:deslop@-style.
       ByComponent Text
     deriving stock (Show, Eq)
 
@@ -92,10 +92,11 @@ fromOptions flags = cpp <> pgmF
         | otherwise = Custom p
 
 {- | The first request for a preprocessor whose output Deslop cannot know: the
-file is read as an opaque island.
+file is read as an opaque island. That is any but hspec-discover asked for by
+the file's own pragma, the one driver whose output Deslop knows; asked for by
+a component, it would rewrite every file of it.
 -}
 opaqueRequest :: [Request] -> Maybe Request
-opaqueRequest = find $ \r -> case r.preprocessor of
-    Cpp -> True
-    Custom _ -> True
-    HspecDiscover -> False
+opaqueRequest = find $ \r -> case (r.preprocessor, r.by) of
+    (HspecDiscover, ByPragma _ _) -> False
+    _ -> True

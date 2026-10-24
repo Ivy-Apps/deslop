@@ -39,15 +39,18 @@ spec = describe "Frontend.Haskell.ModuleProp" $ do
         edges === expectedEdges shape
 
 {- | What the shape says, resolved by hand: a project module is reached by its
-own name unless a package import names another package.
+own name unless a package import names another package. @module X@ exports
+every unqualified import named @X@, the module's own name included.
 -}
 expectedEdges :: Shape -> [(Text, Text, Text)]
 expectedEdges shape =
     [(i.name, targetOf i, "ImportEdge") | i <- shape.imports]
         <> [ (export, targetOf i, "ReExportEdge")
            | export <- shape.reExports
-           , Just export /= shape.header
            , i <- shape.imports
+           , -- A qualified import brings nothing unqualified into scope, so
+             -- module X exports none of it (Haskell 2010, 5.2).
+             not i.qualified
            , fromMaybe i.name i.alias == export
            ]
   where

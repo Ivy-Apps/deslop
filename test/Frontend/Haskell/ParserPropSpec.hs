@@ -1,6 +1,6 @@
 module Frontend.Haskell.ParserPropSpec (spec) where
 
-import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..))
+import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), Qualification (..))
 import Frontend.Haskell.Lexer (lexHaskell)
 import Frontend.Haskell.ModuleName (dotted)
 import Frontend.Haskell.Parser (parseHaskell)
@@ -24,7 +24,7 @@ spec = describe "Frontend.Haskell.ParserProp" $ do
         text <- forAll (spell shape)
         source <- evalMaybe (parseHaskell (lexHaskell text))
         annotate (show source)
-        said source === (shape.header, shape.reExports, [(i.package, i.name, i.alias) | i <- shape.imports])
+        said source === (shape.header, shape.reExports, [(i.package, i.name, i.qualified, i.alias) | i <- shape.imports])
 
     prop "gives back any text, whether it parses or not" $ do
         text <- forAll $ Gen.text (Range.linear 0 200) (Gen.element ("module where import ( ) ; { } -- {- -} \n \" M" :: String))
@@ -37,5 +37,5 @@ spec = describe "Frontend.Haskell.ParserProp" $ do
         , case source.header of
             ImplicitMain -> []
             Declared h -> dotted . (.name) <$> h.reExports
-        , [(i.decl.package, dotted i.decl.moduleName, dotted <$> i.decl.alias) | i <- source.imports]
+        , [(i.decl.package, dotted i.decl.moduleName, i.decl.qualification == Qualified, dotted <$> i.decl.alias) | i <- source.imports]
         )

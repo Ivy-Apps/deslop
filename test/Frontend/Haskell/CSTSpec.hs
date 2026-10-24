@@ -1,6 +1,6 @@
 module Frontend.Haskell.CSTSpec (spec) where
 
-import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleHeader (..), declaredName)
+import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleHeader (..), Qualification (..), declaredName)
 import Frontend.Haskell.ModuleName (dotted, fromDotted)
 import Frontend.Haskell.Tokens (HsToken (..), HsTokenKind (..))
 import Renderable qualified
@@ -20,7 +20,7 @@ spec = describe "Frontend.Haskell.CST" $ do
     it "renders every part in file order" $ do
         name <- requireJust "a module name" (fromDotted "A")
         let header = Declared ModuleHeader {name, line = 2, reExports = [], tokens = [tok "module A where"]}
-            imp = Import {decl = ImportDecl Nothing name Nothing, line = 3, own = [tok "import A"], trailing = [tok "\n"]}
+            imp = Import {decl = ImportDecl Nothing name Unqualified Nothing, line = 3, own = [tok "import A"], trailing = [tok "\n"]}
 
         Renderable.render (source header [imp]) `shouldBe` "-- lead\nmodule A where\nimport A\nx = 1\n"
   where

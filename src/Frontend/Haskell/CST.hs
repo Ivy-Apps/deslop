@@ -14,6 +14,7 @@ module Frontend.Haskell.CST (
     ModuleExport (..),
     Import (..),
     ImportDecl (..),
+    Qualification (..),
     declaredName,
 ) where
 
@@ -76,17 +77,27 @@ data Import = Import
     }
     deriving stock (Show, Eq)
 
-{- | What an import says about which module it reaches. Whether it is
-qualified, its @SOURCE@ pragma and its import list do not change that, so they
-stay in the tokens.
+{- | What an import says about which module it reaches, and whether a
+@module X@ export re-exports it. Its @SOURCE@ pragma and its import list
+change neither, so they stay in the tokens.
 -}
 data ImportDecl = ImportDecl
     { package :: Maybe Text
     -- ^ @import "text" Data.Text@, under @PackageImports@.
     , moduleName :: HsModuleName
+    , qualification :: Qualification
     , alias :: Maybe HsModuleName
     -- ^ @as T@.
     }
+    deriving stock (Show, Eq)
+
+{- | Whether the import brings its names into scope unqualified too - which
+decides whether @module X@ in the export list exports any of them.
+@qualified@ before the module name or after it means the same.
+-}
+data Qualification
+    = Unqualified
+    | Qualified
     deriving stock (Show, Eq)
 
 -- | The name the module gives itself.
