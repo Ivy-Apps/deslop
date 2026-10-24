@@ -1,7 +1,7 @@
 module FrontendSpec (spec) where
 
 import Deslop.Frontend (CompilerFrontend (..), SomeFrontend (..), Supported (..), detectFirst)
-import Doubles.FileSystem (mockFiles, runReadOnly)
+import Doubles.FileSystem (mockFiles, mockTree, runReadOnly)
 import Doubles.Frontend (LinesFrontend)
 import FileSystem.Path (AbsPath (..))
 import Fixtures.FileSystem.Path (inProject, projectRoot)
@@ -34,8 +34,19 @@ spec = describe "Frontend" $ do
 
             fmap labelOf detected `shouldBe` Nothing
 
-        it "tries TypeScript first, then Haskell" $
-            fmap (\(Supported proxy) -> lookingFor proxy) supported `shouldBe` ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"]
+        for_
+            [ (["flake.nix"], "Nix")
+            , (["default.nix"], "Nix")
+            , (["p.cabal", "flake.nix"], "Haskell")
+            ]
+            $ \(files, language) ->
+                it ("reads a project holding " <> show files <> " as " <> toString language) $ do
+                    detected <- runReadOnly (mockTree [(inProject file, "") | file <- files]) $ detectFrontend projectRoot
+
+                    fmap labelOf detected `shouldBe` Just language
+
+        it "tries TypeScript first, then Haskell, then Nix" $
+            fmap (\(Supported proxy) -> lookingFor proxy) supported `shouldBe` ["TypeScript (tsconfig.json)", "Haskell (*.cabal)", "Nix (flake.nix or default.nix)"]
 
     describe "a polyglot project" $ do
         it "is read as the first language that recognises it" $ do

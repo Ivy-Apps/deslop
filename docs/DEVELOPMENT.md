@@ -94,7 +94,7 @@ additional workflows (`just --list` for all of them):
 | `src/Frontend/TypeScript/` | TypeScript lexer, parser, CST, module resolver, tsconfig handling |
 | `src/Effects/` | `effectful` effects for CLI, file system, and problem reporting |
 | `test/` | hspec suites, plus `test/E2E/` golden and executable tests |
-| `fixtures/` | Sample projects and files by language (`typescript/`, `haskell/`), and rulebooks (`shared/`), used by tests |
+| `fixtures/` | Sample projects and files by language (`typescript/`, `haskell/`, `nix/`), and rulebooks (`shared/`), used by tests |
 | `.golden/` | Recorded golden output for the E2E tests, by language |
 | `npm/` | npm wrapper package and per-platform binary packages |
 | `docs/` | Internal references (e.g. the Glob+ pattern language) |

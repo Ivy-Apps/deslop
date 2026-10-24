@@ -15,10 +15,11 @@ import Effectful (Eff, type (:>))
 import Effects.FileSystem (RoFileSystem)
 import FileSystem.Path (ProjectRoot)
 import Frontend.Haskell (HsFrontend)
+import Frontend.Nix (NixFrontend)
 import Frontend.TypeScript (TsFrontend)
 
 supported :: [Supported]
-supported = [Supported (Proxy @TsFrontend), Supported (Proxy @HsFrontend)]
+supported = [Supported (Proxy @TsFrontend), Supported (Proxy @HsFrontend), Supported (Proxy @NixFrontend)]
 
 detectFrontend :: (RoFileSystem :> es) => ProjectRoot -> Eff es (Maybe SomeFrontend)
 detectFrontend = detectFirst supported
