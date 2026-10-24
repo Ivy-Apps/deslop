@@ -2,8 +2,9 @@
 default:
     @just --list
 
-# Run the full quality suite (use from nix develop); mirrors the Quality CI
+# Run the full quality suite (use from nix develop); the Quality CI runs exactly this
 check:
+    just format-check
     just lint
     just lint-actions
     just build
@@ -14,6 +15,15 @@ check:
 # Haskell lint (hlint)
 lint:
     hlint .
+
+# Fail if any Haskell source is not formatted as fourmolu.yaml says. Fixtures
+# are test inputs whose bytes the goldens pin, so they are never formatted.
+format-check:
+    fourmolu --mode check --quiet $(git ls-files '*.hs' ':!:fixtures/')
+
+# Format every Haskell source in place, as format-check expects
+format:
+    fourmolu --mode inplace --quiet $(git ls-files '*.hs' ':!:fixtures/')
 
 # Lint the GitHub Actions workflows (actionlint, with shellcheck over `run:`).
 # SC2153 is off because shellcheck cannot see a workflow's `env:` block, so
