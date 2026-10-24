@@ -1,0 +1,75 @@
+{- | What the diagram must hold of any project: nothing points at a node that
+is not there, and the arrows it hides as implied are only ever ones between
+the project's own modules.
+-}
+module Deslop.DiagramPropSpec (spec) where
+
+import Data.Set qualified as Set
+import Data.Text qualified as T
+import Deslop.Diagram (Diagram (..), Edge (..), ModuleNode (..), NodeId (..), diagramOf)
+import Deslop.Module (
+    EdgeKind (..),
+    EdgeTarget (..),
+    Module (..),
+    moduleIdUnsafe,
+    moduleNameUnsafe,
+ )
+import Deslop.Module qualified as M
+import Fixtures.Deslop.Module (mkEdge, mkModuleAt)
+import Hedgehog (Gen, forAll, (===))
+import Hedgehog qualified as H
+import Hedgehog.Gen qualified as Gen
+import Hedgehog.Range qualified as Range
+import Test.Hspec
+import TestUtils (prop)
+
+spec :: Spec
+spec = describe "Deslop.Diagram properties" $ do
+    prop "every edge joins two nodes of the diagram" $ do
+        modules <- forAll genProject
+
+        let d = diagramOf modules
+            nodeIds = Set.fromList $ fmap (ModuleAt . (.path)) d.modules <> fmap Package d.externals
+
+        H.assert $ all (\e -> e.source `Set.member` nodeIds && e.target `Set.member` nodeIds) d.edges
+
+    prop "an implied edge only ever joins two of the project's modules" $ do
+        modules <- forAll genProject
+
+        let d = diagramOf modules
+
+        [e | e <- d.edges, e.implied, isPackage e.target] === []
+  where
+    isPackage (Package _) = True
+    isPackage (ModuleAt _) = False
+
+{- | Modules at distinct paths of mixed depth, depending on one another, on
+packages, and on modules nobody parsed - through imports and re-exports alike.
+-}
+genProject :: Gen [Module]
+genProject = do
+    paths <- Gen.set (Range.linear 1 25) genPath
+    let pathList = Set.toList paths
+    traverse (genModule pathList) pathList
+  where
+    genPath = do
+        dirs <- Gen.list (Range.linear 0 3) $ Gen.element ["src", "test", "ui", "a.b"]
+        file <- Gen.element ["index.ts", "Page.hs", "util.test.ts", "UtilSpec.hs"]
+        pure . T.intercalate "/" $ dirs <> [file]
+
+    genModule pathList path = do
+        targets <- Gen.list (Range.linear 0 6) $ genTarget pathList
+        pure (mkModuleAt path path []) {M.edges = zipWith (edgeTo path) [1 ..] targets}
+
+    genTarget pathList =
+        (,)
+            <$> Gen.frequency
+                [ (6, internal <$> Gen.element pathList)
+                , (1, pure . External $ moduleNameUnsafe "react")
+                , (1, pure $ internal "unscanned/x.ts")
+                ]
+            <*> Gen.element [ImportEdge, ReExportEdge]
+
+    internal p = Resolved (moduleIdUnsafe p) (moduleNameUnsafe p :| [])
+
+    edgeTo path line (target, k) = mkEdge path line "dep" target k

@@ -15,8 +15,8 @@ import Effects.FileSystem (runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
 import FileSystem.Path (
     AbsPath (osPath),
-    ProjectRoot (..),
     ProjectRelativePath (osPath),
+    ProjectRoot (..),
     decodeOsPath,
     encodeOsPathString,
     relativePathTo,
@@ -26,6 +26,7 @@ import Frontend.TypeScript.Iterator (getTsFiles)
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
 import System.Directory (removeFile)
+import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
@@ -84,6 +85,8 @@ spec = describe "E2E.Project" $ do
     itBaselines "ts-unscanned-project"
 
     itIterates "ts-gitignore-project"
+
+    itDiagrams "ixartz-next-js-boilerplate"
 
     itFixes
         "ts-barrel-project"
@@ -343,6 +346,36 @@ spec = describe "E2E.Project" $ do
         -- Then
         logs <- readIORef logsRef
         (renderTranscript logs, fmap (.verdict) res) `shouldSatisfy` ((== Right Clean) . snd)
+
+    -- The page carries the graph inline, so a page holding the project's
+    -- modules is a page that can show them. How it draws them is the
+    -- browser's business, not this suite's.
+    itDiagrams project = it ("diagrams " <> project) $ do
+        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
+            -- Given: named after the fixture, which the transcript's title quotes
+            let tmpDir = encodeOsPathString tmpFp </> encodeOsPathString project
+            copyDir (fixturesPath </> encodeOsPathString project) tmpDir
+            params <- defaultParams tmpDir
+            logsRef <- newIORef (TestLogs [])
+
+            -- When
+            res <-
+                runEff
+                    . runFileSystemIO
+                    . runErrorNoCallStack @DeslopError
+                    . runMockCLI defaultMockCLI {logsRef = Just logsRef}
+                    . runReportProblem
+                    . runConcurrent
+                    $ doWork params {command = DiagramC}
+
+            -- Then
+            fmap (.verdict) res `shouldBe` Right Clean
+            page <- decodeUtf8 <$> SFO.readFile' (tmpDir </> [osp|deslop/diagram/index.html|])
+            page `shouldSatisfy` T.isInfixOf "\"schema\":\"deslop-graph/1\""
+            page `shouldSatisfy` T.isInfixOf "\"id\":\"src/app/[locale]/layout.tsx\""
+            logs <- readIORef logsRef
+            pure . defaultGolden ("diagram-" <> project) . T.unpack $
+                renderTranscript logs <> renderResult res
 
     itChecks project = it ("checks " <> project) $ do
         -- Given

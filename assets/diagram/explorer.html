@@ -1,0 +1,487 @@
+<!doctype html>
+<!--
+  Deslop's module graph explorer, written by `deslop diagram`.
+  One self-contained page: the graph and every script it runs are inline below,
+  so it opens from disk, offline. The graph is computed by Deslop
+  (src/Deslop/Diagram.hs): this script only draws it.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Module graph</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #1f2328; --muted: #6b7280; --panel: #ffffff; --line: #d0d4da;
+    --edge: #3b4252; --accent: #d9480f; --folder-fg: #374151; --shadow: 0 2px 12px rgba(0,0,0,.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171a; --fg: #e6e8eb; --muted: #9aa3ae; --panel: #1f2226; --line: #363b42;
+      --edge: #c9d1d9; --accent: #ff922b; --folder-fg: #d1d5db; --shadow: 0 2px 12px rgba(0,0,0,.5);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font: 15px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+  #cy { position: fixed; inset: calc(env(safe-area-inset-top, 0) + 60px) 0 0 0; }
+  #bar { position: fixed; top: env(safe-area-inset-top, 0); left: 0; right: 0; display: flex; gap: 8px;
+    padding: 8px; z-index: 3; pointer-events: none; }
+  #bar > * { pointer-events: auto; }
+  #search { flex: 1; min-width: 0; height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 22px;
+    background: var(--panel); color: var(--fg); font-size: 16px; box-shadow: var(--shadow); }
+  button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 22px; min-height: 44px; padding: 0 14px; box-shadow: var(--shadow); cursor: pointer; }
+  #results { position: fixed; top: calc(env(safe-area-inset-top, 0) + 58px); left: 8px; right: 8px; z-index: 4;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+    max-height: 50vh; overflow-y: auto; }
+  .row { display: block; width: 100%; text-align: left; border: 0; border-radius: 0; box-shadow: none;
+    border-bottom: 1px solid var(--line); padding: 10px 14px; min-height: 44px; background: none; }
+  .row small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #options { position: fixed; top: calc(env(safe-area-inset-top, 0) + 58px); right: 8px; z-index: 4; padding: 6px 14px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  #options label { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+  #options input { width: 22px; height: 22px; }
+  #legend { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom, 0) + 8px); z-index: 2;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; font-size: 12px;
+    box-shadow: var(--shadow); opacity: .94; display: flex; flex-wrap: wrap; column-gap: 12px; row-gap: 2px; }
+  #legend .key { display: flex; align-items: center; gap: 5px; }
+  #legend .hubs, #legend .hint { flex-basis: 100%; }
+  #legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+  #legend .hubs { color: var(--muted); margin-top: 4px; }
+  #legend .hint { color: var(--muted); margin-top: 4px; }
+  #sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; max-height: 42vh; overflow-y: auto;
+    background: var(--panel); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
+    padding: 12px 16px calc(env(safe-area-inset-bottom, 0) + 16px); }
+  #sheet h2 { font-size: 18px; margin: 0 44px 2px 0; word-break: break-word; }
+  #sheet .path { color: var(--muted); font-size: 13px; word-break: break-all; }
+  #sheet h3 { font-size: 14px; margin: 14px 0 4px; color: var(--muted); font-weight: 600; }
+  #sheet .badge { display: inline-block; font-size: 12px; padding: 2px 8px; margin: 6px 6px 0 0; border-radius: 10px;
+    border: 1px solid var(--line); }
+  #close { position: absolute; top: 8px; right: 8px; width: 44px; padding: 0; box-shadow: none; }
+  #sheet .row { padding-left: 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="cy"></div>
+<div id="bar">
+  <input id="search" type="search" placeholder="Find a module" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <button id="toggle-options" aria-expanded="false">Show</button>
+</div>
+<div id="results" hidden></div>
+<div id="options" hidden>
+  <label><input type="checkbox" data-show="tests"> Tests</label>
+  <label><input type="checkbox" data-show="hubs"> Used everywhere</label>
+  <label><input type="checkbox" data-show="implied"> Implied arrows</label>
+  <label><input type="checkbox" data-show="externals"> Packages</label>
+</div>
+<div id="legend"></div>
+<section id="sheet" hidden></section>
+<script id="graph" type="application/json">/* deslop:graph */</script>
+<!-- deslop:libraries -->
+<script>
+"use strict";
+(function () {
+  var graph = JSON.parse(document.getElementById("graph").textContent);
+  if (graph.schema !== "deslop-graph/1") {
+    document.body.textContent = "This page cannot read a graph of schema " + graph.schema + ".";
+    return;
+  }
+
+  // ---- The graph, indexed ------------------------------------------------
+  var nodes = {}, children = {}, outgoing = {}, incoming = {};
+  graph.nodes.forEach(function (n) {
+    n.tags = n.tags || [];
+    nodes[n.id] = n;
+    children[n.id] = [];
+    outgoing[n.id] = [];
+    incoming[n.id] = [];
+  });
+  graph.nodes.forEach(function (n) { if (n.parent) children[n.parent].push(n.id); });
+  graph.edges.forEach(function (e) { outgoing[e.source].push(e); incoming[e.target].push(e); });
+  var modules = graph.nodes.filter(function (n) { return n.kind === "module"; });
+  var roots = graph.nodes.filter(function (n) { return n.kind !== "external" && !n.parent; }).map(function (n) { return n.id; });
+
+  function has(n, tag) { return n.tags.indexOf(tag) >= 0; }
+  function ancestors(id) {
+    var out = [], p = nodes[id].parent;
+    while (p) { out.unshift(p); p = nodes[p].parent; }
+    return out;
+  }
+
+  // Colour by top-level folder; the one holding most of the source is split into its own sub-folders.
+  var palette = ["#4c6ef5", "#12b886", "#f59f00", "#e64980", "#7950f2", "#15aabf", "#fa5252", "#82c91e", "#fd7e14", "#868e96"];
+  var groupOf = (function () {
+    var bySegment = {};
+    var sources = modules.filter(function (m) { return !has(m, "test"); });
+    sources.forEach(function (m) { var a = ancestors(m.id)[0] || ""; bySegment[a] = (bySegment[a] || 0) + 1; });
+    var biggest = Object.keys(bySegment).sort(function (a, b) { return bySegment[b] - bySegment[a]; })[0];
+    var split = bySegment[biggest] > sources.length / 2;
+    return function (id) {
+      var a = ancestors(id);
+      if (nodes[id].kind === "folder") a.push(id);
+      if (split && a[0] === biggest && a[1]) return a[1];
+      return a[0] || "";
+    };
+  })();
+  var groups = [];
+  modules.forEach(function (m) { var g = groupOf(m.id); if (groups.indexOf(g) < 0) groups.push(g); });
+  groups.sort();
+  function colourOf(id) { return palette[groups.indexOf(groupOf(id)) % palette.length]; }
+  function groupLabel(g) { return g ? nodes[g].path + "/" : "(root)"; }
+
+  // ---- What is shown -------------------------------------------------------
+  var show = { tests: false, hubs: false, implied: false, externals: false };
+  var expanded = {};
+  var focused = null;
+
+  function moduleShown(n) {
+    return (show.tests || !has(n, "test")) && (show.hubs || !has(n, "hub"));
+  }
+  var shownCount = {};
+  function countShown() {
+    shownCount = {};
+    modules.forEach(function (m) {
+      if (!moduleShown(m)) return;
+      ancestors(m.id).forEach(function (f) { shownCount[f] = (shownCount[f] || 0) + 1; });
+    });
+  }
+  // The drawn node standing for a module or folder: its outermost collapsed folder, or itself.
+  function representative(id) {
+    var a = ancestors(id);
+    for (var i = 0; i < a.length; i++) if (!expanded[a[i]]) return a[i];
+    return id;
+  }
+  function drawnCount() {
+    var count = 0;
+    (function walk(ids) {
+      ids.forEach(function (id) {
+        var n = nodes[id];
+        if (n.kind === "module") { if (moduleShown(n)) count++; return; }
+        if (!shownCount[id]) return;
+        count++;
+        if (expanded[id]) walk(children[id]);
+      });
+    })(roots);
+    return count;
+  }
+  // Opens the biggest folders first, while the picture stays small enough to read.
+  function autoExpand(budget) {
+    countShown();
+    for (;;) {
+      var candidates = Object.keys(shownCount).filter(function (f) {
+        return !expanded[f] && ancestors(f).every(function (a) { return expanded[a]; });
+      }).sort(function (a, b) { return shownCount[b] - shownCount[a]; });
+      var opened = false;
+      for (var i = 0; i < candidates.length && !opened; i++) {
+        expanded[candidates[i]] = true;
+        if (drawnCount() <= budget) opened = true; else delete expanded[candidates[i]];
+      }
+      if (!opened) return;
+    }
+  }
+
+  function elements() {
+    countShown();
+    var els = [], drawn = {};
+    function layerOf(id) {
+      var n = nodes[id];
+      if (n.kind === "module") return n.layer;
+      var min = Infinity;
+      modules.forEach(function (m) { if (moduleShown(m) && ancestors(m.id).indexOf(id) >= 0) min = Math.min(min, m.layer); });
+      return min;
+    }
+    (function walk(ids, parent) {
+      ids.forEach(function (id) {
+        var n = nodes[id];
+        if (n.kind === "module" && !moduleShown(n)) return;
+        if (n.kind === "folder" && !shownCount[id]) return;
+        var open = n.kind === "folder" && expanded[id];
+        var label = n.kind === "module" ? fileLabel(n.path) : n.label + "/" + (open ? "" : "  " + shownCount[id]);
+        drawn[id] = true;
+        els.push({ group: "nodes", classes: n.kind + (open ? " open" : "") + (has(n, "hub") ? " hub" : "") + (has(n, "test") ? " test" : ""),
+          data: { id: id, parent: parent, label: label, colour: colourOf(id), layer: layerOf(id) } });
+        if (open) walk(children[id], id);
+      });
+    })(roots, undefined);
+    if (show.externals) graph.nodes.forEach(function (n) {
+      if (n.kind !== "external") return;
+      drawn[n.id] = true;
+      els.push({ group: "nodes", classes: "external", data: { id: n.id, label: n.name, colour: "#868e96", layer: 1e6 } });
+    });
+    var merged = {};
+    graph.edges.forEach(function (e) {
+      if (!show.implied && has(e, "implied")) return;
+      var s = representative(e.source), t = representative(e.target);
+      if (!drawn[s] || !drawn[t] || s === t) return;
+      var key = s + "\u0000" + t;
+      merged[key] = merged[key] || { source: s, target: t, count: 0, reexport: true };
+      merged[key].count += e.count;
+      merged[key].reexport = merged[key].reexport && e.kind === "reexport";
+    });
+    Object.keys(merged).forEach(function (k) {
+      var e = merged[k];
+      els.push({ group: "edges", classes: e.reexport ? "reexport" : "", data: { id: k, source: e.source, target: e.target, count: e.count } });
+    });
+    return els;
+  }
+  function fileLabel(path) {
+    var file = path.split("/").pop();
+    var dot = file.lastIndexOf(".");
+    return dot > 0 ? file.slice(0, dot) : file;
+  }
+
+  // ---- Drawing ---------------------------------------------------------------
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function style() {
+    return [
+      { selector: "node", style: { "label": "data(label)", "font-size": 13, "min-zoomed-font-size": 9, "color": css("--fg"),
+        "text-valign": "center", "text-halign": "center", "shape": "round-rectangle",
+        "width": function (n) { return Math.max(40, n.data("label").length * 7.4 + 18); }, "height": 28,
+        "background-color": "data(colour)", "background-opacity": 0.22, "border-width": 1.5, "border-color": "data(colour)" } },
+      { selector: "node.folder", style: { "font-weight": "bold", "background-opacity": 0.4, "border-width": 2.5, "height": 40, "font-size": 15,
+        "width": function (n) { return Math.max(60, n.data("label").length * 8.6 + 24); } } },
+      { selector: "node.open", style: { "text-valign": "top", "text-halign": "center", "text-margin-y": -4, "background-opacity": 0.06,
+        "border-width": 1.5, "border-style": "dashed", "font-size": 14, "color": css("--folder-fg"), "padding": 10 } },
+      { selector: "node.test", style: { "border-style": "dotted" } },
+      { selector: "node.external", style: { "shape": "rectangle", "background-opacity": 0.1 } },
+      { selector: "edge", style: { "width": function (e) { return Math.min(4, 1 + Math.log2(e.data("count"))); },
+        "line-color": css("--edge"), "target-arrow-color": css("--edge"), "target-arrow-shape": "triangle", "arrow-scale": 0.8,
+        "curve-style": "bezier", "opacity": 0.22 } },
+      { selector: "edge.reexport", style: { "line-style": "dashed" } },
+      { selector: "edge.moving", style: { "display": "none" } },
+      { selector: ".faded", style: { "opacity": 0.08 } },
+      { selector: "edge.lit", style: { "opacity": 0.9, "line-color": css("--accent"), "target-arrow-color": css("--accent"), "z-index": 9 } },
+      { selector: "node.lit", style: { "border-width": 3, "background-opacity": 0.45 } },
+      { selector: "node.picked", style: { "border-color": css("--accent"), "border-width": 4 } }
+    ];
+  }
+
+  var cy = cytoscape({ container: document.getElementById("cy"), style: style(),
+    boxSelectionEnabled: false, autoungrabify: true, autounselectify: true, minZoom: 0.05, maxZoom: 4 });
+  window.deslopExplorer = { cy: cy, ready: false, layouts: 0 };
+
+  function layout(then) {
+    var previous = {};
+    cy.nodes().forEach(function (n) { previous[n.id()] = n.position(); });
+    cy.batch(function () {
+      cy.elements().remove();
+      cy.add(elements());
+      cy.nodes().forEach(function (n) {
+        var from = previous[n.id()] || ancestors(n.id()).map(function (a) { return previous[a]; }).filter(Boolean).pop();
+        if (from) n.position({ x: from.x, y: from.y });
+      });
+    });
+    var animate = Object.keys(previous).length > 0;
+    // Nodes start stacked where their folder was, so edges wait until they have moved apart.
+    if (animate) cy.edges().addClass("moving");
+    cy.layout({
+      name: "elk", nodeDimensionsIncludeLabels: true, fit: false, animate: animate, animationDuration: 280,
+      elk: { "algorithm": "layered", "elk.direction": "DOWN", "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+        "elk.partitioning.activate": true, "elk.layered.spacing.nodeNodeBetweenLayers": 44, "elk.spacing.nodeNode": 14,
+        "elk.layered.spacing.edgeNodeBetweenLayers": 12, "elk.padding": "[top=30,left=12,bottom=12,right=12]",
+        "elk.layered.crossingMinimization.forceNodeModelOrder": false, "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX" },
+      nodeLayoutOptions: function (n) { return { "elk.partitioning.partition": n.data("layer") }; },
+      stop: function () {
+        window.deslopExplorer.layouts++;
+        cy.edges().removeClass("moving");
+        if (focused && cy.getElementById(focused).length) highlight(focused);
+        if (then) then();
+      }
+    }).run();
+  }
+
+  // ---- Interaction -------------------------------------------------------------
+  cy.on("tap", "node", function (ev) {
+    var n = nodes[ev.target.id()];
+    if (n.kind === "folder") { toggleFolder(n.id); return; }
+    focus(n.id, false);
+  });
+  cy.on("tap", function (ev) { if (ev.target === cy) clearFocus(); });
+
+  function toggleFolder(id) {
+    if (expanded[id]) {
+      Object.keys(expanded).forEach(function (f) { if (f === id || ancestors(f).indexOf(id) >= 0) delete expanded[f]; });
+      layout(function () { cy.animate({ center: { eles: cy.getElementById(id) }, duration: 250 }); });
+    } else {
+      expanded[id] = true;
+      layout(function () { cy.animate({ fit: { eles: cy.getElementById(id), padding: 24 }, duration: 250 }); });
+    }
+  }
+
+  function focus(id, move) {
+    var n = nodes[id];
+    var changed = false;
+    if (n.kind === "module") {
+      if (has(n, "test") && !show.tests) { show.tests = changed = true; }
+      if (has(n, "hub") && !show.hubs) { show.hubs = changed = true; }
+      ancestors(id).forEach(function (a) { if (!expanded[a]) { expanded[a] = changed = true; } });
+    } else if (n.kind === "external" && !show.externals) { show.externals = changed = true; }
+    focused = id;
+    syncOptions();
+    renderSheet(n);
+    function done() { highlight(id); reveal(id, move); }
+    if (changed) layout(done); else done();
+  }
+
+  // Centres a node in the part of the screen the sheet leaves free.
+  function reveal(id, zoomIn) {
+    var node = cy.getElementById(id);
+    if (!node.length) return;
+    var zoom = zoomIn ? Math.max(cy.zoom(), 1.1) : cy.zoom();
+    var free = cy.height() - document.getElementById("sheet").offsetHeight;
+    var p = node.position();
+    cy.animate({ zoom: zoom, pan: { x: cy.width() / 2 - p.x * zoom, y: Math.max(free, 120) / 2 - p.y * zoom }, duration: 300 });
+  }
+
+  function highlight(id) {
+    var el = cy.getElementById(id);
+    var hood = el.closedNeighborhood();
+    cy.batch(function () {
+      cy.elements().removeClass("lit picked").addClass("faded");
+      hood.removeClass("faded").addClass("lit");
+      el.ancestors().removeClass("faded");
+      hood.nodes().ancestors().removeClass("faded");
+      el.removeClass("lit").addClass("picked");
+    });
+  }
+  function clearFocus() {
+    focused = null;
+    cy.elements().removeClass("faded lit picked");
+    document.getElementById("sheet").hidden = true;
+  }
+
+  // ---- The detail sheet ----------------------------------------------------------
+  function renderSheet(n) {
+    var sheet = document.getElementById("sheet");
+    sheet.innerHTML = "";
+    sheet.hidden = false;
+    var close = el("button", { id: "close", "aria-label": "Close" }, "✕");
+    close.onclick = clearFocus;
+    sheet.appendChild(close);
+    sheet.appendChild(el("h2", {}, nameOf(n.id)));
+    if (n.kind === "module") {
+      sheet.appendChild(el("div", { "class": "path" }, n.path));
+      var badges = el("div");
+      badges.appendChild(el("span", { "class": "badge" }, "layer " + n.layer));
+      if (has(n, "hub")) badges.appendChild(el("span", { "class": "badge" }, "used everywhere"));
+      if (has(n, "test")) badges.appendChild(el("span", { "class": "badge" }, "test"));
+      var reexports = outgoing[n.id].filter(function (e) { return e.kind === "reexport"; }).length;
+      if (reexports) badges.appendChild(el("span", { "class": "badge" }, "re-exports " + reexports));
+      namesOf(n).filter(function (a) { return a !== nameOf(n.id); }).forEach(function (a) { badges.appendChild(el("span", { "class": "badge" }, "also " + a)); });
+      sheet.appendChild(badges);
+    }
+    var imports = unique(outgoing[n.id].map(function (e) { return e.target; }));
+    var internal = imports.filter(function (t) { return nodes[t].kind !== "external"; });
+    var packages = imports.filter(function (t) { return nodes[t].kind === "external"; });
+    list(sheet, "Imports", internal);
+    if (packages.length) {
+      sheet.appendChild(el("h3", {}, "Packages (" + packages.length + ")"));
+      sheet.appendChild(el("div", { "class": "path" }, packages.map(nameOf).sort().join(", ")));
+    }
+    list(sheet, "Imported by", unique(incoming[n.id].map(function (e) { return e.source; })));
+    if (n.kind === "module") list(sheet, "Tested by", n.testedBy || []);
+    sheet.scrollTop = 0;
+  }
+  function list(parent, title, ids) {
+    parent.appendChild(el("h3", {}, title + " (" + ids.length + ")"));
+    ids.sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b)); }).forEach(function (id) {
+      var row = el("button", { "class": "row" }, nameOf(id));
+      if (nodes[id].path) row.appendChild(el("small", {}, nodes[id].path));
+      row.onclick = function () { focus(id, true); };
+      parent.appendChild(row);
+    });
+  }
+  // The shortest name a module answers to: the one a reader would write.
+  function nameOf(id) {
+    var n = nodes[id];
+    return n.kind === "folder" ? n.label : namesOf(n).reduce(function (a, b) { return b.length < a.length ? b : a; });
+  }
+  function namesOf(n) { return [n.name].concat(n.aliases || []); }
+  function unique(xs) { return xs.filter(function (x, i) { return xs.indexOf(x) === i; }); }
+  function el(tag, attrs, text) {
+    var e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  // ---- Search ------------------------------------------------------------------
+  var search = document.getElementById("search"), results = document.getElementById("results");
+  function score(query, n) {
+    var hay = (n.name + " " + (n.aliases || []).join(" ") + " " + (n.path || "")).toLowerCase();
+    var at = hay.indexOf(query);
+    if (at >= 0) return 1000 - at - hay.length / 100;
+    var i = 0, gaps = 0;
+    for (var c = 0; c < hay.length && i < query.length; c++) { if (hay[c] === query[i]) i++; else if (i > 0) gaps++; }
+    return i === query.length ? 100 - gaps : -1;
+  }
+  search.addEventListener("input", function () {
+    var q = search.value.trim().toLowerCase();
+    results.innerHTML = "";
+    results.hidden = !q;
+    if (!q) return;
+    graph.nodes.filter(function (n) { return n.kind !== "folder"; })
+      .map(function (n) { return { n: n, s: score(q, n) }; })
+      .filter(function (x) { return x.s >= 0; })
+      .sort(function (a, b) { return b.s - a.s; }).slice(0, 8)
+      .forEach(function (x) {
+        var row = el("button", { "class": "row" }, nameOf(x.n.id));
+        if (x.n.path) row.appendChild(el("small", {}, x.n.path));
+        row.onclick = function () { results.hidden = true; search.blur(); focus(x.n.id, true); };
+        results.appendChild(row);
+      });
+  });
+
+  // ---- Options and legend ------------------------------------------------------------
+  var options = document.getElementById("options"), optionsButton = document.getElementById("toggle-options");
+  optionsButton.onclick = function () {
+    options.hidden = !options.hidden;
+    optionsButton.setAttribute("aria-expanded", String(!options.hidden));
+  };
+  function syncOptions() {
+    options.querySelectorAll("input").forEach(function (box) { box.checked = show[box.dataset.show]; });
+    renderLegend();
+  }
+  options.querySelectorAll("input").forEach(function (box) {
+    box.onchange = function () { show[box.dataset.show] = box.checked; renderLegend(); layout(); };
+  });
+  function renderLegend() {
+    var legend = document.getElementById("legend");
+    legend.innerHTML = "";
+    countShown();
+    groups.filter(function (g) {
+      return modules.some(function (m) { return moduleShown(m) && groupOf(m.id) === g; });
+    }).forEach(function (g) {
+      var key = el("div", { "class": "key" });
+      var swatch = el("i");
+      swatch.style.background = palette[groups.indexOf(g) % palette.length];
+      key.appendChild(swatch);
+      key.appendChild(document.createTextNode(groupLabel(g)));
+      legend.appendChild(key);
+    });
+    var hubs = modules.filter(function (m) { return has(m, "hub"); });
+    if (hubs.length && !show.hubs) {
+      legend.appendChild(el("div", { "class": "hubs" }, "Used everywhere, hidden: " + hubs.map(function (m) { return fileLabel(m.path); }).join(", ")));
+    }
+    legend.appendChild(el("div", { "class": "hint" }, "Arrows point at what is imported. Tap a folder to open it."));
+  }
+
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { cy.style(style()); });
+
+  autoExpand(28);
+  syncOptions();
+  var started = performance.now();
+  layout(function () {
+    cy.fit(undefined, 16);
+    // A wide graph fits by its width: pin it to the top rather than float it mid-screen.
+    cy.pan({ x: cy.pan().x, y: 16 - cy.elements().boundingBox().y1 * cy.zoom() });
+    window.deslopExplorer.ready = true;
+    window.deslopExplorer.firstLayoutMs = performance.now() - started;
+  });
+})();
+</script>
+</body>
+</html>

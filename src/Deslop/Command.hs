@@ -5,5 +5,5 @@ be fixed, reported or accepted into the Baseline.
 -}
 module Deslop.Command (Command (..)) where
 
-data Command = CheckC | FixC | BaselineC
+data Command = CheckC | FixC | BaselineC | DiagramC
     deriving (Show, Eq)

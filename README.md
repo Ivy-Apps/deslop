@@ -63,6 +63,7 @@ Then write your first rulebook in `deslop/rules/` — see [Writing Rules](#writi
 | `deslop check <project>` | Report all rule violations |
 | `deslop fix <project>` | Auto-fix violations where possible |
 | `deslop baseline <project>` | Write `deslop/baseline.yaml` to silence current violations |
+| `deslop diagram <project>` | Write an interactive module graph to `deslop/diagram/index.html` |
 
 ### CI with GitHub Actions
 
