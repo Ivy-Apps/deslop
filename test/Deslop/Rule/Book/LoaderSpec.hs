@@ -14,6 +14,7 @@ import Fixtures.Deslop.Rule.Book (loadRulebookBytes)
 import Fixtures.Deslop.Rule.Book.Dto (rulebookYaml)
 import Fixtures.OnDisk (rulebooks)
 import System.Directory.OsPath qualified as SDO
+import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import TestUtils (listFixtures, mkAbsolute)
@@ -229,22 +230,26 @@ rulesDirSpec = describe "loadRulebooksFromDir" $ do
     it "loads every rulebook in it, in file name order" $ do
         loaded <- inRulesDir $ \dir -> do
             SDO.createDirectoryIfMissing True dir
-            writeFileBS (toString (decodeOsPath dir) <> "/b.yaml") (rulebookYaml ["    target: \"@/b/**\""])
-            writeFileBS (toString (decodeOsPath dir) <> "/a.yaml") (rulebookYaml ["    target: \"@/a/**\""])
+            SFO.writeFile' (dir </> [osp|b.yaml|]) (rulebookYaml ["    target: \"@/b/**\""])
+            SFO.writeFile' (dir </> [osp|a.yaml|]) (rulebookYaml ["    target: \"@/a/**\""])
 
         fmap (fmap outline) loaded `shouldBe` Right [[("a-rule", ["target @/a/**"])], [("a-rule", ["target @/b/**"])]]
 
-    it "reads a file that is not .yaml as a rulebook too, and fails on it" $ do
+    -- Pins a known bug: a README beside the rulebooks aborts the run. Closing
+    -- #247 makes this red, which is the point of writing it down.
+    it "still reads a file that is not .yaml as a rulebook, and fails on it (known bug, #247)" $ do
         loaded <- inRulesDir $ \dir -> do
             SDO.createDirectoryIfMissing True dir
-            writeFileBS (toString (decodeOsPath dir) <> "/a.yaml") (rulebookYaml ["    target: \"@/a/**\""])
-            writeFileBS (toString (decodeOsPath dir) <> "/README.md") "Rules for this project."
+            SFO.writeFile' (dir </> [osp|a.yaml|]) (rulebookYaml ["    target: \"@/a/**\""])
+            SFO.writeFile' (dir </> [osp|README.md|]) "Rules for this project."
 
         loaded `shouldSatisfy` \case
             Left report -> "Could not load 1 rulebook." `T.isPrefixOf` report && "deslop/rules/README.md" `T.isInfixOf` report
             Right _ -> False
 
-    it "fails outright on a subdirectory, which it tries to read as a file" $
+    -- Pins a known bug: a subdirectory escapes as a raw IO exception rather
+    -- than a load error. Closing #248 makes this red.
+    it "still fails outright on a subdirectory, which it tries to read as a file (known bug, #248)" $
         inRulesDir (\dir -> SDO.createDirectoryIfMissing True (dir </> [osp|nested|]))
             `shouldThrow` anyIOException
   where

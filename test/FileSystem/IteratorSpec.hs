@@ -5,7 +5,7 @@ import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, mockD
 import Effectful (IOE, runEff)
 import FileSystem.Iterator (Entry (..), walkDir)
 import FileSystem.Path (AbsPath (osPath), ProjectRoot (..), decodeOsPath)
-import Fixtures.FileSystem.Path (projectRoot)
+import Fixtures.FileSystem.Path (inProject, projectRoot)
 import Test.Hspec
 import TestUtils (ap)
 
@@ -27,56 +27,56 @@ named n = (== n) . decodeOsPath . (.osPath) . (.path)
 spec :: Spec
 spec = describe "FileSystem.Iterator" $ do
     it "collects every file in the tree" $ do
-        let srcDir = ap "/project/src"
-        let files = [ap "/project/root.ts", ap "/project/src/a.ts", ap "/project/src/b.ts"]
+        let srcDir = inProject "src"
+        let files = [inProject "root.ts", inProject "src/a.ts", inProject "src/b.ts"]
         run
-            (mockDirs [(root, [ap "/project/root.ts", srcDir]), (srcDir, drop 1 files)])
+            (mockDirs [(root, [inProject "root.ts", srcDir]), (srcDir, drop 1 files)])
             (const False)
             filesOnly
             >>= (`shouldBe` files)
 
     it "shows directories to select as well as files" $ do
-        let srcDir = ap "/project/src"
+        let srcDir = inProject "src"
         run
-            (mockDirs [(root, [srcDir]), (srcDir, [ap "/project/src/a.ts"])])
+            (mockDirs [(root, [srcDir]), (srcDir, [inProject "src/a.ts"])])
             (const False)
             everything
-            >>= (`shouldBe` [srcDir, ap "/project/src/a.ts"])
+            >>= (`shouldBe` [srcDir, inProject "src/a.ts"])
 
     it "tags entries as directories or not" $ do
-        let srcDir = ap "/project/src"
+        let srcDir = inProject "src"
         run
-            (mockDirs [(root, [srcDir, ap "/project/a.ts"]), (srcDir, [])])
+            (mockDirs [(root, [srcDir, inProject "a.ts"]), (srcDir, [])])
             (const False)
             (Just . (.isDir))
             >>= (`shouldBe` [True, False])
 
     it "prunes a pruned directory's entire subtree" $ do
-        let skipDir = ap "/project/skip"
-        let deep = ap "/project/skip/deep"
+        let skipDir = inProject "skip"
+        let deep = inProject "skip/deep"
         run
             ( mockDirs
-                [ (root, [skipDir, ap "/project/keep.ts"])
-                , (skipDir, [ap "/project/skip/a.ts", deep])
-                , (deep, [ap "/project/skip/deep/b.ts"])
+                [ (root, [skipDir, inProject "keep.ts"])
+                , (skipDir, [inProject "skip/a.ts", deep])
+                , (deep, [inProject "skip/deep/b.ts"])
                 ]
             )
             (named "/project/skip")
             filesOnly
-            >>= (`shouldBe` [ap "/project/keep.ts"])
+            >>= (`shouldBe` [inProject "keep.ts"])
 
     it "drops a pruned file without affecting its siblings" $ do
-        let files = [ap "/project/a.ts", ap "/project/b.ts"]
+        let files = [inProject "a.ts", inProject "b.ts"]
         run (mockDirs [(root, files)]) (named "/project/a.ts") filesOnly
-            >>= (`shouldBe` [ap "/project/b.ts"])
+            >>= (`shouldBe` [inProject "b.ts"])
 
     it "never returns a path beneath a pruned directory" $ do
-        let skipDir = ap "/project/skip"
+        let skipDir = inProject "skip"
         result <-
             run
                 ( mockDirs
                     [ (root, [skipDir])
-                    , (skipDir, [ap "/project/skip/a.ts"])
+                    , (skipDir, [inProject "skip/a.ts"])
                     ]
                 )
                 (named "/project/skip")
@@ -88,18 +88,18 @@ spec = describe "FileSystem.Iterator" $ do
 
     describe "symlinks" $ do
         it "does not descend into a symlinked directory" $ do
-            let link = ap "/project/link"
+            let link = inProject "link"
             run
                 ( mockDirsWithSymlinks
-                    [(root, [link, ap "/project/a.ts"]), (link, [ap "/project/link/hidden.ts"])]
+                    [(root, [link, inProject "a.ts"]), (link, [inProject "link/hidden.ts"])]
                     [link]
                 )
                 (const False)
                 filesOnly
-                >>= (`shouldBe` [ap "/project/a.ts"])
+                >>= (`shouldBe` [inProject "a.ts"])
 
         it "still reports the symlinked directory itself as an entry" $ do
-            let link = ap "/project/link"
+            let link = inProject "link"
             run
                 (mockDirsWithSymlinks [(root, [link]), (link, [])] [link])
                 (const False)
@@ -117,4 +117,4 @@ spec = describe "FileSystem.Iterator" $ do
                         , mockListDirectory = \p -> pure [ap (decodeOsPath p.osPath <> "/link")]
                         }
             run selfReferential (const False) everything
-                >>= (`shouldBe` [ap "/project/link"])
+                >>= (`shouldBe` [inProject "link"])

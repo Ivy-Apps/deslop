@@ -13,14 +13,14 @@ import Deslop.Rule.Book.Loader (RulebookLoadError, loadRulebookFromFile)
 import Doubles.FileSystem (mockFileAt, runMockRoFileSystem)
 import Effectful (runPureEff)
 import Fixtures.Deslop.Rule.Book.Dto (rulebookYamlOf)
-import TestUtils (ap)
+import Fixtures.FileSystem.Path (inProject)
 
 -- | One rulebook file's bytes, loaded.
 loadRulebookBytes :: ByteString -> Either RulebookLoadError Rulebook
 loadRulebookBytes bytes =
     runPureEff . runMockRoFileSystem (mockFileAt path bytes) $ loadRulebookFromFile path
   where
-    path = ap "/project/deslop/rules/rulebook.yaml"
+    path = inProject "deslop/rules/rulebook.yaml"
 
 -- | The rulebook of that id holding these rules, each written as 'rulebookYamlOf' takes it.
 rulebookOf :: Text -> [[Text]] -> Either RulebookLoadError Rulebook

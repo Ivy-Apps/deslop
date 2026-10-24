@@ -129,8 +129,8 @@ run this. See
 ### Test fixtures
 
 `fixtures/` is laid out by language, then kind; what no language owns is under
-`fixtures/shared/`. Goldens mirror it under `.golden/typescript/`,
-`.golden/haskell/` and `.golden/shared/`.
+`fixtures/shared/`. Goldens mirror it under `.golden/typescript/`
+and `.golden/haskell/`.
 
 | Path | Holds |
 |------|-------|
@@ -144,8 +144,9 @@ run this. See
 | `fixtures/shared/static/` | a tree of names, for filesystem effects |
 
 **No spec spells a fixture path**: every root has one helper in
-`Fixtures.OnDisk` (`typescriptProject "ts-cycles-project"`, `rulebooks`, ...),
-so moving a directory is a one-line change there. A new root gets a new helper.
+`Fixtures.OnDisk` (`projectIn TypeScript "ts-cycles-project"`, `rulebooks`, ...),
+so moving a directory is a one-line change there. A new root gets a new helper;
+a new language gets a `Language` constructor and its directory in `languageDir`.
 
 `fixtures/typescript/projects/ts-gitignore-project/` contains real
 `.gitignore` files, which this repository's own git honours too. Anything they

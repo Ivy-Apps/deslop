@@ -24,7 +24,7 @@ import FileSystem.Path (
     relativePathTo,
     withAbsBaseUnsafe,
  )
-import Fixtures.OnDisk (haskellProject, typescriptProject)
+import Fixtures.OnDisk (Language (..), languageDir, projectIn)
 import Frontend.TypeScript (TsFrontend (..))
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
@@ -177,13 +177,6 @@ data Writes
     = InMemory
     | ToDisk
 
--- | Which language a fixture project is written in, and so where it and its goldens live.
-data Language = TypeScript | Haskell
-
-projectIn :: Language -> String -> OsPath
-projectIn TypeScript = typescriptProject
-projectIn Haskell = haskellProject
-
 -- | Everything one 'doWork' leaves behind.
 data Run = Run
     { result :: Either DeslopError RunReport
@@ -229,10 +222,7 @@ inEmptyDir :: (OsPath -> IO a) -> IO a
 inEmptyDir act = withSystemTempDirectory "deslop-test" (act . encodeOsPathString)
 
 projectGolden :: Language -> String -> String -> String -> Golden String
-projectGolden language kind project = defaultGolden (languageDir language <> kind <> "-" <> project)
-  where
-    languageDir TypeScript = "typescript/"
-    languageDir Haskell = "haskell/"
+projectGolden language kind project = defaultGolden (languageDir language <> "/" <> kind <> "-" <> project)
 
 {- | The closing summary and the check verdict are rendered by runDeslop,
 outside doWork, so the transcript alone would not cover them. Appending them

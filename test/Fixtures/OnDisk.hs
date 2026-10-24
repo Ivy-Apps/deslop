@@ -7,16 +7,17 @@ moving a directory is a one-line change here rather than a hunt through the
 suite.
 -}
 module Fixtures.OnDisk (
+    -- * Per language
+    Language (..),
+    languageDir,
+    projectIn,
+
     -- * TypeScript
-    typescriptProjects,
-    typescriptProject,
     typescriptFiles,
     typescriptConfigs,
     resolutionCorpus,
 
     -- * Haskell
-    haskellProjects,
-    haskellProject,
     ghcCorpus,
 
     -- * Language-agnostic
@@ -27,42 +28,52 @@ module Fixtures.OnDisk (
 import FileSystem.Path (encodeOsPathString)
 import System.OsPath (OsPath, osp, (</>))
 
--- | Whole TypeScript projects, each a directory with a @tsconfig.json@.
-typescriptProjects :: OsPath
-typescriptProjects = [osp|fixtures/typescript/projects|]
+{- | A language the fixtures hold whole projects in. Its fixtures sit under
+@fixtures/\<dir\>/@, and the goldens of its projects under @.golden/\<dir\>/@.
+-}
+data Language = TypeScript | Haskell
 
--- | One of 'typescriptProjects', by its directory name.
-typescriptProject :: String -> OsPath
-typescriptProject = (typescriptProjects </>) . encodeOsPathString
+-- | The directory a language's fixtures and goldens sit in.
+languageDir :: Language -> String
+languageDir = \case
+    TypeScript -> "typescript"
+    Haskell -> "haskell"
+
+{- | One of the language's whole projects, by its directory name: a directory
+holding the language's project config (@tsconfig.json@, a @.cabal@ file).
+-}
+projectIn :: Language -> String -> OsPath
+projectIn language = ((fixturesOf language </> [osp|projects|]) </>) . encodeOsPathString
 
 -- | Single @.ts@ source files, read on their own.
 typescriptFiles :: OsPath
-typescriptFiles = [osp|fixtures/typescript/files|]
+typescriptFiles = fixturesOf TypeScript </> [osp|files|]
 
 -- | Standalone @tsconfig.json@ files.
 typescriptConfigs :: OsPath
-typescriptConfigs = [osp|fixtures/typescript/config|]
+typescriptConfigs = fixturesOf TypeScript </> [osp|config|]
 
 -- | What @tsc@ resolves each hand-authored case to. See @docs/adr/0018@.
 resolutionCorpus :: OsPath
-resolutionCorpus = [osp|fixtures/typescript/resolution-corpus.json|]
-
--- | Whole Haskell projects, each a directory with a @.cabal@ file.
-haskellProjects :: OsPath
-haskellProjects = [osp|fixtures/haskell/projects|]
-
--- | One of 'haskellProjects', by its directory name.
-haskellProject :: String -> OsPath
-haskellProject = (haskellProjects </>) . encodeOsPathString
+resolutionCorpus = fixturesOf TypeScript </> [osp|resolution-corpus.json|]
 
 -- | What @ghc -M@ says each hand-authored case depends on. See @docs/adr/0022@.
 ghcCorpus :: OsPath
-ghcCorpus = [osp|fixtures/haskell/ghc-corpus.json|]
+ghcCorpus = fixturesOf Haskell </> [osp|ghc-corpus.json|]
 
 -- | Rulebook files, valid and broken, read on their own.
 rulebooks :: OsPath
-rulebooks = [osp|fixtures/shared/rulebook|]
+rulebooks = shared </> [osp|rulebook|]
 
 -- | A small directory tree with nothing in it but names.
 staticTree :: OsPath
-staticTree = [osp|fixtures/shared/static|]
+staticTree = shared </> [osp|static|]
+
+fixturesOf :: Language -> OsPath
+fixturesOf = (fixtures </>) . encodeOsPathString . languageDir
+
+shared :: OsPath
+shared = fixtures </> [osp|shared|]
+
+fixtures :: OsPath
+fixtures = [osp|fixtures|]

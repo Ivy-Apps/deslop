@@ -3,13 +3,12 @@ module Frontend.TypeScript.IteratorSpec (spec) where
 import Doubles.FileSystem (mockDirs, runMockRoFileSystem)
 import Effectful (runEff)
 import FileSystem.Path (AbsPath, ProjectRoot (..))
-import Fixtures.FileSystem.Path (projectRoot)
+import Fixtures.FileSystem.Path (inProject, projectRoot)
 import Fixtures.Git.Ignore qualified as Fixture
 import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
 import Frontend.TypeScript.Iterator (getTsFiles)
 import Git.Ignore (GitIgnore, emptyGitIgnore)
 import Test.Hspec
-import TestUtils (ap)
 
 root :: AbsPath
 root = projectRoot.path
@@ -32,41 +31,41 @@ spec = describe "Frontend.TypeScript.Iterator" $ do
 
     it "collects multiple .ts and .tsx files from a flat directory" $ do
         let files =
-                [ ap "/project/index.ts"
-                , ap "/project/App.tsx"
-                , ap "/project/utils.ts"
-                , ap "/project/Button.tsx"
+                [ inProject "index.ts"
+                , inProject "App.tsx"
+                , inProject "utils.ts"
+                , inProject "Button.tsx"
                 ]
         run [(root, files)] >>= (`shouldBe` files)
 
     it "excludes non-TypeScript files alongside .ts/.tsx files" $ do
-        let tsFile = ap "/project/index.ts"
-        let tsxFile = ap "/project/App.tsx"
+        let tsFile = inProject "index.ts"
+        let tsxFile = inProject "App.tsx"
         let allEntries =
                 [ tsFile
-                , ap "/project/styles.css"
+                , inProject "styles.css"
                 , tsxFile
-                , ap "/project/README.md"
-                , ap "/project/build.js"
+                , inProject "README.md"
+                , inProject "build.js"
                 ]
         run [(root, allEntries)] >>= (`shouldBe` [tsFile, tsxFile])
 
     it "recurses into a subdirectory and collects .ts and .tsx files" $ do
-        let srcDir = ap "/project/src"
+        let srcDir = inProject "src"
         let files =
-                [ ap "/project/src/main.ts"
-                , ap "/project/src/App.tsx"
-                , ap "/project/src/index.ts"
+                [ inProject "src/main.ts"
+                , inProject "src/App.tsx"
+                , inProject "src/index.ts"
                 ]
         run [(root, [srcDir]), (srcDir, files)] >>= (`shouldBe` files)
 
     it "recurses deeply (3 levels) and collects all .ts/.tsx files" $ do
-        let componentsDir = ap "/project/src/components"
-        let srcDir = ap "/project/src"
-        let rootTs = ap "/project/root.ts"
-        let srcTs = ap "/project/src/service.ts"
-        let compTs = ap "/project/src/components/Button.tsx"
-        let compTs2 = ap "/project/src/components/Modal.ts"
+        let componentsDir = inProject "src/components"
+        let srcDir = inProject "src"
+        let rootTs = inProject "root.ts"
+        let srcTs = inProject "src/service.ts"
+        let compTs = inProject "src/components/Button.tsx"
+        let compTs2 = inProject "src/components/Modal.ts"
         run
             [ (root, [rootTs, srcDir])
             , (srcDir, [srcTs, componentsDir])
@@ -75,97 +74,97 @@ spec = describe "Frontend.TypeScript.Iterator" $ do
             >>= (`shouldBe` [rootTs, srcTs, compTs, compTs2])
 
     it "skips an empty non-ignored subdirectory" $ do
-        let emptyDir = ap "/project/empty"
+        let emptyDir = inProject "empty"
         run [(root, [emptyDir]), (emptyDir, [])] >>= (`shouldBe` [])
 
     describe "ignored directories" $ do
         it "skips node_modules at root" $ do
-            let nodeModules = ap "/project/node_modules"
-            let srcFile = ap "/project/index.ts"
+            let nodeModules = inProject "node_modules"
+            let srcFile = inProject "index.ts"
             run
                 [ (root, [nodeModules, srcFile])
-                , (nodeModules, [ap "/project/node_modules/dep.ts"])
+                , (nodeModules, [inProject "node_modules/dep.ts"])
                 ]
                 >>= (`shouldBe` [srcFile])
 
         it "skips node_modules nested inside a subdirectory" $ do
-            let pkgDir = ap "/project/packages/app"
-            let nestedNm = ap "/project/packages/app/node_modules"
-            let appTs = ap "/project/packages/app/index.ts"
-            let packagesDir = ap "/project/packages"
+            let pkgDir = inProject "packages/app"
+            let nestedNm = inProject "packages/app/node_modules"
+            let appTs = inProject "packages/app/index.ts"
+            let packagesDir = inProject "packages"
             run
                 [ (root, [packagesDir])
                 , (packagesDir, [pkgDir])
                 , (pkgDir, [nestedNm, appTs])
-                , (nestedNm, [ap "/project/packages/app/node_modules/lib.ts"])
+                , (nestedNm, [inProject "packages/app/node_modules/lib.ts"])
                 ]
                 >>= (`shouldBe` [appTs])
 
         it "skips node_modules at multiple nesting levels simultaneously" $ do
-            let rootNm = ap "/project/node_modules"
-            let srcDir = ap "/project/src"
-            let nestedNm = ap "/project/src/node_modules"
-            let srcTs = ap "/project/src/api.ts"
+            let rootNm = inProject "node_modules"
+            let srcDir = inProject "src"
+            let nestedNm = inProject "src/node_modules"
+            let srcTs = inProject "src/api.ts"
             run
                 [ (root, [rootNm, srcDir])
-                , (rootNm, [ap "/project/node_modules/pkg.ts"])
+                , (rootNm, [inProject "node_modules/pkg.ts"])
                 , (srcDir, [nestedNm, srcTs])
-                , (nestedNm, [ap "/project/src/node_modules/dep.ts"])
+                , (nestedNm, [inProject "src/node_modules/dep.ts"])
                 ]
                 >>= (`shouldBe` [srcTs])
 
         it "does NOT skip a directory named node_modules_backup (exact name match)" $ do
-            let nmBackup = ap "/project/node_modules_backup"
-            let backupTs = ap "/project/node_modules_backup/legacy.ts"
+            let nmBackup = inProject "node_modules_backup"
+            let backupTs = inProject "node_modules_backup/legacy.ts"
             run
                 [(root, [nmBackup]), (nmBackup, [backupTs])]
                 >>= (`shouldBe` [backupTs])
 
         it "skips .git" $ do
-            let gitDir = ap "/project/.git"
+            let gitDir = inProject ".git"
             run
-                [(root, [gitDir]), (gitDir, [ap "/project/.git/hook.ts"])]
+                [(root, [gitDir]), (gitDir, [inProject ".git/hook.ts"])]
                 >>= (`shouldBe` [])
 
         it "skips dist" $ do
-            let distDir = ap "/project/dist"
+            let distDir = inProject "dist"
             run
                 [ (root, [distDir])
-                , (distDir, [ap "/project/dist/bundle.ts", ap "/project/dist/chunk.tsx"])
+                , (distDir, [inProject "dist/bundle.ts", inProject "dist/chunk.tsx"])
                 ]
                 >>= (`shouldBe` [])
 
         it "skips .next" $ do
-            let nextDir = ap "/project/.next"
+            let nextDir = inProject ".next"
             run
-                [(root, [nextDir]), (nextDir, [ap "/project/.next/server.ts"])]
+                [(root, [nextDir]), (nextDir, [inProject ".next/server.ts"])]
                 >>= (`shouldBe` [])
 
         it "skips next-env.d.ts" $ do
-            let nextTypes = ap "/project/next-env.d.ts"
+            let nextTypes = inProject "next-env.d.ts"
             run [(root, [nextTypes])] >>= (`shouldBe` [])
 
         it "skips .direnv" $ do
-            let direnvDir = ap "/project/.direnv"
+            let direnvDir = inProject ".direnv"
             run
-                [(root, [direnvDir]), (direnvDir, [ap "/project/.direnv/flake-inputs/src/api.ts"])]
+                [(root, [direnvDir]), (direnvDir, [inProject ".direnv/flake-inputs/src/api.ts"])]
                 >>= (`shouldBe` [])
 
         it "skips AI agent folders, worktrees included" $ do
-            let agentDirs = ["/project/.claude", "/project/.codex", "/project/.cursor", "/project/.opencode", "/project/.windsurf"]
+            let agentDirs = [".claude", ".codex", ".cursor", ".opencode", ".windsurf"]
             run
-                ((root, ap <$> agentDirs) : fmap (\dir -> (ap dir, [ap $ dir <> "/worktrees/x/src/api.ts"])) agentDirs)
+                ((root, inProject <$> agentDirs) : fmap (\dir -> (inProject dir, [inProject $ dir <> "/worktrees/x/src/api.ts"])) agentDirs)
                 >>= (`shouldBe` [])
 
         it "skips all ignored dirs simultaneously while collecting from valid ones" $ do
-            let nodeModules = ap "/project/node_modules"
-            let distDir = ap "/project/dist"
-            let gitDir = ap "/project/.git"
-            let nextDir = ap "/project/.next"
-            let srcDir = ap "/project/src"
-            let pagesDir = ap "/project/pages"
-            let srcFiles = [ap "/project/src/api.ts", ap "/project/src/types.ts"]
-            let pageFiles = [ap "/project/pages/index.tsx", ap "/project/pages/about.tsx"]
+            let nodeModules = inProject "node_modules"
+            let distDir = inProject "dist"
+            let gitDir = inProject ".git"
+            let nextDir = inProject ".next"
+            let srcDir = inProject "src"
+            let pagesDir = inProject "pages"
+            let srcFiles = [inProject "src/api.ts", inProject "src/types.ts"]
+            let pageFiles = [inProject "pages/index.tsx", inProject "pages/about.tsx"]
             run
                 [
                     ( root
@@ -176,13 +175,13 @@ spec = describe "Frontend.TypeScript.Iterator" $ do
                         , nextDir
                         , srcDir
                         , pagesDir
-                        , ap "/project/.next-env.d.ts"
+                        , inProject ".next-env.d.ts"
                         ]
                     )
-                , (nodeModules, [ap "/project/node_modules/lib.ts"])
-                , (distDir, [ap "/project/dist/main.js"])
-                , (gitDir, [ap "/project/.git/config.ts"])
-                , (nextDir, [ap "/project/.next/server.ts"])
+                , (nodeModules, [inProject "node_modules/lib.ts"])
+                , (distDir, [inProject "dist/main.js"])
+                , (gitDir, [inProject ".git/config.ts"])
+                , (nextDir, [inProject ".next/server.ts"])
                 , (srcDir, srcFiles)
                 , (pagesDir, pageFiles)
                 ]
@@ -190,31 +189,31 @@ spec = describe "Frontend.TypeScript.Iterator" $ do
 
     describe "gitignored paths" $ do
         it "skips a gitignored file" $ do
-            let keep = ap "/project/keep.ts"
+            let keep = inProject "keep.ts"
             runWith
                 (rootGitIgnore "generated.ts")
-                [(root, [keep, ap "/project/generated.ts"])]
+                [(root, [keep, inProject "generated.ts"])]
                 >>= (`shouldBe` [keep])
 
         it "skips a gitignored directory without descending into it" $ do
-            let vendorDir = ap "/project/vendor"
-            let keep = ap "/project/keep.ts"
+            let vendorDir = inProject "vendor"
+            let keep = inProject "keep.ts"
             runWith
                 (rootGitIgnore "vendor/")
-                [(root, [vendorDir, keep]), (vendorDir, [ap "/project/vendor/legacy.ts"])]
+                [(root, [vendorDir, keep]), (vendorDir, [inProject "vendor/legacy.ts"])]
                 >>= (`shouldBe` [keep])
 
         it "keeps a file re-included by a later negation" $ do
-            let keep = ap "/project/keep.gen.ts"
+            let keep = inProject "keep.gen.ts"
             runWith
                 (rootGitIgnore "*.gen.ts\n!keep.gen.ts")
-                [(root, [keep, ap "/project/other.gen.ts"])]
+                [(root, [keep, inProject "other.gen.ts"])]
                 >>= (`shouldBe` [keep])
 
         it "still skips the hardcoded list even when a rule un-ignores it" $ do
-            let nodeModules = ap "/project/node_modules"
-            let keep = ap "/project/keep.ts"
+            let nodeModules = inProject "node_modules"
+            let keep = inProject "keep.ts"
             runWith
                 (rootGitIgnore "!node_modules")
-                [(root, [nodeModules, keep]), (nodeModules, [ap "/project/node_modules/dep.ts"])]
+                [(root, [nodeModules, keep]), (nodeModules, [inProject "node_modules/dep.ts"])]
                 >>= (`shouldBe` [keep])

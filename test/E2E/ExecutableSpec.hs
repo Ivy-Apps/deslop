@@ -10,7 +10,7 @@ module E2E.ExecutableSpec (spec) where
 import Data.Text qualified as T
 import Data.Version (showVersion)
 import FileSystem.Path (decodeOsPath, encodeOsPathString)
-import Fixtures.OnDisk (typescriptProject)
+import Fixtures.OnDisk (Language (..), projectIn)
 import Paths_deslop (version)
 import System.Exit (ExitCode (..))
 import System.OsPath (OsPath)
@@ -38,14 +38,14 @@ spec :: Spec
 spec = describe "E2E.Executable" $ do
     describe "a run" $ do
         it "exits non-zero when check finds problems" $ do
-            ran <- deslop ["check", pathOf (typescriptProject "ts-cycles-project")]
+            ran <- deslop ["check", pathOf (projectIn TypeScript "ts-cycles-project")]
 
             ran.exitCode `shouldBe` ExitFailure 1
             ran.err `shouldSatisfy` T.isInfixOf "❌ Error: Found 1 problem, none auto-fixable."
 
         it "exits zero when check finds nothing outside the Baseline" $
             withSystemTempDirectory "deslop-exe" $ \tmp -> do
-                copyDir (typescriptProject "ts-cycles-project") (encodeOsPathString tmp)
+                copyDir (projectIn TypeScript "ts-cycles-project") (encodeOsPathString tmp)
                 baselined <- deslop ["baseline", tmp]
 
                 ran <- deslop ["check", tmp]
@@ -60,7 +60,7 @@ spec = describe "E2E.Executable" $ do
             ran.err `shouldSatisfy` T.isInfixOf "❌ Error: No supported project found in /nonexistent/deslop-project."
 
         it "exits non-zero, saying why, for a rulebook it cannot load" $ do
-            ran <- deslop ["check", pathOf (typescriptProject "ts-invalid-rulebook-project")]
+            ran <- deslop ["check", pathOf (projectIn TypeScript "ts-invalid-rulebook-project")]
 
             ran.exitCode `shouldBe` ExitFailure 1
             ran.err `shouldSatisfy` T.isInfixOf "❌ Error: Could not load 4 rulebooks."
