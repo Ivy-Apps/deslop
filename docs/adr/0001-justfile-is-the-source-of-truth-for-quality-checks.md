@@ -84,9 +84,9 @@ If the per-step cost ever becomes material, the maintained
 
 ## Update (test hardening, #245)
 
-CI now runs `just check` as one step instead of one step per recipe, so the
-workflow cannot drift from the recipe; only `cabal update` and
-`just build-bench` stay CI-only. That gives up the per-step fail-fast
-granularity above in exchange for the single definition. Formatting is now
-checked: `just check` starts with `just format-check` (fourmolu), after one
-formatting pass over the whole codebase in its own commit.
+CI keeps one step per recipe, in the order `just check` runs them, so a red
+run names the stage that failed. `just check` stays the local full pipeline: a
+recipe added to it must be added to the workflow too. Only `cabal update` and
+`just build-bench` are CI-only. Formatting is now checked: `just check` starts
+with `just format-check` (fourmolu), after one formatting pass over the whole
+codebase in its own commit.

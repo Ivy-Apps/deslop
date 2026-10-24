@@ -34,11 +34,31 @@ jobs:
       - name: ❄️ Toolchain
         run: nix develop .#ci --accept-flake-config -c cabal update
 
-      # Exactly what `just check` runs locally, so the two cannot drift.
-      - name: ✅ Check
-        run: nix develop .#ci --accept-flake-config -c just check
+      # One step per `just check` recipe, in the same order, so a red run
+      # names the stage that failed. `just check` is the local full pipeline:
+      # a recipe added there must be added here too.
+      - name: 🎨 Format
+        run: nix develop .#ci --accept-flake-config -c just format-check
+
+      - name: 🔍 Lint
+        run: nix develop .#ci --accept-flake-config -c just lint
+
+      - name: 🔍 Lint workflows
+        run: nix develop .#ci --accept-flake-config -c just lint-actions
+
+      - name: 🏗️ Build
+        run: nix develop .#ci --accept-flake-config -c just build
 
       # CI-only: the dev shells do not carry the benchmark's dependencies, and
       # agents never build it.
       - name: ⏱️ Build benchmark
         run: nix develop .#ci --accept-flake-config -c just build-bench
+
+      - name: 🧪 Test
+        run: nix develop .#ci --accept-flake-config -c just test
+
+      - name: 🏖️ Integration
+        run: nix develop .#ci --accept-flake-config -c just integration
+
+      - name: ✨ Own Deslop rules (dogfood)
+        run: nix develop .#ci --accept-flake-config -c just deslop-self
