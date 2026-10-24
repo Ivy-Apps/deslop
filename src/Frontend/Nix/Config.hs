@@ -12,20 +12,19 @@ reference read without it would be read wrong.
 module Frontend.Nix.Config (
     NixConfigError (..),
     loadNixConfig,
-    settingsPath,
 ) where
 
 import Data.Aeson (FromJSON (..), Options (..), defaultOptions, genericParseJSON)
 import Data.Set qualified as Set
-import Data.Text.Encoding qualified as TE
 import Data.Yaml (decodeEither', prettyPrintParseException)
 import Deslop.Error (Warning (..))
 import Effectful (Eff, type (:>))
 import Effects.FileSystem (RoFileSystem, fsReadFileIfExists)
 import FileSystem.Path (ProjectRelativePath (..), ProjectRoot (..), encodeOsPath, portablePath, relativePathUnsafe, withAbsBaseUnsafe)
 import Frontend.Nix.FlakeInputs (declaredInputs)
-import Frontend.Nix.Lexer (isIdentifier, lexNix)
+import Frontend.Nix.Lexer (isIdentifier)
 import Frontend.Nix.Reference (Scope (..))
+import Frontend.Nix.Unit (NixSource (..), NixUnit (..), readUnit)
 import Renderable (Renderable (..))
 
 data NixConfigError
@@ -57,14 +56,15 @@ settingsPath = relativePathUnsafe (encodeOsPath "deslop/nix.yaml")
 
 loadNixConfig :: (RoFileSystem :> es) => ProjectRoot -> Eff es (Either NixConfigError (Scope, [Warning]))
 loadNixConfig projectRoot = do
-    settings <- optionalFile settingsPath
-    flake <- optionalFile (relativePathUnsafe (encodeOsPath "flake.nix"))
+    settings <- fsReadFileIfExists (inRoot settingsPath)
+    flake <- fmap (readUnit flakePath) <$> fsReadFileIfExists flakePath
     pure $ do
         roots <- maybe (Right []) rootsIn settings
         let (inputs, warnings) = maybe (mempty, []) inputsOf flake
         Right (Scope {roots = Set.fromList ("self" : roots), inputs}, warnings)
   where
-    optionalFile rel = fsReadFileIfExists (withAbsBaseUnsafe projectRoot.path rel.osPath)
+    inRoot rel = withAbsBaseUnsafe projectRoot.path rel.osPath
+    flakePath = inRoot (relativePathUnsafe (encodeOsPath "flake.nix"))
 
 rootsIn :: ByteString -> Either NixConfigError [Text]
 rootsIn bytes = do
@@ -76,7 +76,7 @@ rootsIn bytes = do
         | otherwise = Left (RootNotAnIdentifier name)
 
 -- | Its inputs, or none and a warning when it cannot be read.
-inputsOf :: ByteString -> (Set Text, [Warning])
-inputsOf bytes = case lexNix =<< rightToMaybe (TE.decodeUtf8' bytes) of
-    Just lexemes -> (declaredInputs lexemes, [])
-    Nothing -> (mempty, [Warning "flake.nix could not be read, so no reference is read as a flake input."])
+inputsOf :: NixUnit -> (Set Text, [Warning])
+inputsOf = \case
+    Readable source -> (declaredInputs source.lexemes, [])
+    Opaque {} -> (mempty, [Warning "flake.nix could not be read, so no reference is read as a flake input."])
