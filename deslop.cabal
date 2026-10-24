@@ -199,6 +199,7 @@ test-suite deslop-test
     Doubles.Frontend
     E2E.FileGoldenSpec
     E2E.ProjectGoldenSpec
+    Effects.D2Spec
     Effects.FileSystemSpec
     Effects.ReportProblemSpec
     FileSystem.IteratorSpec

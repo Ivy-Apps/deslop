@@ -10,6 +10,7 @@ module Effects.D2 (
     d2Availability,
     d2Render,
     runD2IO,
+    runD2ProgramIO,
 ) where
 
 import Control.Exception (IOException, try)
@@ -46,7 +47,13 @@ d2Render :: (D2 :> es) => AbsPath -> AbsPath -> Eff es Rendering
 d2Render source output = send $ Render source output
 
 runD2IO :: (IOE :> es) => Eff (D2 : es) a -> Eff es a
-runD2IO = interpret $ \_env -> \case
+runD2IO = runD2ProgramIO "d2"
+
+{- | Interprets 'D2' by running the given program as d2: a name found on
+@PATH@, or a path to it.
+-}
+runD2ProgramIO :: (IOE :> es) => FilePath -> Eff (D2 : es) a -> Eff es a
+runD2ProgramIO program = interpret $ \_env -> \case
     CheckAvailability -> liftIO $ availability <$> runD2 ["--version"]
     Render source output ->
         liftIO . fmap rendering . runD2 $ renderFlags <> [filePath source, filePath output]
@@ -61,9 +68,9 @@ runD2IO = interpret $ \_env -> \case
     filePath :: AbsPath -> String
     filePath = toString . decodeOsPath . (.osPath)
 
--- | Runs d2, answering its exit code and stderr, or why it could not be started at all.
-runD2 :: [String] -> IO (Either IOException (ExitCode, String))
-runD2 args = try $ (\(code, _out, err) -> (code, err)) <$> readProcessWithExitCode "d2" args ""
+    -- Answers d2's exit code and stderr, or why it could not be started at all.
+    runD2 :: [String] -> IO (Either IOException (ExitCode, String))
+    runD2 args = try $ (\(code, _out, err) -> (code, err)) <$> readProcessWithExitCode program args ""
 
 {- | ELK lays out nested containers far better than d2's default engine. The
 generous timeout is for ELK on a large board, which can take minutes.
