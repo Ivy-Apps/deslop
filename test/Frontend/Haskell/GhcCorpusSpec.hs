@@ -17,9 +17,9 @@ import Data.Text qualified as T
 import Deslop.Module (DependencyEdge (..), EdgeTarget (..), Module (..), ModuleId (..))
 import FileSystem.Path (decodeOsPath, portablePath)
 import Fixtures.Frontend.Haskell.Project (Lowered (..), lowerFiles)
+import Fixtures.OnDisk (ghcCorpus)
 import Renderable qualified
 import Test.Hspec
-import Fixtures.OnDisk (ghcCorpus)
 import TestUtils (requireRight)
 
 -- | One case, exactly as authored and recorded in the corpus file.

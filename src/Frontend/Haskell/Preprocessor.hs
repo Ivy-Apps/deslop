@@ -37,8 +37,9 @@ data Request = Request
 data RequestedBy
     = -- | A @LANGUAGE@ or @OPTIONS_GHC@ pragma: its 1-based line and its text.
       ByPragma Int Text
-    | -- | A component's @default-extensions@ or @ghc-options@, named
-      -- @lib:deslop@-style.
+    | {- | A component's @default-extensions@ or @ghc-options@, named
+      @lib:deslop@-style.
+      -}
       ByComponent Text
     deriving stock (Show, Eq)
 
@@ -53,7 +54,7 @@ requestedInFile = concatMap requests . pragmasOnLines . takeWhile isTrivia
 pragmasOnLines :: [HsToken] -> [(Int, HsToken)]
 pragmasOnLines toks = [(p.line, p.token) | p <- positioned toks, p.token.kind == PragmaK]
 
--- | @{-# LANGUAGE CPP #-}@, @{-# OPTIONS_GHC -F -pgmF hspec-discover #-}@.
+-- | @{\-# LANGUAGE CPP #-\}@, @{\-# OPTIONS_GHC -F -pgmF hspec-discover #-\}@.
 pragmaPreprocessors :: Text -> [Preprocessor]
 pragmaPreprocessors raw = case T.words inner of
     name : rest

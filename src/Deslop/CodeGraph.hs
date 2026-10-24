@@ -61,14 +61,16 @@ followed any further.
 data ModuleNode
     = -- | Lowered by a frontend, so its own dependencies are known.
       ParsedModule Module
-    | -- | Resolved to something real that nobody read: gitignored, outside the
-      -- scanned tree, or not a source file at all. Its names come from the
-      -- edge that reached it, because the frontend minted them when it
-      -- resolved the specifier. It has no outgoing edges, so a chain through
-      -- it stops here - a blind spot, and one worth being able to name.
+    | {- | Resolved to something real that nobody read: gitignored, outside the
+      scanned tree, or not a source file at all. Its names come from the
+      edge that reached it, because the frontend minted them when it
+      resolved the specifier. It has no outgoing edges, so a chain through
+      it stops here - a blind spot, and one worth being able to name.
+      -}
       UnscannedModule (NonEmpty ModuleName)
-    | -- | @react@: nothing in the project answers to it. A chain ending here
-      -- has genuinely ended.
+    | {- | @react@: nothing in the project answers to it. A chain ending here
+      has genuinely ended.
+      -}
       ExternalModule ModuleName
     deriving stock (Show, Eq)
 
@@ -89,8 +91,9 @@ data ModuleGraph = ModuleGraph
     , nodeFromV :: Vertex -> (ModuleNode, GraphKey, [GraphKey])
     , vertexFromKey :: GraphKey -> Maybe Vertex
     , parsedNames :: Set ModuleName
-    -- ^ Every name of every module actually lowered. What @exists@ asks about,
-    -- so that a name nothing on disk answers to cannot satisfy it.
+    {- ^ Every name of every module actually lowered. What @exists@ asks about,
+    so that a name nothing on disk answers to cannot satisfy it.
+    -}
     }
 
 {- | A circular import chain, listed in walk order and starting at the cycle's

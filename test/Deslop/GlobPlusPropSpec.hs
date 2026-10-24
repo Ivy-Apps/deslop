@@ -387,8 +387,8 @@ tier7 = describe "tier 7 - parent directories" $ do
         directory <- forAll (Gen.list (Range.linear 1 4) O.genOpaqueSegment)
         let env = MatchEnv {targetDir = T.intercalate "/" directory, variables = Map.empty}
         for_ (rightToMaybe deterministic) (assert . isJust . moduleFromGlob env)
-      where
-        nondetermines segment = segment == "..*" || "*" `T.isInfixOf` segment
+  where
+    nondetermines segment = segment == "..*" || "*" `T.isInfixOf` segment
 
 --------------------------------------------------------------------------------
 -- Assertions
@@ -505,8 +505,9 @@ navigates segment = segment == ".." || segment == "..*"
 climbable :: Text -> Bool
 climbable segment = not ("*" `T.isInfixOf` segment)
 
--- | One raw segment as the step it stands for, so 'resolveSteps' can be
--- measured against an oracle that works on plain text.
+{- | One raw segment as the step it stands for, so 'resolveSteps' can be
+measured against an oracle that works on plain text.
+-}
 stepOf :: Text -> Step [Text]
 stepOf ".." = ParentDir
 stepOf "..*" = ParentDirStar
@@ -558,7 +559,6 @@ unambiguous = fmap simplify
 
 varNameOf :: [Text] -> VarName
 varNameOf = VarName . render KebabCase
-
 
 -- | Every variable name occurring in a pattern.
 namesOf :: OPattern -> [[Text]]

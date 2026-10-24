@@ -75,13 +75,13 @@ spec = do
                     ( "export { x } from \"@/a\";"
                     , ReExport {prefix = "export { x } from \"", target = "@/a", suffix = "\";"}
                     )
-                ,
-                    -- The alias runs the other way round from an import's: in
-                    -- `export { A as B } from './m'`, `A` is what './m' exports
-                    -- and `B` is what a consumer of the barrel imports. Neither
-                    -- is the module, and Deslop stores neither - an edge names
-                    -- './m' and nothing else, which is why the direction cannot
-                    -- change what a rule sees.
+                , -- The alias runs the other way round from an import's: in
+                  -- `export { A as B } from './m'`, `A` is what './m' exports
+                  -- and `B` is what a consumer of the barrel imports. Neither
+                  -- is the module, and Deslop stores neither - an edge names
+                  -- './m' and nothing else, which is why the direction cannot
+                  -- change what a rule sees.
+
                     ( "export { A as B } from './m';"
                     , ReExport {prefix = "export { A as B } from '", target = "./m", suffix = "';"}
                     )
@@ -89,9 +89,9 @@ spec = do
                     ( "export { a, b as c } from './m';"
                     , ReExport {prefix = "export { a, b as c } from '", target = "./m", suffix = "';"}
                     )
-                ,
-                    -- The clause holds a quoted name, so the specifier is not
-                    -- the first string in the statement.
+                , -- The clause holds a quoted name, so the specifier is not
+                  -- the first string in the statement.
+
                     ( "export { \"odd-name\" as ok } from '@/a';"
                     , ReExport {prefix = "export { \"odd-name\" as ok } from '", target = "@/a", suffix = "';"}
                     )

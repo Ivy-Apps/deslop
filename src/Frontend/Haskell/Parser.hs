@@ -160,7 +160,7 @@ trimTrivia = fst . splitTrailingTrivia . dropWhile trivia
 type TokenParser = Parsec Void [HsToken]
 
 {- | @import [safe] [qualified] ["pkg"] M [qualified] [as N] [hiding] [(...)]@.
-A @{-# SOURCE #-}@ pragma is trivia here: a source import reaches the same
+A @{\-# SOURCE #-\}@ pragma is trivia here: a source import reaches the same
 module.
 -}
 importDecl :: [Positioned] -> Maybe ImportDecl

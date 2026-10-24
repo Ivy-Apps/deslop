@@ -112,9 +112,9 @@ spec = describe "Deslop.Problem.Shrinker" $ do
 
             map absorbedBy compacted
                 `shouldBe` [
-                             [ ["@/hooks/a", "@/components/view", "@/components/banner"]
-                             , ["@/hooks/a", "@/components/view", "@/components/card"]
-                             ]
+                               [ ["@/hooks/a", "@/components/view", "@/components/banner"]
+                               , ["@/hooks/a", "@/components/view", "@/components/card"]
+                               ]
                            ]
 
         it "compacts each violating module separately" $ do

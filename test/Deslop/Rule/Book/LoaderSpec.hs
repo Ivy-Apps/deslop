@@ -10,14 +10,14 @@ import Deslop.Rule.Book.Loader (RulebookLoadError (..), loadRulebookFromFile, lo
 import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
 import FileSystem.Path (AbsPath (..), ProjectRoot (..), decodeOsPath, encodeOsPathString, withAbsBaseUnsafe)
-import System.Directory.OsPath qualified as SDO
-import UnliftIO.Temporary (withSystemTempDirectory)
 import Fixtures.Deslop.Rule.Book (loadRulebookBytes)
 import Fixtures.Deslop.Rule.Book.Dto (rulebookYaml)
 import Fixtures.OnDisk (rulebooks)
+import System.Directory.OsPath qualified as SDO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import TestUtils (listFixtures, mkAbsolute)
+import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
 spec = describe "Deslop.Rule.Book.Loader" $ do

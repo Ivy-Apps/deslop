@@ -133,8 +133,9 @@ INVARIANT: @scopes@ runs shallowest-first, which is what makes a deeper
 data GitIgnore = GitIgnore
     { root :: !AbsPath
     , ecosystem :: !(Entry -> Bool)
-    -- ^ What the language's tooling generates - dependency folders, build
-    -- output. Like 'alwaysIgnored', no rule can re-include it.
+    {- ^ What the language's tooling generates - dependency folders, build
+    output. Like 'alwaysIgnored', no rule can re-include it.
+    -}
     , scopes :: ![IgnoreScope]
     }
 

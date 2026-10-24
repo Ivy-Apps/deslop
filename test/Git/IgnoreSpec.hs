@@ -2,11 +2,11 @@ module Git.IgnoreSpec (spec) where
 
 import Data.Set qualified as Set
 import Data.Text qualified as T
+import Doubles.FileSystem (mockTree, runMockRoFileSystem)
+import Effectful (runPureEff)
 import FileSystem.Iterator (Entry (..))
 import FileSystem.Path (AbsPath)
 import Fixtures.Git.Ignore (gitIgnoreWith)
-import Doubles.FileSystem (mockTree, runMockRoFileSystem)
-import Effectful (runPureEff)
 import Git.Ignore (GitIgnore, alwaysIgnored, isIgnored, loadGitIgnore)
 import Hedgehog (Gen, cover, discard, forAll, (===))
 import Hedgehog.Gen qualified as Gen

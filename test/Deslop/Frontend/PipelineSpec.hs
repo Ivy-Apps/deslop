@@ -7,8 +7,8 @@ import Deslop.Module (Module (..), ModuleName (..))
 import Deslop.Problem (ProblemId (..), problemId)
 import Effects.CLI (LogStyle (..))
 import Fixtures.Deslop.Frontend.Pipeline (Outcome (..), runLines, runLinesExpectingFailure)
-import Fixtures.FileSystem.Path (inProject)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
+import Fixtures.FileSystem.Path (inProject)
 import Test.Hspec
 
 spec :: Spec

@@ -43,8 +43,8 @@ import FileSystem.Path (
     portablePath,
     relativePathTo,
  )
-import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.CST (TsNode (..), TsProgram (cst, path), onLines)
+import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.ModuleResolver (dropTypeScriptExtension, moduleNames, resolve)
 import Renderable (Renderable (render))
 

@@ -135,15 +135,17 @@ carries a name for the same reason: @import Data.Text@ is written with dots,
 and only the Haskell frontend knows it names @Data\/Text@.
 -}
 data EdgeTarget
-    = -- | Resolved to a module the frontend recognises, and every name that
-      -- module answers to, canonical first. The module may still be one
-      -- nobody parsed - gitignored, or outside the scanned tree - which is
-      -- why the names travel with the edge rather than being looked up.
+    = {- | Resolved to a module the frontend recognises, and every name that
+      module answers to, canonical first. The module may still be one
+      nobody parsed - gitignored, or outside the scanned tree - which is
+      why the names travel with the edge rather than being looked up.
+      -}
       Resolved ModuleId (NonEmpty ModuleName)
-    | -- | @react@ or @Data\/Text@: a module outside the project, named the way
-      -- the frontend names its own modules, so a Rule is written in one
-      -- spelling for both. What the source wrote stays on the edge's
-      -- 'specifier'.
+    | {- | @react@ or @Data\/Text@: a module outside the project, named the way
+      the frontend names its own modules, so a Rule is written in one
+      spelling for both. What the source wrote stays on the edge's
+      'specifier'.
+      -}
       External ModuleName
     deriving stock (Show, Eq, Ord)
 
@@ -164,8 +166,9 @@ data EdgeKind
 -- | One dependency of a module, as written and as resolved.
 data DependencyEdge = DependencyEdge
     { specifier :: Specifier
-    -- ^ What the source actually wrote. A fact of the file, so it is here on
-    -- every edge rather than on one branch of 'EdgeTarget'.
+    {- ^ What the source actually wrote. A fact of the file, so it is here on
+    every edge rather than on one branch of 'EdgeTarget'.
+    -}
     , target :: EdgeTarget
     , kind :: EdgeKind
     , location :: Location
@@ -179,9 +182,10 @@ data Module = Module
     , names :: NonEmpty ModuleName
     -- ^ Canonical name first; see 'canonicalName'.
     , path :: ProjectRelativePath
-    -- ^ An attribute, not an identity: where a report points the reader. A
-    -- file in TypeScript, and a directory in a language whose module is a
-    -- package.
+    {- ^ An attribute, not an identity: where a report points the reader. A
+    file in TypeScript, and a directory in a language whose module is a
+    package.
+    -}
     , edges :: [DependencyEdge]
     }
     deriving stock (Show, Eq)

@@ -25,13 +25,13 @@ module Doubles.Frontend (
 
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
+import Deslop.Error (Warning (..))
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Frontend.Finding (fixable, unfixable, within)
 import Deslop.Module (Location (..), Module (..), moduleIdUnsafe, moduleNameUnsafe)
 import Deslop.Problem (LintRuleId (..), Problem (..))
 import Deslop.Problem.Formatter (CodeFence (..))
 import Effectful.Reader.Static (ask)
-import Deslop.Error (Warning (..))
 import Effects.FileSystem (fsFileExists, fsReadFile)
 import FileSystem.Iterator (Entry (..), walkDir)
 import FileSystem.Path (AbsPath (..), ProjectRelativePath, ProjectRoot (..), decodeOsPath, portablePath, relativePathTo, withAbsBaseUnsafe)

@@ -365,7 +365,8 @@ repairAnchoring pattern' = case firstUnanchoredIndex pattern' of
 
 firstUnanchoredIndex :: OPattern -> Maybe Int
 firstUnanchoredIndex pattern' =
-    viaNonEmpty head
+    viaNonEmpty
+        head
         [ index
         | (index, OSeg parts) <- indexed
         , any isVar parts
@@ -413,8 +414,9 @@ dropAdjacentGlobStars [] = []
 genPathFor :: OPattern -> Gen [Text]
 genPathFor = fmap plantedPath . genPlantingFor
 
--- | The segments each pattern slot was filled with, kept alongside the slot so
--- that a property can say where in the path a given slot's text begins.
+{- | The segments each pattern slot was filled with, kept alongside the slot so
+that a property can say where in the path a given slot's text begins.
+-}
 genPlantingFor :: OPattern -> Gen [(OSeg, [Text])]
 genPlantingFor = traverse (\slot -> (slot,) <$> fill slot)
   where

@@ -16,8 +16,8 @@ import Effectful
 import Effectful.Reader.Static (runReader)
 import FileSystem.Path (ProjectRoot (..), absPathUnsafe)
 import Fixtures.Frontend.TypeScript.Config (defaultTsConfig, emptyTsConfig)
-import Frontend.TypeScript.Config
 import Frontend.TypeScript.CST (TsNode (..), TsProgram (..))
+import Frontend.TypeScript.Config
 import Frontend.TypeScript.Module (parseModule)
 import Frontend.TypeScript.Parser (TsFile (..), parseTs)
 import System.OsPath (OsPath, osp)
@@ -93,34 +93,33 @@ spec = describe "Frontend.TypeScript.Module" $ do
         -- file, and canonicalising is what makes it machine-specific. Nothing
         -- renders it.
         (ast.names, ast.path, ast.edges)
-            `shouldBe`
-                ( moduleNameUnsafe "/src/main" :| []
-                , rp "src/main.ts"
-                ,
-                    [ DependencyEdge
-                        { specifier = specifierUnsafe "react"
-                        , target = External (moduleNameUnsafe "react")
-                        , kind = ImportEdge
-                        , location =
-                            Location
-                                { file = rp "src/main.ts"
-                                , line = 1
-                                , code = "import { useEffect } from 'react';\n"
+            `shouldBe` ( moduleNameUnsafe "/src/main" :| []
+                       , rp "src/main.ts"
+                       ,
+                           [ DependencyEdge
+                                { specifier = specifierUnsafe "react"
+                                , target = External (moduleNameUnsafe "react")
+                                , kind = ImportEdge
+                                , location =
+                                    Location
+                                        { file = rp "src/main.ts"
+                                        , line = 1
+                                        , code = "import { useEffect } from 'react';\n"
+                                        }
                                 }
-                        }
-                    , DependencyEdge
-                        { specifier = specifierUnsafe "src/types/errors"
-                        , target = External (moduleNameUnsafe "src/types/errors")
-                        , kind = ImportEdge
-                        , location =
-                            Location
-                                { file = rp "src/main.ts"
-                                , line = 2
-                                , code = "import type { Error } from 'src/types/errors';"
+                           , DependencyEdge
+                                { specifier = specifierUnsafe "src/types/errors"
+                                , target = External (moduleNameUnsafe "src/types/errors")
+                                , kind = ImportEdge
+                                , location =
+                                    Location
+                                        { file = rp "src/main.ts"
+                                        , line = 2
+                                        , code = "import type { Error } from 'src/types/errors';"
+                                        }
                                 }
-                        }
-                    ]
-                )
+                           ]
+                       )
 
     -- A file no `paths` entry covers falls back to its own path for a name.
     -- That name is a Rulebook Rule's match target and a Rule Violation's

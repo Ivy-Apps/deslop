@@ -1,8 +1,8 @@
 module Frontend.Haskell.ModuleSpec (spec) where
 
 import Deslop.Module (DependencyEdge (..), Location (..), Module (..), ModuleName (..), canonicalName)
-import Fixtures.Frontend.Haskell.Project (Lowered (..), cabalPackage, edgesFrom, lowerFiles, moduleNamed)
 import FileSystem.Path (portablePath)
+import Fixtures.Frontend.Haskell.Project (Lowered (..), cabalPackage, edgesFrom, lowerFiles, moduleNamed)
 import Renderable qualified
 import Test.Hspec
 import TestUtils (requireJust, requireRight)

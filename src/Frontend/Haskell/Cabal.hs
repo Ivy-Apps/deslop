@@ -27,9 +27,9 @@ module Frontend.Haskell.Cabal (
     sourceNamesOf,
 ) where
 
-import Data.List.NonEmpty qualified as NE
 import Control.Monad (foldM)
 import Data.List qualified as L
+import Data.List.NonEmpty qualified as NE
 import Data.Text qualified as T
 import Deslop.Error (Warning (..))
 import Distribution.Compat.NonEmptySet qualified as NES
@@ -40,12 +40,12 @@ import Distribution.Parsec (showPError, showPWarning)
 import Distribution.Types.Benchmark qualified as C
 import Distribution.Types.BenchmarkInterface qualified as C
 import Distribution.Types.BuildInfo (BuildInfo (..))
+import Distribution.Types.CondTree (CondTree, ignoreConditions)
 import Distribution.Types.Dependency (depLibraries, depPkgName)
 import Distribution.Types.Executable qualified as C
+import Distribution.Types.GenericPackageDescription (GenericPackageDescription (..))
 import Distribution.Types.Library qualified as C
 import Distribution.Types.LibraryName (LibraryName (..))
-import Distribution.Types.CondTree (CondTree, ignoreConditions)
-import Distribution.Types.GenericPackageDescription (GenericPackageDescription (..))
 import Distribution.Types.PackageDescription (PackageDescription (..))
 import Distribution.Types.PackageId (PackageIdentifier (..))
 import Distribution.Types.PackageName (unPackageName)
@@ -65,8 +65,9 @@ import System.OsPath (OsPath, joinPath, osp, splitDirectories, splitExtension, t
 data HsConfig = HsConfig
     { package :: Text
     , components :: [Component]
-    -- ^ In the order @cabal@ lists them: the library, sub-libraries,
-    -- executables, test suites, benchmarks.
+    {- ^ In the order @cabal@ lists them: the library, sub-libraries,
+    executables, test suites, benchmarks.
+    -}
     }
     deriving stock (Show, Eq)
 
@@ -77,11 +78,13 @@ data Component = Component
     , sourceDirs :: NonEmpty AbsPath
     -- ^ @hs-source-dirs@, @.@ when it names none.
     , libraries :: [Text]
-    -- ^ The project's own libraries its @build-depends@ names, by component
-    -- name: whose modules it may import besides its own.
+    {- ^ The project's own libraries its @build-depends@ names, by component
+    name: whose modules it may import besides its own.
+    -}
     , preprocessors :: [Request]
-    -- ^ What its @default-extensions@ and @ghc-options@ run over every one of
-    -- its files. Not @other-extensions@, which enables nothing.
+    {- ^ What its @default-extensions@ and @ghc-options@ run over every one of
+    its files. Not @other-extensions@, which enables nothing.
+    -}
     }
     deriving stock (Show, Eq)
 
@@ -89,8 +92,9 @@ data ComponentKind
     = Library
     | Executable MainIs
     | TestSuite (Maybe MainIs)
-    | -- | A test suite or benchmark of a type without a @main-is@, such as
-      -- @detailed-0.9@, has no Main module.
+    | {- | A test suite or benchmark of a type without a @main-is@, such as
+      @detailed-0.9@, has no Main module.
+      -}
       Benchmark (Maybe MainIs)
     deriving stock (Show, Eq)
 

@@ -3,8 +3,8 @@ module FileSystem.PathSpec (spec) where
 import Data.Text qualified as T
 import FileSystem.Path (
     AbsPath (..),
-    ProjectRoot (..),
     ProjectRelativePath (..),
+    ProjectRoot (..),
     decodeOsPath,
     encodeOsPath,
     encodeOsPathString,

@@ -581,7 +581,7 @@ splitOnSlash = go []
             (opening : middles) ->
                 reverse (RLit opening : current)
                     : fmap (one . RLit) middles
-                    <> go [RLit final] rest
+                        <> go [RLit final] rest
     go current (part : rest) = go (part : current) rest
 
 --------------------------------------------------------------------------------

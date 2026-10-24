@@ -4,9 +4,9 @@ import Doubles.FileSystem (mockDirs, runMockRoFileSystem)
 import Effectful (runEff)
 import FileSystem.Path (AbsPath, ProjectRoot (..))
 import Fixtures.FileSystem.Path (projectRoot)
+import Fixtures.Git.Ignore qualified as Fixture
 import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
 import Frontend.TypeScript.Iterator (getTsFiles)
-import Fixtures.Git.Ignore qualified as Fixture
 import Git.Ignore (GitIgnore, emptyGitIgnore)
 import Test.Hspec
 import TestUtils (ap)

@@ -5,6 +5,8 @@ import Doubles.FileSystem (mockFileSystem, runMockRoFileSystem)
 import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
 import FileSystem.Path (AbsPath, ProjectRoot (..), encodeOsPathString, withAbsBaseUnsafe)
+import Fixtures.Frontend.TypeScript.Config (mkMapping)
+import Fixtures.OnDisk (typescriptConfigs)
 import Frontend.TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..))
 import Frontend.TypeScript.Config.Loader (
     SkippedExtends (..),
@@ -12,8 +14,6 @@ import Frontend.TypeScript.Config.Loader (
     loadTsConfig,
     renderTsConfigLoadError,
  )
-import Fixtures.Frontend.TypeScript.Config (mkMapping)
-import Fixtures.OnDisk (typescriptConfigs)
 import Hedgehog (Gen, evalIO, forAll, success)
 import Hedgehog.Gen qualified as Gen
 import System.OsPath (osp, (</>))

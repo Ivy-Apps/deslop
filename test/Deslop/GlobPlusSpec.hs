@@ -131,7 +131,7 @@ spec = describe "Deslop.GlobPlus" $ do
             matchTargetAt target "@/lib/jwt" `shouldSatisfy` isJust
             matchTargetAt target "@/lib/auth/user" `shouldSatisfy` isJust
             matchTargetAt target "@/lib/a/b/c/d" `shouldSatisfy` isJust
-            -- ** stands for zero or many segments, and zero is one of them.
+            -- \** stands for zero or many segments, and zero is one of them.
             matchTargetAt target "@/lib" `shouldSatisfy` isJust
             matchTargetAt target "@/libs" `shouldBe` Nothing
 

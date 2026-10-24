@@ -28,30 +28,32 @@ import TestUtils (requireRight)
 testRulebook :: Rulebook
 testRulebook =
     rulebookFrom
-                "test-rulebook"
-                [ [ "id: no-forbids-import"
-                    , "description: 'Forbids modules must not be imported.'"
-                    , "target: '@/components/**'"
-                    , "forbids:"
-                    , "  - import: '@/forbids/**'"
-                    , "    transitive: false"
-                    , "fix: 'Remove the import'"
-                    ]
-                ]
+        "test-rulebook"
+        [
+            [ "id: no-forbids-import"
+            , "description: 'Forbids modules must not be imported.'"
+            , "target: '@/components/**'"
+            , "forbids:"
+            , "  - import: '@/forbids/**'"
+            , "    transitive: false"
+            , "fix: 'Remove the import'"
+            ]
+        ]
 
 testTransitiveRulebook :: Rulebook
 testTransitiveRulebook =
     rulebookFrom
-                "test-rulebook"
-                [ [ "id: no-forbids-import"
-                    , "description: 'Forbids modules must not be transitively imported.'"
-                    , "target: '@/components/**'"
-                    , "forbids:"
-                    , "  - import: '@/forbids/**'"
-                    , "    transitive: true"
-                    , "fix: 'Remove the import'"
-                    ]
-                ]
+        "test-rulebook"
+        [
+            [ "id: no-forbids-import"
+            , "description: 'Forbids modules must not be transitively imported.'"
+            , "target: '@/components/**'"
+            , "forbids:"
+            , "  - import: '@/forbids/**'"
+            , "    transitive: true"
+            , "fix: 'Remove the import'"
+            ]
+        ]
 
 runTest :: Module -> IO [Problem]
 runTest m = do
@@ -83,29 +85,31 @@ runTransitiveTest = runTransitiveTestWith [testTransitiveRulebook]
 domainRulebook :: Rulebook
 domainRulebook =
     rulebookFrom
-                "domain-rules"
-                [ [ "id: no-react-in-domain"
-                    , "description: 'Domain layer must not depend on React.'"
-                    , "target: '@/domain/**'"
-                    , "forbids:"
-                    , "  - import: 'react'"
-                    , "    transitive: true"
-                    , "fix: 'Move React dependencies out of the domain layer.'"
-                    ]
-                ]
+        "domain-rules"
+        [
+            [ "id: no-react-in-domain"
+            , "description: 'Domain layer must not depend on React.'"
+            , "target: '@/domain/**'"
+            , "forbids:"
+            , "  - import: 'react'"
+            , "    transitive: true"
+            , "fix: 'Move React dependencies out of the domain layer.'"
+            ]
+        ]
 
 existsRulebook :: Rulebook
 existsRulebook =
     rulebookFrom
-                "exists-rules"
-                [ [ "id: requires-spec"
-                    , "description: 'Every ViewModel must have a spec file.'"
-                    , "target: '@/features/**/use{{FileName}}ViewModel'"
-                    , "exists:"
-                    , "  - module: '{{TARGET_DIR}}/use{{FileName}}ViewModel.spec'"
-                    , "fix: 'Create the spec file.'"
-                    ]
-                ]
+        "exists-rules"
+        [
+            [ "id: requires-spec"
+            , "description: 'Every ViewModel must have a spec file.'"
+            , "target: '@/features/**/use{{FileName}}ViewModel'"
+            , "exists:"
+            , "  - module: '{{TARGET_DIR}}/use{{FileName}}ViewModel.spec'"
+            , "fix: 'Create the spec file.'"
+            ]
+        ]
 
 runExistsTest :: [Rulebook] -> [Module] -> Module -> IO (Either DeslopError [Problem])
 runExistsTest rulebooks allModules m =
@@ -121,16 +125,17 @@ runExistsTest rulebooks allModules m =
 usesRulebook :: Rulebook
 usesRulebook =
     rulebookFrom
-                "uses-rules"
-                [ [ "id: container-wires-state-event"
-                    , "description: 'Containers must wire their StateEvent.'"
-                    , "target: '@/features/**/{{FileName}}Container'"
-                    , "uses:"
-                    , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
-                    , "    transitive: false"
-                    , "fix: 'Import the StateEvent.'"
-                    ]
-                ]
+        "uses-rules"
+        [
+            [ "id: container-wires-state-event"
+            , "description: 'Containers must wire their StateEvent.'"
+            , "target: '@/features/**/{{FileName}}Container'"
+            , "uses:"
+            , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
+            , "    transitive: false"
+            , "fix: 'Import the StateEvent.'"
+            ]
+        ]
 
 runUsesTest :: [Module] -> Module -> IO (Either DeslopError [Problem])
 runUsesTest allModules m =
@@ -154,78 +159,87 @@ that produced it without any of the others joining in.
 multiVarRulebook :: Rulebook
 multiVarRulebook =
     rulebookFrom
-                "multi-var-rules"
-                [ [ "id: view-keeps-out-of-another-internal"
-                    , "description: 'A View may not reach an internal module of its own provider and service.'"
-                    , "target: '@/direct/{{provider-name}}/{{service-type}}/{{FileName}}View'"
-                    , "forbids:"
-                    , "  - import: '@/internal/{{provider-name}}/{{ServiceType}}{{FileName}}Secret'"
-                    , "    transitive: false"
-                    , "fix: 'Do not import that internal module.'"
-                    ]
-                , [ "id: view-uses-its-own-service"
-                    , "description: 'A View must import the service named by all three of its variables.'"
-                    , "target: '@/uses/{{provider-name}}/{{service-type}}/{{FileName}}View'"
-                    , "uses:"
-                    , "  - import: '@/services/{{provider-name}}/{{service-type}}-{{file-name}}'"
-                    , "    transitive: false"
-                    , "fix: 'Import your own provider''s service.'"
-                    ]
-                , [ "id: view-reaches-its-service-eventually"
-                    , "description: 'A View must reach its own service, directly or through an intermediary.'"
-                    , "target: '@/reaches/{{provider-name}}/{{service-type}}/{{FileName}}View'"
-                    , "uses:"
-                    , "  - import: '@/services/{{provider-name}}/{{service-type}}-{{file-name}}'"
-                    , "    transitive: true"
-                    , "fix: 'Reach your own provider''s service.'"
-                    ]
-                , [ "id: view-never-reaches-another-internal"
-                    , "description: 'A View must not reach an internal module, at any depth.'"
-                    , "target: '@/deep/{{provider-name}}/{{service-type}}/{{FileName}}View'"
-                    , "forbids:"
-                    , "  - import: '@/internal/{{provider-name}}/{{ServiceType}}/**'"
-                    , "    transitive: true"
-                    , "fix: 'Break the chain into that internal folder.'"
-                    ]
-                , [ "id: view-has-a-spec-named-by-all-three"
-                    , "description: 'A View''s spec is named by its provider, its service type and its own name.'"
-                    , "target: '@/exists/{{provider-name}}/{{service-type}}/{{FileName}}View'"
-                    , "exists:"
-                    , "  - module: '@/specs/{{provider-name}}/{{ServiceType}}{{FileName}}View.spec'"
-                    , "fix: 'Add the spec.'"
-                    ]
-                , [ "id: widget-has-a-config"
-                    , "description: 'A Widget''s config is its own name in kebab-case.'"
-                    , "target: '@/widgets/{{FileName}}Widget'"
-                    , "exists:"
-                    , "  - module: '@/config/{{file-name}}'"
-                    , "fix: 'Add the config.'"
-                    ]
-                , [ "id: provider-view-has-a-config"
-                    , "description: 'A View named after its folder has a config under that name.'"
-                    , "target: '@/pair/{{provider-name}}/{{ProviderName}}View'"
-                    , "exists:"
-                    , "  - module: '@/config/{{provider-name}}'"
-                    , "fix: 'Add the config.'"
-                    ]
-                , [ "id: use-case-has-a-view-model"
-                    , "description: 'A use case is driven by a ViewModel named after it.'"
-                    , "target: '@/app/{{use-case-name}}/{{UseCaseName}}UseCase'"
-                    , "exists:"
-                    , "  - module: '{{TARGET_DIR}}/use{{UseCaseName}}ViewModel'"
-                    , "fix: 'Add the ViewModel.'"
-                    ]
-                , [ "id: view-imports-only-its-own-service"
-                    , "description: 'A View may import services, but only the one all three variables name.'"
-                    , "target: '@/allows/{{provider-name}}/{{service-type}}/{{FileName}}View'"
-                    , "forbids:"
-                    , "  - import: '@/services/**'"
-                    , "    transitive: false"
-                    , "allows:"
-                    , "  - import: '@/services/{{provider-name}}/{{service-type}}-{{file-name}}'"
-                    , "fix: 'Import only your own provider''s service.'"
-                    ]
-                ]
+        "multi-var-rules"
+        [
+            [ "id: view-keeps-out-of-another-internal"
+            , "description: 'A View may not reach an internal module of its own provider and service.'"
+            , "target: '@/direct/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "forbids:"
+            , "  - import: '@/internal/{{provider-name}}/{{ServiceType}}{{FileName}}Secret'"
+            , "    transitive: false"
+            , "fix: 'Do not import that internal module.'"
+            ]
+        ,
+            [ "id: view-uses-its-own-service"
+            , "description: 'A View must import the service named by all three of its variables.'"
+            , "target: '@/uses/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "uses:"
+            , "  - import: '@/services/{{provider-name}}/{{service-type}}-{{file-name}}'"
+            , "    transitive: false"
+            , "fix: 'Import your own provider''s service.'"
+            ]
+        ,
+            [ "id: view-reaches-its-service-eventually"
+            , "description: 'A View must reach its own service, directly or through an intermediary.'"
+            , "target: '@/reaches/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "uses:"
+            , "  - import: '@/services/{{provider-name}}/{{service-type}}-{{file-name}}'"
+            , "    transitive: true"
+            , "fix: 'Reach your own provider''s service.'"
+            ]
+        ,
+            [ "id: view-never-reaches-another-internal"
+            , "description: 'A View must not reach an internal module, at any depth.'"
+            , "target: '@/deep/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "forbids:"
+            , "  - import: '@/internal/{{provider-name}}/{{ServiceType}}/**'"
+            , "    transitive: true"
+            , "fix: 'Break the chain into that internal folder.'"
+            ]
+        ,
+            [ "id: view-has-a-spec-named-by-all-three"
+            , "description: 'A View''s spec is named by its provider, its service type and its own name.'"
+            , "target: '@/exists/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "exists:"
+            , "  - module: '@/specs/{{provider-name}}/{{ServiceType}}{{FileName}}View.spec'"
+            , "fix: 'Add the spec.'"
+            ]
+        ,
+            [ "id: widget-has-a-config"
+            , "description: 'A Widget''s config is its own name in kebab-case.'"
+            , "target: '@/widgets/{{FileName}}Widget'"
+            , "exists:"
+            , "  - module: '@/config/{{file-name}}'"
+            , "fix: 'Add the config.'"
+            ]
+        ,
+            [ "id: provider-view-has-a-config"
+            , "description: 'A View named after its folder has a config under that name.'"
+            , "target: '@/pair/{{provider-name}}/{{ProviderName}}View'"
+            , "exists:"
+            , "  - module: '@/config/{{provider-name}}'"
+            , "fix: 'Add the config.'"
+            ]
+        ,
+            [ "id: use-case-has-a-view-model"
+            , "description: 'A use case is driven by a ViewModel named after it.'"
+            , "target: '@/app/{{use-case-name}}/{{UseCaseName}}UseCase'"
+            , "exists:"
+            , "  - module: '{{TARGET_DIR}}/use{{UseCaseName}}ViewModel'"
+            , "fix: 'Add the ViewModel.'"
+            ]
+        ,
+            [ "id: view-imports-only-its-own-service"
+            , "description: 'A View may import services, but only the one all three variables name.'"
+            , "target: '@/allows/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "forbids:"
+            , "  - import: '@/services/**'"
+            , "    transitive: false"
+            , "allows:"
+            , "  - import: '@/services/{{provider-name}}/{{service-type}}-{{file-name}}'"
+            , "fix: 'Import only your own provider''s service.'"
+            ]
+        ]
 
 runMultiVarTest :: [Module] -> Module -> IO [Problem]
 runMultiVarTest = runTransitiveTestWith [multiVarRulebook]
@@ -241,16 +255,17 @@ validated at load, so a name nothing captured has to survive being reported.
 proseRulebook :: Rulebook
 proseRulebook =
     rulebookFrom
-                "prose-rules"
-                [ [ "id: container-wires-state-event"
-                    , "description: '{{FileName}}Container must wire {{FileName}}StateEvent.'"
-                    , "target: '@/features/**/{{FileName}}Container'"
-                    , "uses:"
-                    , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
-                    , "    transitive: false"
-                    , "fix: 'Import {{FileName}}StateEvent from {{TARGET_DIR}}, or move it to {{TARGET_DIR}}/{{file-name}}. Not {{provider-name}}.'"
-                    ]
-                ]
+        "prose-rules"
+        [
+            [ "id: container-wires-state-event"
+            , "description: '{{FileName}}Container must wire {{FileName}}StateEvent.'"
+            , "target: '@/features/**/{{FileName}}Container'"
+            , "uses:"
+            , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
+            , "    transitive: false"
+            , "fix: 'Import {{FileName}}StateEvent from {{TARGET_DIR}}, or move it to {{TARGET_DIR}}/{{file-name}}. Not {{provider-name}}.'"
+            ]
+        ]
 
 runProseTest :: Module -> IO [Problem]
 runProseTest m = runTransitiveTestWith [proseRulebook] [m] m
@@ -268,19 +283,19 @@ proseSpec = describe "variables in a rule's prose" $ do
     it "substitutes the captured variables into the fix" $
         fixesOf
             <$> violation
-                `shouldReturn` [ "Import PaymentStateEvent from @/features/checkout, "
-                                    <> "or move it to @/features/checkout/payment. Not {{provider-name}}."
-                               ]
+            `shouldReturn` [ "Import PaymentStateEvent from @/features/checkout, "
+                                <> "or move it to @/features/checkout/payment. Not {{provider-name}}."
+                           ]
 
     it "substitutes the captured variables into the prose" $
         prosesOf
             <$> violation
-                `shouldReturn` ["PaymentContainer must wire PaymentStateEvent."]
+            `shouldReturn` ["PaymentContainer must wire PaymentStateEvent."]
 
     it "substitutes the captured variables into what the rule requires" $
         kindsOf
             <$> violation
-                `shouldReturn` [MissingUse {requiredImport = "@/features/checkout/PaymentStateEvent", transitive = False}]
+            `shouldReturn` [MissingUse {requiredImport = "@/features/checkout/PaymentStateEvent", transitive = False}]
 
 prosesOf :: [Problem] -> [Text]
 prosesOf = mapMaybe proseOf
@@ -549,15 +564,16 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         it "never reaches enforcement, because a wildcard exists pattern does not compile" $ do
             let wildcardRulebook =
                     rulebookOf
-                            "bad-rules"
-                            [ [ "id: wildcard-exists"
-                                , "description: 'wildcard exists'"
-                                , "target: '@/features/**/*'"
-                                , "exists:"
-                                , "  - module: '{{TARGET_DIR}}/**/*.spec'"
-                                , "fix: 'Fix it.'"
-                                ]
+                        "bad-rules"
+                        [
+                            [ "id: wildcard-exists"
+                            , "description: 'wildcard exists'"
+                            , "target: '@/features/**/*'"
+                            , "exists:"
+                            , "  - module: '{{TARGET_DIR}}/**/*.spec'"
+                            , "fix: 'Fix it.'"
                             ]
+                        ]
 
             wildcardRulebook `shouldSatisfy` \case
                 Left (UncompilablePatterns errors) -> fmap (.field) errors == one ExistsField
@@ -594,18 +610,19 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         it "reports one violation per unmatched uses pattern" $ do
             let multiUsesRulebook =
                     rulebookFrom
-                                "uses-rules"
-                                [ [ "id: container-wires-all"
-                                    , "description: 'Containers must wire all their dependencies.'"
-                                    , "target: '@/features/**/{{FileName}}Container'"
-                                    , "uses:"
-                                    , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
-                                    , "    transitive: false"
-                                    , "  - import: '{{TARGET_DIR}}/{{FileName}}View'"
-                                    , "    transitive: false"
-                                    , "fix: 'Wire the Container.'"
-                                    ]
-                                ]
+                        "uses-rules"
+                        [
+                            [ "id: container-wires-all"
+                            , "description: 'Containers must wire all their dependencies.'"
+                            , "target: '@/features/**/{{FileName}}Container'"
+                            , "uses:"
+                            , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
+                            , "    transitive: false"
+                            , "  - import: '{{TARGET_DIR}}/{{FileName}}View'"
+                            , "    transitive: false"
+                            , "fix: 'Wire the Container.'"
+                            ]
+                        ]
                 container = mkModule "@/features/home/HomeContainer" []
             result <- runExistsTest [multiUsesRulebook] [container] container
             result
@@ -617,16 +634,17 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         it "wildcard uses pattern matches any qualifying import" $ do
             let wildcardUsesRulebook =
                     rulebookFrom
-                                "uses-rules"
-                                [ [ "id: page-uses-container"
-                                    , "description: 'page uses container'"
-                                    , "target: '@/app/**/page'"
-                                    , "uses:"
-                                    , "  - import: '@/features/**/*Container'"
-                                    , "    transitive: false"
-                                    , "fix: 'Import a Container.'"
-                                    ]
-                                ]
+                        "uses-rules"
+                        [
+                            [ "id: page-uses-container"
+                            , "description: 'page uses container'"
+                            , "target: '@/app/**/page'"
+                            , "uses:"
+                            , "  - import: '@/features/**/*Container'"
+                            , "    transitive: false"
+                            , "fix: 'Import a Container.'"
+                            ]
+                        ]
                 page = mkModule "@/app/home/page" ["@/features/home/HomeContainer"]
             result <- runExistsTest [wildcardUsesRulebook] [page] page
             result `shouldBe` Right []
@@ -634,16 +652,17 @@ spec = describe "Deslop.Rule.Enforcer" $ do
     describe "transitive uses enforcement" $ do
         let usesTransitiveRulebook =
                 rulebookFrom
-                            "uses-rules"
-                            [ [ "id: container-wires-state-event-transitively"
-                                , "description: 'Containers must transitively wire their StateEvent.'"
-                                , "target: '@/features/**/{{FileName}}Container'"
-                                , "uses:"
-                                , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
-                                , "    transitive: true"
-                                , "fix: 'Import the StateEvent.'"
-                                ]
-                            ]
+                    "uses-rules"
+                    [
+                        [ "id: container-wires-state-event-transitively"
+                        , "description: 'Containers must transitively wire their StateEvent.'"
+                        , "target: '@/features/**/{{FileName}}Container'"
+                        , "uses:"
+                        , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
+                        , "    transitive: true"
+                        , "fix: 'Import the StateEvent.'"
+                        ]
+                    ]
             runUsesTransitiveTest allModules m =
                 fmap (either (error . show) id)
                     . runEff
@@ -690,16 +709,17 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         it "wildcard transitive uses pattern matches a reachable module" $ do
             let wildcardTransitiveRulebook =
                     rulebookFrom
-                                "uses-rules"
-                                [ [ "id: domain-must-use-logger"
-                                    , "description: 'domain must use logger'"
-                                    , "target: '@/domain/**'"
-                                    , "uses:"
-                                    , "  - import: '@/infrastructure/**/*Logger'"
-                                    , "    transitive: true"
-                                    , "fix: 'Ensure a logger is used.'"
-                                    ]
-                                ]
+                        "uses-rules"
+                        [
+                            [ "id: domain-must-use-logger"
+                            , "description: 'domain must use logger'"
+                            , "target: '@/domain/**'"
+                            , "uses:"
+                            , "  - import: '@/infrastructure/**/*Logger'"
+                            , "    transitive: true"
+                            , "fix: 'Ensure a logger is used.'"
+                            ]
+                        ]
                 runWildcardTest allModules m =
                     fmap (either (error . show) id)
                         . runEff
@@ -720,47 +740,50 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         describe "direct forbids with allows" $ do
             let directAllowsRulebook =
                     rulebookFrom
-                                "test-rulebook"
-                                [ [ "id: no-forbidden-imports"
-                                    , "description: 'Forbidden imports not allowed.'"
-                                    , "target: '@/components/**'"
-                                    , "forbids:"
-                                    , "  - import: '@/forbids/**'"
-                                    , "    transitive: false"
-                                    , "allows:"
-                                    , "  - import: '@/allowed/**'"
-                                    , "fix: 'Remove the import.'"
-                                    ]
-                                ]
+                        "test-rulebook"
+                        [
+                            [ "id: no-forbidden-imports"
+                            , "description: 'Forbidden imports not allowed.'"
+                            , "target: '@/components/**'"
+                            , "forbids:"
+                            , "  - import: '@/forbids/**'"
+                            , "    transitive: false"
+                            , "allows:"
+                            , "  - import: '@/allowed/**'"
+                            , "fix: 'Remove the import.'"
+                            ]
+                        ]
                 sharedOnlyRulebook =
                     rulebookFrom
-                                "test-rulebook"
-                                [ [ "id: shared-only"
-                                    , "description: 'Only shared imports allowed.'"
-                                    , "target: '@/components/**'"
-                                    , "forbids:"
-                                    , "  - import: '**'"
-                                    , "    transitive: false"
-                                    , "allows:"
-                                    , "  - import: '@/shared/**'"
-                                    , "fix: 'Use shared modules only.'"
-                                    ]
-                                ]
+                        "test-rulebook"
+                        [
+                            [ "id: shared-only"
+                            , "description: 'Only shared imports allowed.'"
+                            , "target: '@/components/**'"
+                            , "forbids:"
+                            , "  - import: '**'"
+                            , "    transitive: false"
+                            , "allows:"
+                            , "  - import: '@/shared/**'"
+                            , "fix: 'Use shared modules only.'"
+                            ]
+                        ]
                 domainPurityRulebook =
                     rulebookFrom
-                                "test-rulebook"
-                                [ [ "id: domain-purity"
-                                    , "description: 'Domain modules may only import from domain or shared layers.'"
-                                    , "target: '@/domain/**'"
-                                    , "forbids:"
-                                    , "  - import: '**'"
-                                    , "    transitive: false"
-                                    , "allows:"
-                                    , "  - import: '@/domain/**'"
-                                    , "  - import: '@/shared/**'"
-                                    , "fix: 'Move the dependency to the correct layer.'"
-                                    ]
-                                ]
+                        "test-rulebook"
+                        [
+                            [ "id: domain-purity"
+                            , "description: 'Domain modules may only import from domain or shared layers.'"
+                            , "target: '@/domain/**'"
+                            , "forbids:"
+                            , "  - import: '**'"
+                            , "    transitive: false"
+                            , "allows:"
+                            , "  - import: '@/domain/**'"
+                            , "  - import: '@/shared/**'"
+                            , "fix: 'Move the dependency to the correct layer.'"
+                            ]
+                        ]
 
             it "no violation when import matches allows pattern" $ do
                 let m = mkModule "@/components/Button" ["@/allowed/utils"]
@@ -825,33 +848,35 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         describe "transitive forbids with allows" $ do
             let storeAllowsRulebook =
                     rulebookFrom
-                                "test-rulebook"
-                                [ [ "id: no-transitive-store"
-                                    , "description: 'Components must not transitively import store modules.'"
-                                    , "target: '@/components/**'"
-                                    , "forbids:"
-                                    , "  - import: '@/store/**'"
-                                    , "    transitive: true"
-                                    , "allows:"
-                                    , "  - import: '@/store/ui-store'"
-                                    , "fix: 'Remove the transitive store import.'"
-                                    ]
-                                ]
+                        "test-rulebook"
+                        [
+                            [ "id: no-transitive-store"
+                            , "description: 'Components must not transitively import store modules.'"
+                            , "target: '@/components/**'"
+                            , "forbids:"
+                            , "  - import: '@/store/**'"
+                            , "    transitive: true"
+                            , "allows:"
+                            , "  - import: '@/store/ui-store'"
+                            , "fix: 'Remove the transitive store import.'"
+                            ]
+                        ]
                 domainPurityTransitiveRulebook =
                     rulebookFrom
-                                "test-rulebook"
-                                [ [ "id: domain-purity-transitive"
-                                    , "description: 'Domain must not transitively reach non-domain/shared modules.'"
-                                    , "target: '@/domain/**'"
-                                    , "forbids:"
-                                    , "  - import: '**'"
-                                    , "    transitive: true"
-                                    , "allows:"
-                                    , "  - import: '@/domain/**'"
-                                    , "  - import: '@/shared/**'"
-                                    , "fix: 'Keep domain pure.'"
-                                    ]
-                                ]
+                        "test-rulebook"
+                        [
+                            [ "id: domain-purity-transitive"
+                            , "description: 'Domain must not transitively reach non-domain/shared modules.'"
+                            , "target: '@/domain/**'"
+                            , "forbids:"
+                            , "  - import: '**'"
+                            , "    transitive: true"
+                            , "allows:"
+                            , "  - import: '@/domain/**'"
+                            , "  - import: '@/shared/**'"
+                            , "fix: 'Keep domain pure.'"
+                            ]
+                        ]
 
             it "no violation when transitive import matches allows pattern" $ do
                 let button = mkModule "@/components/Button" ["@/lib/hooks"]
@@ -893,34 +918,36 @@ spec = describe "Deslop.Rule.Enforcer" $ do
             -- own directory (and any subdirectories, since ** spans segments).
             let dirIsolationRulebook =
                     rulebookFrom
-                                "test-rulebook"
-                                [ [ "id: dir-isolation"
-                                    , "description: 'Feature modules may only import from their own directory.'"
-                                    , "target: '@/features/**'"
-                                    , "forbids:"
-                                    , "  - import: '**'"
-                                    , "    transitive: false"
-                                    , "allows:"
-                                    , "  - import: '{{TARGET_DIR}}/**'"
-                                    , "fix: 'Keep imports within the same directory or extract to shared.'"
-                                    ]
-                                ]
+                        "test-rulebook"
+                        [
+                            [ "id: dir-isolation"
+                            , "description: 'Feature modules may only import from their own directory.'"
+                            , "target: '@/features/**'"
+                            , "forbids:"
+                            , "  - import: '**'"
+                            , "    transitive: false"
+                            , "allows:"
+                            , "  - import: '{{TARGET_DIR}}/**'"
+                            , "fix: 'Keep imports within the same directory or extract to shared.'"
+                            ]
+                        ]
                 -- Relaxed variant: also permits @/shared/** imports
                 dirIsolationWithSharedRulebook =
                     rulebookFrom
-                                "test-rulebook"
-                                [ [ "id: dir-isolation-shared"
-                                    , "description: 'Feature modules may only import from their own directory or shared.'"
-                                    , "target: '@/features/**'"
-                                    , "forbids:"
-                                    , "  - import: '**'"
-                                    , "    transitive: false"
-                                    , "allows:"
-                                    , "  - import: '{{TARGET_DIR}}/**'"
-                                    , "  - import: '@/shared/**'"
-                                    , "fix: 'Keep imports within the same directory or use shared modules.'"
-                                    ]
-                                ]
+                        "test-rulebook"
+                        [
+                            [ "id: dir-isolation-shared"
+                            , "description: 'Feature modules may only import from their own directory or shared.'"
+                            , "target: '@/features/**'"
+                            , "forbids:"
+                            , "  - import: '**'"
+                            , "    transitive: false"
+                            , "allows:"
+                            , "  - import: '{{TARGET_DIR}}/**'"
+                            , "  - import: '@/shared/**'"
+                            , "fix: 'Keep imports within the same directory or use shared modules.'"
+                            ]
+                        ]
 
             it "no violation: top-level feature module imports sibling in same directory" $ do
                 let m = mkModule "@/features/home/HomeContainer" ["@/features/home/HomeService"]

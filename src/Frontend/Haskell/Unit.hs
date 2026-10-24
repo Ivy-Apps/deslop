@@ -12,8 +12,8 @@ module Frontend.Haskell.Unit (
 
 import Data.Text.Encoding qualified as TE
 import FileSystem.Path (AbsPath)
-import Frontend.Haskell.Cabal (Component (..), Owner (..), ownerOf)
 import Frontend.Haskell.CST (HsProgram (..))
+import Frontend.Haskell.Cabal (Component (..), Owner (..), ownerOf)
 import Frontend.Haskell.Lexer (lexHaskell)
 import Frontend.Haskell.Parser (parseHaskell)
 import Frontend.Haskell.Preprocessor (Request, opaqueRequest, requestedInFile)
@@ -27,8 +27,9 @@ data HsUnit
 -- | Why a file's imports were not read.
 data Opacity
     = NotUtf8
-    | -- | A @module@ line that never reaches @where@, or an import that is
-      -- not one: a file GHC would reject.
+    | {- | A @module@ line that never reaches @where@, or an import that is
+      not one: a file GHC would reject.
+      -}
       Unparseable
     | -- | What GHC compiles is a preprocessor's output, not these bytes.
       Preprocessed Request

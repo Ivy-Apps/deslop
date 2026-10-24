@@ -3,10 +3,10 @@ module Effects.FileSystemSpec (spec) where
 import Effectful (runEff)
 import Effects.FileSystem (fsListDirectory, fsMkAbsolute, runRoFileSystemIO)
 import FileSystem.Path (AbsPath (..))
+import Fixtures.OnDisk (staticTree)
 import System.Directory.OsPath qualified as SDO
 import System.OsPath (isAbsolute, osp)
 import System.OsString qualified as OS
-import Fixtures.OnDisk (staticTree)
 import Test.Hspec
 
 spec :: Spec

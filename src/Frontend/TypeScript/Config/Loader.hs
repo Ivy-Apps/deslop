@@ -32,8 +32,8 @@ import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effects.FileSystem (RoFileSystem, fsFileExists, fsMkAbsolute, fsReadFile)
 import FileSystem.Path (
     AbsPath (..),
-    ProjectRoot,
     ProjectRelativePath (..),
+    ProjectRoot,
     absPathUnsafe,
     decodeOsPath,
     encodeOsPath,

@@ -28,8 +28,9 @@ violationOf = reportedFrom "src/lib/util.ts" . Fixture.violationOf barrelRule "@
             , ruleFix = "Import directly from the module"
             }
 
--- | A statement written at a given line of the module every violation here is
--- reported against.
+{- | A statement written at a given line of the module every violation here is
+reported against.
+-}
 statementAt :: Int -> Text -> Location
 statementAt = locatedAt "src/lib/util.ts"
 

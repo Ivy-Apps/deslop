@@ -19,11 +19,11 @@ import Doubles.FileSystem (mockFileSystem, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import FileSystem.Path (AbsPath, ProjectRoot (..), absPathUnsafe, decodeOsPath, encodeOsPath, portablePath, relativePathTo)
+import Fixtures.OnDisk (resolutionCorpus)
 import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.Config.Loader (loadTsConfig)
 import Frontend.TypeScript.ModuleResolver (resolve)
 import Test.Hspec
-import Fixtures.OnDisk (resolutionCorpus)
 import TestUtils (requireRight)
 
 -- | One case, exactly as authored and recorded in the corpus file.

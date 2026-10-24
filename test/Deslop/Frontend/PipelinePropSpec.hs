@@ -13,8 +13,8 @@ import Deslop.Problem.Baseline (Baseline, inBaseline)
 import Effects.CLI (LogStyle (..))
 import FileSystem.Path (AbsPath (..), decodeOsPath)
 import Fixtures.Deslop.Frontend.Pipeline (Outcome (..), runLines)
-import Fixtures.FileSystem.Path (inProject)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
+import Fixtures.FileSystem.Path (inProject)
 import Hedgehog (Gen, assert, cover, evalIO, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
