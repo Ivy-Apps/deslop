@@ -21,17 +21,12 @@ import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Reader.Static (runReader)
 import Effects.FileSystem (fsReadFile)
-import FileSystem.Path (AbsPath, ProjectRoot (..))
+import FileSystem.Path (ProjectRoot (..))
+import Fixtures.FileSystem.Path (inProject, projectRoot)
 import Frontend.Haskell (HsConfigError, HsFrontend (..), HsLowerError)
 import Frontend.Haskell.Cabal (HsConfig, loadHsConfig)
 import Git.Ignore (loadGitIgnore)
-import TestUtils (ap, requireRight)
-
-projectRoot :: ProjectRoot
-projectRoot = ProjectRoot (ap "/project")
-
-inProject :: Text -> AbsPath
-inProject path = ap ("/project/" <> path)
+import TestUtils (requireRight)
 
 data Lowered = Lowered
     { modules :: [Module]

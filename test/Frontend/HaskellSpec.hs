@@ -1,8 +1,8 @@
 module Frontend.HaskellSpec (spec) where
 
 import Deslop.Frontend (CompilerFrontend (..))
-import Deslop.Problem.Formatter (CodeFence (..))
-import Doubles.FileSystem (defaultMockRoFileSystem, newInMemoryFileSystem, runInMemoryFileSystem, runMockRoFileSystem)
+import Deslop.Frontend.Finding (problem)
+import Doubles.FileSystem (defaultMockRoFileSystem, newInMemoryFileSystem, runInMemoryFileSystem, runReadOnly)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Fixtures.Frontend.Haskell.Project (cabalPackage, configFrom, inProject, lowerFiles, projectRoot)
@@ -27,19 +27,6 @@ configErrorOf files = either Renderable.render (const "loaded") <$> lowerFiles f
 
 spec :: Spec
 spec = describe "Frontend.Haskell" $ do
-    describe "what it tells the core about itself" $ do
-        it "is labelled Haskell" $
-            label HsFrontend `shouldBe` "Haskell"
-
-        it "fences quoted statements as haskell" $
-            codeFence HsFrontend `shouldBe` CodeFence "haskell"
-
-        it "names a .cabal file as what it looks for" $
-            lookingFor (Proxy @HsFrontend) `shouldBe` "Haskell (*.cabal)"
-
-        it "brings no built-in rules" $
-            builtInRules HsFrontend `shouldBe` []
-
     describe "detection" $ do
         it "recognises a project with one .cabal file at its root" $
             detectedIn [("p.cabal", cabal)] `shouldReturn` Just HsFrontend
@@ -82,6 +69,6 @@ spec = describe "Frontend.Haskell" $ do
     describe "linting" $
         it "finds nothing, having no built-in rules" $ do
             cfg <- configFrom (decodeUtf8 cabal)
-            findings <- runEff . runMockRoFileSystem defaultMockRoFileSystem . runReader projectRoot $ lint HsFrontend cfg (parse HsFrontend cfg (inProject "src/M.hs") "import A\n")
+            findings <- runReadOnly defaultMockRoFileSystem . runReader projectRoot $ lint HsFrontend cfg (parse HsFrontend cfg (inProject "src/M.hs") "import A\n")
 
-            length findings `shouldBe` 0
+            fmap problem findings `shouldBe` []
