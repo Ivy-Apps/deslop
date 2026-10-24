@@ -2,13 +2,14 @@ module Deslop.Rule.Lint.CycleDetectionSpec (spec) where
 
 import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Module (Location (..), Module)
-import Deslop.Problem (LintRuleId (..), Problem (..), ProblemId (..), problemId)
+import Deslop.Problem (Problem (..), ProblemId (..), problemId)
 import Deslop.Problem.Baseline (applyBaseline)
 import Deslop.Rule.Lint.CycleDetection (noImportCycles)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Fixtures.Deslop.Module (mkModule, mkModuleAt)
+import Fixtures.Deslop.Problem (describedAs, lintProblemAt, locatedAt, withFix)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
 import Test.Hspec
 import TestUtils (rp)
@@ -19,6 +20,14 @@ runNoImportCycles modules =
         . runReportProblem
         . runReader (buildModuleGraph modules)
         $ noImportCycles >> getProblems
+
+-- | The cycle reported from @a.ts@, entered by the statement, through the modules.
+cycleThrough :: Text -> Text -> Problem
+cycleThrough code modules =
+    withFix cycleFix
+        . describedAs ("Circular dependency (import cycle) detected: " <> modules)
+        . lintProblemAt "no-import-cycles"
+        $ locatedAt "a.ts" 1 code
 
 cycleFix :: Text
 cycleFix =
@@ -33,19 +42,7 @@ spec = describe "Deslop.Rule.Lint.CycleDetection" $ do
             b = mkModule "b" ["a"]
         problems <- runNoImportCycles [a, b]
         problems
-            `shouldBe` [ LintProblem
-                            { lintRule = LintRuleId "no-import-cycles"
-                            , location =
-                                Location
-                                    { file = rp "a.ts"
-                                    , line = 1
-                                    , code = "import { ... } from 'b'"
-                                    }
-                            , description = "Circular dependency (import cycle) detected: a → b → a"
-                            , fix = cycleFix
-                            , autoFixable = False
-                            }
-                       ]
+            `shouldBe` [cycleThrough "import { ... } from 'b'" "a → b → a"]
 
     it "reports a three-module cycle" $ do
         let a = mkModule "a" ["b"]
@@ -53,37 +50,13 @@ spec = describe "Deslop.Rule.Lint.CycleDetection" $ do
             c = mkModule "c" ["a"]
         problems <- runNoImportCycles [a, b, c]
         problems
-            `shouldBe` [ LintProblem
-                            { lintRule = LintRuleId "no-import-cycles"
-                            , location =
-                                Location
-                                    { file = rp "a.ts"
-                                    , line = 1
-                                    , code = "import { ... } from 'b'"
-                                    }
-                            , description = "Circular dependency (import cycle) detected: a → b → c → a"
-                            , fix = cycleFix
-                            , autoFixable = False
-                            }
-                       ]
+            `shouldBe` [cycleThrough "import { ... } from 'b'" "a → b → c → a"]
 
     it "reports a module importing itself" $ do
         let a = mkModule "a" ["a"]
         problems <- runNoImportCycles [a]
         problems
-            `shouldBe` [ LintProblem
-                            { lintRule = LintRuleId "no-import-cycles"
-                            , location =
-                                Location
-                                    { file = rp "a.ts"
-                                    , line = 1
-                                    , code = "import { ... } from 'a'"
-                                    }
-                            , description = "Circular dependency (import cycle) detected: a → a"
-                            , fix = cycleFix
-                            , autoFixable = False
-                            }
-                       ]
+            `shouldBe` [cycleThrough "import { ... } from 'a'" "a → a"]
 
     it "reports nothing for an acyclic graph" $ do
         let a = mkModule "a" ["b"]

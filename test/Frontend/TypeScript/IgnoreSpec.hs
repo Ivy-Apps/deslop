@@ -4,7 +4,8 @@ import Data.Set qualified as Set
 import Doubles.FileSystem (MockRoFileSystem (..), mockDirs, runMockRoFileSystem)
 import Effectful (runEff)
 import FileSystem.Iterator (Entry (..))
-import FileSystem.Path (AbsPath)
+import FileSystem.Path (AbsPath, ProjectRoot (..))
+import Fixtures.FileSystem.Path (projectRoot)
 import Frontend.TypeScript.Ignore (jsEcosystemIgnored, jsEcosystemIgnoredNames)
 import Frontend.TypeScript.Iterator (getTsFiles)
 import Git.Ignore (GitIgnore (..), IgnoreScope (..), alwaysIgnoredNames, emptyGitIgnore, loadGitIgnore, parseIgnoreFile)
@@ -12,7 +13,7 @@ import Test.Hspec
 import TestUtils (ap)
 
 root :: AbsPath
-root = ap "/project"
+root = projectRoot.path
 
 spec :: Spec
 spec = describe "Frontend.TypeScript.Ignore" $ do

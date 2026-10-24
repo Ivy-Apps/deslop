@@ -4,8 +4,6 @@ everything a run leaves behind.
 module Fixtures.Deslop.Frontend.Pipeline (
     Outcome (..),
     runLines,
-    linesRoot,
-    inLines,
 ) where
 
 import Deslop.Command (Command)
@@ -22,8 +20,8 @@ import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.CLI (LogStyle)
 import Effects.ReportProblem (getProblems, runReportProblem)
-import FileSystem.Path (AbsPath, ProjectRoot (..))
-import TestUtils (ap)
+import FileSystem.Path (AbsPath)
+import Fixtures.FileSystem.Path (projectRoot)
 
 data Outcome = Outcome
     { modules :: [Module]
@@ -32,13 +30,6 @@ data Outcome = Outcome
     , written :: [AbsPath]
     , transcript :: [(LogStyle, Text)]
     }
-
-linesRoot :: ProjectRoot
-linesRoot = ProjectRoot (ap "/project")
-
--- | A path in the project, e.g. @inLines "a.lines"@.
-inLines :: Text -> AbsPath
-inLines = ap . ("/project/" <>)
 
 runLines :: Command -> Baseline -> [(AbsPath, ByteString)] -> IO Outcome
 runLines command baseline initial = do
@@ -51,7 +42,7 @@ runLines command baseline initial = do
             . runConcurrent
             . runReportProblem
             $ (,)
-                <$> runErrorNoCallStack @DeslopError (runFrontend LinesFrontend command baseline linesRoot)
+                <$> runErrorNoCallStack @DeslopError (runFrontend LinesFrontend command baseline projectRoot)
                 <*> getProblems
     modules <- either (fail . show) pure result
     files <- readIORef fs.files

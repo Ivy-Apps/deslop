@@ -1,12 +1,14 @@
 module E2E.ProjectGoldenSpec (spec) where
 
+import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Deslop (doWork)
 import Deslop.Error (DeslopError (..))
+import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.RunReport (RunReport (..), Verdict (..))
 import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, renderTranscript, runMockCLI)
-import Doubles.FileSystem (runMockWrFileSystem)
+import Doubles.FileSystem (runWritesInMemory)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
@@ -15,47 +17,25 @@ import Effects.FileSystem (runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
 import FileSystem.Path (
     AbsPath (osPath),
-    ProjectRoot (..),
     ProjectRelativePath (osPath),
+    ProjectRoot (..),
     decodeOsPath,
     encodeOsPathString,
     relativePathTo,
+    withAbsBaseUnsafe,
  )
-import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
-import Frontend.TypeScript.Iterator (getTsFiles)
+import Fixtures.OnDisk (haskellProject, typescriptProject)
+import Frontend.TypeScript (TsFrontend (..))
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
-import System.Directory (removeFile)
-import System.OsPath (OsPath, osp)
+import Renderable qualified
+import System.Directory.OsPath (removeFile)
+import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
-import Test.Hspec.Golden (defaultGolden)
-import Fixtures.OnDisk (haskellProject, typescriptProject)
+import Test.Hspec.Golden (Golden, defaultGolden)
 import TestUtils (copyDir, mkAbsolute, requireJust, snapshot)
 import UI (coverage, humanReadable, problemsFoundText)
 import UnliftIO.Temporary (withSystemTempDirectory)
-
--- | Which language a fixture project is written in, and so where it and its goldens live.
-data Language = TypeScript | Haskell
-
-projectIn :: Language -> String -> OsPath
-projectIn TypeScript = typescriptProject
-projectIn Haskell = haskellProject
-
-goldenDir :: Language -> String
-goldenDir TypeScript = "typescript/"
-goldenDir Haskell = "haskell/"
-
-{- | The 'Params' every golden run starts from. Only this spec runs 'doWork'
-end to end, so it is the only place that needs one.
--}
-defaultParams :: OsPath -> IO Params
-defaultParams projPath = do
-    absProjPath <- mkAbsolute projPath
-    pure
-        Params
-            { projectPath = absProjPath
-            , command = FixC
-            }
 
 spec :: Spec
 spec = describe "E2E.Project" $ do
@@ -72,12 +52,12 @@ spec = describe "E2E.Project" $ do
     itChecks TypeScript "ts-not-utf8-project"
 
     itFailsToLoadRulebook TypeScript "ts-invalid-rulebook-project"
-    itFailsToLoadConfig TypeScript "tsconfig-error-" "ts-broken-extends-project"
+    itFailsToLoadConfig TypeScript "tsconfig-error" "ts-broken-extends-project" "config/tsconfig.base.json"
 
     itChecks Haskell "hs-tiny-project"
     itBaselines Haskell "hs-tiny-project"
-    itFailsToLoadConfig Haskell "cabal-error-" "hs-multi-package-project"
-    itFailsToLoadConfig Haskell "cabal-error-" "hs-two-packages-project"
+    itFailsToLoadConfig Haskell "cabal-error" "hs-multi-package-project" "cabal.project"
+    itFailsToLoadConfig Haskell "cabal-error" "hs-two-packages-project" "a.cabal"
     itChecksItself
 
     itFindsNoLanguage
@@ -156,294 +136,236 @@ spec = describe "E2E.Project" $ do
         [ "packages/app/src/main.ts"
         , "packages/app/src/checkout.ts"
         ]
+
+--------------------------------------------------------------------------------
+-- Running Deslop
+--------------------------------------------------------------------------------
+
+{- | Where a run's writes go. A fixture read in place must never be rewritten,
+so its writes are kept in memory and asserted on; a run that is meant to
+rewrite files works on a copy of the fixture, on disk.
+-}
+data Writes
+    = InMemory
+    | ToDisk
+
+-- | Which language a fixture project is written in, and so where it and its goldens live.
+data Language = TypeScript | Haskell
+
+projectIn :: Language -> String -> OsPath
+projectIn TypeScript = typescriptProject
+projectIn Haskell = haskellProject
+
+-- | Everything one 'doWork' leaves behind.
+data Run = Run
+    { result :: Either DeslopError RunReport
+    , logs :: TestLogs
+    , written :: Map AbsPath ByteString
+    -- ^ What an 'InMemory' run wrote. A run 'ToDisk' leaves its writes on disk.
+    }
+
+-- | Runs one command over the project at the path, collecting what it leaves behind.
+runDeslopOn :: Writes -> Command -> OsPath -> IO Run
+runDeslopOn writes command projectPath = do
+    absProjectPath <- mkAbsolute projectPath
+    writtenRef <- newIORef mempty
+    logsRef <- newIORef (TestLogs [])
+    result <-
+        runEff
+            . fileSystem writtenRef
+            . runErrorNoCallStack @DeslopError
+            . runMockCLI defaultMockCLI {logsRef = Just logsRef}
+            . runReportProblem
+            . runConcurrent
+            $ doWork Params {projectPath = absProjectPath, command}
+    Run result <$> readIORef logsRef <*> readIORef writtenRef
   where
-    -- A baseline is committed and read back on another machine and in CI, so
-    -- an entry naming the machine that wrote it matches nothing there: the
-    -- problem it was meant to suppress comes back, and `deslop fix` rewrites
-    -- an import a teammate had already accepted. Asserted on every fixture
-    -- rather than goldened, because a golden only shows the path - it cannot
-    -- object to it. A '/'-rooted Module Id is fine and expected; what must
-    -- never appear is where the project happens to sit on this disk.
-    baselineEntries :: ByteString -> [Text]
-    baselineEntries =
-        mapMaybe (T.stripPrefix "- " . T.strip) . lines . TE.decodeUtf8
+    fileSystem writtenRef = case writes of
+        InMemory -> runRoFileSystemIO . runWritesInMemory writtenRef
+        ToDisk -> runFileSystemIO
 
-    namesNoMachine :: AbsPath -> Text -> Bool
-    namesNoMachine projectPath = not . T.isInfixOf (decodeOsPath projectPath.osPath)
+{- | As 'runDeslopOn', over a copy of the fixture project in a fresh temporary
+directory, which the run may rewrite. The copy is prepared before the run and
+read back, by its root, after it.
+-}
+runDeslopOnCopy :: Command -> Language -> String -> (OsPath -> IO ()) -> (OsPath -> Run -> IO a) -> IO a
+runDeslopOnCopy command language project prepare check =
+    withSystemTempDirectory "deslop-test" $ \tmpFp -> do
+        let tmpDir = encodeOsPathString tmpFp
+        copyDir (projectIn language project) tmpDir
+        prepare tmpDir
+        runDeslopOn ToDisk command tmpDir >>= check tmpDir
 
-    -- The closing summary and the check verdict are rendered by runDeslop,
-    -- outside doWork, so the transcript alone would not cover them. Appending
-    -- them goldens the wording together with the counts that produced it. Only
-    -- the elapsed time is left out, since it differs on every run.
-    renderResult :: Either DeslopError RunReport -> Text
+-- | Runs against a fresh, empty temporary directory.
+inEmptyDir :: (OsPath -> IO a) -> IO a
+inEmptyDir act = withSystemTempDirectory "deslop-test" (act . encodeOsPathString)
+
+projectGolden :: Language -> String -> String -> String -> Golden String
+projectGolden language kind project = defaultGolden (languageDir language <> kind <> "-" <> project)
+  where
+    languageDir TypeScript = "typescript/"
+    languageDir Haskell = "haskell/"
+
+{- | The closing summary and the check verdict are rendered by runDeslop,
+outside doWork, so the transcript alone would not cover them. Appending them
+goldens the wording together with the counts that produced it. Only the
+elapsed time is left out, since it differs on every run.
+-}
+renderRun :: Run -> Text
+renderRun run = renderTranscript run.logs <> renderResult run.result
+  where
     renderResult (Left err) = "[exit] " <> humanReadable err <> "\n"
     renderResult (Right report) =
         "[summary] " <> coverage report.summary <> "\n" <> renderVerdict report.verdict
 
-    renderVerdict :: Verdict -> Text
     renderVerdict Clean = ""
     renderVerdict (ProblemsFound counts) =
         "[exit] " <> problemsFoundText counts <> "\n"
 
-    -- Goldens exactly which files the iteration produced. Unlike the check and
-    -- baseline goldens, which can only show a skipped file as an absence, this
-    -- states the outcome positively: a regression makes a named path appear.
-    itIterates language project = it ("iterates " <> project) $ do
-        -- Given
-        let projectPath = projectIn language project
-        absProjectPath <- mkAbsolute projectPath
+--------------------------------------------------------------------------------
+-- Cases
+--------------------------------------------------------------------------------
 
-        -- When
-        files <-
-            runEff . runRoFileSystemIO $
-                loadGitIgnore jsEcosystemIgnored absProjectPath >>= (`getTsFiles` absProjectPath)
+itChecks :: Language -> String -> Spec
+itChecks language project = it ("checks " <> project) $ do
+    run <- runDeslopOn InMemory CheckC (projectIn language project)
 
-        -- Then
-        pure . defaultGolden (goldenDir language <> "iterated-" <> project) . T.unpack . T.unlines . sort $
-            fmap (decodeOsPath . (.osPath) . relativePathTo (ProjectRoot absProjectPath)) files
+    run.written `shouldBe` mempty
+    pure . projectGolden language "check" project . T.unpack . renderRun $ run
 
-    -- A rulebook deslop cannot use must abort the run before any file is
-    -- checked, with a message the author can act on. Goldening the transcript
-    -- pins the whole path from ruleBookFromDto through to the exit line.
-    -- The fixture holds both ways a rulebook can be unusable, because the
-    -- report has to survive the mixture: two files whose patterns do not
-    -- compile, and two that never parsed at all because of an unknown key.
-    itFailsToLoadRulebook language project = it ("refuses to run " <> project) $ do
-        -- Given
-        let projectPath = projectIn language project
-        filesRef <- newIORef Nothing
-        logsRef <- newIORef (TestLogs [])
-        defParams <- defaultParams projectPath
-        let params = defParams {command = CheckC}
+{- | A baseline is committed and read back on another machine and in CI, so an
+entry naming the machine that wrote it matches nothing there: the problem it
+was meant to suppress comes back, and @deslop fix@ rewrites an import a
+teammate had already accepted. Asserted on every fixture rather than
+goldened, because a golden only shows the path - it cannot object to it. A
+'/'-rooted Module Id is fine and expected; what must never appear is where the
+project happens to sit on this disk.
+-}
+itBaselines :: Language -> String -> Spec
+itBaselines language project = it ("baselines " <> project) $ do
+    let projectPath = projectIn language project
+    absProjectPath <- mkAbsolute projectPath
+    let baselinePath = withAbsBaseUnsafe absProjectPath [osp|deslop/baseline.yaml|]
 
-        -- When
-        res <-
-            runEff
-                . runMockWrFileSystem filesRef
-                . runRoFileSystemIO
-                . runErrorNoCallStack @DeslopError
-                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                . runReportProblem
-                . runConcurrent
-                $ doWork params
+    run <- runDeslopOn InMemory BaselineC projectPath
 
-        -- Then
-        res `shouldSatisfy` isLeft
-        written <- readIORef filesRef
-        written `shouldBe` Nothing
-        logs <- readIORef logsRef
-        pure . defaultGolden (goldenDir language <> "rulebook-error-" <> project) . T.unpack $
-            renderTranscript logs <> renderResult res
+    fmap (.verdict) run.result `shouldBe` Right Clean
+    Map.keys run.written `shouldBe` [baselinePath]
+    content <- requireJust "Expected deslop/baseline.yaml to be written" $ Map.lookup baselinePath run.written
+    traverse_ (`shouldSatisfy` namesNoMachine absProjectPath) . baselineEntries $ content
+    pure . projectGolden language "baseline" project . T.unpack $
+        renderRun run <> "\n>>> baseline.yaml\n" <> TE.decodeUtf8 content
+  where
+    baselineEntries :: ByteString -> [Text]
+    baselineEntries = mapMaybe (T.stripPrefix "- " . T.strip) . lines . TE.decodeUtf8
 
-    -- A project configuration Deslop cannot use must abort the run before any
-    -- file is checked, naming the file at fault: a tsconfig whose `extends`
-    -- names a file that is not there, a cabal.project of several packages.
-    itFailsToLoadConfig language goldenPrefix project = it ("refuses to run " <> project) $ do
-        -- Given
-        let projectPath = projectIn language project
-        filesRef <- newIORef Nothing
-        logsRef <- newIORef (TestLogs [])
-        defParams <- defaultParams projectPath
-        let params = defParams {command = CheckC}
+    namesNoMachine :: AbsPath -> Text -> Bool
+    namesNoMachine projectPath = not . T.isInfixOf (decodeOsPath projectPath.osPath)
 
-        -- When
-        res <-
-            runEff
-                . runMockWrFileSystem filesRef
-                . runRoFileSystemIO
-                . runErrorNoCallStack @DeslopError
-                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                . runReportProblem
-                . runConcurrent
-                $ doWork params
+itFixes :: Language -> String -> [String] -> Spec
+itFixes language project filesToCheck = it ("fixes " <> project) . runDeslopOnCopy FixC language project (const pass) $ \tmpDir run -> do
+    fmap (.verdict) run.result `shouldBe` Right Clean
+    let modified = [msg | (Change, msg) <- run.logs.transcript]
+    -- Files are repaired concurrently; the changelog must not say so.
+    modified `shouldBe` sort modified
+    fullSnapshot <- snapshot tmpDir filesToCheck
+    pure . projectGolden language "fix" project $
+        fullSnapshot <> "\n>>> changelog\n" <> T.unpack (T.unlines modified)
 
-        -- Then
-        res `shouldSatisfy` isLeft
-        written <- readIORef filesRef
-        written `shouldBe` Nothing
-        logs <- readIORef logsRef
-        pure . defaultGolden (goldenDir language <> goldenPrefix <> project) . T.unpack $
-            renderTranscript logs <> renderResult res
+{- | Goldens exactly which files the walk produced. Unlike the check and
+baseline goldens, which can only show a skipped file as an absence, this
+states the outcome positively: a regression makes a named path appear. Goes
+through the frontend's own stages, strung together as the driver strings them.
+-}
+itIterates :: Language -> String -> Spec
+itIterates language project = it ("iterates " <> project) $ do
+    projectRoot <- ProjectRoot <$> mkAbsolute (projectIn language project)
 
-    -- A directory no frontend recognises cannot be checked at all; saying so
-    -- names what was looked for, rather than complaining about one language's
-    -- config file in a project that was never written in it.
-    itFindsNoLanguage = it "refuses to run a project no language recognises" $ do
-        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
-            -- Given
-            params <- defaultParams (encodeOsPathString tmpFp)
-            logsRef <- newIORef (TestLogs [])
+    files <- runEff . runRoFileSystemIO $ do
+        (cfg, _) <- either (error . Renderable.render) id <$> loadConfig TsFrontend projectRoot
+        gitIgnore <- loadGitIgnore (ecosystemIgnored TsFrontend cfg) projectRoot.path
+        discover TsFrontend cfg projectRoot gitIgnore
 
-            -- When
-            res <-
-                runEff
-                    . runFileSystemIO
-                    . runErrorNoCallStack @DeslopError
-                    . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                    . runReportProblem
-                    . runConcurrent
-                    $ doWork params {command = CheckC}
+    pure . projectGolden language "iterated" project . T.unpack . T.unlines . sort $
+        fmap (decodeOsPath . (.osPath) . relativePathTo projectRoot) files
 
-            -- Then
-            res `shouldBe` Left (NoFrontendDetected (ProjectRoot params.projectPath) ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"])
-            logs <- readIORef logsRef
-            -- The title and the warning every run without Rulebooks gives, but
-            -- no claim to have detected a language.
-            fmap fst logs.transcript `shouldBe` [Title, Warning]
+{- | A rulebook deslop cannot use must abort the run before any file is
+checked, with a message the author can act on. Goldening the transcript pins
+the whole path from the rulebook file through to the exit line. The fixture
+holds both ways a rulebook can be unusable, because the report has to survive
+the mixture: two files whose patterns do not compile, and two that never
+parsed at all because of an unknown key.
+-}
+itFailsToLoadRulebook :: Language -> String -> Spec
+itFailsToLoadRulebook language project = it ("refuses to run " <> project) $ do
+    run <- runDeslopOn InMemory CheckC (projectIn language project)
 
-    -- A path that is not a directory holds no tsconfig.json: the person is told
-    -- no language matched, not shown a raw IO exception.
-    itFindsNoLanguageInMissingPath = it "refuses to run a project path that does not exist" $ do
-        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
-            -- Given
-            params <- defaultParams (encodeOsPathString $ tmpFp <> "/missing")
+    run.result `shouldSatisfy` isRulebookError
+    run.written `shouldBe` mempty
+    pure . projectGolden language "rulebook-error" project . T.unpack . renderRun $ run
 
-            -- When
-            res <-
-                runEff
-                    . runFileSystemIO
-                    . runErrorNoCallStack @DeslopError
-                    . runMockCLI defaultMockCLI
-                    . runReportProblem
-                    . runConcurrent
-                    $ doWork params {command = CheckC}
+{- | A project configuration Deslop cannot use must abort the run before any
+file is checked, naming the file at fault: a tsconfig whose @extends@ names a
+file that is not there, a cabal.project of several packages, two .cabal files.
+-}
+itFailsToLoadConfig :: Language -> String -> String -> Text -> Spec
+itFailsToLoadConfig language kind project culprit = it ("refuses to run " <> project) $ do
+    run <- runDeslopOn InMemory CheckC (projectIn language project)
 
-            -- Then
-            res `shouldBe` Left (NoFrontendDetected (ProjectRoot params.projectPath) ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"])
+    run.result `shouldSatisfy` \case
+        Left (FrontendError message) -> culprit `T.isInfixOf` message
+        _ -> False
+    run.written `shouldBe` mempty
+    pure . projectGolden language kind project . T.unpack . renderRun $ run
 
-    -- Detecting the language must not reorder what a broken project hears
-    -- first: its Rulebooks are read before any language is required.
-    itReportsRulebookBeforeLanguage language project =
-        it ("reports the broken rulebooks of " <> project <> " before finding no language") $
-            withSystemTempDirectory "deslop-test" $ \tmpFp -> do
-                -- Given
-                let tmpDir = encodeOsPathString tmpFp
-                copyDir (projectIn language project) tmpDir
-                removeFile (tmpFp <> "/tsconfig.json")
-                params <- defaultParams tmpDir
+{- | A directory no frontend recognises cannot be checked at all; saying so
+names what was looked for, rather than complaining about one language's config
+file in a project that was never written in it.
+-}
+itFindsNoLanguage :: Spec
+itFindsNoLanguage = it "refuses to run a project no language recognises" . inEmptyDir $ \tmpDir -> do
+    projectRoot <- ProjectRoot <$> mkAbsolute tmpDir
 
-                -- When
-                res <-
-                    runEff
-                        . runFileSystemIO
-                        . runErrorNoCallStack @DeslopError
-                        . runMockCLI defaultMockCLI
-                        . runReportProblem
-                        . runConcurrent
-                        $ doWork params {command = CheckC}
+    run <- runDeslopOn ToDisk CheckC tmpDir
 
-                -- Then
-                res `shouldSatisfy` \case
-                    Left (RulebookError _) -> True
-                    _ -> False
+    run.result `shouldBe` Left (NoFrontendDetected projectRoot ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"])
+    -- The title and the warning every run without Rulebooks gives, but no
+    -- claim to have detected a language.
+    fmap fst run.logs.transcript `shouldBe` [Title, Warning]
 
-    -- Deslop's own layering (deslop/rules/), judged by its own Haskell
-    -- frontend. Asserted clean rather than goldened: a golden would change
-    -- with every module the repository gains.
-    itChecksItself = it "checks its own repository clean" $ do
-        -- Given
-        defParams <- defaultParams [osp|.|]
-        filesRef <- newIORef Nothing
-        logsRef <- newIORef (TestLogs [])
+{- | A path that is not a directory holds no tsconfig.json: the person is told
+no language matched, not shown a raw IO exception.
+-}
+itFindsNoLanguageInMissingPath :: Spec
+itFindsNoLanguageInMissingPath = it "refuses to run a project path that does not exist" . inEmptyDir $ \tmpDir -> do
+    let missing = tmpDir </> [osp|missing|]
+    projectRoot <- ProjectRoot <$> mkAbsolute missing
 
-        -- When
-        res <-
-            runEff
-                . runMockWrFileSystem filesRef
-                . runRoFileSystemIO
-                . runErrorNoCallStack @DeslopError
-                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                . runReportProblem
-                . runConcurrent
-                $ doWork defParams {command = CheckC}
+    run <- runDeslopOn ToDisk CheckC missing
 
-        -- Then
-        logs <- readIORef logsRef
-        (renderTranscript logs, fmap (.verdict) res) `shouldSatisfy` ((== Right Clean) . snd)
+    run.result `shouldBe` Left (NoFrontendDetected projectRoot ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"])
 
-    itChecks language project = it ("checks " <> project) $ do
-        -- Given
-        let projectPath = projectIn language project
-        filesRef <- newIORef Nothing
-        logsRef <- newIORef (TestLogs [])
-        defParams <- defaultParams projectPath
-        let params = defParams {command = CheckC}
+{- | Detecting the language must not reorder what a broken project hears
+first: its Rulebooks are read before any language is required.
+-}
+itReportsRulebookBeforeLanguage :: Language -> String -> Spec
+itReportsRulebookBeforeLanguage language project =
+    it ("reports the broken rulebooks of " <> project <> " before finding no language")
+        . runDeslopOnCopy CheckC language project (removeFile . (</> [osp|tsconfig.json|]))
+        $ \_ run -> run.result `shouldSatisfy` isRulebookError
 
-        -- When
-        res <-
-            runEff
-                . runMockWrFileSystem filesRef
-                . runRoFileSystemIO
-                . runErrorNoCallStack @DeslopError
-                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                . runReportProblem
-                . runConcurrent
-                $ doWork params
+{- | Deslop's own layering (deslop/rules/), judged by its own Haskell frontend.
+Asserted clean rather than goldened: a golden would change with every module
+the repository gains.
+-}
+itChecksItself :: Spec
+itChecksItself = it "checks its own repository clean" $ do
+    run <- runDeslopOn InMemory CheckC [osp|.|]
 
-        -- Then
-        written <- readIORef filesRef
-        written `shouldBe` Nothing
-        logs <- readIORef logsRef
-        pure . defaultGolden (goldenDir language <> "check-" <> project) . T.unpack $
-            renderTranscript logs <> renderResult res
+    (renderRun run, fmap (.verdict) run.result) `shouldSatisfy` ((== Right Clean) . snd)
+    run.written `shouldBe` mempty
 
-    itBaselines language project = it ("baselines " <> project) $ do
-        -- Given
-        let projectPath = projectIn language project
-        filesRef <- newIORef Nothing
-        logsRef <- newIORef (TestLogs [])
-        defParams <- defaultParams projectPath
-        let params = defParams {command = BaselineC}
-
-        -- When
-        res <-
-            runEff
-                . runMockWrFileSystem filesRef
-                . runRoFileSystemIO
-                . runErrorNoCallStack @DeslopError
-                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                . runReportProblem
-                . runConcurrent
-                $ doWork params
-
-        -- Then
-        fmap (.verdict) res `shouldBe` Right Clean
-        content <- requireJust "Expected baseline.yaml to be written" =<< readIORef filesRef
-        traverse_ (`shouldSatisfy` namesNoMachine params.projectPath)
-            . baselineEntries
-            $ content
-        logs <- readIORef logsRef
-        pure . defaultGolden (goldenDir language <> "baseline-" <> project) . T.unpack $
-            renderTranscript logs
-                <> renderResult res
-                <> "\n>>> baseline.yaml\n"
-                <> TE.decodeUtf8 content
-
-    itFixes language project filesToCheck = it ("fixes " <> project) $ do
-        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
-            let tmpDir = encodeOsPathString tmpFp
-            -- Given
-            let projectPath = projectIn language project
-            copyDir projectPath tmpDir
-            params <- defaultParams tmpDir
-            logsRef <- newIORef (TestLogs [])
-
-            -- When
-            res <-
-                runEff
-                    . runFileSystemIO
-                    . runErrorNoCallStack @DeslopError
-                    . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                    . runReportProblem
-                    . runConcurrent
-                    $ doWork params
-
-            -- Then
-            fmap (.verdict) res `shouldBe` Right Clean
-            logs <- readIORef logsRef
-            let modified = [msg | (Change, msg) <- logs.transcript]
-            -- Files are repaired concurrently; the changelog must not say so.
-            modified `shouldBe` sort modified
-            fullSnapshot <- snapshot tmpDir filesToCheck
-            return . defaultGolden (goldenDir language <> "fix-" <> project) $
-                fullSnapshot <> "\n>>> changelog\n" <> T.unpack (T.unlines modified)
+isRulebookError :: Either DeslopError a -> Bool
+isRulebookError = \case
+    Left (RulebookError _) -> True
+    _ -> False

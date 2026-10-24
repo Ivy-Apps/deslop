@@ -2,51 +2,36 @@ module Deslop.Problem.FormatterSpec (spec) where
 
 import Data.Text qualified as T
 import Deslop.Module (EdgeKind (..), Location (..), ModuleName (..), moduleNameUnsafe)
-import Deslop.Problem (LintRuleId (LintRuleId), Problem (..), ViolationKind (..))
+import Deslop.Problem (Problem (..), ViolationKind (..))
 import Deslop.Problem.Formatter (CodeFence (..), formatProblem)
-import Deslop.Rule.Book (RuleId (RuleId), RulebookId (RulebookId))
-import FileSystem.Path (encodeOsPath, relativePathUnsafe)
+import Fixtures.Deslop.Problem (BrokenRule (..), autoFixable, brokenRule, describedAs, lintProblemAt, locatedAt, reportedFrom, withFix)
+import Fixtures.Deslop.Problem qualified as Fixture
 import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
 
 lintProblem :: Problem
 lintProblem =
-    LintProblem
-        { lintRule = LintRuleId "no-relative-imports"
-        , location =
-            Location
-                { file = relativePathUnsafe (encodeOsPath "src/Foo.ts")
-                , line = 1
-                , code = "   import {bar} from './bar'   \n"
-                }
-        , description = "No relative imports allowed"
-        , fix = "Use absolute imports"
-        , autoFixable = False
-        }
+    withFix "Use absolute imports"
+        . describedAs "No relative imports allowed"
+        . lintProblemAt "no-relative-imports"
+        $ locatedAt "src/Foo.ts" 1 "   import {bar} from './bar'   \n"
 
 ruleViolation :: Problem
 ruleViolation = violationOf DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/lib/index", location = statementAt 3 "import { x } from '@/lib/index'"}
 
+-- | @@/lib/util@ breaking the barrel rule, from its source at @src/lib/util.ts@.
 violationOf :: ViolationKind -> Problem
-violationOf violationKind =
-    RuleViolation
-        { rulebook = RulebookId "architecture"
-        , rule = RuleId "no-barrel-imports"
-        , badModule = moduleNameUnsafe "@/lib/util"
-        , modulePath = relativePathUnsafe (encodeOsPath "src/lib/util.ts")
-        , prose = "Barrel imports are forbidden"
-        , kind = violationKind
-        , fix = "Import directly from the module"
-        }
+violationOf = reportedFrom "src/lib/util.ts" . Fixture.violationOf barrelRule "@/lib/util"
+  where
+    barrelRule =
+        (brokenRule "architecture" "no-barrel-imports")
+            { ruleProse = "Barrel imports are forbidden"
+            , ruleFix = "Import directly from the module"
+            }
 
 -- | A statement written at a given line of the module every violation here is
 -- reported against.
 statementAt :: Int -> Text -> Location
-statementAt line code =
-    Location
-        { file = relativePathUnsafe (encodeOsPath "src/lib/util.ts")
-        , line = line
-        , code = code
-        }
+statementAt = locatedAt "src/lib/util.ts"
 
 -- | @@/lib/util -> @/lib/a -> @/forbids/store@, the chain most cases start from.
 twoHopChain :: NonEmpty ModuleName
@@ -96,7 +81,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
                         <> "FIX: Use absolute imports"
 
             it "strips whitespace from fix" $ do
-                let p = lintProblem {fix = "  Use absolute imports  "}
+                let p = withFix "  Use absolute imports  " lintProblem
                 let result = formatProblem ts p
                 result
                     `shouldBe` "# no-relative-imports#src/Foo.ts\n"
@@ -106,19 +91,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
                         <> "FIX: Use absolute imports"
 
             it "prefixes [AUTO-FIXABLE] when autoFixable is True" $ do
-                let p =
-                        LintProblem
-                            { lintRule = LintRuleId "no-relative-imports"
-                            , location =
-                                Location
-                                    { file = relativePathUnsafe (encodeOsPath "src/Foo.ts")
-                                    , line = 1
-                                    , code = "   import {bar} from './bar'   \n"
-                                    }
-                            , description = "No relative imports allowed"
-                            , fix = "Use absolute imports"
-                            , autoFixable = True
-                            }
+                let p = autoFixable lintProblem
                 let result = formatProblem ts p
                 result
                     `shouldBe` "[AUTO-FIXABLE] # no-relative-imports#src/Foo.ts\n"
@@ -139,7 +112,7 @@ spec = describe "Deslop.Problem.Formatter" $ do
                         <> "FIX: Import directly from the module"
 
             it "strips whitespace from fix" $ do
-                let p = ruleViolation {fix = "  Import directly from the module  "}
+                let p = withFix "  Import directly from the module  " ruleViolation
                 let result = formatProblem ts p
                 result
                     `shouldBe` "# architecture#no-barrel-imports#@/lib/util\n"

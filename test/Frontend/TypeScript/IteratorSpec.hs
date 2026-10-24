@@ -2,7 +2,8 @@ module Frontend.TypeScript.IteratorSpec (spec) where
 
 import Doubles.FileSystem (mockDirs, runMockRoFileSystem)
 import Effectful (runEff)
-import FileSystem.Path (AbsPath)
+import FileSystem.Path (AbsPath, ProjectRoot (..))
+import Fixtures.FileSystem.Path (projectRoot)
 import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
 import Frontend.TypeScript.Iterator (getTsFiles)
 import Git.Ignore (GitIgnore (..), IgnoreScope (..), emptyGitIgnore, parseIgnoreFile)
@@ -10,7 +11,7 @@ import Test.Hspec
 import TestUtils (ap)
 
 root :: AbsPath
-root = ap "/project"
+root = projectRoot.path
 
 -- | Run getTsFiles against a mock filesystem rooted at '/project'.
 run :: [(AbsPath, [AbsPath])] -> IO [AbsPath]

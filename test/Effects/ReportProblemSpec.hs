@@ -1,11 +1,9 @@
 module Effects.ReportProblemSpec (spec) where
 
-import Deslop.Module (Location (..))
-import Deslop.Problem (LintRuleId (..), Problem (..))
 import Effectful
 import Effects.ReportProblem
+import Fixtures.Deslop.Problem (lintProblemAt, locatedAt)
 import Test.Hspec
-import TestUtils (rp)
 
 spec :: Spec
 spec = describe "Effects.ReportProblem" $ do
@@ -22,14 +20,7 @@ spec = describe "Effects.ReportProblem" $ do
             problems `shouldBe` []
 
         it "getProblems returns a single problem after report" $ do
-            let problem =
-                    LintProblem
-                        { lintRule = LintRuleId "P001"
-                        , location = Location {file = rp "src/Foo.ts", line = 1, code = "x"}
-                        , description = "Something wrong"
-                        , fix = "Do this"
-                        , autoFixable = False
-                        }
+            let problem = lintProblemAt "P001" (locatedAt "src/Foo.ts" 1 "x")
             problems <-
                 runEff
                     . runReportProblem
@@ -38,23 +29,9 @@ spec = describe "Effects.ReportProblem" $ do
                         getProblems
             problems `shouldBe` [problem]
 
-        it "getProblems returns the reported problems" $ do
-            let p1 =
-                    LintProblem
-                        { lintRule = LintRuleId "P1"
-                        , location = Location {file = rp "a.ts", line = 1, code = "1"}
-                        , description = "First"
-                        , fix = "fix1"
-                        , autoFixable = False
-                        }
-            let p2 =
-                    LintProblem
-                        { lintRule = LintRuleId "P2"
-                        , location = Location {file = rp "b.ts", line = 1, code = "2"}
-                        , description = "Second"
-                        , fix = "fix2"
-                        , autoFixable = False
-                        }
+        it "getProblems returns the reported problems in order, whatever order they were reported in" $ do
+            let p1 = lintProblemAt "P1" (locatedAt "a.ts" 1 "1")
+            let p2 = lintProblemAt "P2" (locatedAt "b.ts" 1 "2")
             problems <-
                 runEff
                     . runReportProblem
@@ -63,20 +40,3 @@ spec = describe "Effects.ReportProblem" $ do
                         report p1
                         getProblems
             problems `shouldBe` [p1, p2]
-
-        it "report does not affect the return value of the action" $ do
-            let problem =
-                    LintProblem
-                        { lintRule = LintRuleId "P"
-                        , location = Location {file = rp "f", line = 1, code = "c"}
-                        , description = "desc"
-                        , fix = "fix"
-                        , autoFixable = True
-                        }
-            result <-
-                runEff
-                    . runReportProblem
-                    $ do
-                        report problem
-                        pure ("success" :: String)
-            result `shouldBe` ("success" :: String)

@@ -197,8 +197,11 @@ test-suite deslop-test
     FileSystem.PathSpec
     Fixtures.Deslop.Frontend.Pipeline
     Fixtures.Deslop.Module
+    Fixtures.Deslop.Problem
     Fixtures.Deslop.Problem.Baseline
+    Fixtures.Deslop.Rule.Book
     Fixtures.Deslop.Rule.Book.Dto
+    Fixtures.FileSystem.Path
     Fixtures.Frontend.Haskell.CST
     Fixtures.Frontend.Haskell.Project
     Fixtures.Frontend.TypeScript.Config

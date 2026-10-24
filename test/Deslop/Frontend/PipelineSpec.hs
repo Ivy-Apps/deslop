@@ -5,7 +5,8 @@ import Deslop.Command (Command (..))
 import Deslop.Module (Module (..), ModuleName (..))
 import Deslop.Problem (ProblemId (..), problemId)
 import Effects.CLI (LogStyle (..))
-import Fixtures.Deslop.Frontend.Pipeline (Outcome (..), inLines, runLines)
+import Fixtures.Deslop.Frontend.Pipeline (Outcome (..), runLines)
+import Fixtures.FileSystem.Path (inProject)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
 import Test.Hspec
 
@@ -14,7 +15,7 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
     describe "reporting" $ do
         it "reports every finding, fixable or not, under every command" $ do
             for_ [CheckC, FixC, BaselineC] $ \command -> do
-                outcome <- runLines command mempty [(inLines "a.lines", "TODO\nok\nFIXME")]
+                outcome <- runLines command mempty [(inProject "a.lines", "TODO\nok\nFIXME")]
 
                 sort (fmap problemId outcome.problems)
                     `shouldBe` [ProblemId "no-fixme#a.lines", ProblemId "no-todo#a.lines"]
@@ -22,11 +23,11 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
         it "reports a baselined finding but leaves its code as written" $ do
             let baseline = baselineOf ["no-todo#a.lines"]
 
-            outcome <- runLines FixC baseline [(inLines "a.lines", "TODO")]
+            outcome <- runLines FixC baseline [(inProject "a.lines", "TODO")]
 
             fmap problemId outcome.problems `shouldBe` [ProblemId "no-todo#a.lines"]
             outcome.written `shouldBe` []
-            Map.lookup (inLines "a.lines") outcome.files `shouldBe` Just "TODO"
+            Map.lookup (inProject "a.lines") outcome.files `shouldBe` Just "TODO"
 
     describe "fixing" $ do
         it "writes back only the files whose bytes changed, and logs each as modified" $ do
@@ -34,25 +35,25 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
                 runLines
                     FixC
                     mempty
-                    [ (inLines "dirty.lines", "ok\nTODO")
-                    , (inLines "clean.lines", "ok")
-                    , (inLines "unfixable.lines", "FIXME")
+                    [ (inProject "dirty.lines", "ok\nTODO")
+                    , (inProject "clean.lines", "ok")
+                    , (inProject "unfixable.lines", "FIXME")
                     ]
 
-            outcome.written `shouldBe` [inLines "dirty.lines"]
-            Map.lookup (inLines "dirty.lines") outcome.files `shouldBe` Just "ok\nDONE"
+            outcome.written `shouldBe` [inProject "dirty.lines"]
+            Map.lookup (inProject "dirty.lines") outcome.files `shouldBe` Just "ok\nDONE"
             outcome.transcript `shouldBe` [(Change, "  modified  dirty.lines")]
 
         it "repairs a file the Baseline does not cover, next to one it does" $ do
             let baseline = baselineOf ["no-todo#kept.lines"]
 
-            outcome <- runLines FixC baseline [(inLines "kept.lines", "TODO"), (inLines "fixed.lines", "TODO")]
+            outcome <- runLines FixC baseline [(inProject "kept.lines", "TODO"), (inProject "fixed.lines", "TODO")]
 
-            outcome.written `shouldBe` [inLines "fixed.lines"]
+            outcome.written `shouldBe` [inProject "fixed.lines"]
 
         it "never writes when checking or baselining" $
             for_ [CheckC, BaselineC] $ \command -> do
-                outcome <- runLines command mempty [(inLines "a.lines", "TODO")]
+                outcome <- runLines command mempty [(inProject "a.lines", "TODO")]
 
                 (outcome.written, outcome.transcript) `shouldBe` ([], [])
 
@@ -64,24 +65,24 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
                 runLines
                     CheckC
                     mempty
-                    [(inLines "unread.lines", "TODO\n\xff"), (inLines "fine.lines", "ok")]
+                    [(inProject "unread.lines", "TODO\n\xff"), (inProject "fine.lines", "ok")]
 
             fmap moduleName outcome.modules `shouldBe` ["fine.lines", "unread.lines"]
 
         it "logs what lower says about it, by its path from the project root" $ do
-            outcome <- runLines CheckC mempty [(inLines "src/deep/unread.lines", "\xff")]
+            outcome <- runLines CheckC mempty [(inProject "src/deep/unread.lines", "\xff")]
 
             outcome.transcript `shouldBe` [(Warning, "WARNING: src/deep/unread.lines is not UTF-8")]
 
         it "neither reports nor writes a file it cannot read" $ do
-            outcome <- runLines FixC mempty [(inLines "unread.lines", "TODO\n\xff")]
+            outcome <- runLines FixC mempty [(inProject "unread.lines", "TODO\n\xff")]
 
             (outcome.problems, outcome.written) `shouldBe` ([], [])
 
     describe "lowering" $ do
         it "lowers every parsed file, whatever the command" $
             for_ [CheckC, FixC, BaselineC] $ \command -> do
-                outcome <- runLines command mempty [(inLines "a.lines", "ok"), (inLines "src/b.lines", "TODO")]
+                outcome <- runLines command mempty [(inProject "a.lines", "ok"), (inProject "src/b.lines", "TODO")]
 
                 sort (fmap moduleName outcome.modules) `shouldBe` ["a.lines", "src/b.lines"]
 
@@ -90,9 +91,9 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
                 runLines
                     CheckC
                     mempty
-                    [ (inLines "a.lines", "ok")
-                    , (inLines "generated/b.lines", "TODO")
-                    , (inLines "notes.txt", "TODO")
+                    [ (inProject "a.lines", "ok")
+                    , (inProject "generated/b.lines", "TODO")
+                    , (inProject "notes.txt", "TODO")
                     ]
 
             (fmap moduleName outcome.modules, outcome.problems) `shouldBe` (["a.lines"], [])
@@ -102,7 +103,7 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
                 runLines
                     CheckC
                     mempty
-                    [(inLines ".gitignore", "ignored.lines"), (inLines "a.lines", "ok"), (inLines "ignored.lines", "TODO")]
+                    [(inProject ".gitignore", "ignored.lines"), (inProject "a.lines", "ok"), (inProject "ignored.lines", "TODO")]
 
             (fmap moduleName outcome.modules, outcome.problems) `shouldBe` (["a.lines"], [])
 

@@ -9,6 +9,7 @@ asserted about is the text an author would have typed, which is the only thing
 -}
 module Fixtures.Deslop.Rule.Book.Dto (
     rulebookYaml,
+    rulebookYamlOf,
 ) where
 
 import Data.Text qualified as T
@@ -20,3 +21,14 @@ rulebookYaml ruleLines =
         ["id: rb", "name: Rulebook", "description: d", "rules:", "  - id: a-rule", "    description: d"]
             <> ruleLines
             <> ["    fix: f"]
+
+{- | A rulebook of several rules, each given as its own lines - @id: ...@,
+@target: ...@ and so on - which are indented into the list for the caller.
+-}
+rulebookYamlOf :: Text -> [[Text]] -> ByteString
+rulebookYamlOf rulebookId rules =
+    encodeUtf8 . T.unlines $
+        ["id: " <> rulebookId, "name: Rulebook", "description: d", "rules:"]
+            <> concatMap item rules
+  where
+    item = zipWith (<>) ("  - " : repeat "    ")

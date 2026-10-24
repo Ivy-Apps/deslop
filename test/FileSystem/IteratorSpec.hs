@@ -4,12 +4,13 @@ import Data.Text qualified as T
 import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, mockDirs, mockDirsWithSymlinks, runMockRoFileSystem)
 import Effectful (IOE, runEff)
 import FileSystem.Iterator (Entry (..), walkDir)
-import FileSystem.Path (AbsPath (osPath), decodeOsPath)
+import FileSystem.Path (AbsPath (osPath), ProjectRoot (..), decodeOsPath)
+import Fixtures.FileSystem.Path (projectRoot)
 import Test.Hspec
 import TestUtils (ap)
 
 root :: AbsPath
-root = ap "/project"
+root = projectRoot.path
 
 everything :: Entry -> Maybe AbsPath
 everything e = Just e.path

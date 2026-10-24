@@ -1,10 +1,9 @@
 module Deslop.Problem.ShrinkerSpec (spec) where
 
-import Deslop.Module (Location (..), EdgeKind (..), ModuleName (..), moduleNameUnsafe)
-import Deslop.Problem (LintRuleId (..), Problem (..), ProblemId, ViolationKind (..), problemId)
+import Deslop.Module (EdgeKind (..), Location (..), ModuleName (..), moduleNameUnsafe)
+import Deslop.Problem (Problem (..), ProblemId, ViolationKind (..), problemId)
 import Deslop.Problem.Shrinker (compactProblems)
-import Deslop.Rule.Book (RuleId (..), RulebookId (..))
-import FileSystem.Path (encodeOsPath, relativePathUnsafe)
+import Fixtures.Deslop.Problem (BrokenRule, autoFixable, brokenRule, lintProblemAt, locatedAt, violationOf)
 import Hedgehog (Gen, assert, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
@@ -20,55 +19,30 @@ import TestUtils (prop)
 -}
 transitive :: Text -> [Text] -> Problem
 transitive bad hops =
-    RuleViolation
-        { rulebook = RulebookId "architecture"
-        , rule = RuleId "hooks-cant-use-components"
-        , badModule = moduleNameUnsafe bad
-        , modulePath = relativePathUnsafe (encodeOsPath (bad <> ".ts"))
-        , prose = "Hooks may not reach components."
-        , kind =
-            TransitiveImport
-                { chain = moduleNameUnsafe bad :| map moduleNameUnsafe hops
-                , firstImport = statementAt bad . ("import '" <>) <$> listToMaybe hops
-                , alsoReached = []
-                }
-        , fix = "Remove the import."
-        }
+    violationOf
+        hooksRule
+        bad
+        TransitiveImport
+            { chain = moduleNameUnsafe bad :| map moduleNameUnsafe hops
+            , firstImport = statementAt bad . ("import '" <>) <$> listToMaybe hops
+            , alsoReached = []
+            }
 
--- | The same Rule broken by @bad@ in a way that is not a transitive import.
 missingUse :: Text -> Problem
-missingUse bad =
-    RuleViolation
-        { rulebook = RulebookId "architecture"
-        , rule = RuleId "hooks-cant-use-components"
-        , badModule = moduleNameUnsafe bad
-        , modulePath = relativePathUnsafe (encodeOsPath (bad <> ".ts"))
-        , prose = "Hooks may not reach components."
-        , kind = MissingUse {requiredImport = "@/hooks/base", transitive = False}
-        , fix = "Import it."
-        }
+missingUse bad = violationOf hooksRule bad MissingUse {requiredImport = "@/hooks/base", transitive = False}
 
 directImport :: Text -> Text -> Problem
 directImport bad imported =
-    RuleViolation
-        { rulebook = RulebookId "architecture"
-        , rule = RuleId "hooks-cant-use-components"
-        , badModule = moduleNameUnsafe bad
-        , modulePath = relativePathUnsafe (encodeOsPath (bad <> ".ts"))
-        , prose = "Hooks may not reach components."
-        , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe imported, location = statementAt bad ("import '" <> imported <> "'")}
-        , fix = "Remove the import."
-        }
+    violationOf
+        hooksRule
+        bad
+        DirectImport {edge = ImportEdge, imported = moduleNameUnsafe imported, location = statementAt bad ("import '" <> imported <> "'")}
+
+hooksRule :: BrokenRule
+hooksRule = brokenRule "architecture" "hooks-cant-use-components"
 
 lintProblem :: Text -> Problem
-lintProblem file =
-    LintProblem
-        { lintRule = LintRuleId "no-relative-imports"
-        , location = Location {file = relativePathUnsafe (encodeOsPath file), line = 1, code = "import './x'"}
-        , description = "Relative imports are not allowed."
-        , fix = "Use an aliased import."
-        , autoFixable = True
-        }
+lintProblem file = autoFixable . lintProblemAt "no-relative-imports" $ locatedAt file 1 "import './x'"
 
 absorbedBy :: Problem -> [[Text]]
 absorbedBy RuleViolation {kind = TransitiveImport {alsoReached}} =
@@ -229,5 +203,4 @@ spec = describe "Deslop.Problem.Shrinker" $ do
 
 -- | A statement at the top of a module's own file.
 statementAt :: Text -> Text -> Location
-statementAt m code =
-    Location {file = relativePathUnsafe (encodeOsPath (m <> ".ts")), line = 1, code = code}
+statementAt m = locatedAt (m <> ".ts") 1
