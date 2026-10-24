@@ -6,12 +6,14 @@ import FileSystem.Path (
     ProjectRoot (..),
     ProjectRelativePath (..),
     decodeOsPath,
+    encodeOsPath,
+    encodeOsPathString,
     relativePathTo,
  )
 import Hedgehog (Gen, assert, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
-import System.OsPath (isRelative)
+import System.OsPath (isRelative, osp)
 import Test.Hspec
 import TestUtils (ap, prop, rp)
 
@@ -26,6 +28,16 @@ root = ProjectRoot . ap
 
 spec :: Spec
 spec = describe "FileSystem.Path" $ do
+    describe "encoding" $ do
+        it "encodes text to the path a literal of it names" $ do
+            encodeOsPath "src/Main.hs" `shouldBe` [osp|src/Main.hs|]
+            encodeOsPathString "src/Main.hs" `shouldBe` [osp|src/Main.hs|]
+
+        prop "decodes back to the text it was encoded from, whatever its script" $ do
+            text <- forAll $ Gen.text (Range.linear 0 40) Gen.unicode
+
+            decodeOsPath (encodeOsPath text) === text
+
     describe "relativePathTo" $ do
         it "strips the root from a file inside it" $ do
             relativePathTo (root "/repo") (ap "/repo/src/a.ts") `shouldBe` rp "src/a.ts"

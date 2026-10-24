@@ -6,7 +6,8 @@ import FileSystem.Path (AbsPath, ProjectRoot (..))
 import Fixtures.FileSystem.Path (projectRoot)
 import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
 import Frontend.TypeScript.Iterator (getTsFiles)
-import Git.Ignore (GitIgnore (..), IgnoreScope (..), emptyGitIgnore, parseIgnoreFile)
+import Fixtures.Git.Ignore qualified as Fixture
+import Git.Ignore (GitIgnore, emptyGitIgnore)
 import Test.Hspec
 import TestUtils (ap)
 
@@ -22,8 +23,7 @@ runWith gitIgnore dirs = runEff . runMockRoFileSystem (mockDirs dirs) $ getTsFil
 
 -- | A GitIgnore holding a single root .gitignore with the given contents.
 rootGitIgnore :: Text -> GitIgnore
-rootGitIgnore content =
-    GitIgnore {root, ecosystem = jsEcosystemIgnored, scopes = [IgnoreScope {base = root, rules = parseIgnoreFile content}]}
+rootGitIgnore = Fixture.rootGitIgnore jsEcosystemIgnored root
 
 spec :: Spec
 spec = describe "Frontend.TypeScript.Iterator" $ do

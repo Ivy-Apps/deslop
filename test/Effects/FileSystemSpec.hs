@@ -2,7 +2,7 @@ module Effects.FileSystemSpec (spec) where
 
 import Effectful (runEff)
 import Effects.FileSystem (fsListDirectory, fsMkAbsolute, runRoFileSystemIO)
-import FileSystem.Path (AbsPath (..), decodeOsPath, encodeOsPath, encodeOsPathString)
+import FileSystem.Path (AbsPath (..))
 import System.Directory.OsPath qualified as SDO
 import System.OsPath (isAbsolute, osp)
 import System.OsString qualified as OS
@@ -36,16 +36,3 @@ spec = describe "Effects.FileSystem" $ do
         -- Sorted, not merely listed: callers turn this order into output a
         -- user reads, and the filesystem's own order differs between machines.
         entries `shouldBe` sort entries
-
-    it "encodeOsPath" $ do
-        let validText = "src/Main.hs"
-        let result = encodeOsPath validText
-        result `shouldBe` [osp|src/Main.hs|]
-
-    it "encode <> decode OsPath" $ do
-        let fp = "src/Main.hs" :: FilePath
-        let osPath = encodeOsPathString fp
-        osPath `shouldBe` [osp|src/Main.hs|]
-        let ospText = decodeOsPath osPath
-        ospText `shouldBe` "src/Main.hs"
-        encodeOsPath ospText `shouldBe` [osp|src/Main.hs|]

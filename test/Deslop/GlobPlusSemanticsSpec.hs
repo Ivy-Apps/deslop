@@ -15,6 +15,7 @@ module Deslop.GlobPlusSemanticsSpec (spec) where
 import Data.Map.Strict qualified as Map
 import Deslop.GlobPlus
 import Deslop.GlobPlus.Compiler
+import Fixtures.Deslop.GlobPlus (clausePattern, matchClauseAt, matchTargetAt, targetPattern)
 import Test.Hspec
 import TestUtils (requireJust)
 
@@ -311,9 +312,7 @@ spec = describe "Deslop.GlobPlus semantics" $ do
 --------------------------------------------------------------------------------
 
 match :: Text -> Text -> Maybe MatchEnv
-match pat path = case compileTargetPattern pat of
-    Right compiled -> matchTarget compiled (segmentsOf path)
-    Left err -> error $ "target pattern did not compile: " <> renderGlobPlusError err
+match = matchTargetAt . targetPattern
 
 matched :: Text -> Text -> IO MatchEnv
 matched pat path = requireJust (toString (pat <> " did not match " <> path)) (match pat path)
@@ -329,18 +328,10 @@ binds for one file. Written in terms of the two patterns and the two paths so a
 case reads as the rule an author would have written.
 -}
 clauseMatches :: Text -> Text -> Text -> Text -> Bool
-clauseMatches targetPattern targetPath clause candidate =
-    matchClause (compiledClause compiledTarget.boundVars) env (segmentsOf candidate)
+clauseMatches target targetPath clause = matchClauseAt (clausePattern Narrow compiledTarget.boundVars clause) env
   where
-    compiledTarget = case compileTargetPattern targetPattern of
-        Right compiled -> compiled
-        Left err -> error $ "target pattern did not compile: " <> renderGlobPlusError err
-    compiledClause bound = case compileClausePattern Narrow Nondeterministic bound clause of
-        Right compiled -> compiled
-        Left err -> error $ "clause pattern did not compile: " <> renderGlobPlusError err
-    env = case matchTarget compiledTarget (segmentsOf targetPath) of
-        Just matched' -> matched'
-        Nothing -> error $ targetPattern <> " did not match " <> targetPath
+    compiledTarget = targetPattern target
+    env = fromMaybe (error $ target <> " did not match " <> targetPath) $ matchTargetAt compiledTarget targetPath
 
 {- | Compiles a clause in a scope binding every variable these cases name, so
 that a failure is about the pattern's shape rather than about its scope.

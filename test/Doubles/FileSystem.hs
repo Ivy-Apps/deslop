@@ -9,6 +9,7 @@ module Doubles.FileSystem (
     mockDirs,
     mockDirsWithSymlinks,
     mockFileAt,
+    mockTree,
     InMemoryFileSystem (..),
     newInMemoryFileSystem,
     runInMemoryFileSystem,
@@ -156,7 +157,7 @@ runInMemoryFileSystem ::
     InMemoryFileSystem ->
     Eff (WrFileSystem : RoFileSystem : es) a ->
     Eff es a
-runInMemoryFileSystem fs = runMockRoFileSystem reading . writing
+runInMemoryFileSystem fs = runMockRoFileSystem (readingFrom (readIORef fs.files)) . writing
   where
     writing = interpret $ \_ -> \case
         WriteFile p content -> liftIO $ do
@@ -164,17 +165,23 @@ runInMemoryFileSystem fs = runMockRoFileSystem reading . writing
             modifyIORef' fs.written (<> [p])
         MkDirP _ -> pure ()
 
-    reading =
-        defaultMockRoFileSystem
-            { mockReadFile = \p -> fromMaybe mempty . Map.lookup p <$> current
-            , mockFileExists = \p -> Map.member p <$> current
-            , mockDirectoryExists = \p -> any (isBeneath p) . Map.keys <$> current
-            , mockListDirectory = \p -> ordNub . mapMaybe (childOf p) . Map.keys <$> current
-            }
+{- | A read-only tree of files, held purely: exactly these paths exist, holding
+exactly these bytes, inside directories the files imply. Enough for a directory
+walk, so it runs under 'Effectful.runPureEff'.
+-}
+mockTree :: [(AbsPath, ByteString)] -> MockRoFileSystem es
+mockTree = readingFrom . pure . Map.fromList
 
-    current :: (IOE :> es') => Eff es' (Map AbsPath ByteString)
-    current = readIORef fs.files
-
+-- | Reads whatever files the action says there are, as 'mockTree' does.
+readingFrom :: Eff es (Map AbsPath ByteString) -> MockRoFileSystem es
+readingFrom current =
+    defaultMockRoFileSystem
+        { mockReadFile = \p -> fromMaybe mempty . Map.lookup p <$> current
+        , mockFileExists = \p -> Map.member p <$> current
+        , mockDirectoryExists = \p -> any (isBeneath p) . Map.keys <$> current
+        , mockListDirectory = \p -> ordNub . mapMaybe (childOf p) . Map.keys <$> current
+        }
+  where
     segments = splitDirectories . (.osPath)
     isBeneath dir file = segments dir `isPrefixOf` segments file && segments dir /= segments file
     childOf dir file = case drop (length (segments dir)) (segments file) of

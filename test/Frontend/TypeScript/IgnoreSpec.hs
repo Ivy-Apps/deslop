@@ -8,7 +8,8 @@ import FileSystem.Path (AbsPath, ProjectRoot (..))
 import Fixtures.FileSystem.Path (projectRoot)
 import Frontend.TypeScript.Ignore (jsEcosystemIgnored, jsEcosystemIgnoredNames)
 import Frontend.TypeScript.Iterator (getTsFiles)
-import Git.Ignore (GitIgnore (..), IgnoreScope (..), alwaysIgnoredNames, emptyGitIgnore, loadGitIgnore, parseIgnoreFile)
+import Fixtures.Git.Ignore (rootGitIgnore)
+import Git.Ignore (alwaysIgnoredNames, emptyGitIgnore, isIgnored, loadGitIgnore)
 import Test.Hspec
 import TestUtils (ap)
 
@@ -20,7 +21,7 @@ spec = describe "Frontend.TypeScript.Ignore" $ do
     describe "always-ignored directories" $ do
         it "ignores node_modules regardless of any rule" $ do
             let nodeModules = ap "/project/node_modules"
-            let reIncluding = GitIgnore {root, ecosystem = jsEcosystemIgnored, scopes = [IgnoreScope {base = root, rules = parseIgnoreFile "!node_modules"}]}
+            let reIncluding = rootGitIgnore jsEcosystemIgnored root "!node_modules"
 
             files <-
                 runEff . runMockRoFileSystem (mockDirs [(root, [nodeModules]), (nodeModules, [ap "/project/node_modules/dep.ts"])]) $
@@ -50,11 +51,14 @@ spec = describe "Frontend.TypeScript.Ignore" $ do
         -- .gitignore files costs more than the rest of the run combined.
         it "never walks into node_modules looking for a .gitignore" $ do
             let nodeModules = ap "/project/node_modules"
-            let fs =
-                    (mockDirs [(root, [nodeModules]), (nodeModules, [ap "/project/node_modules/.gitignore"])])
-                        { mockReadFile = const . pure $ "*.ts"
+                listing dir
+                    | dir == nodeModules = error "walked into node_modules"
+                    | otherwise = pure [nodeModules]
+                fs =
+                    (mockDirs [(root, [nodeModules])])
+                        { mockListDirectory = listing
                         }
 
             gitIgnore <- runEff . runMockRoFileSystem fs $ loadGitIgnore jsEcosystemIgnored root
 
-            gitIgnore.scopes `shouldBe` []
+            isIgnored gitIgnore Entry {path = ap "/project/src/a.ts", isDir = False} `shouldBe` False

@@ -9,8 +9,6 @@ filesystem belongs here.
 module TestUtils (
     -- * Golden tests
     snapshot,
-    renderGolden,
-    pathSafeGolden,
 
     -- * Fixtures on disk
     listFixtures,
@@ -34,7 +32,7 @@ import Data.Text.Encoding qualified as TE
 import Effectful
 import Effects.FileSystem (fsMkAbsolute, runFileSystemIO)
 import FileSystem.Path (
-    AbsPath (osPath),
+    AbsPath,
     ProjectRelativePath,
     absPathUnsafe,
     encodeOsPath,
@@ -42,12 +40,10 @@ import FileSystem.Path (
     relativePathUnsafe,
  )
 import Hedgehog (PropertyT)
-import Renderable (Renderable (render))
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
-import System.OsPath (OsPath, osp, takeExtension, (</>))
+import System.OsPath (OsPath, takeExtension, (</>))
 import Test.Hspec (Spec, expectationFailure, it)
-import Test.Hspec.Golden (Golden, defaultGolden)
 import Test.Hspec.Hedgehog (hedgehog)
 
 --------------------------------------------------------------------------------
@@ -62,25 +58,6 @@ snapshot tmpDir filesToVerify = do
         let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
         return $ header <> content
     pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
-
-renderGolden :: (Renderable r) => String -> r -> Golden String
-renderGolden testCase tree = defaultGolden testCase (T.unpack . render $ tree)
-
-{- | Goldens a value that holds an absolute path /by design/, with the
-directory the suite runs from replaced so the snapshot is the same on every
-machine.
-
-For internal domain values only - a 'Frontend.TypeScript.Config.TsConfig' carries an
-absolute paths base because the resolver has to open files with it. Never for
-what Deslop prints: every path a run reports is relative to the project root,
-and scrubbing that output would hide an absolute one rather than fail on it,
-which is exactly how one reached a committed baseline.
--}
-pathSafeGolden :: String -> String -> IO (Golden String)
-pathSafeGolden name content = do
-    baseAbsPath <- T.replace "\"" "" . T.pack . show . (.osPath) <$> mkAbsolute [osp|.|]
-    let cleanContent = T.replace baseAbsPath "~" (T.pack content)
-    pure $ defaultGolden name (T.unpack cleanContent)
 
 --------------------------------------------------------------------------------
 -- Fixtures on disk
