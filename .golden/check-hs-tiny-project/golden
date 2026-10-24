@@ -5,11 +5,11 @@
 [Warning] WARNING: src/Tiny/Wrong.hs declares module Tiny.Right, but GHC looks it up by its path as Tiny.Wrong; Deslop names it Tiny/Wrong.
 [Error] Found 10 problems:
 [Error] ─────────────────────────────────────────
-[Error] # layers#core-is-pure#Tiny/Core
+[Error] # layers#core-is-pure#lib/hs-tiny/Tiny/Core
 src/Tiny/Core.hs:8
 The core neither prints nor knows the UI, even transitively.
 
-Module 'Tiny/Core' transitively imports 'System/IO' (3 hops) via: Tiny/Core → Tiny/Types → Tiny/Log → System/IO.
+Module 'lib/hs-tiny/Tiny/Core' transitively imports 'System/IO' (3 hops) via: lib/hs-tiny/Tiny/Core → lib/hs-tiny/Tiny/Types → lib/hs-tiny/Tiny/Log → System/IO.
 ```haskell
 import Tiny.Types
 ```
@@ -31,58 +31,58 @@ FIX: Call Tiny.Ui instead.
 tool/Main.hs:3
 An executable's Main goes through the UI, never the core.
 
-Module 'exe/hs-tiny-tool/Main' directly imports 'Tiny/Core'.
+Module 'exe/hs-tiny-tool/Main' directly imports 'lib/hs-tiny/Tiny/Core'.
 ```haskell
 import Tiny.Core qualified as Core
 ```
 FIX: Call Tiny.Ui instead.
 ---------
 
-# layers#library-modules-have-specs#Tiny/Legacy
+# layers#library-modules-have-specs#lib/hs-tiny/Tiny/Legacy
 src/Tiny/Legacy.hs
 Every library module has a spec in the test suite.
 
-Module 'Tiny/Legacy' requires 'test/hs-tiny-test/Tiny/LegacySpec' to exist.
+Module 'lib/hs-tiny/Tiny/Legacy' requires 'test/hs-tiny-test/Tiny/LegacySpec' to exist.
 FIX: Add test/Tiny/LegacySpec.hs.
 ---------
 
-# layers#library-modules-have-specs#Tiny/Log
+# layers#library-modules-have-specs#lib/hs-tiny/Tiny/Log
 src/Tiny/Log.hs
 Every library module has a spec in the test suite.
 
-Module 'Tiny/Log' requires 'test/hs-tiny-test/Tiny/LogSpec' to exist.
+Module 'lib/hs-tiny/Tiny/Log' requires 'test/hs-tiny-test/Tiny/LogSpec' to exist.
 FIX: Add test/Tiny/LogSpec.hs.
 ---------
 
-# layers#library-modules-have-specs#Tiny/Types
+# layers#library-modules-have-specs#lib/hs-tiny/Tiny/Types
 src/Tiny/Types.hs
 Every library module has a spec in the test suite.
 
-Module 'Tiny/Types' requires 'test/hs-tiny-test/Tiny/TypesSpec' to exist.
+Module 'lib/hs-tiny/Tiny/Types' requires 'test/hs-tiny-test/Tiny/TypesSpec' to exist.
 FIX: Add test/Tiny/TypesSpec.hs.
 ---------
 
-# layers#library-modules-have-specs#Tiny/Ui
+# layers#library-modules-have-specs#lib/hs-tiny/Tiny/Ui
 src/Tiny/Ui.hs
 Every library module has a spec in the test suite.
 
-Module 'Tiny/Ui' requires 'test/hs-tiny-test/Tiny/UiSpec' to exist.
+Module 'lib/hs-tiny/Tiny/Ui' requires 'test/hs-tiny-test/Tiny/UiSpec' to exist.
 FIX: Add test/Tiny/UiSpec.hs.
 ---------
 
-# layers#library-modules-have-specs#Tiny/Wrong
+# layers#library-modules-have-specs#lib/hs-tiny/Tiny/Wrong
 src/Tiny/Wrong.hs
 Every library module has a spec in the test suite.
 
-Module 'Tiny/Wrong' requires 'test/hs-tiny-test/Tiny/WrongSpec' to exist.
+Module 'lib/hs-tiny/Tiny/Wrong' requires 'test/hs-tiny-test/Tiny/WrongSpec' to exist.
 FIX: Add test/Tiny/WrongSpec.hs.
 ---------
 
-# layers#only-the-ui-prints#Tiny/Log
+# layers#only-the-ui-prints#lib/hs-tiny/Tiny/Log
 src/Tiny/Log.hs:3
 The UI is the one library module that reaches the terminal.
 
-Module 'Tiny/Log' directly imports 'System/IO'.
+Module 'lib/hs-tiny/Tiny/Log' directly imports 'System/IO'.
 ```haskell
 import System.IO (hPutStrLn, stderr)
 ```
@@ -93,7 +93,7 @@ FIX: Print through Tiny.Ui.
 test/Spec.hs:1
 Nothing the test suite runs reaches the terminal, even through a spec.
 
-Module 'test/hs-tiny-test/Main' transitively imports 'System/IO' (5 hops) via: test/hs-tiny-test/Main → Tiny/CoreSpec → Tiny/Core → Tiny/Types → Tiny/Log → System/IO.
+Module 'test/hs-tiny-test/Main' transitively imports 'System/IO' (5 hops) via: test/hs-tiny-test/Main → test/hs-tiny-test/Tiny/CoreSpec → lib/hs-tiny/Tiny/Core → lib/hs-tiny/Tiny/Types → lib/hs-tiny/Tiny/Log → System/IO.
 ```haskell
 {-# OPTIONS_GHC -F -pgmF hspec-discover #-}
 ```

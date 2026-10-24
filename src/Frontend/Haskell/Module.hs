@@ -6,13 +6,11 @@ on - is called @Deslop.Module@. So this first names every file, then indexes
 each component's modules, then resolves every import against the index of the
 component that compiles it.
 
-Names, canonical first (see @docs\/adr\/0021@):
-
-* a module is @Deslop\/Module@, aliased by its component as
-  @lib\/deslop\/Deslop\/Module@;
-* a component's @main-is@ is @exe\/deslop\/Main@, aliased @Main@;
-* modules of two components sharing a bare name, such as a library's @Utils@
-  and a test suite's, are each canonically their component-qualified name.
+Names, canonical first (see @docs\/adr\/0021@): a module is canonically
+named by its component, @lib\/deslop\/Deslop\/Module@, and aliased by what GHC
+calls it, @Deslop\/Module@. A component's @main-is@ is @exe\/deslop\/Main@,
+aliased @Main@. Every canonical name starts with its component, so a
+library's @Utils@ and a test suite's never share one.
 -}
 module Frontend.Haskell.Module (
     HsLowerError (..),
@@ -50,8 +48,8 @@ data HsLowerError
       ImportsNotRead ProjectRelativePath Opacity
     | -- | @module A.B@ in a file GHC would look up as @A.C@: Deslop goes by the path.
       HeaderDisagrees ProjectRelativePath HsModuleName HsModuleName
-    | -- | Files of different components sharing one bare name, each named by
-      -- its component instead.
+    | -- | Files of one component claiming one name, from two of its source
+      -- directories: GHC rejects the import as ambiguous.
       NameShared ModuleName [ProjectRelativePath]
     deriving stock (Show, Eq)
 
@@ -198,27 +196,18 @@ reExportEdges file resolveImport source = case source.header of
         , fromMaybe i.decl.moduleName i.decl.alias == export.name
         ]
 
-{- | Every module's names, canonical first, and the bare names that more than
-one module claimed.
+{- | Every module's names, canonical first, and the canonical names more than
+one module claimed - which only two source directories of one component can
+cause.
 -}
 nameAll :: (Named -> ProjectRelativePath) -> [Named] -> (Named -> NonEmpty ModuleName, [HsLowerError])
 nameAll relPath entries = (namesOf, clashes)
   where
-    claimants = Map.fromListWith (flip (<>)) [(canonical entry, [entry]) | entry <- entries]
-    isShared entry = maybe False ((> 1) . length) (Map.lookup (canonical entry) claimants)
+    claimants = Map.fromListWith (flip (<>)) [(head (namesOf entry), [entry]) | entry <- entries]
 
-    namesOf entry = bool defaultNames qualifiedFirst (isShared entry) entry
-
-    canonical = head . defaultNames
-
-    defaultNames entry = case entry.owner of
-        Just (Owner c MainModule) -> qualified c entry.bare :| [slashed entry.bare]
-        Just (Owner c (PathNamed _)) -> slashed entry.bare :| [qualified c entry.bare]
-        Nothing -> slashed entry.bare :| []
-
-    qualifiedFirst entry = case entry.owner of
+    namesOf entry = case entry.owner of
         Just (Owner c _) -> qualified c entry.bare :| [slashed entry.bare]
-        Nothing -> defaultNames entry
+        Nothing -> slashed entry.bare :| []
 
     qualified c n = moduleNameUnsafe (qualifier c <> "/" <> (slashed n).text)
 
@@ -241,9 +230,9 @@ instance Renderable HsLowerError where
                 <> "."
         NameShared name paths ->
             unwords (fmap portablePath paths)
-                <> " are all called "
+                <> " are all "
                 <> name.text
-                <> ", so each is named by its component instead."
+                <> ", which GHC cannot tell apart; rename or move all but one."
       where
         reason = \case
             NotUtf8 -> "is not UTF-8"

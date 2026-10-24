@@ -53,17 +53,24 @@ hpack-only and stack-only projects are not read.
 ([ADR 19](0019-module-names-are-slash-segmented-in-every-language.md)), inside
 the project and out (`External Data/Text`).
 
-- A module's canonical name is its bare name, `Deslop/Module`.
-- A component's `main-is` is canonically `<kind>/<component>/Main`, aliased
-  `Main`: `exe/deslop/Main`, `test/deslop-test/Main`, `bench/deslop-bench/Main`.
-- Every module also answers to `<kind>/<component>/<Name>` - kinds `lib`,
-  `exe`, `test`, `bench`; the main library is named after its package, a
-  sub-library after itself. That is what lets a Rule say
-  `lib/*/Frontend/{{LanguageName}}/**` and leave a test suite's
-  `Frontend/TypeScriptSpec` alone.
-- When modules of two components still share a canonical name - a library's
-  `Utils` and a test suite's - each is canonically its component-qualified
-  name instead, keeps the bare name as an alias, and a `LowerError` says so.
+- **A module's canonical name is always component-qualified:
+  `<kind>/<component>/<Name>`**, with kinds `lib`, `exe`, `test` and `bench`;
+  the main library is named after its package, a sub-library after itself.
+  `lib/deslop/Deslop/Module`, `test/deslop-test/Frontend/TypeScriptSpec`, and
+  for a component's `main-is`, `exe/deslop/Main`, `test/deslop-test/Main`,
+  `bench/deslop-bench/Main`.
+- **Every canonical name starts with `lib/`, `exe/`, `test/` or `bench/` and
+  its component, so canonical names never clash**: a library's `Utils` and a
+  test suite's are `lib/p/Utils` and `test/p-test/Utils`, and every
+  executable's `Main` is its own. Only two source directories of one component
+  holding the same path can claim one name - GHC rejects that import as
+  ambiguous - and a `LowerError` names the files.
+- Reports and Baseline ids show the qualified name: a Problem id is
+  `layering#core-is-language-agnostic#lib/deslop/Deslop/Module`.
+- The bare GHC name, `Deslop/Module` or `Main`, is kept as an alias, and a
+  Rule matches a module by any of its names: write `Deslop/**` for the module
+  whatever compiles it, or `lib/*/Frontend/{{LanguageName}}/**` to leave a
+  test suite's `Frontend/TypeScriptSpec` alone.
 - The `ModuleId` is the canonical absolute path, as in TypeScript.
 
 **Discovery and ownership.** `discover` walks every component's
@@ -124,9 +131,10 @@ edges are quoted at the pragma.
 - **`flattenPackageDescription`.** Unions the branches as wanted, but lists
   each kind of component in reverse, which would make the first component on a
   tie the last one written.
-- **Component-qualified canonical names for every module.** Rejected: a Rule
-  author thinks in `Deslop/Module`, and the bare name is unique in almost every
-  project; qualifying only where it is not keeps Problem IDs readable.
+- **Bare canonical names, qualified only where two components clash.**
+  Shorter Problem ids, but a module's id would change the day another
+  component gained a module of the same name, silently orphaning its Baseline
+  entries. Qualifying always makes the id a fact of the module alone.
 - **One Module per file per component that compiles it.** Truer when two
   components share a source directory, but every Rule over `Deslop/**` would
   then see each module twice. Ownership by the deepest directory is what

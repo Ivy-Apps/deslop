@@ -67,8 +67,8 @@ spec = describe "Frontend.Haskell.Module" $ do
         it "lowers every file to one module" $
             length lowered.modules `shouldBe` length files - 1
 
-        it "names a module by its path, aliased by its component" $
-            namesOf "P/A" `shouldBe` ["P/A", "lib/p/P/A"]
+        it "names a module by its component and its path, aliased by its path alone" $
+            namesOf "lib/p/P/A" `shouldBe` ["lib/p/P/A", "P/A"]
 
         it "names an executable's main-is by its component, aliased Main" $
             namesOf "exe/p/Main" `shouldBe` ["exe/p/Main", "Main"]
@@ -76,7 +76,7 @@ spec = describe "Frontend.Haskell.Module" $ do
         it "names a test suite's main-is by its component, aliased Main" $
             namesOf "test/p-test/Main" `shouldBe` ["test/p-test/Main", "Main"]
 
-        it "names modules of two components sharing a name each by its component" $
+        it "names modules of two components sharing a bare name apart, without a warning" $
             (namesOf "lib/p/Utils", namesOf "test/p-test/Utils")
                 `shouldBe` (["lib/p/Utils", "Utils"], ["test/p-test/Utils", "Utils"])
 
@@ -84,54 +84,54 @@ spec = describe "Frontend.Haskell.Module" $ do
             length (ordNub (canonicalName <$> lowered.modules)) `shouldBe` length lowered.modules
 
         it "names a module by its path when its header says otherwise" $
-            namesOf "P/Wrong" `shouldBe` ["P/Wrong", "lib/p/P/Wrong"]
+            namesOf "lib/p/P/Wrong" `shouldBe` ["lib/p/P/Wrong", "P/Wrong"]
 
     describe "imports" $ do
         it "resolve to the importing component's modules, and others are external" $
-            edgesFrom "P/A" lowered
-                `shouldBe` [ ("P.B", "P/B", "ImportEdge")
-                           , ("P.C", "P/C", "ImportEdge")
+            edgesFrom "lib/p/P/A" lowered
+                `shouldBe` [ ("P.B", "lib/p/P/B", "ImportEdge")
+                           , ("P.C", "lib/p/P/C", "ImportEdge")
                            , ("Data.Text", "External:Data/Text", "ImportEdge")
                            , ("Data.Text.IO", "External:Data/Text/IO", "ImportEdge")
                            , ("Paths_p", "External:Paths_p", "ImportEdge")
                            , -- The library sees only its own modules.
                              ("Helper", "External:Helper", "ImportEdge")
-                           , ("P.B", "P/B", "ReExportEdge")
-                           , ("X", "P/C", "ReExportEdge")
+                           , ("P.B", "lib/p/P/B", "ReExportEdge")
+                           , ("X", "lib/p/P/C", "ReExportEdge")
                            , ("Data.Text", "External:Data/Text", "ReExportEdge")
                            ]
 
         it "resolve to the library a component depends on, and to its own modules" $
             edgesFrom "exe/p/Main" lowered
-                `shouldBe` [ ("P.A", "P/A", "ImportEdge")
-                           , ("Helper", "Helper", "ImportEdge")
-                           , ("P.B", "P/B", "ImportEdge")
+                `shouldBe` [ ("P.A", "lib/p/P/A", "ImportEdge")
+                           , ("Helper", "exe/p/Helper", "ImportEdge")
+                           , ("P.B", "lib/p/P/B", "ImportEdge")
                            , -- "this" is the importing component only.
                              ("P.C", "External:P/C", "ImportEdge")
                            ]
 
         it "resolve to the component's own module before the library's of the same name" $
-            edgesFrom "P/ASpec" lowered
-                `shouldBe` [("P.A", "P/A", "ImportEdge"), ("Utils", "test/p-test/Utils", "ImportEdge")]
+            edgesFrom "test/p-test/P/ASpec" lowered
+                `shouldBe` [("P.A", "lib/p/P/A", "ImportEdge"), ("Utils", "test/p-test/Utils", "ImportEdge")]
 
         it "are external for a component that does not depend on the library" $
             edgesFrom "bench/p-bench/Main" lowered `shouldBe` [("P.A", "External:P/A", "ImportEdge")]
 
         it "are quoted where they are written" $ do
-            m <- requireJust "P/A" (moduleNamed "P/A" lowered)
+            m <- requireJust "P/A" (moduleNamed "lib/p/P/A" lowered)
 
             fmap (\e -> (portablePath e.location.file, e.location.line, e.location.code)) (take 2 m.edges)
                 `shouldBe` [("src/P/A.hs", 2, "import P.B"), ("src/P/A.hs", 3, "import qualified P.C as X")]
 
         it "quote a re-export at its export item" $ do
-            m <- requireJust "P/A" (moduleNamed "P/A" lowered)
+            m <- requireJust "P/A" (moduleNamed "lib/p/P/A" lowered)
 
             fmap (\e -> (e.location.line, e.location.code)) (drop 6 m.edges)
                 `shouldBe` [(1, "module P.B"), (1, "module X"), (1, "module Data.Text")]
 
     describe "an hspec-discover driver" $ do
         it "imports every spec below its directory" $
-            edgesFrom "test/p-test/Main" lowered `shouldBe` [("P.ASpec", "P/ASpec", "ImportEdge")]
+            edgesFrom "test/p-test/Main" lowered `shouldBe` [("P.ASpec", "test/p-test/P/ASpec", "ImportEdge")]
 
         it "is quoted at its pragma" $ do
             m <- requireJust "the driver" (moduleNamed "test/p-test/Main" lowered)
@@ -141,12 +141,23 @@ spec = describe "Frontend.Haskell.Module" $ do
 
     describe "a file whose imports were not read" $ do
         it "is still a module, with no edges" $
-            (namesOf "P/Cpp", edgesFrom "P/Cpp" lowered) `shouldBe` (["P/Cpp", "lib/p/P/Cpp"], [])
+            (namesOf "lib/p/P/Cpp", edgesFrom "lib/p/P/Cpp" lowered) `shouldBe` (["lib/p/P/Cpp", "P/Cpp"], [])
 
-    describe "warnings" $
-        it "name what was not read, what disagrees and what was renamed" $
+    describe "warnings" $ do
+        it "name what was not read and what disagrees" $
             fmap Renderable.render lowered.warnings
                 `shouldBe` [ "src/P/Cpp.hs is preprocessed by CPP (line 1), so its imports were not read."
                            , "src/P/Wrong.hs declares module P.Right, but GHC looks it up by its path as P.Wrong; Deslop names it P/Wrong."
-                           , "src/Utils.hs test/Utils.hs are all called Utils, so each is named by its component instead."
                            ]
+
+        it "name files of one component claiming one name" $ do
+            twice <-
+                requireRight (toString . Renderable.render)
+                    =<< lowerFiles
+                        [ ("p.cabal", "cabal-version: 3.0\nname: p\nversion: 0\nlibrary\n  hs-source-dirs: src, more\n")
+                        , ("src/A.hs", "module A where\n")
+                        , ("more/A.hs", "module A where\n")
+                        ]
+
+            fmap Renderable.render twice.warnings
+                `shouldBe` ["more/A.hs src/A.hs are all lib/p/A, which GHC cannot tell apart; rename or move all but one."]

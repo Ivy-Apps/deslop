@@ -7,12 +7,12 @@
 [summary] Baselined 10 modules enforcing 6 rules
 
 >>> baseline.yaml
-- layers#core-is-pure#Tiny/Core
+- layers#core-is-pure#lib/hs-tiny/Tiny/Core
 - layers#executables-drive-the-ui#exe/hs-tiny-tool/Main
-- layers#library-modules-have-specs#Tiny/Legacy
-- layers#library-modules-have-specs#Tiny/Log
-- layers#library-modules-have-specs#Tiny/Types
-- layers#library-modules-have-specs#Tiny/Ui
-- layers#library-modules-have-specs#Tiny/Wrong
-- layers#only-the-ui-prints#Tiny/Log
+- layers#library-modules-have-specs#lib/hs-tiny/Tiny/Legacy
+- layers#library-modules-have-specs#lib/hs-tiny/Tiny/Log
+- layers#library-modules-have-specs#lib/hs-tiny/Tiny/Types
+- layers#library-modules-have-specs#lib/hs-tiny/Tiny/Ui
+- layers#library-modules-have-specs#lib/hs-tiny/Tiny/Wrong
+- layers#only-the-ui-prints#lib/hs-tiny/Tiny/Log
 - layers#tests-stay-off-the-terminal#test/hs-tiny-test/Main

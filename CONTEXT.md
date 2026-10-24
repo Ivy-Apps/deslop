@@ -76,12 +76,13 @@ a test suite or a benchmark - with its own source directories and
 dependencies. A Haskell Module belongs to exactly one.
 _Avoid_: Target, package (a package holds several components)
 
-**Component Alias**:
-The Module Name a Haskell Module has through its Component:
-`<kind>/<component>/<Name>`, such as `lib/deslop/Deslop/Module` or
-`exe/deslop/Main`. What lets a Rule scope itself to the library and leave the
-test suite alone.
-_Avoid_: Qualified name, prefix
+**Component-Qualified Name**:
+The Canonical Name of every Haskell Module: `<kind>/<component>/<Name>`, such
+as `lib/deslop/Deslop/Module` or `exe/deslop/Main`. It starts with its
+Component, so no two Modules share one; the bare name, `Deslop/Module`, stays
+an alias. What lets a Rule scope itself to the library and leave the test
+suite alone.
+_Avoid_: Component alias (it is the canonical name, not an alias), prefix
 
 **Opaque Island**:
 A file whose imports Deslop did not read - bytes that are not UTF-8, source

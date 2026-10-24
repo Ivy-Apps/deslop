@@ -15,12 +15,13 @@ It runs as part of `just check` and in CI, so a violation fails the build.
 
 ## How the rules name modules
 
-Every module has its bare name, `Deslop/Module`, and its component alias,
-`lib/deslop/Deslop/Module`; a test module is `Frontend/TypeScriptSpec` and
-`test/deslop-test/Frontend/TypeScriptSpec`. Rules about the source tree
-target `lib/*/...`, so a spec named after a language is never mistaken for
-part of it. A component's `main-is` is `exe/deslop/Main`,
-`test/deslop-test/Main` or `bench/deslop-bench/Main`. Modules of other
+Every module is canonically named by its component - `lib/deslop/Deslop/Module`,
+`test/deslop-test/Frontend/TypeScriptSpec`, and for a `main-is`
+`exe/deslop/Main`, `test/deslop-test/Main` or `bench/deslop-bench/Main` - so
+canonical names never clash, and that is what reports and `baseline.yaml`
+show. The bare name, `Deslop/Module`, is an alias, and a Rule matches either.
+Rules about the source tree target `lib/*/...`, so a spec named after a
+language is never mistaken for part of it. Modules of other
 packages are named the same way: `System/IO`, `Data/Text`.
 
 ## The rules

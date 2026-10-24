@@ -5,7 +5,7 @@ description: >-
   spelled with slashes (ADR 19): orchestration, then the registry, then each
   language, then the language-agnostic core, then infrastructure. Imports only
   ever point inward. Rules about the source tree target the library through
-  its component alias, lib/deslop/... (ADR 21), so a test module such as
+  its component-qualified name, lib/deslop/... (ADR 21), so a test module such as
   Frontend/TypeScriptSpec is never mistaken for part of a language.
 rules:
   - id: core-is-language-agnostic
@@ -119,19 +119,20 @@ rules:
       Move what knows the domain up into Deslop/ or a language under
       Frontend/, and keep the infrastructure generic.
 
+  # These two match a module's bare name, never its canonical one: the
+  # canonical name starts with lib/, which neither a PascalCase {{TopDir}} nor
+  # a single segment can match, so {{TARGET_DIR}} is the path below src/.
   # Two rules, because a top-level module has no directory: {{TARGET_DIR}}
   # would be empty, and the pattern would name test/deslop-test//UISpec.
   - id: library-modules-have-specs
     description: >-
       Tests mirror src/: every library module has a spec named after it, in
       the test suite.
-    target: "*/**/{{ModuleName}}"
+    target: "{{TopDir}}/**/{{ModuleName}}"
     exclude:
       - "test/**"
       - "exe/**"
       - "bench/**"
-      # A top-level module, whose component alias would match instead.
-      - "lib/*/*"
     exists:
       - module: "test/deslop-test/{{TARGET_DIR}}/{{ModuleName}}Spec"
     fix: >-

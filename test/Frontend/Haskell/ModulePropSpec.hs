@@ -13,7 +13,7 @@ edgesOfM :: Text -> PropertyT IO [(Text, Text, Text)]
 edgesOfM text = do
     lowered <- liftIO (lowerFiles files) >>= evalEither . first Renderable.render
     annotate (show lowered.warnings)
-    pure (edgesFrom "M" lowered)
+    pure (edgesFrom "lib/p/M" lowered)
   where
     files =
         ("p.cabal", "cabal-version: 3.0\nname: p\nversion: 0\nlibrary\n  hs-source-dirs: src\n")
@@ -52,5 +52,5 @@ expectedEdges shape =
            ]
   where
     targetOf i
-        | i.name `elem` projectModules && isNothing i.package = T.replace "." "/" i.name
+        | i.name `elem` projectModules && isNothing i.package = "lib/p/" <> T.replace "." "/" i.name
         | otherwise = "External:" <> T.replace "." "/" i.name
