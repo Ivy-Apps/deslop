@@ -1,0 +1,13 @@
+- layering#library-modules-have-specs#Deslop/Command
+- layering#library-modules-have-specs#Deslop/Error
+- layering#library-modules-have-specs#Deslop/Frontend
+- layering#library-modules-have-specs#Deslop/GlobPlus/Compiler
+- layering#library-modules-have-specs#Deslop/Module
+- layering#library-modules-have-specs#Deslop/Rule/Book
+- layering#library-modules-have-specs#Deslop/Rule/Book/Compiler
+- layering#library-modules-have-specs#Deslop/RunReport
+- layering#library-modules-have-specs#Effects/CLI
+- layering#library-modules-have-specs#Effects/Concurrency
+- layering#library-modules-have-specs#Frontend/TypeScript/Tokens
+- layering#top-level-library-modules-have-specs#Deslop
+- layering#top-level-library-modules-have-specs#Renderable

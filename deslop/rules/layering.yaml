@@ -4,20 +4,19 @@ description: >-
   The layers of ADR 13 and ADR 20, stated as Rules over Haskell Module Names
   spelled with slashes (ADR 19): orchestration, then the registry, then each
   language, then the language-agnostic core, then infrastructure. Imports only
-  ever point inward.
+  ever point inward. Rules about the source tree target the library through
+  its component alias, lib/deslop/... (ADR 21), so a test module such as
+  Frontend/TypeScriptSpec is never mistaken for part of a language.
 rules:
   - id: core-is-language-agnostic
     description: >-
       The core is true of every language. It must not know any language, nor
       the command line or the text Deslop prints.
-    target: "Deslop/**"
+    target: "lib/*/Deslop/**"
     exclude:
-      - "Deslop"
-      - "**/*Spec"
+      - "lib/*/Deslop"
     forbids:
       - import: "Frontend/**"
-        transitive: true
-      - import: "Frontend"
         transitive: true
       - import: "Params"
       - import: "UI"
@@ -29,10 +28,9 @@ rules:
     description: >-
       A language knows the core and itself, never another language, the
       registry or the orchestration around it.
-    target: "Frontend/{{LanguageName}}/**"
+    target: "lib/*/Frontend/{{LanguageName}}/**"
     forbids:
       - import: "Frontend/**"
-      - import: "Frontend"
       - import: "Deslop"
       - import: "Params"
       - import: "UI"
@@ -44,14 +42,13 @@ rules:
   - id: only-the-registry-imports-languages
     description: >-
       Frontend.hs is the one module that names a language, so supporting one
-      more is a single line there.
+      more is a single line there. Tests are exempt: a language's specs and
+      fixtures are written against it.
     target: "**"
     exclude:
-      - "Frontend"
-      - "Frontend/**"
-      - "Fixtures/Frontend/**"
-      - "Generators/Frontend/**"
-      - "E2E/**"
+      - "lib/*/Frontend"
+      - "lib/*/Frontend/**"
+      - "test/**"
     forbids:
       - import: "Frontend/*/**"
     fix: >-
@@ -62,7 +59,7 @@ rules:
     description: >-
       Effects name nothing from the domain, except the Problem that
       ReportProblem carries (ADR 13).
-    target: "Effects/**"
+    target: "lib/*/Effects/**"
     forbids:
       - import: "Deslop/**"
       - import: "Frontend/**"
@@ -72,3 +69,113 @@ rules:
       - import: "Deslop/Problem"
     fix: >-
       Move the domain logic out of the effect, into the code that uses it.
+
+  - id: only-effects-cli-touches-the-terminal
+    description: >-
+      Effects.CLI is the only code that writes to a terminal; everything else
+      says what to print through the CLI effect.
+    target: "lib/*/**"
+    exclude:
+      - "lib/*/Effects/CLI"
+    forbids:
+      - import: "System/IO/**"
+      - import: "System/Console/**"
+      - import: "Data/Text/IO"
+      - import: "Data/Text/Lazy/IO"
+      - import: "Text/Printf"
+    fix: >-
+      Log through the CLI effect (Effects/CLI) instead of reaching the
+      terminal directly.
+
+  - id: ui-is-pure
+    description: >-
+      UI composes the text Deslop prints and is pure: Effects/CLI prints it.
+    target: "lib/*/UI"
+    forbids:
+      - import: "Effects/**"
+    fix: >-
+      Return the text from UI and print it from the caller, through the CLI
+      effect.
+
+  - id: infrastructure-is-domain-free
+    description: >-
+      Infrastructure - FileSystem, Git, Utils, Renderable - names nothing from
+      the domain and no language, so any layer above may use it. Every library
+      module outside the layers named in the exclusions is infrastructure.
+    target: "lib/*/**"
+    exclude:
+      - "lib/*/Deslop"
+      - "lib/*/Deslop/**"
+      - "lib/*/Frontend"
+      - "lib/*/Frontend/**"
+      - "lib/*/Effects/**"
+      - "lib/*/Params"
+      - "lib/*/UI"
+      - "lib/*/Prelude"
+    forbids:
+      - import: "Deslop/**"
+      - import: "Frontend/**"
+    fix: >-
+      Move what knows the domain up into Deslop/ or a language under
+      Frontend/, and keep the infrastructure generic.
+
+  # Two rules, because a top-level module has no directory: {{TARGET_DIR}}
+  # would be empty, and the pattern would name test/deslop-test//UISpec.
+  - id: library-modules-have-specs
+    description: >-
+      Tests mirror src/: every library module has a spec named after it, in
+      the test suite.
+    target: "*/**/{{ModuleName}}"
+    exclude:
+      - "test/**"
+      - "exe/**"
+      - "bench/**"
+      # A top-level module, whose component alias would match instead.
+      - "lib/*/*"
+    exists:
+      - module: "test/deslop-test/{{TARGET_DIR}}/{{ModuleName}}Spec"
+    fix: >-
+      Add test/{{TARGET_DIR}}/{{ModuleName}}Spec.hs, whose root describe is
+      the module's name.
+
+  - id: top-level-library-modules-have-specs
+    description: >-
+      Tests mirror src/: every top-level library module has a spec named
+      after it, in the test suite.
+    target: "{{ModuleName}}"
+    exclude:
+      - "test/**"
+      - "exe/**"
+      - "bench/**"
+      - "Prelude"
+    exists:
+      - module: "test/deslop-test/{{ModuleName}}Spec"
+    fix: >-
+      Add test/{{ModuleName}}Spec.hs, whose root describe is the module's
+      name.
+
+  - id: test-utils-are-domain-free
+    description: >-
+      TestUtils holds only domain-free plumbing; a helper that knows the
+      domain belongs under Fixtures/ or Generators/.
+    target: "test/*/TestUtils"
+    forbids:
+      - import: "Deslop/**"
+      - import: "Frontend/**"
+    fix: >-
+      Move the helper to Fixtures.<full.module.path> or
+      Generators.<full.module.path>.
+
+  - id: test-helpers-stay-in-tests
+    description: >-
+      Fixtures, generators and test doubles exist for the test suite only.
+    target: "**"
+    exclude:
+      - "test/**"
+    forbids:
+      - import: "Fixtures/**"
+      - import: "Generators/**"
+      - import: "Doubles/**"
+    fix: >-
+      Import the helper from a test module only, or promote what production
+      code needs into src/.

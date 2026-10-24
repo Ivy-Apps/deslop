@@ -9,6 +9,7 @@ check:
     just build
     just test
     just integration
+    just deslop-self
 
 # Haskell lint (hlint)
 lint:
@@ -43,9 +44,18 @@ integration:
     cabal run deslop -- baseline sandbox/
     cabal run deslop -- check sandbox/
 
+# Check Deslop's own layering (deslop/rules/) with the Deslop just built
+deslop-self:
+    cabal build exe:deslop
+    cabal run -v0 deslop -- check .
+
 # Re-record what `tsc` resolves each case in fixtures/resolution-corpus.json to
 update-resolution-corpus:
     node scripts/update-resolution-corpus.mjs
+
+# Re-record what `ghc -M` says each case in fixtures/ghc-corpus.json depends on
+update-ghc-corpus:
+    node scripts/update-ghc-corpus.mjs
 
 # Measure performance and fail if it regressed against bench/reference.yaml
 benchmark:
