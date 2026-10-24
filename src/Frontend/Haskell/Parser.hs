@@ -81,10 +81,10 @@ throughWhere toks = case break (isKeyword "where" . (.token) . snd) (zip (depths
 
 moduleHeader :: [Positioned] -> Maybe ModuleHeader
 moduleHeader toks = case filter (not . trivia) toks of
-    moduleKw : nameTok : rest -> do
+    _module : nameTok : rest -> do
         name <- moduleNameOf nameTok.token
         reExports <- exportsOf rest
-        pure ModuleHeader {name, line = moduleKw.line, reExports, tokens = tokensOf toks}
+        pure ModuleHeader {name, reExports, tokens = tokensOf toks}
     _ -> Nothing
   where
     -- Between the name and @where@: nothing, or a parenthesised export list.

@@ -1,6 +1,6 @@
 module Frontend.Haskell.ParserSpec (spec) where
 
-import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), Qualification (..), declaredName)
+import Frontend.Haskell.CST (Header (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), Qualification (..))
 import Frontend.Haskell.Lexer (lexHaskell)
 import Frontend.Haskell.ModuleName (dotted)
 import Frontend.Haskell.Parser (parseHaskell)
@@ -29,7 +29,7 @@ spec = describe "Frontend.Haskell.Parser" $ do
         it "reads the module's name" $ do
             source <- parsed "module Data.Thing where\n"
 
-            dotted (declaredName source) `shouldBe` "Data.Thing"
+            headerNameOf source `shouldBe` Just "Data.Thing"
 
         it "reads a file without one as Main" $ do
             source <- parsed "import A\nmain = pure ()\n"
@@ -39,12 +39,12 @@ spec = describe "Frontend.Haskell.Parser" $ do
         it "reads a header across lines, with comments inside" $ do
             source <- parsed "module\n  -- the name\n  Data.Thing\n  {- exports -} (\n    x\n  ) where\nimport A\n"
 
-            dotted (declaredName source) `shouldBe` "Data.Thing"
+            headerNameOf source `shouldBe` Just "Data.Thing"
 
         it "reads past a deprecation pragma" $ do
             source <- parsed "module M {-# DEPRECATED \"old\" #-} (x) where\n"
 
-            dotted (declaredName source) `shouldBe` "M"
+            headerNameOf source `shouldBe` Just "M"
 
         it "reads the module re-exports of its export list, and only those" $ do
             source <- parsed "module M (\n    module Data.Text,\n    x,\n    T (..),\n    module X,\n) where\n"
@@ -60,7 +60,7 @@ spec = describe "Frontend.Haskell.Parser" $ do
         it "does not take a where inside the export list for the header's" $ do
             source <- parsed "module M ((<>)) where\nimport A\n"
 
-            dotted (declaredName source) `shouldBe` "M"
+            headerNameOf source `shouldBe` Just "M"
 
         it "refuses a header that never reaches where" $
             parseHaskell (lexHaskell "module M (x)\nimport A\n") `shouldBe` Nothing
@@ -160,7 +160,7 @@ spec = describe "Frontend.Haskell.Parser" $ do
             Renderable.render source.leading `shouldBe` "{-# LANGUAGE CPP #-}\n-- | Docs\n"
 
         it "reads a byte-order mark ahead of the header" $
-            fmap (dotted . declaredName) (parsed "\xFEFFmodule M where\nimport A\n") `shouldReturn` "M"
+            fmap headerNameOf (parsed "\xFEFFmodule M where\nimport A\n") `shouldReturn` Just "M"
 
     describe "quoting" $ do
         it "quotes an import as written, without the trivia after it" $ do
@@ -174,6 +174,9 @@ spec = describe "Frontend.Haskell.Parser" $ do
 
         Renderable.render source `shouldBe` text
   where
+    headerNameOf source = case source.header of
+        Declared h -> Just (dotted h.name)
+        ImplicitMain -> Nothing
     reExportsOf source = case source.header of
         Declared h -> h.reExports
         ImplicitMain -> []

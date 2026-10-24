@@ -15,11 +15,10 @@ module Frontend.Haskell.CST (
     Import (..),
     ImportDecl (..),
     Qualification (..),
-    declaredName,
 ) where
 
 import FileSystem.Path (AbsPath)
-import Frontend.Haskell.ModuleName (HsModuleName, mainModule)
+import Frontend.Haskell.ModuleName (HsModuleName)
 import Frontend.Haskell.Tokens (HsToken)
 import Renderable (Renderable (..))
 
@@ -51,7 +50,6 @@ data Header
 
 data ModuleHeader = ModuleHeader
     { name :: HsModuleName
-    , line :: Int
     , reExports :: [ModuleExport]
     -- ^ Only the @module X@ items of the export list: the others name no module.
     , tokens :: [HsToken]
@@ -99,12 +97,6 @@ data Qualification
     = Unqualified
     | Qualified
     deriving stock (Show, Eq)
-
--- | The name the module gives itself.
-declaredName :: HsSource -> HsModuleName
-declaredName source = case source.header of
-    ImplicitMain -> mainModule
-    Declared h -> h.name
 
 instance Renderable HsSource where
     render source =
