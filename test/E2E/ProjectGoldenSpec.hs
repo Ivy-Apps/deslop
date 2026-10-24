@@ -30,6 +30,7 @@ import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
 import Renderable qualified
 import System.Directory.OsPath (removeFile)
+import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (Golden, defaultGolden)
@@ -56,6 +57,8 @@ spec = describe "E2E.Project" $ do
 
     itChecks Haskell "hs-tiny-project"
     itBaselines Haskell "hs-tiny-project"
+    -- Haskell has no built-in rule that rewrites code, so fix changes nothing.
+    itFixes Haskell "hs-tiny-project" ["src/Tiny/Core.hs", "app/Main.hs"]
     itFailsToLoadConfig Haskell "cabal-error" "hs-multi-package-project" "cabal.project"
     itFailsToLoadConfig Haskell "cabal-error" "hs-two-packages-project" "a.cabal"
     itChecksItself
@@ -74,6 +77,7 @@ spec = describe "E2E.Project" $ do
     itBaselines TypeScript "ts-monorepo-project"
     itBaselines TypeScript "ts-barrel-project"
     itBaselines TypeScript "ts-unscanned-project"
+    itBaselines TypeScript "ts-not-utf8-project"
 
     itIterates TypeScript "ts-gitignore-project"
 
@@ -136,6 +140,30 @@ spec = describe "E2E.Project" $ do
         [ "packages/app/src/main.ts"
         , "packages/app/src/checkout.ts"
         ]
+
+    -- What the .gitignore files re-include is repaired; what they ignore is
+    -- never walked, so it keeps its relative imports as written.
+    itFixes
+        TypeScript
+        "ts-gitignore-project"
+        [ "src/bad.ts"
+        , "src/features/sub/scratch.ts"
+        , "src/keep.gen.ts"
+        , "src/other.gen.ts"
+        , "src/features/scratch.ts" -- ignored
+        , "generated/model.ts" -- ignored
+        , "vendor/legacy.ts" -- ignored
+        ]
+
+    -- legacy.ts reaches the gitignored src/vendor/ relatively; fix still aliases it.
+    itFixes TypeScript "ts-unscanned-project" ["src/app/legacy.ts", "src/app/page.ts"]
+
+    -- Projects whose only problems are Rule Violations, which fix never touches.
+    itFixes TypeScript "ts-casing-project" ["src/components/aws-s3/AWSS3View.tsx", "src/config/a-b.ts"]
+    itFixes TypeScript "ts-globplus-project" ["src/application/archive-order/ArchiveOrderUseCase.ts", "src/components/paypal.ts"]
+    itFixes TypeScript "ts-cycles-project" ["src/a.ts", "src/b.ts"]
+    itFixes TypeScript "ts-not-utf8-project" ["src/app/page.ts"]
+    itLeavesUnreadFilesAlone TypeScript "ts-not-utf8-project" [osp|src/app/legacy.ts|]
 
 --------------------------------------------------------------------------------
 -- Running Deslop
@@ -271,6 +299,17 @@ itFixes language project filesToCheck = it ("fixes " <> project) . runDeslopOnCo
     fullSnapshot <- snapshot tmpDir filesToCheck
     pure . projectGolden language "fix" project $
         fullSnapshot <> "\n>>> changelog\n" <> T.unpack (T.unlines modified)
+
+{- | A file Deslop cannot read is kept as its bytes, so @deslop fix@ writes
+them back unchanged - not one byte re-encoded.
+-}
+itLeavesUnreadFilesAlone :: Language -> String -> OsPath -> Spec
+itLeavesUnreadFilesAlone language project file =
+    it ("fixes " <> project <> " without re-encoding the file it cannot read") . runDeslopOnCopy FixC language project (const pass) $ \tmpDir run -> do
+        original <- SFO.readFile' (projectIn language project </> file)
+
+        fmap (.verdict) run.result `shouldBe` Right Clean
+        SFO.readFile' (tmpDir </> file) `shouldReturn` original
 
 {- | Goldens exactly which files the walk produced. Unlike the check and
 baseline goldens, which can only show a skipped file as an absence, this

@@ -5,7 +5,9 @@ import Data.Text qualified as T
 import FileSystem.Iterator (Entry (..))
 import FileSystem.Path (AbsPath)
 import Fixtures.Git.Ignore (gitIgnoreWith)
-import Git.Ignore (GitIgnore, alwaysIgnored, isIgnored)
+import Doubles.FileSystem (mockTree, runMockRoFileSystem)
+import Effectful (runPureEff)
+import Git.Ignore (GitIgnore, alwaysIgnored, isIgnored, loadGitIgnore)
 import Hedgehog (Gen, cover, discard, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
@@ -183,6 +185,7 @@ spec = describe "Git.Ignore" $ do
     matchingSpec
     scopeSpec
     alwaysIgnoredSpec
+    uncommittedSpec
     ecosystemSpec
     orderingProps
     anchoringProps
@@ -325,6 +328,34 @@ alwaysIgnoredSpec = describe "always-ignored directories" $ do
     -- directory called `build` or `out` is source in some languages.
     it "leaves a language's generated directories to that language" $
         ignoresDir (rootOnly "") "node_modules" `shouldBe` False
+
+{- | Only committed, in-tree @.gitignore@ files count, so a commit gives the
+same verdict on CI and on every machine (ADR 4). What git also reads from
+outside the tree is deliberately not read.
+-}
+uncommittedSpec :: Spec
+uncommittedSpec = describe "what is not a committed .gitignore" $ do
+    it "does not read .git/info/exclude" $
+        ignoresFile (inTree [(".git/info/exclude", "excluded.ts\n")]) "excluded.ts" `shouldBe` False
+
+    it "does not read a core.excludesFile the repository's config names" $ do
+        let gi =
+                inTree
+                    [ (".git/config", "[core]\n\texcludesFile = /proj/.global-ignore\n")
+                    , (".global-ignore", "global.ts\n")
+                    ]
+        ignoresFile gi "global.ts" `shouldBe` False
+
+    it "does not read git's default global ignore file" $
+        ignoresFile (inTree [(".config/git/ignore", "global.ts\n")]) "global.ts" `shouldBe` False
+
+    it "reads a committed .gitignore beside them" $
+        ignoresFile (inTree [(".git/info/exclude", "excluded.ts\n"), (".gitignore", "kept.ts\n")]) "kept.ts" `shouldBe` True
+  where
+    inTree :: [(Text, Text)] -> GitIgnore
+    inTree files =
+        runPureEff . runMockRoFileSystem (mockTree [(inProject path, encodeUtf8 content) | (path, content) <- files]) $
+            loadGitIgnore (const False) projectRoot
 
 ecosystemSpec :: Spec
 ecosystemSpec = describe "what the language's tooling generates" $ do

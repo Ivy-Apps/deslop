@@ -1,0 +1,13 @@
+>>> FILE: src/a.ts
+import { b } from '@/b';
+
+export const a = () => b();
+
+
+
+>>> FILE: src/b.ts
+import { c } from '@/c';
+
+export const b = () => c();
+
+>>> changelog

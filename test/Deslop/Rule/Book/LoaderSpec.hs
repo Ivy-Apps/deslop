@@ -6,10 +6,12 @@ import Deslop.GlobPlus (CompiledClausePattern (..), CompiledExcludePattern (..),
 import Deslop.GlobPlus.Compiler (GlobPlusError (..))
 import Deslop.Rule.Book (AllowsClause (..), ExistsClause (..), ForbidsClause (..), Rule (..), RuleId (..), Rulebook (..), RulebookId (..), UsesClause (..))
 import Deslop.Rule.Book.Compiler (CompileError (..), Field (..), renderCompileError)
-import Deslop.Rule.Book.Loader (RulebookLoadError (..), loadRulebookFromFile)
+import Deslop.Rule.Book.Loader (RulebookLoadError (..), loadRulebookFromFile, loadRulebooksFromDir)
 import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
-import FileSystem.Path (decodeOsPath)
+import FileSystem.Path (AbsPath (..), ProjectRoot (..), decodeOsPath, encodeOsPathString, withAbsBaseUnsafe)
+import System.Directory.OsPath qualified as SDO
+import UnliftIO.Temporary (withSystemTempDirectory)
 import Fixtures.Deslop.Rule.Book (loadRulebookBytes)
 import Fixtures.Deslop.Rule.Book.Dto (rulebookYaml)
 import Fixtures.OnDisk (rulebooks)
@@ -20,6 +22,7 @@ import TestUtils (listFixtures, mkAbsolute)
 spec :: Spec
 spec = describe "Deslop.Rule.Book.Loader" $ do
     rulebookFilesSpec
+    rulesDirSpec
     shippedExamplesSpec
     globCompilationSpec
     kebabKeySpec
@@ -206,6 +209,53 @@ outline book = ruleOutline <$> book.rules
     polarity = \case
         Widen -> "widen"
         Narrow -> "narrow"
+
+--------------------------------------------------------------------------------
+-- The rules directory
+--------------------------------------------------------------------------------
+
+{- | What 'loadRulebooksFromDir' makes of a directory holding more than
+rulebooks. Pinned as it behaves today: every entry is read as a rulebook,
+whatever its name.
+-}
+rulesDirSpec :: Spec
+rulesDirSpec = describe "loadRulebooksFromDir" $ do
+    it "loads nothing, without failing, from a project with no rules directory" $
+        fmap (fmap outline) <$> inRulesDir (const pass) `shouldReturn` Right []
+
+    it "loads nothing, without failing, from an empty rules directory" $
+        fmap (fmap outline) <$> inRulesDir (SDO.createDirectoryIfMissing True) `shouldReturn` Right []
+
+    it "loads every rulebook in it, in file name order" $ do
+        loaded <- inRulesDir $ \dir -> do
+            SDO.createDirectoryIfMissing True dir
+            writeFileBS (toString (decodeOsPath dir) <> "/b.yaml") (rulebookYaml ["    target: \"@/b/**\""])
+            writeFileBS (toString (decodeOsPath dir) <> "/a.yaml") (rulebookYaml ["    target: \"@/a/**\""])
+
+        fmap (fmap outline) loaded `shouldBe` Right [[("a-rule", ["target @/a/**"])], [("a-rule", ["target @/b/**"])]]
+
+    it "reads a file that is not .yaml as a rulebook too, and fails on it" $ do
+        loaded <- inRulesDir $ \dir -> do
+            SDO.createDirectoryIfMissing True dir
+            writeFileBS (toString (decodeOsPath dir) <> "/a.yaml") (rulebookYaml ["    target: \"@/a/**\""])
+            writeFileBS (toString (decodeOsPath dir) <> "/README.md") "Rules for this project."
+
+        loaded `shouldSatisfy` \case
+            Left report -> "Could not load 1 rulebook." `T.isPrefixOf` report && "deslop/rules/README.md" `T.isInfixOf` report
+            Right _ -> False
+
+    it "fails outright on a subdirectory, which it tries to read as a file" $
+        inRulesDir (\dir -> SDO.createDirectoryIfMissing True (dir </> [osp|nested|]))
+            `shouldThrow` anyIOException
+  where
+    -- Loads the rules directory of a fresh project, prepared by the action
+    -- given the directory's path.
+    inRulesDir :: (OsPath -> IO ()) -> IO (Either Text [Rulebook])
+    inRulesDir prepare = withSystemTempDirectory "deslop-rules" $ \tmp -> do
+        root <- mkAbsolute (encodeOsPathString tmp)
+        let dir = withAbsBaseUnsafe root [osp|deslop/rules|]
+        prepare dir.osPath
+        runEff . runFileSystemIO $ loadRulebooksFromDir (ProjectRoot root) dir
 
 --------------------------------------------------------------------------------
 -- Shipped example rulebooks

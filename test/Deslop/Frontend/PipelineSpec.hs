@@ -2,10 +2,11 @@ module Deslop.Frontend.PipelineSpec (spec) where
 
 import Data.Map.Strict qualified as Map
 import Deslop.Command (Command (..))
+import Deslop.Error (DeslopError (..))
 import Deslop.Module (Module (..), ModuleName (..))
 import Deslop.Problem (ProblemId (..), problemId)
 import Effects.CLI (LogStyle (..))
-import Fixtures.Deslop.Frontend.Pipeline (Outcome (..), runLines)
+import Fixtures.Deslop.Frontend.Pipeline (Outcome (..), runLines, runLinesExpectingFailure)
 import Fixtures.FileSystem.Path (inProject)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
 import Test.Hspec
@@ -67,7 +68,7 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
                     mempty
                     [(inProject "unread.lines", "TODO\n\xff"), (inProject "fine.lines", "ok")]
 
-            fmap moduleName outcome.modules `shouldBe` ["fine.lines", "unread.lines"]
+            fmap moduleName outcome.result `shouldBe` ["fine.lines", "unread.lines"]
 
         it "logs what lower says about it, by its path from the project root" $ do
             outcome <- runLines CheckC mempty [(inProject "src/deep/unread.lines", "\xff")]
@@ -79,12 +80,33 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
 
             (outcome.problems, outcome.written) `shouldBe` ([], [])
 
+    describe "the project's configuration" $ do
+        it "logs every warning loading it gave, and goes on" $ do
+            outcome <-
+                runLines
+                    CheckC
+                    mempty
+                    [(inProject "lines.project", "warn: one\nwarn: two"), (inProject "a.lines", "TODO")]
+
+            outcome.transcript `shouldBe` [(Warning, "WARNING: one"), (Warning, "WARNING: two")]
+            fmap problemId outcome.problems `shouldBe` [ProblemId "no-todo#a.lines"]
+
+        it "stops the run with what the frontend says is wrong, before reading a file" $
+            for_ [CheckC, FixC, BaselineC] $ \command -> do
+                outcome <-
+                    runLinesExpectingFailure
+                        command
+                        [(inProject "lines.project", "warn: ignored\nbroken: no such option"), (inProject "a.lines", "TODO")]
+
+                outcome.result `shouldBe` FrontendError "lines.project is broken: no such option"
+                (outcome.problems, outcome.written, outcome.transcript) `shouldBe` ([], [], [])
+
     describe "lowering" $ do
         it "lowers every parsed file, whatever the command" $
             for_ [CheckC, FixC, BaselineC] $ \command -> do
                 outcome <- runLines command mempty [(inProject "a.lines", "ok"), (inProject "src/b.lines", "TODO")]
 
-                sort (fmap moduleName outcome.modules) `shouldBe` ["a.lines", "src/b.lines"]
+                sort (fmap moduleName outcome.result) `shouldBe` ["a.lines", "src/b.lines"]
 
         it "walks no file the frontend's tooling generated, nor any that is not a source" $ do
             outcome <-
@@ -96,7 +118,7 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
                     , (inProject "notes.txt", "TODO")
                     ]
 
-            (fmap moduleName outcome.modules, outcome.problems) `shouldBe` (["a.lines"], [])
+            (fmap moduleName outcome.result, outcome.problems) `shouldBe` (["a.lines"], [])
 
         it "honours the project's .gitignore" $ do
             outcome <-
@@ -105,7 +127,7 @@ spec = describe "Deslop.Frontend.Pipeline" $ do
                     mempty
                     [(inProject ".gitignore", "ignored.lines"), (inProject "a.lines", "ok"), (inProject "ignored.lines", "TODO")]
 
-            (fmap moduleName outcome.modules, outcome.problems) `shouldBe` (["a.lines"], [])
+            (fmap moduleName outcome.result, outcome.problems) `shouldBe` (["a.lines"], [])
 
 moduleName :: Module -> Text
 moduleName m = (head m.names).text

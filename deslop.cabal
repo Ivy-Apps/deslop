@@ -165,7 +165,10 @@ test-suite deslop-test
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
   main-is:            Spec.hs
-  build-tool-depends: hspec-discover:hspec-discover
+  build-tool-depends:
+    , deslop:deslop
+    , hspec-discover:hspec-discover
+
   autogen-modules:    Paths_deslop
   other-modules:
     Paths_deslop
@@ -191,6 +194,7 @@ test-suite deslop-test
     Doubles.CLI
     Doubles.FileSystem
     Doubles.Frontend
+    E2E.ExecutableSpec
     E2E.FileSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
