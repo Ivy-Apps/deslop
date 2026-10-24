@@ -17,16 +17,13 @@ import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effects.CLI (LogStyle (..))
 import Effects.FileSystem (runFileSystemIO)
-import FileSystem.Path (encodeOsPathString)
-import Fixtures.OnDisk (Language (..), projectIn)
+import Fixtures.OnDisk (Language (..), inCopyOf, projectIn)
 import Options.Applicative (ParserResult (Failure), execParserPure, renderFailure)
 import Params (ParamsDto (..), paramsParser, parserPrefs)
 import Paths_deslop (version)
 import System.Exit (ExitCode (..))
 import System.OsPath (OsPath, osp)
 import Test.Hspec
-import TestUtils (copyDir)
-import UnliftIO.Temporary (withSystemTempDirectory)
 
 -- | How a run ended, and every message it logged.
 data Ran = Ran
@@ -69,9 +66,7 @@ spec = describe "E2E.CommandLine" $ do
             loggedAs Error ran `shouldSatisfy` any (T.isPrefixOf "❌ Error: Found 1 problem, none auto-fixable.")
 
         it "exits zero when check finds nothing outside the Baseline" $
-            withSystemTempDirectory "deslop-cli" $ \tmpFp -> do
-                let tmp = encodeOsPathString tmpFp
-                copyDir (projectIn TypeScript "ts-cycles-project") tmp
+            inCopyOf TypeScript "ts-cycles-project" $ \tmp -> do
                 baselined <- run BaselineC tmp
 
                 ran <- run CheckC tmp

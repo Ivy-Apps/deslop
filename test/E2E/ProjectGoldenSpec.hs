@@ -24,7 +24,7 @@ import FileSystem.Path (
     relativePathTo,
     withAbsBaseUnsafe,
  )
-import Fixtures.OnDisk (Language (..), languageDir, projectIn)
+import Fixtures.OnDisk (Language (..), inCopyOf, languageDir, projectIn)
 import Frontend.TypeScript (TsFrontend (..))
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
@@ -34,7 +34,7 @@ import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (Golden, defaultGolden)
-import TestUtils (copyDir, mkAbsolute, requireJust, snapshot)
+import TestUtils (mkAbsolute, requireJust, snapshot)
 import UI (coverage, humanReadable, problemsFoundText)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -219,9 +219,7 @@ read back, by its root, after it.
 -}
 runDeslopOnCopy :: Command -> Language -> String -> (OsPath -> IO ()) -> (OsPath -> Run -> IO a) -> IO a
 runDeslopOnCopy command language project prepare check =
-    withSystemTempDirectory "deslop-test" $ \tmpFp -> do
-        let tmpDir = encodeOsPathString tmpFp
-        copyDir (projectIn language project) tmpDir
+    inCopyOf language project $ \tmpDir -> do
         prepare tmpDir
         runDeslopOn ToDisk command tmpDir >>= check tmpDir
 
