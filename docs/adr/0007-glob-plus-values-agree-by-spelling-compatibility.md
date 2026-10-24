@@ -145,7 +145,7 @@ precedes every variable, and produced a silent rotation when one did not.
   `ABTest` reads as `ab test`. Where only a Pascal spelling is captured, a clause
   will name a module that does not exist and the rule will report it. That is a
   false positive, it is baselineable, and it is pinned by
-  `test/fixtures/ts-casing-project` so that it cannot change unnoticed. Naming
+  `fixtures/typescript/projects/ts-casing-project` so that it cannot change unnoticed. Naming
   the folder in the target too removes it, since a kebab occurrence is exact.
 - **ADR 6 undercounted the rulebooks it breaks.** See its Consequences, now
   corrected: the intentional break did hit shipped content
