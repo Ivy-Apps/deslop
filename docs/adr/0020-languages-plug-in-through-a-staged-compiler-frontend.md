@@ -10,6 +10,9 @@ layering and the import direction stand, but a language frontend now lives
 under `Frontend/<Lang>/` rather than at the top level, and `Deslop.hs` no longer
 knows any language by name.
 
+Haskell, the second language, is
+[ADR 21](0021-haskell-is-read-as-one-cabal-package.md).
+
 ## Context
 
 TypeScript was Deslop's only language, and `Deslop.hs` drove it by hand: load
@@ -250,8 +253,9 @@ mints `Unresolved` lands it:
 
 ## Consequences
 
-- `Deslop/**` imports nothing under `Frontend/**`, checkable with
-  `grep -rn "^import Frontend" src/Deslop/`.
+- `Deslop/**` imports nothing under `Frontend/**`. Since ADR 21 that is the
+  Rule `core-is-language-agnostic` in `deslop/rules/layering.yaml`, which
+  `just deslop-self` checks.
 - `doWork` keeps its signature; `Command` moved to `Deslop.Command` and is
   re-exported from `Params`.
 - Output changed in four places, all intended: a `TypeScript project detected.`

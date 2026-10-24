@@ -68,6 +68,27 @@ relative to. Not the Paths Base: a project whose aliases live in a `config/`
 subdirectory has the two in different places.
 _Avoid_: Paths Base, baseUrl, source root, working directory
 
+### Haskell projects
+
+**Component**:
+One thing a `.cabal` file builds - the library, a sub-library, an executable,
+a test suite or a benchmark - with its own source directories and
+dependencies. A Haskell Module belongs to exactly one.
+_Avoid_: Target, package (a package holds several components)
+
+**Component Alias**:
+The Module Name a Haskell Module has through its Component:
+`<kind>/<component>/<Name>`, such as `lib/deslop/Deslop/Module` or
+`exe/deslop/Main`. What lets a Rule scope itself to the library and leave the
+test suite alone.
+_Avoid_: Qualified name, prefix
+
+**Opaque Island**:
+A file whose imports Deslop did not read - bytes that are not UTF-8, source
+behind CPP or another preprocessor, a header that does not parse. Still a
+Module, with no Dependency Edges, and named in a warning.
+_Avoid_: Skipped file, parse error (there is none: parsing is total)
+
 ### Modules and dependencies
 
 **Module**:
