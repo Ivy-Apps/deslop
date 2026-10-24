@@ -225,11 +225,11 @@ Tests mirror `src/`:
   `lines.project` can warn (`warn: ...`) or be broken (`broken: ...`).
 - Shared helpers, so no spec rebuilds them:
   - `Fixtures.Deslop.Problem` builds Lint Problems and Rule Violations
-    (`lintProblemAt`, `violationOf`, `importedBy`) with total modifiers
-    (`withFix`, `describedAs`, `autoFixable`, `reportedFrom`); a record update
-    on `Problem` is partial, so use those.
+    (`lintProblemAt`, `violationOf`) with total modifiers (`withFix`,
+    `describedAs`, `autoFixable`); a record update on `Problem` is partial,
+    so use those.
   - `Fixtures.Deslop.Rule.Book` loads rulebook YAML through the loader
-    (`rulebookFrom`, `rulebookOf`); `Fixtures.Deslop.Rule.Book.Dto` writes it.
+    (`loadRulebookBytes`); `Fixtures.Deslop.Rule.Book.Dto` writes it.
   - `Fixtures.Deslop.GlobPlus` compiles and matches Glob+ patterns.
   - `Fixtures.Git.Ignore` loads a `GitIgnore` from in-memory `.gitignore`s.
   - `Fixtures.FileSystem.Path` is the one in-memory project, at `/project`.

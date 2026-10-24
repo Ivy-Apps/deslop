@@ -11,7 +11,7 @@ import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
 import FileSystem.Path (AbsPath (..), ProjectRoot (..), decodeOsPath, encodeOsPathString, withAbsBaseUnsafe)
 import Fixtures.Deslop.Rule.Book (loadRulebookBytes)
-import Fixtures.Deslop.Rule.Book.Dto (rulebookYaml)
+import Fixtures.Deslop.Rule.Book.Dto (rulebookYaml, rulebookYamlOf)
 import Fixtures.OnDisk (rulebooks)
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
@@ -394,20 +394,9 @@ usesImport glob = "    uses:\n      - import: \"" <> glob <> "\""
 
 twoRules :: Text -> Text -> ByteString
 twoRules firstTarget secondTarget =
-    encodeUtf8 . T.unlines $
-        [ "id: rb"
-        , "name: Rulebook"
-        , "description: d"
-        , "rules:"
-        , "  - id: first"
-        , "    description: d"
-        , "    target: \"" <> firstTarget <> "\""
-        , "    fix: f"
-        , "  - id: second"
-        , "    description: d"
-        , "    target: \"" <> secondTarget <> "\""
-        , "    fix: f"
-        ]
+    rulebookYamlOf "rb" [ruleTargeting "first" firstTarget, ruleTargeting "second" secondTarget]
+  where
+    ruleTargeting ruleId target = ["id: " <> ruleId, "description: d", "target: \"" <> target <> "\"", "fix: f"]
 
 {- | The rendered failures of a rulebook, as a user would read them, minus the
 file heading the loader adds.
