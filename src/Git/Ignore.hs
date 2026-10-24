@@ -36,6 +36,7 @@ module Git.Ignore (
     isIgnored,
     alwaysIgnored,
     alwaysIgnoredNames,
+    ignoredByName,
 ) where
 
 import Data.Char (isAlpha, isAlphaNum, isControl, isDigit, isHexDigit, isLower, isPrint, isPunctuation, isSeparator, isSpace, isSymbol, isUpper)
@@ -165,11 +166,17 @@ alwaysIgnoredNames =
     , ".windsurf"
     ]
 
-alwaysIgnoredPaths :: Set OsPath
-alwaysIgnoredPaths = Set.fromList . fmap encodeOsPath $ alwaysIgnoredNames
-
 alwaysIgnored :: Entry -> Bool
-alwaysIgnored = (`Set.member` alwaysIgnoredPaths) . takeFileName . (.osPath) . (.path)
+alwaysIgnored = ignoredByName alwaysIgnoredNames
+
+{- | Ignores an entry whose own name is exactly one of the given names, at any
+depth: @.git_backup@ is not @.git@. The names are encoded once, when the
+predicate is built, not on every entry it is asked about.
+-}
+ignoredByName :: [Text] -> Entry -> Bool
+ignoredByName names =
+    let paths = Set.fromList . fmap encodeOsPath $ names
+     in (`Set.member` paths) . takeFileName . (.osPath) . (.path)
 
 --------------------------------------------------------------------------------
 -- Loading

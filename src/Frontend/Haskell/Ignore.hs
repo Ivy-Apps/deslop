@@ -9,10 +9,8 @@ module Frontend.Haskell.Ignore (
     hsEcosystemIgnoredNames,
 ) where
 
-import Data.Set qualified as Set
-import FileSystem.Iterator (Entry (..))
-import FileSystem.Path (AbsPath (osPath), encodeOsPath)
-import System.OsPath (OsPath, takeFileName)
+import FileSystem.Iterator (Entry)
+import Git.Ignore (ignoredByName)
 
 hsEcosystemIgnoredNames :: [Text]
 hsEcosystemIgnoredNames =
@@ -24,9 +22,6 @@ hsEcosystemIgnoredNames =
     , ".cabal-sandbox"
     ]
 
-hsEcosystemIgnoredPaths :: Set OsPath
-hsEcosystemIgnoredPaths = Set.fromList . fmap encodeOsPath $ hsEcosystemIgnoredNames
-
 -- | Matches the name exactly: @distribution@ is walked.
 hsEcosystemIgnored :: Entry -> Bool
-hsEcosystemIgnored = (`Set.member` hsEcosystemIgnoredPaths) . takeFileName . (.osPath) . (.path)
+hsEcosystemIgnored = ignoredByName hsEcosystemIgnoredNames

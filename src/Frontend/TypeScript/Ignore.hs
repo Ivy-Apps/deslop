@@ -10,10 +10,8 @@ module Frontend.TypeScript.Ignore (
     jsEcosystemIgnoredNames,
 ) where
 
-import Data.Set qualified as Set
-import FileSystem.Iterator (Entry (..))
-import FileSystem.Path (AbsPath (osPath), encodeOsPath)
-import System.OsPath (OsPath, takeFileName)
+import FileSystem.Iterator (Entry)
+import Git.Ignore (ignoredByName)
 
 jsEcosystemIgnoredNames :: [Text]
 jsEcosystemIgnoredNames =
@@ -37,9 +35,6 @@ jsEcosystemIgnoredNames =
     , ".wrangler"
     ]
 
-jsEcosystemIgnoredPaths :: Set OsPath
-jsEcosystemIgnoredPaths = Set.fromList . fmap encodeOsPath $ jsEcosystemIgnoredNames
-
 -- | Matches the name exactly: @node_modules_backup@ is walked.
 jsEcosystemIgnored :: Entry -> Bool
-jsEcosystemIgnored = (`Set.member` jsEcosystemIgnoredPaths) . takeFileName . (.osPath) . (.path)
+jsEcosystemIgnored = ignoredByName jsEcosystemIgnoredNames
