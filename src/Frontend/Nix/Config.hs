@@ -21,7 +21,7 @@ import Data.Text.Encoding qualified as TE
 import Data.Yaml (decodeEither', prettyPrintParseException)
 import Deslop.Error (Warning (..))
 import Effectful (Eff, type (:>))
-import Effects.FileSystem (RoFileSystem, fsFileExists, fsReadFile)
+import Effects.FileSystem (RoFileSystem, fsReadFileIfExists)
 import FileSystem.Path (ProjectRelativePath (..), ProjectRoot (..), encodeOsPath, portablePath, relativePathUnsafe, withAbsBaseUnsafe)
 import Frontend.Nix.FlakeInputs (declaredInputs)
 import Frontend.Nix.Lexer (isIdentifier, lexNix)
@@ -64,10 +64,7 @@ loadNixConfig projectRoot = do
         let (inputs, warnings) = maybe (mempty, []) inputsOf flake
         Right (Scope {roots = Set.fromList ("self" : roots), inputs}, warnings)
   where
-    optionalFile rel = do
-        let path = withAbsBaseUnsafe projectRoot.path rel.osPath
-        exists <- fsFileExists path
-        if exists then Just <$> fsReadFile path else pure Nothing
+    optionalFile rel = fsReadFileIfExists (withAbsBaseUnsafe projectRoot.path rel.osPath)
 
 rootsIn :: ByteString -> Either NixConfigError [Text]
 rootsIn bytes = do

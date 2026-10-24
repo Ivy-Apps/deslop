@@ -224,6 +224,7 @@ test-suite deslop-test
     Fixtures.FileSystem.Path
     Fixtures.Frontend.Haskell.CST
     Fixtures.Frontend.Haskell.Project
+    Fixtures.Frontend.Nix.Reference
     Fixtures.Frontend.TypeScript.Config
     Fixtures.Git.Ignore
     Fixtures.OnDisk

@@ -11,6 +11,7 @@ module Frontend.Nix.Lexeme (
     Part (..),
     isTrivia,
     nesting,
+    withOffsets,
     interpolations,
     decodeChunk,
 ) where
@@ -71,6 +72,12 @@ nesting = \case
     Punctuation "}" -> -1
     _ -> 0
 
+{- | Each one with the offset it starts at, given the offset the first starts
+at: what it renders to is what it spans.
+-}
+withOffsets :: (Renderable a) => Int -> [a] -> [(Int, a)]
+withOffsets start = snd . mapAccumL (\o x -> (o + T.length (render x), (o, x))) start
+
 {- | The code of every interpolation written in a string or a path, each with
 the offset it starts at, given the offset the lexeme starts at: what is
 inside @${ }@ is code, and can hold a path of its own.
@@ -82,10 +89,7 @@ interpolations start = \case
     PathLit parts -> inParts start parts
     _ -> []
   where
-    inParts offset = concat . snd . mapAccumL (\o p -> (o + T.length (render p), codeOf o p)) offset
-    codeOf o = \case
-        Chunk _ -> []
-        Interpolation lexemes -> [(o + 2, lexemes)]
+    inParts offset parts = [(o + 2, lexemes) | (o, Interpolation lexemes) <- withOffsets offset parts]
 
 {- | The text a chunk of a string stands for, its escapes undone: @\\"@ is
 @"@ in a double-quoted string, and @''$@ is @$@ in an indented one.

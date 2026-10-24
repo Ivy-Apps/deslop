@@ -6,6 +6,7 @@ import Effectful (runEff)
 import Effects.FileSystem (runRoFileSystemIO)
 import FileSystem.Path (ProjectRoot (..), absPathUnsafe, encodeOsPathString, portablePath, relativePathTo)
 import Fixtures.FileSystem.Path (fromProject, inProject, projectFileSystem, projectRoot)
+import Fixtures.Frontend.Nix.Reference (lit)
 import Frontend.Nix.PathResolver (matchesSegment, reachedBy)
 import Frontend.Nix.Reference (Piece (..))
 import System.Directory (createDirectoryIfMissing, createDirectoryLink)
@@ -49,9 +50,6 @@ reachedThroughLinks pattern = withSystemTempDirectory "deslop-nix-links" $ \tmp 
     let root = ProjectRoot (absPathUnsafe (encodeOsPathString project))
     found <- runEff . runRoFileSystemIO $ reachedBy root root.path pattern
     pure $ fmap (portablePath . relativePathTo root) found
-
-lit :: Text -> [Piece]
-lit = pure . Literal
 
 spec :: Spec
 spec = describe "Frontend.Nix.PathResolver" $ do

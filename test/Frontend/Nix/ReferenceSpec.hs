@@ -1,6 +1,7 @@
 module Frontend.Nix.ReferenceSpec (spec) where
 
 import Data.Set qualified as Set
+import Fixtures.Frontend.Nix.Reference (lit)
 import Frontend.Nix.Lexer (lexNix)
 import Frontend.Nix.Reference (Anchor (..), Piece (..), Reference (..), Referent (..), Scope (..), referencesIn)
 import Test.Hspec
@@ -12,20 +13,14 @@ scope = Scope {roots = Set.fromList ["self", "root"], inputs = Set.fromList ["ni
 referencesOf :: Text -> [(Text, Referent)]
 referencesOf = maybe [] (fmap (\r -> (r.written, r.referent)) . referencesIn scope) . lexNix
 
-local :: Anchor -> [[Piece]] -> Referent
-local = LocalPath
-
-lit :: Text -> [Piece]
-lit = pure . Literal
-
 spec :: Spec
 spec = describe "Frontend.Nix.Reference" $ do
     describe "path literals" $ do
         it "reads every path literal, whatever it is used for" $
             referencesOf "{ imports = [ ./a.nix ]; src = ../b; x = builtins.readFile ./s.sh; }"
-                `shouldBe` [ ("./a.nix", local FromFile [lit ".", lit "a.nix"])
-                           , ("../b", local FromFile [lit "..", lit "b"])
-                           , ("./s.sh", local FromFile [lit ".", lit "s.sh"])
+                `shouldBe` [ ("./a.nix", LocalPath FromFile [lit ".", lit "a.nix"])
+                           , ("../b", LocalPath FromFile [lit "..", lit "b"])
+                           , ("./s.sh", LocalPath FromFile [lit ".", lit "s.sh"])
                            ]
 
         it "skips the file's own directory" $
@@ -33,22 +28,22 @@ spec = describe "Frontend.Nix.Reference" $ do
 
         it "reads an interpolated path as a pattern" $
             referencesOf "import ./plugins/${name}.nix"
-                `shouldBe` [("./plugins/${name}.nix", local FromFile [lit ".", lit "plugins", [Hole, Literal ".nix"]])]
+                `shouldBe` [("./plugins/${name}.nix", LocalPath FromFile [lit ".", lit "plugins", [Hole, Literal ".nix"]])]
 
         it "reads a path with a string appended as one pattern" $
             referencesOf "./admin/skills + \"/${name}\""
-                `shouldBe` [("./admin/skills + \"/${name}\"", local FromFile [lit ".", lit "admin", lit "skills", [Hole]])]
+                `shouldBe` [("./admin/skills + \"/${name}\"", LocalPath FromFile [lit ".", lit "admin", lit "skills", [Hole]])]
 
         it "reads an absolute or home path as one outside the project" $
             referencesOf "[ /etc/hosts ~/x ]"
-                `shouldBe` [("/etc/hosts", local Elsewhere [lit "etc", lit "hosts"]), ("~/x", local Elsewhere [lit "~", lit "x"])]
+                `shouldBe` [("/etc/hosts", LocalPath Elsewhere [lit "etc", lit "hosts"]), ("~/x", LocalPath Elsewhere [lit "~", lit "x"])]
 
         it "reads a path with a name appended as computed" $
             referencesOf "./. + name" `shouldBe` [("./. + name", Computed)]
 
         it "finds a path inside an interpolation" $
             referencesOf "''\n  ${builtins.readFile ./ctl/paths.sh}\n''"
-                `shouldBe` [("./ctl/paths.sh", local FromFile [lit ".", lit "ctl", lit "paths.sh"])]
+                `shouldBe` [("./ctl/paths.sh", LocalPath FromFile [lit ".", lit "ctl", lit "paths.sh"])]
 
         it "finds nothing in comments and in a string's own text" $
             referencesOf "# ./a.nix\n/* ./b.nix */ \"./c.nix\"" `shouldBe` []
@@ -56,17 +51,17 @@ spec = describe "Frontend.Nix.Reference" $ do
     describe "paths from the project root" $ do
         it "reads a string headed by a root" $
             referencesOf "\"${root}/modules/home\""
-                `shouldBe` [("\"${root}/modules/home\"", local FromRoot [lit "modules", lit "home"])]
+                `shouldBe` [("\"${root}/modules/home\"", LocalPath FromRoot [lit "modules", lit "home"])]
 
         it "reads a root followed by a computed tail as a pattern" $
             referencesOf "\"${root}/hosts/${hostname}/configuration.nix\""
-                `shouldBe` [("\"${root}/hosts/${hostname}/configuration.nix\"", local FromRoot [lit "hosts", [Hole], lit "configuration.nix"])]
+                `shouldBe` [("\"${root}/hosts/${hostname}/configuration.nix\"", LocalPath FromRoot [lit "hosts", [Hole], lit "configuration.nix"])]
 
         it "reads self as a root" $
-            referencesOf "import \"${self}/lib\"" `shouldBe` [("\"${self}/lib\"", local FromRoot [lit "lib"])]
+            referencesOf "import \"${self}/lib\"" `shouldBe` [("\"${self}/lib\"", LocalPath FromRoot [lit "lib"])]
 
         it "reads a root with a string appended" $
-            referencesOf "root + \"/x.nix\"" `shouldBe` [("root + \"/x.nix\"", local FromRoot [lit "x.nix"])]
+            referencesOf "root + \"/x.nix\"" `shouldBe` [("root + \"/x.nix\"", LocalPath FromRoot [lit "x.nix"])]
 
         it "skips the root itself" $
             referencesOf "{ src = \"${self}\"; }" `shouldBe` []

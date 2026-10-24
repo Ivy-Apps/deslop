@@ -37,7 +37,7 @@ module Frontend.Nix.Reference (
 import Data.List (groupBy)
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Frontend.Nix.Lexeme (Lexeme (..), Part (..), Quoting (..), decodeChunk, interpolations, isTrivia)
+import Frontend.Nix.Lexeme (Lexeme (..), Part (..), Quoting (..), decodeChunk, interpolations, isTrivia, withOffsets)
 import Renderable qualified
 
 -- | The names a file's references are read against.
@@ -114,9 +114,11 @@ data Located = Located
     }
 
 located :: Int -> [Lexeme] -> [Located]
-located offset = filter (not . isTrivia . (.lexeme)) . snd . mapAccumL place offset
-  where
-    place o l = let o' = o + T.length (Renderable.render l) in (o', Located o o' l)
+located offset lexemes =
+    [ Located o (o + T.length (Renderable.render l)) l
+    | (o, l) <- withOffsets offset lexemes
+    , not (isTrivia l)
+    ]
 
 -- | The references of one run of code, and of the code interpolated in it.
 inCode :: Scope -> Text -> [Located] -> [Reference]
@@ -261,13 +263,15 @@ fromRoot = \case
     _ -> Just Computed
 
 pathPieces :: [Part] -> [Piece]
-pathPieces = fmap $ \case
-    Chunk text -> Literal text
-    Interpolation _ -> Hole
+pathPieces = piecesWith id
 
 stringPieces :: Quoting -> [Part] -> [Piece]
-stringPieces quoting = fmap $ \case
-    Chunk text -> Literal (decodeChunk quoting text)
+stringPieces = piecesWith . decodeChunk
+
+-- | A chunk as the text it stands for, an interpolation as a 'Hole'.
+piecesWith :: (Text -> Text) -> [Part] -> [Piece]
+piecesWith decode = fmap $ \case
+    Chunk text -> Literal (decode text)
     Interpolation _ -> Hole
 
 -- | Split at every slash, without the empty segments a leading or doubled slash leaves.

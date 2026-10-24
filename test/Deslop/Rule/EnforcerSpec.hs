@@ -503,15 +503,7 @@ multiVariableSpec = describe "several variables in one rule" $ do
 -- | One Rule about @app/**@ holding these clauses, enforced on every module of the graph.
 runUnjudgedTest :: [Text] -> [Module] -> IO [Problem]
 runUnjudgedTest clauses allModules =
-    fmap (either (error . show) id)
-        . runEff
-        . runErrorNoCallStack @DeslopError
-        . runReportProblem
-        . runReader (buildModuleGraph allModules)
-        . runReader [appRulebook]
-        $ do
-            traverse_ enforceRulebooks allModules
-            getProblems
+    concat <$> traverse (runTransitiveTestWith [appRulebook] allModules) allModules
   where
     appRulebook =
         rulebookFrom

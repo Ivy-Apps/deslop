@@ -25,7 +25,7 @@ module Frontend.Nix.Lexer (
 import Data.ByteString qualified as BS
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit, isSpace)
 import Data.Text qualified as T
-import Frontend.Nix.Lexeme (Lexeme (..), Part (..), Quoting (..), interpolations, nesting)
+import Frontend.Nix.Lexeme (Lexeme (..), Part (..), Quoting (..), interpolations, nesting, withOffsets)
 import Renderable qualified
 import Text.Megaparsec
 import Text.Megaparsec.Char (char, string)
@@ -74,7 +74,7 @@ when the source does not lex. What a corpus judges this lexer by against
 pathLiteralSpans :: Text -> Maybe [PathLiteralSpan]
 pathLiteralSpans source = spansIn 0 <$> lexNix source
   where
-    spansIn offset = concat . snd . mapAccumL (\o l -> (o + T.length (Renderable.render l), spansOf o l)) offset
+    spansIn offset = concatMap (uncurry spansOf) . withOffsets offset
     spansOf o l = [spanAt o (Renderable.render l) | PathLit _ <- [l]] <> concatMap (uncurry spansIn) (interpolations o l)
     spanAt o literal =
         let start = bytesBefore o
