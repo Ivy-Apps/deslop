@@ -46,7 +46,8 @@ readCommand :: String -> Either String Command
 readCommand "check" = Right CheckC
 readCommand "fix" = Right FixC
 readCommand "baseline" = Right BaselineC
-readCommand s = Left $ "Unknown command '" <> s <> "'. Expected: check, fix, or baseline"
+readCommand "diagram" = Right DiagramC
+readCommand s = Left $ "Unknown command '" <> s <> "'. Expected: check, fix, baseline, or diagram"
 
 pParams :: Parser ParamsDto
 pParams =
@@ -54,7 +55,7 @@ pParams =
         <$> argument
             (eitherReader readCommand)
             ( metavar "COMMAND"
-                <> help "Command to run: check, fix, or baseline"
+                <> help "Command to run: check, fix, baseline, or diagram"
             )
         <*> argument
             (eitherReader (Right . encodeOsPath . T.pack))
@@ -79,7 +80,7 @@ paramsParser =
         (helper <*> versionOption <*> pParams)
         ( fullDesc
             <> header "Deslop - A Haskell-powered code cleaner ✨"
-            <> progDesc "Removes slop from your project's architecture. Commands: check, fix, baseline."
+            <> progDesc "Removes slop from your project's architecture. Commands: check, fix, baseline, diagram."
         )
 
 parserPrefs :: ParserPrefs

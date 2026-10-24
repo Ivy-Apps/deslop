@@ -17,6 +17,10 @@ data DeslopError
       what each frontend looked for there, e.g. @TypeScript (tsconfig.json)@.
       -}
       NoFrontendDetected !ProjectRoot ![Text]
+    | -- | @deslop diagram@ needs the d2 renderer, and it is not on @PATH@.
+      D2NotFound
+    | -- | d2 refused the diagram Deslop wrote; what it said on stderr.
+      D2RenderFailed !Text
     | RulebookError !Text
     | InvalidRuleConfig !Text
     deriving (Show, Eq)

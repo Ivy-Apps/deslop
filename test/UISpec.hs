@@ -22,6 +22,10 @@ spec = describe "UI" $ do
             coverage (Scanned (ModuleCount 412))
                 `shouldBe` "Scanned 412 modules"
 
+        it "omits the rules a diagram never enforces" $
+            coverage (Diagrammed (ModuleCount 240))
+                `shouldBe` "Diagrammed 240 modules"
+
         it "singularises both counts" $
             coverage (Checked (ModuleCount 1) (RuleCount 1))
                 `shouldBe` "Checked 1 module enforcing 1 rule"
@@ -51,3 +55,7 @@ spec = describe "UI" $ do
         it "names the directory searched and what every language looked for" $
             humanReadable (NoFrontendDetected (ProjectRoot (ap "/home/me/app")) ["TypeScript (tsconfig.json)", "Lines (lines.project)"])
                 `shouldBe` "No supported project found in /home/me/app. Looked for: TypeScript (tsconfig.json), Lines (lines.project)"
+
+        it "keeps what d2 said about a diagram it could not render" $
+            humanReadable (D2RenderFailed "err: failed to compile overview.d2")
+                `shouldBe` "d2 could not render the diagram:\nerr: failed to compile overview.d2"

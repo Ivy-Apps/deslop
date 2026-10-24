@@ -20,12 +20,14 @@ data RunReport = RunReport
     deriving (Show, Eq)
 
 {- | What a run covered, per command. Only the commands that enforce Rulebook
-Rules carry a 'RuleCount'; @fix@ enforces none, so it cannot claim any.
+Rules carry a 'RuleCount'; @fix@ and @diagram@ enforce none, so they cannot
+claim any.
 -}
 data RunSummary
     = Checked ModuleCount RuleCount
     | Baselined ModuleCount RuleCount
     | Scanned ModuleCount
+    | Diagrammed ModuleCount
     deriving (Show, Eq)
 
 -- | How many modules a run went through.

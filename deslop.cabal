@@ -61,6 +61,8 @@ library
     Deslop
     Deslop.CodeGraph
     Deslop.Command
+    Deslop.Diagram
+    Deslop.Diagram.D2
     Deslop.Error
     Deslop.Frontend
     Deslop.Frontend.Finding
@@ -83,6 +85,7 @@ library
     Deslop.RunReport
     Effects.CLI
     Effects.Concurrency
+    Effects.D2
     Effects.FileSystem
     Effects.ReportProblem
     FileSystem.Iterator
@@ -169,6 +172,10 @@ test-suite deslop-test
   other-modules:
     Deslop.CodeGraphPropSpec
     Deslop.CodeGraphSpec
+    Deslop.Diagram.D2PropSpec
+    Deslop.Diagram.D2Spec
+    Deslop.DiagramPropSpec
+    Deslop.DiagramSpec
     Deslop.Frontend.FindingSpec
     Deslop.Frontend.PipelinePropSpec
     Deslop.Frontend.PipelineSpec
@@ -187,6 +194,7 @@ test-suite deslop-test
     Deslop.Rule.EnforcerSpec
     Deslop.Rule.Lint.CycleDetectionSpec
     Doubles.CLI
+    Doubles.D2
     Doubles.FileSystem
     Doubles.Frontend
     E2E.FileGoldenSpec

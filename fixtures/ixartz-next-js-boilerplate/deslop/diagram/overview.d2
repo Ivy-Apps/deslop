@@ -1,0 +1,954 @@
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-id: 0
+    dark-theme-id: 200
+  }
+}
+direction: right
+".storybook": {
+  shape: package
+  label: ".storybook"
+  tooltip: ".storybook"
+  link: layers.storybook
+}
+"src": {
+  shape: package
+  label: "src"
+  tooltip: "src"
+  link: layers.src
+}
+"src/app": {
+  shape: package
+  label: "src/app"
+  tooltip: "src/app"
+  link: layers.src-app
+}
+"src/components": {
+  shape: package
+  label: "src/components"
+  tooltip: "src/components"
+  link: layers.src-components
+}
+"src/libs": {
+  shape: package
+  label: "src/libs"
+  tooltip: "src/libs"
+  link: layers.src-libs
+}
+"src/models": {
+  shape: package
+  label: "src/models"
+  tooltip: "src/models"
+  link: layers.src-models
+}
+"src/templates": {
+  shape: package
+  label: "src/templates"
+  tooltip: "src/templates"
+  link: layers.src-templates
+}
+"src/types": {
+  shape: package
+  label: "src/types"
+  tooltip: "src/types"
+  link: layers.src-types
+}
+"src/utils": {
+  shape: package
+  label: "src/utils"
+  tooltip: "src/utils"
+  link: layers.src-utils
+}
+"src/validations": {
+  shape: package
+  label: "src/validations"
+  tooltip: "src/validations"
+  link: layers.src-validations
+}
+"tests/e2e": {
+  shape: package
+  label: "tests/e2e"
+  tooltip: "tests/e2e"
+  link: layers.tests-e2e
+}
+"tests/integration": {
+  shape: package
+  label: "tests/integration"
+  tooltip: "tests/integration"
+  link: layers.tests-integration
+}
+"checkly.config.ts": {
+  tooltip: "checkly.config.ts"
+}
+"commitlint.config.ts": {
+  tooltip: "commitlint.config.ts"
+}
+"drizzle.config.ts": {
+  tooltip: "drizzle.config.ts"
+}
+"knip.config.ts": {
+  tooltip: "knip.config.ts"
+}
+"next.config.ts": {
+  tooltip: "next.config.ts"
+}
+"playwright.config.ts": {
+  tooltip: "playwright.config.ts"
+}
+"src" -> "src/libs": {
+  label: "2"
+  style.stroke-width: 2
+}
+"src/app" -> "src/components": {
+  label: "8"
+  style.stroke-width: 4
+}
+"src/app" -> "src/libs": {
+  label: "10"
+  style.stroke-width: 4
+}
+"src/app" -> "src/models": {
+  label: "1"
+  style.stroke-width: 1
+}
+"src/app" -> "src/templates": {
+  label: "2"
+  style.stroke-width: 2
+}
+"src/app" -> "src/utils": {
+  label: "6"
+  style.stroke-width: 3
+}
+"src/app" -> "src/validations": {
+  label: "1"
+  style.stroke-width: 1
+}
+"src/components" -> "src/libs": {
+  label: "6"
+  style.stroke-width: 3
+}
+"src/components" -> "src/models": {
+  label: "1"
+  style.stroke-width: 1
+}
+"src/components" -> "src/validations": {
+  label: "1"
+  style.stroke-width: 1
+}
+"src/libs" -> "src/utils": {
+  label: "2"
+  style.stroke-width: 2
+}
+"src/templates" -> "src/utils": {
+  label: "1"
+  style.stroke-width: 1
+}
+"src/types" -> "src/libs": {
+  label: "1"
+  style.stroke-width: 1
+}
+"src/utils" -> "src/libs": {
+  label: "5"
+  style.stroke-width: 3
+}
+"src/utils" -> "src/models": {
+  label: "1"
+  style.stroke-width: 1
+}
+"next.config.ts" -> "src/libs": {
+  label: "1"
+  style.stroke-width: 1
+}
+layers: {
+  "storybook": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    ".storybook": {
+      label: ".storybook"
+      tooltip: ".storybook"
+    }
+    ".storybook"."main.ts": {
+      tooltip: ".storybook/main.ts"
+    }
+    ".storybook"."preview.ts": {
+      tooltip: ".storybook/preview.ts"
+    }
+    ".storybook"."vitest.setup.ts": {
+      tooltip: ".storybook/vitest.setup.ts"
+    }
+    ".storybook"."vitest.setup.ts" -> ".storybook"."preview.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+  }
+  "src": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "src": {
+      label: "src"
+      tooltip: "src"
+    }
+    "src"."instrumentation-client.ts": {
+      tooltip: "src/instrumentation-client.ts"
+    }
+    "src"."instrumentation.ts": {
+      tooltip: "src/instrumentation.ts"
+    }
+    "src"."proxy.ts": {
+      tooltip: "src/proxy.ts"
+    }
+    "src/libs": {
+      shape: package
+      label: "src/libs"
+      tooltip: "src/libs"
+      link: _.layers.src-libs
+    }
+    "src"."proxy.ts" -> "src/libs": {
+      label: "2"
+      style.stroke-width: 2
+    }
+  }
+  "src-app": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "src/app": {
+      label: "src/app"
+      tooltip: "src/app"
+    }
+    "src/app"."[locale]"."(auth)"."(center)"."layout.tsx": {
+      tooltip: "src/app/[locale]/(auth)/(center)/layout.tsx"
+    }
+    "src/app"."[locale]"."(auth)"."(center)"."sign-in"."[[...sign-in]]"."page.tsx": {
+      tooltip: "src/app/[locale]/(auth)/(center)/sign-in/[[...sign-in]]/page.tsx"
+    }
+    "src/app"."[locale]"."(auth)"."(center)"."sign-up"."[[...sign-up]]"."page.tsx": {
+      tooltip: "src/app/[locale]/(auth)/(center)/sign-up/[[...sign-up]]/page.tsx"
+    }
+    "src/app"."[locale]"."(auth)"."dashboard"."layout.tsx": {
+      tooltip: "src/app/[locale]/(auth)/dashboard/layout.tsx"
+    }
+    "src/app"."[locale]"."(auth)"."dashboard"."page.tsx": {
+      tooltip: "src/app/[locale]/(auth)/dashboard/page.tsx"
+    }
+    "src/app"."[locale]"."(auth)"."dashboard"."user-profile"."[[...user-profile]]"."page.tsx": {
+      tooltip: "src/app/[locale]/(auth)/dashboard/user-profile/[[...user-profile]]/page.tsx"
+    }
+    "src/app"."[locale]"."(auth)"."layout.tsx": {
+      tooltip: "src/app/[locale]/(auth)/layout.tsx"
+    }
+    "src/app"."[locale]"."(marketing)"."about"."page.tsx": {
+      tooltip: "src/app/[locale]/(marketing)/about/page.tsx"
+    }
+    "src/app"."[locale]"."(marketing)"."counter"."page.tsx": {
+      tooltip: "src/app/[locale]/(marketing)/counter/page.tsx"
+    }
+    "src/app"."[locale]"."(marketing)"."layout.tsx": {
+      tooltip: "src/app/[locale]/(marketing)/layout.tsx"
+    }
+    "src/app"."[locale]"."(marketing)"."page.tsx": {
+      tooltip: "src/app/[locale]/(marketing)/page.tsx"
+    }
+    "src/app"."[locale]"."(marketing)"."portfolio"."[slug]"."page.tsx": {
+      tooltip: "src/app/[locale]/(marketing)/portfolio/[slug]/page.tsx"
+    }
+    "src/app"."[locale]"."(marketing)"."portfolio"."page.tsx": {
+      tooltip: "src/app/[locale]/(marketing)/portfolio/page.tsx"
+    }
+    "src/app"."[locale]"."api"."counter"."route.ts": {
+      tooltip: "src/app/[locale]/api/counter/route.ts"
+    }
+    "src/app"."[locale]"."layout.tsx": {
+      tooltip: "src/app/[locale]/layout.tsx"
+    }
+    "src/app"."global-error.tsx": {
+      tooltip: "src/app/global-error.tsx"
+    }
+    "src/app"."robots.ts": {
+      tooltip: "src/app/robots.ts"
+    }
+    "src/app"."sitemap.ts": {
+      tooltip: "src/app/sitemap.ts"
+    }
+    "src/components": {
+      shape: package
+      label: "src/components"
+      tooltip: "src/components"
+      link: _.layers.src-components
+    }
+    "src/libs": {
+      shape: package
+      label: "src/libs"
+      tooltip: "src/libs"
+      link: _.layers.src-libs
+    }
+    "src/models": {
+      shape: package
+      label: "src/models"
+      tooltip: "src/models"
+      link: _.layers.src-models
+    }
+    "src/templates": {
+      shape: package
+      label: "src/templates"
+      tooltip: "src/templates"
+      link: _.layers.src-templates
+    }
+    "src/utils": {
+      shape: package
+      label: "src/utils"
+      tooltip: "src/utils"
+      link: _.layers.src-utils
+    }
+    "src/validations": {
+      shape: package
+      label: "src/validations"
+      tooltip: "src/validations"
+      link: _.layers.src-validations
+    }
+    "src/app"."[locale]"."(auth)"."(center)"."sign-in"."[[...sign-in]]"."page.tsx" -> "src/utils": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(auth)"."(center)"."sign-up"."[[...sign-up]]"."page.tsx" -> "src/utils": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(auth)"."dashboard"."layout.tsx" -> "src/components": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(auth)"."dashboard"."layout.tsx" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(auth)"."dashboard"."layout.tsx" -> "src/templates": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(auth)"."dashboard"."page.tsx" -> "src/components": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(auth)"."dashboard"."user-profile"."[[...user-profile]]"."page.tsx" -> "src/utils": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(auth)"."layout.tsx" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(auth)"."layout.tsx" -> "src/utils": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(marketing)"."counter"."page.tsx" -> "src/components": {
+      label: "2"
+      style.stroke-width: 2
+    }
+    "src/app"."[locale]"."(marketing)"."layout.tsx" -> "src/components": {
+      label: "2"
+      style.stroke-width: 2
+    }
+    "src/app"."[locale]"."(marketing)"."layout.tsx" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(marketing)"."layout.tsx" -> "src/templates": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(marketing)"."page.tsx" -> "src/components": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(marketing)"."portfolio"."[slug]"."page.tsx" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."(marketing)"."portfolio"."page.tsx" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."api"."counter"."route.ts" -> "src/libs": {
+      label: "2"
+      style.stroke-width: 2
+    }
+    "src/app"."[locale]"."api"."counter"."route.ts" -> "src/models": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."api"."counter"."route.ts" -> "src/validations": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."layout.tsx" -> "src/components": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."[locale]"."layout.tsx" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."global-error.tsx" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."robots.ts" -> "src/utils": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."sitemap.ts" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app"."sitemap.ts" -> "src/utils": {
+      label: "1"
+      style.stroke-width: 1
+    }
+  }
+  "src-components": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "src/components": {
+      label: "src/components"
+      tooltip: "src/components"
+    }
+    "src/components"."CounterForm.tsx": {
+      tooltip: "src/components/CounterForm.tsx"
+    }
+    "src/components"."CurrentCount.tsx": {
+      tooltip: "src/components/CurrentCount.tsx"
+    }
+    "src/components"."DemoBadge.tsx": {
+      tooltip: "src/components/DemoBadge.tsx"
+    }
+    "src/components"."DemoBanner.tsx": {
+      tooltip: "src/components/DemoBanner.tsx"
+    }
+    "src/components"."Hello.tsx": {
+      tooltip: "src/components/Hello.tsx"
+    }
+    "src/components"."LocaleSwitcher.tsx": {
+      tooltip: "src/components/LocaleSwitcher.tsx"
+    }
+    "src/components"."Sponsors.tsx": {
+      tooltip: "src/components/Sponsors.tsx"
+    }
+    "src/app": {
+      shape: package
+      label: "src/app"
+      tooltip: "src/app"
+      link: _.layers.src-app
+    }
+    "src/libs": {
+      shape: package
+      label: "src/libs"
+      tooltip: "src/libs"
+      link: _.layers.src-libs
+    }
+    "src/models": {
+      shape: package
+      label: "src/models"
+      tooltip: "src/models"
+      link: _.layers.src-models
+    }
+    "src/validations": {
+      shape: package
+      label: "src/validations"
+      tooltip: "src/validations"
+      link: _.layers.src-validations
+    }
+    "src/components"."CounterForm.tsx" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/components"."CounterForm.tsx" -> "src/validations": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/components"."CurrentCount.tsx" -> "src/libs": {
+      label: "2"
+      style.stroke-width: 2
+    }
+    "src/components"."CurrentCount.tsx" -> "src/models": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/components"."DemoBanner.tsx" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/components"."Hello.tsx" -> "src/components"."Sponsors.tsx": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/components"."LocaleSwitcher.tsx" -> "src/libs": {
+      label: "2"
+      style.stroke-width: 2
+    }
+    "src/app" -> "src/components"."CounterForm.tsx": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app" -> "src/components"."CurrentCount.tsx": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app" -> "src/components"."DemoBadge.tsx": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app" -> "src/components"."DemoBanner.tsx": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app" -> "src/components"."Hello.tsx": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app" -> "src/components"."LocaleSwitcher.tsx": {
+      label: "2"
+      style.stroke-width: 2
+    }
+    "src/app" -> "src/components"."Sponsors.tsx": {
+      label: "1"
+      style.stroke-width: 1
+    }
+  }
+  "src-libs": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "src/libs": {
+      label: "src/libs"
+      tooltip: "src/libs"
+    }
+    "src/libs"."Arcjet.ts": {
+      tooltip: "src/libs/Arcjet.ts"
+    }
+    "src/libs"."DB.ts": {
+      tooltip: "src/libs/DB.ts"
+    }
+    "src/libs"."Env.ts": {
+      tooltip: "src/libs/Env.ts"
+    }
+    "src/libs"."I18n.ts": {
+      tooltip: "src/libs/I18n.ts"
+    }
+    "src/libs"."I18nNavigation.ts": {
+      tooltip: "src/libs/I18nNavigation.ts"
+    }
+    "src/libs"."I18nRouting.ts": {
+      tooltip: "src/libs/I18nRouting.ts"
+    }
+    "src/libs"."Logger.ts": {
+      tooltip: "src/libs/Logger.ts"
+    }
+    "src": {
+      shape: package
+      label: "src"
+      tooltip: "src"
+      link: _.layers.src
+    }
+    "src/app": {
+      shape: package
+      label: "src/app"
+      tooltip: "src/app"
+      link: _.layers.src-app
+    }
+    "src/components": {
+      shape: package
+      label: "src/components"
+      tooltip: "src/components"
+      link: _.layers.src-components
+    }
+    "src/types": {
+      shape: package
+      label: "src/types"
+      tooltip: "src/types"
+      link: _.layers.src-types
+    }
+    "src/utils": {
+      shape: package
+      label: "src/utils"
+      tooltip: "src/utils"
+      link: _.layers.src-utils
+    }
+    "next.config.ts": {
+      tooltip: "next.config.ts"
+    }
+    "src/libs"."DB.ts" -> "src/libs"."Env.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/libs"."DB.ts" -> "src/utils": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/libs"."I18n.ts" -> "src/libs"."I18nRouting.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/libs"."I18nNavigation.ts" -> "src/libs"."I18nRouting.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/libs"."I18nRouting.ts" -> "src/utils": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/libs"."Logger.ts" -> "src/libs"."Env.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src" -> "src/libs"."Arcjet.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src" -> "src/libs"."I18nRouting.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app" -> "src/libs"."DB.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app" -> "src/libs"."I18nNavigation.ts": {
+      label: "3"
+      style.stroke-width: 2
+    }
+    "src/app" -> "src/libs"."I18nRouting.ts": {
+      label: "5"
+      style.stroke-width: 3
+    }
+    "src/app" -> "src/libs"."Logger.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/components" -> "src/libs"."DB.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/components" -> "src/libs"."I18nNavigation.ts": {
+      label: "3"
+      style.stroke-width: 2
+    }
+    "src/components" -> "src/libs"."I18nRouting.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/components" -> "src/libs"."Logger.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/types" -> "src/libs"."I18nRouting.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/utils" -> "src/libs"."Env.ts": {
+      label: "2"
+      style.stroke-width: 2
+    }
+    "src/utils" -> "src/libs"."I18nRouting.ts": {
+      label: "2"
+      style.stroke-width: 2
+    }
+    "src/utils" -> "src/libs"."Logger.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "next.config.ts" -> "src/libs"."Env.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+  }
+  "src-models": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "src/models": {
+      label: "src/models"
+      tooltip: "src/models"
+    }
+    "src/models"."Schema.ts": {
+      tooltip: "src/models/Schema.ts"
+    }
+    "src/app": {
+      shape: package
+      label: "src/app"
+      tooltip: "src/app"
+      link: _.layers.src-app
+    }
+    "src/components": {
+      shape: package
+      label: "src/components"
+      tooltip: "src/components"
+      link: _.layers.src-components
+    }
+    "src/utils": {
+      shape: package
+      label: "src/utils"
+      tooltip: "src/utils"
+      link: _.layers.src-utils
+    }
+    "src/app" -> "src/models"."Schema.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/components" -> "src/models"."Schema.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/utils" -> "src/models"."Schema.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+  }
+  "src-templates": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "src/templates": {
+      label: "src/templates"
+      tooltip: "src/templates"
+    }
+    "src/templates"."BaseTemplate.stories.tsx": {
+      tooltip: "src/templates/BaseTemplate.stories.tsx"
+    }
+    "src/templates"."BaseTemplate.test.tsx": {
+      tooltip: "src/templates/BaseTemplate.test.tsx"
+    }
+    "src/templates"."BaseTemplate.tsx": {
+      tooltip: "src/templates/BaseTemplate.tsx"
+    }
+    "src/app": {
+      shape: package
+      label: "src/app"
+      tooltip: "src/app"
+      link: _.layers.src-app
+    }
+    "src/utils": {
+      shape: package
+      label: "src/utils"
+      tooltip: "src/utils"
+      link: _.layers.src-utils
+    }
+    "src/templates"."BaseTemplate.stories.tsx" -> "src/templates"."BaseTemplate.tsx": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/templates"."BaseTemplate.test.tsx" -> "src/templates"."BaseTemplate.tsx": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/templates"."BaseTemplate.tsx" -> "src/utils": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app" -> "src/templates"."BaseTemplate.tsx": {
+      label: "2"
+      style.stroke-width: 2
+    }
+  }
+  "src-types": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "src/types": {
+      label: "src/types"
+      tooltip: "src/types"
+    }
+    "src/types"."I18n.ts": {
+      tooltip: "src/types/I18n.ts"
+    }
+    "src/libs": {
+      shape: package
+      label: "src/libs"
+      tooltip: "src/libs"
+      link: _.layers.src-libs
+    }
+    "src/types"."I18n.ts" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+  }
+  "src-utils": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "src/utils": {
+      label: "src/utils"
+      tooltip: "src/utils"
+    }
+    "src/utils"."AppConfig.ts": {
+      tooltip: "src/utils/AppConfig.ts"
+    }
+    "src/utils"."DBConnection.ts": {
+      tooltip: "src/utils/DBConnection.ts"
+    }
+    "src/utils"."Helpers.test.ts": {
+      tooltip: "src/utils/Helpers.test.ts"
+    }
+    "src/utils"."Helpers.ts": {
+      tooltip: "src/utils/Helpers.ts"
+    }
+    "src/app": {
+      shape: package
+      label: "src/app"
+      tooltip: "src/app"
+      link: _.layers.src-app
+    }
+    "src/libs": {
+      shape: package
+      label: "src/libs"
+      tooltip: "src/libs"
+      link: _.layers.src-libs
+    }
+    "src/models": {
+      shape: package
+      label: "src/models"
+      tooltip: "src/models"
+      link: _.layers.src-models
+    }
+    "src/templates": {
+      shape: package
+      label: "src/templates"
+      tooltip: "src/templates"
+      link: _.layers.src-templates
+    }
+    "src/utils"."DBConnection.ts" -> "src/libs": {
+      label: "2"
+      style.stroke-width: 2
+    }
+    "src/utils"."DBConnection.ts" -> "src/models": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/utils"."Helpers.test.ts" -> "src/utils"."Helpers.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/utils"."Helpers.test.ts" -> "src/libs": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/utils"."Helpers.ts" -> "src/libs": {
+      label: "2"
+      style.stroke-width: 2
+    }
+    "src/app" -> "src/utils"."AppConfig.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/app" -> "src/utils"."Helpers.ts": {
+      label: "5"
+      style.stroke-width: 3
+    }
+    "src/libs" -> "src/utils"."AppConfig.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/libs" -> "src/utils"."DBConnection.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/templates" -> "src/utils"."AppConfig.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+  }
+  "src-validations": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "src/validations": {
+      label: "src/validations"
+      tooltip: "src/validations"
+    }
+    "src/validations"."CounterValidation.ts": {
+      tooltip: "src/validations/CounterValidation.ts"
+    }
+    "src/app": {
+      shape: package
+      label: "src/app"
+      tooltip: "src/app"
+      link: _.layers.src-app
+    }
+    "src/components": {
+      shape: package
+      label: "src/components"
+      tooltip: "src/components"
+      link: _.layers.src-components
+    }
+    "src/app" -> "src/validations"."CounterValidation.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+    "src/components" -> "src/validations"."CounterValidation.ts": {
+      label: "1"
+      style.stroke-width: 1
+    }
+  }
+  "tests-e2e": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "tests/e2e": {
+      label: "tests/e2e"
+      tooltip: "tests/e2e"
+    }
+    "tests/e2e"."Counter.e2e.ts": {
+      tooltip: "tests/e2e/Counter.e2e.ts"
+    }
+    "tests/e2e"."I18n.e2e.ts": {
+      tooltip: "tests/e2e/I18n.e2e.ts"
+    }
+    "tests/e2e"."Sanity.check.e2e.ts": {
+      tooltip: "tests/e2e/Sanity.check.e2e.ts"
+    }
+    "tests/e2e"."Visual.e2e.ts": {
+      tooltip: "tests/e2e/Visual.e2e.ts"
+    }
+  }
+  "tests-integration": {
+    direction: right
+    "← overview": {
+      near: top-left
+      link: _
+    }
+    "tests/integration": {
+      label: "tests/integration"
+      tooltip: "tests/integration"
+    }
+    "tests/integration"."Counter.spec.ts": {
+      tooltip: "tests/integration/Counter.spec.ts"
+    }
+  }
+}

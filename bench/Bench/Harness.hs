@@ -17,6 +17,7 @@ import Effectful.Concurrent (runConcurrent)
 import Effectful.Dispatch.Dynamic (interpret)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.CLI (CLI (..))
+import Effects.D2 (D2 (..))
 import Effects.FileSystem (WrFileSystem (..), fsMkAbsolute, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
 import Params (Params (..))
@@ -45,6 +46,7 @@ runCase params =
         . runRoFileSystemIO
         . runErrorNoCallStack @DeslopError
         . runSilentCLI
+        . runRefusingD2
         . runReportProblem
         . runConcurrent
         $ doWork params
@@ -74,3 +76,9 @@ runSilentCLI :: Eff (CLI : es) a -> Eff es a
 runSilentCLI = interpret $ \_ -> \case
     Log _style _msg -> pure ()
     ReadLine -> error "runSilentCLI: doWork must never read from stdin"
+
+-- | No benchmarked command draws a diagram, so none may reach for d2.
+runRefusingD2 :: Eff (D2 : es) a -> Eff es a
+runRefusingD2 = interpret $ \_ -> \case
+    CheckAvailability -> error "runRefusingD2: the benchmark never draws a diagram"
+    Render _source _output -> error "runRefusingD2: the benchmark never draws a diagram"

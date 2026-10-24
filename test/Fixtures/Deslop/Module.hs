@@ -3,6 +3,7 @@ module Fixtures.Deslop.Module (
     mkModule,
     mkModuleAt,
     mkImportEdge,
+    mkEdge,
     edgeTo,
 ) where
 
@@ -44,10 +45,17 @@ line of a given file.
 -}
 mkImportEdge :: Text -> Int -> Text -> DependencyEdge
 mkImportEdge file line dep =
+    mkEdge file line dep (Resolved (moduleIdUnsafe dep) (moduleNameUnsafe dep :| [])) ImportEdge
+
+{- | As 'mkImportEdge', for a spec that cares what the edge resolved to and
+whether it imports or re-exports.
+-}
+mkEdge :: Text -> Int -> Text -> EdgeTarget -> EdgeKind -> DependencyEdge
+mkEdge file line dep target kind =
     DependencyEdge
         { specifier = specifierUnsafe dep
-        , target = Resolved (moduleIdUnsafe dep) (moduleNameUnsafe dep :| [])
-        , kind = ImportEdge
+        , target = target
+        , kind = kind
         , location =
             Location
                 { file = rp file

@@ -37,6 +37,15 @@ spec = describe "Params" $ do
                     }
                 )
 
+    it "parses 'diagram' command with an explicit project dir" $ do
+        parseParams ["diagram", "fixtures/app"]
+            `shouldBe` Just
+                ( ParamsDto
+                    { command = DiagramC
+                    , projectPath = [osp|fixtures/app|]
+                    }
+                )
+
     it "parses command with explicit PROJECT_DIR" $ do
         parseParams ["fix", "/some/ts/project"]
             `shouldBe` Just
