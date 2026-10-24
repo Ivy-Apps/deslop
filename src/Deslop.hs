@@ -46,12 +46,7 @@ exiting as it says.
 -}
 runDeslop :: ParamsDto -> IO ()
 runDeslop =
-    exitWith
-        <=< runEff
-            . runFileSystemIO
-            . runCLI
-            . runConcurrent
-            . deslop
+    exitWith <=< runEff . runFileSystemIO . runCLI . runConcurrent . deslop
 
 {- | One whole run of a command, from the command line's parameters to the exit
 code a CI job gates on: non-zero, with the reason logged as an 'Error', when the
