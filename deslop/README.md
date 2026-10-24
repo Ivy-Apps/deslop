@@ -47,3 +47,14 @@ were written. Write the spec and the entry stops matching; regenerate with
 layering violation is fixed, or the Rule is - it is never baselined.
 
 Keep this file out of `rules/`: Deslop reads every file there as a Rulebook.
+
+## The diagram
+
+[`diagram/index.html`](diagram/index.html) is Deslop's own module graph,
+written by `deslop diagram .`. Download it and open it in a browser: it is one
+self-contained page that works offline. It is a snapshot, not checked by CI;
+regenerate it with:
+
+```bash
+"$(nix develop .#ci -c cabal list-bin deslop)" diagram .
+```
