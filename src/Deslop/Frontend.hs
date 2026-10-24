@@ -180,6 +180,10 @@ class
       is written once for both.
     * A 'Deslop.Module.ModuleId' and the names agree: one module, one id, one
       set of names, wherever an edge reaches it from.
+    * A dependency the frontend knows exists and cannot name - a computed path,
+      or a literal one to nothing in the project - is
+      'Deslop.Module.Unresolved', never 'Deslop.Module.External'. Posing as a
+      package would let every @forbids@ pass it unseen.
     -}
     lower ::
         (RoFileSystem :> es, Reader ProjectRoot :> es, Concurrent :> es) =>

@@ -166,6 +166,7 @@ resolvedNames m = [n | e <- m.edges, n <- namesOfTarget e.target]
   where
     namesOfTarget (Resolved _ names) = toList names
     namesOfTarget (External _) = []
+    namesOfTarget (Unresolved _) = []
 
 lower :: Project -> [(AbsPath, Text)] -> PropertyT IO [Module]
 lower project = liftIO . projectAsts project

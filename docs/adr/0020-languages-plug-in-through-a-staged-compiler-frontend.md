@@ -11,7 +11,9 @@ under `Frontend/<Lang>/` rather than at the top level, and `Deslop.hs` no longer
 knows any language by name.
 
 Haskell, the second language, is
-[ADR 21](0021-haskell-is-read-as-one-cabal-package.md).
+[ADR 21](0021-haskell-is-read-as-one-cabal-package.md); Nix, the third and the
+first to mint `Unresolved` edges, is
+[ADR 23](0023-nix-is-read-as-the-paths-it-writes.md).
 
 ## Context
 
@@ -229,14 +231,36 @@ linter has, which is why this is decided before any Nix frontend exists:
   `Resolved` edge per file the pattern can reach. That is the frontend's
   choice, at the price of cycles that may not be real.
 
-Open, and to be settled with a real Nix fixture when the first frontend that
-mints `Unresolved` lands it:
+Settled with the core case, before the first frontend that mints it:
 
-- Whether a transitive `forbids` reports an `Unresolved` edge in a module the
-  target only reaches, not just one in the target itself.
-- Whether a `uses` Rule counts an `Unresolved` edge as satisfying it.
-- What the graph calls an `Unresolved` vertex in a report, without turning its
-  expression text into a `ModuleName`.
+- A transitive `forbids` reports every `Unresolved` edge the target reaches,
+  not only its own. A module the target reaches is as much a part of what the
+  Rule promises as the target itself, and stopping at the first hop would be
+  the unearned green check again, one module further away.
+- It is reported at the module that wrote the edge, once per Rule however
+  many targets reach it, with the shortest chain from a target as an example
+  (ties broken by the chain itself). Reporting it once per target that reaches
+  it said the same thing over and over: on a NixOS configuration five dynamic
+  paths made 63 Problems, and the edge is what someone has to look at.
+- A direct `forbids` reports only the target's own `Unresolved` edges, as it
+  judges only its own imports.
+- The Problem is reported once per Rule and edge, whatever the Rule's
+  `forbids` patterns are and however many clauses it has: each clause would ask
+  the same unanswerable question. An `allows` cannot excuse it, because it can
+  only match a name, and `allows-only` reports it like any `forbids`.
+- Its Problem id is the Canonical Name of the module that wrote the edge, then
+  `#unresolved#` and the specifier: `rulebook#rule#lib/relay#unresolved#./. + n`.
+  Baselining one dynamic import is a decision about that import, so it must
+  not also accept the next one written in the module, nor a violation of the
+  Rule Deslop could judge. It names no target, so it does not move when a
+  target is added or removed.
+- A `uses` Rule is never satisfied by an `Unresolved` edge, directly or
+  transitively. Counting it would be the same guess in the other direction.
+- An `Unresolved` edge is no vertex of the graph, so a report never has to name
+  one. A vertex would have to be named by its expression text, which is not a
+  Module Name, and every chain or cycle through it would be one nobody knows is
+  there. It stays on its edge, where the Rule enforcer reads it, and
+  `no-import-cycles` never sees it.
 
 ## Considered options
 

@@ -13,6 +13,7 @@ module Deslop.CodeGraph (
     refOfKey,
     moduleExists,
     reachableFrom,
+    reachableModules,
     findKnownPath,
     findCycles,
 ) where
@@ -48,11 +49,24 @@ data GraphKey
 
 {- | The vertex a dependency leads to. Pure, because the frontend already did
 the resolving - see "Deslop.Module".
+
+An 'Unresolved' dependency leads to none. It points at no module anyone can
+name, so a vertex for it would have to be named by its expression text - the
+very spelling a Rule is never written against - and every cycle or chain
+through it would be one nobody knows exists. It stays on its edge, where
+"Deslop.Rule.Enforcer" finds it.
 -}
-graphKeyOf :: DependencyEdge -> GraphKey
-graphKeyOf edge = case edge.target of
-    Resolved mid _ -> ModuleKey mid
-    External name -> ExternalKey name
+graphKeyOf :: DependencyEdge -> Maybe GraphKey
+graphKeyOf = fmap fst . vertexOf
+
+{- | The vertex a dependency leads to, and what the graph knows of it when no
+module of the project answers to it.
+-}
+vertexOf :: DependencyEdge -> Maybe (GraphKey, ModuleNode)
+vertexOf edge = case edge.target of
+    Resolved mid names -> Just (ModuleKey mid, UnscannedModule names)
+    External name -> Just (ExternalKey name, ExternalModule name)
+    Unresolved _ -> Nothing
 
 {- | A vertex in the architectural graph. Three situations, kept apart because
 they are three different facts about a dependency and only the first can be
@@ -108,7 +122,9 @@ newtype ModuleCycle = ModuleCycle
 {- | Constructs the ModuleGraph from the modules a frontend lowered.
 
 Everything those modules reach also gets a vertex, or 'graphFromEdges' would
-drop the edge silently and a chain would end without saying so. Nothing here
+drop the edge silently and a chain would end without saying so. The one
+exception is an 'Unresolved' dependency, which reaches nothing - see
+'graphKeyOf'. Nothing here
 invents a name for one: an edge to something unparsed carries the names the
 frontend minted when it resolved the specifier, and an edge to @react@ carries
 the name the frontend minted for it, which is all anyone knows.
@@ -126,14 +142,15 @@ buildModuleGraph modules =
         parsedKeys = Set.fromList [ModuleKey m.id | m <- modules]
         reached =
             Map.fromList
-                [ (graphKeyOf edge, reachedNode edge)
+                [ vertex
                 | m <- modules
                 , edge <- m.edges
+                , Just vertex <- [vertexOf edge]
                 ]
         unparsed = Map.withoutKeys reached parsedKeys
 
         parsedEdges =
-            [ (ParsedModule m, ModuleKey m.id, map graphKeyOf m.edges)
+            [ (ParsedModule m, ModuleKey m.id, mapMaybe graphKeyOf m.edges)
             | m <- modules
             ]
         unparsedEdges =
@@ -148,11 +165,6 @@ buildModuleGraph modules =
             , vertexFromKey = keyV
             , parsedNames = Set.fromList [n | m <- modules, n <- toList m.names]
             }
-  where
-    reachedNode :: DependencyEdge -> ModuleNode
-    reachedNode edge = case edge.target of
-        Resolved _ names -> UnscannedModule names
-        External name -> ExternalModule name
 
 -- | What the graph knows about the vertex a key leads to, if it has one.
 refOfKey :: (Reader ModuleGraph :> es) => GraphKey -> Eff es (Maybe ModuleRef)
@@ -176,9 +188,20 @@ hasPath from to = do
 reachableFrom :: (Reader ModuleGraph :> es) => GraphKey -> Eff es [ModuleRef]
 reachableFrom from = do
     mg <- ask @ModuleGraph
-    pure $ case mg.vertexFromKey from of
-        Nothing -> []
-        Just vFrom -> refOf mg <$> reachable mg.graph vFrom
+    pure $ refOf mg <$> reachedVertices mg from
+
+{- | Every module a frontend lowered that @from@ reaches, itself included: the
+ones whose own dependencies are known, and so the only ones that can hold an
+'Unresolved' one.
+-}
+reachableModules :: (Reader ModuleGraph :> es) => GraphKey -> Eff es [Module]
+reachableModules from = do
+    mg <- ask @ModuleGraph
+    pure . mapMaybe (moduleOf mg) $ reachedVertices mg from
+
+-- | Every vertex @from@ reaches, its own included; none when it has no vertex.
+reachedVertices :: ModuleGraph -> GraphKey -> [Vertex]
+reachedVertices mg = foldMap (reachable mg.graph) . mg.vertexFromKey
 
 {- | Returns the shortest dependency path.
 ASSUMES: A path is guaranteed to exist between @from@ and @to@.

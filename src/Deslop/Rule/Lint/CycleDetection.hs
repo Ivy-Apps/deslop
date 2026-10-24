@@ -43,7 +43,7 @@ importCycle (ModuleCycle loop) =
     enteringImport :: Module -> Module -> Location
     enteringImport importer target =
         maybe (whole importer target) (strip . (.location))
-            . find ((== ModuleKey target.id) . graphKeyOf)
+            . find ((== Just (ModuleKey target.id)) . graphKeyOf)
             $ importer.edges
 
     strip loc = loc {code = T.strip loc.code}

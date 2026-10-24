@@ -3,13 +3,14 @@ module Fixtures.Deslop.Module (
     mkModule,
     mkModuleAt,
     mkImportEdge,
+    withUnresolved,
     edgeTo,
 ) where
 
 import Deslop.Module (
     DependencyEdge (..),
     EdgeKind (ImportEdge),
-    EdgeTarget (Resolved),
+    EdgeTarget (Resolved, Unresolved),
     Location (..),
     Module (..),
     Specifier (..),
@@ -55,6 +56,26 @@ mkImportEdge file line dep =
                 , code = "import { ... } from '" <> dep <> "'"
                 }
         }
+
+{- | The module with one more dependency, written on the line after its last,
+that its frontend knows exists and cannot name. @spelling@ is what the author
+wrote, so 'edgeTo' finds it by that.
+-}
+withUnresolved :: Text -> Module -> Module
+withUnresolved spelling m = m {edges = m.edges <> [unresolved]}
+  where
+    unresolved =
+        DependencyEdge
+            { specifier = specifierUnsafe spelling
+            , target = Unresolved (specifierUnsafe spelling)
+            , kind = ImportEdge
+            , location =
+                Location
+                    { file = m.path
+                    , line = length m.edges + 1
+                    , code = "import (" <> spelling <> ")"
+                    }
+            }
 
 {- | The 'Location' 'mkModule' gave the edge naming @dep@.
 

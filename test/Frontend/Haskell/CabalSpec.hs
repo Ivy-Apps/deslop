@@ -2,9 +2,10 @@ module Frontend.Haskell.CabalSpec (spec) where
 
 import Data.Text qualified as T
 import Deslop.Error (Warning (..))
-import Doubles.FileSystem (newInMemoryFileSystem, runInMemoryFileSystem)
+import Doubles.FileSystem (runInMemoryFileSystem)
 import Effectful (runEff)
-import FileSystem.Path (AbsPath (..), decodeOsPath)
+import FileSystem.Path (ProjectRoot (..))
+import Fixtures.FileSystem.Path (fromProject, projectFileSystem)
 import Fixtures.Frontend.Haskell.Project (cabalPackage, configFrom, inProject, projectRoot)
 import Frontend.Haskell.Cabal (
     CabalError (..),
@@ -25,16 +26,14 @@ import Test.Hspec
 
 loaded :: [(Text, Text)] -> IO (Either CabalError (HsConfig, [Warning]))
 loaded files = do
-    fs <- newInMemoryFileSystem [(inProject path, encodeUtf8 text) | (path, text) <- files]
+    fs <- projectFileSystem (fmap (second encodeUtf8) files)
     runEff . runInMemoryFileSystem fs $ loadHsConfig projectRoot
 
 -- | Each component as its qualifier, source directories and main-is.
 shapes :: HsConfig -> [(Text, [Text], Maybe MainIs)]
 shapes cfg = [(qualifier c, relative <$> toList c.sourceDirs, mainIsOf c.kind) | c <- cfg.components]
   where
-    relative dir =
-        let path = decodeOsPath dir.osPath
-         in fromMaybe path (T.stripPrefix "/project/" path <|> ("." <$ guard (path == "/project")))
+    relative dir = bool (fromProject dir) "." (dir == projectRoot.path)
 
 componentNamed :: Text -> HsConfig -> Maybe Component
 componentNamed q = find ((== q) . qualifier) . (.components)

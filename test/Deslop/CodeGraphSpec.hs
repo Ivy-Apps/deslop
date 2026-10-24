@@ -1,7 +1,7 @@
 module Deslop.CodeGraphSpec (spec) where
 
 import Data.Map.Strict qualified as Map
-import Deslop.CodeGraph (GraphKey (..), ModuleCycle (..), ModuleRef (..), buildModuleGraph, findCycles, findKnownPath, hasPath, moduleExists, reachableFrom)
+import Deslop.CodeGraph (GraphKey (..), ModuleCycle (..), ModuleRef (..), buildModuleGraph, findCycles, findKnownPath, hasPath, moduleExists, reachableFrom, reachableModules)
 import Deslop.Module (
     DependencyEdge (..),
     EdgeTarget (..),
@@ -13,7 +13,7 @@ import Deslop.Module (
  )
 import Effectful (runPureEff)
 import Effectful.Reader.Static (runReader)
-import Fixtures.Deslop.Module (mkImportEdge, mkModule)
+import Fixtures.Deslop.Module (mkImportEdge, mkModule, withUnresolved)
 import Hedgehog (Gen, PropertyT, footnote, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
@@ -33,6 +33,13 @@ runReachableFrom from modules =
         . runPureEff
         . runReader (buildModuleGraph modules)
         $ reachableFrom (ModuleKey from.id)
+
+runReachableModules :: Module -> [Module] -> [Module]
+runReachableModules from modules =
+    sortOn (.names)
+        . runPureEff
+        . runReader (buildModuleGraph modules)
+        $ reachableModules (ModuleKey from.id)
 
 runModuleExists :: Text -> [Module] -> Bool
 runModuleExists mid modules =
@@ -281,6 +288,33 @@ spec = describe "Deslop.CodeGraph" $ do
             shuffled <- forAll (Gen.shuffle modules)
             runFindCycles modules === runFindCycles shuffled
 
+    describe "a dependency nobody can name" $ do
+        -- Spelled like a module that exists, so a graph keyed by what the
+        -- author wrote would have followed it.
+        it "leads nowhere, however it is spelled" $ do
+            let a = withUnresolved "b" $ mkModule "a" []
+                b = mkModule "b" []
+            runReachableFrom a [a, b] `shouldBe` ["a"]
+
+        it "closes no cycle" $ do
+            let a = mkModule "a" ["b"]
+                b = withUnresolved "a" $ mkModule "b" []
+            runFindCycles [a, b] `shouldBe` []
+
+        it "stays on the module that wrote it, which is reachable" $ do
+            let a = mkModule "a" ["b"]
+                b = withUnresolved "./. + n" $ mkModule "b" []
+            runReachableModules a [a, b] `shouldBe` [a, b]
+
+        it "is reachable from nothing outside the graph" $
+            runReachableModules (mkModule "a" []) [] `shouldBe` []
+
+        prop "changes neither what is reachable nor which cycles there are" $ do
+            modules <- forAll genArbitraryGraph
+            withDynamic <- forAll (traverse addUnresolved modules)
+            map (`runReachableFrom` withDynamic) withDynamic === map (`runReachableFrom` modules) modules
+            runFindCycles withDynamic === runFindCycles modules
+
 {- | Asserts that a reported cycle is a genuine closed walk: distinct modules,
 every consecutive hop a real import, the last module importing the first, and the
 smallest module first.
@@ -296,6 +330,14 @@ assertIsCycle modules reported = do
     hops = zip reported (drop 1 reported <> take 1 reported)
     assertImports (from, to) =
         (from, to `elem` Map.findWithDefault [] from imports) === (from, True)
+
+{- | The module with some dependencies its frontend could not name, each spelled
+like a module of the graph, the spelling most likely to be mistaken for one.
+-}
+addUnresolved :: Module -> Gen Module
+addUnresolved m = do
+    spellings <- Gen.list (Range.linear 0 3) (Gen.element ["m0", "m1", "m2", (head m.names).text])
+    pure $ foldr withUnresolved m spellings
 
 -- | Names are prefixed per group so that generated graphs cannot collide.
 moduleName :: Text -> Int -> Text

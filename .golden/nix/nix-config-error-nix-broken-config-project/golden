@@ -1,0 +1,8 @@
+[Title] 🚀 Checking project: nix-broken-config-project
+[Plain] Nix project detected.
+[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
+Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
+[exit] Failed to read deslop/nix.yaml:
+YAML parse exception at line 1, column 0,
+while parsing a flow sequence:
+did not find expected ',' or ']'

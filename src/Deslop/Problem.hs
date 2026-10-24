@@ -7,7 +7,7 @@ module Deslop.Problem (
     LintRuleId (..),
 ) where
 
-import Deslop.Module (EdgeKind, Location (..), ModuleName (..))
+import Deslop.Module (EdgeKind, Location (..), ModuleName (..), Specifier (..))
 import Deslop.Rule.Book (RuleId (RuleId), RulebookId (RulebookId))
 import FileSystem.Path (ProjectRelativePath, portablePath)
 
@@ -44,7 +44,7 @@ data Problem
 says what the module actually did, and carries the facts a report is written
 from rather than the sentence itself - "Deslop.Problem.Formatter" owns that.
 
-Only the first two carry a 'Location', and that is the point of the sum: a
+Only the dependency kinds carry a 'Location', and that is the point of the sum: a
 violation of /absence/ has nothing to quote, because the complaint is that
 nobody wrote it. One optional location on the Problem would have to mean both
 "this kind never has one" and "this one happens not to", which are different
@@ -73,6 +73,21 @@ data ViolationKind
         empty afterwards for a violation that had no duplicates.
         -}
         }
+    | {- | The module, or one it reaches, has a dependency its frontend could not
+      name - a path only evaluation computes, or one to nothing in the project -
+      so whether it is forbidden cannot be judged. Reported rather than passed,
+      because a check that cannot look is not a check that passed.
+      The module is the one that wrote the dependency, and @chain@ runs from a
+      target of the Rule to it: the module alone when the target wrote it
+      itself. Every target reaching it reports the same Problem Id, and only
+      the shortest chain survives "Deslop.Problem.Shrinker".
+      -}
+      UnjudgedImport
+        { chain :: NonEmpty ModuleName
+        , specifier :: Specifier
+        , edge :: EdgeKind
+        , location :: Location
+        }
     | -- | The module does not import something the Rule requires it to.
       MissingUse
         { requiredImport :: Text
@@ -99,6 +114,13 @@ isAutoFixable RuleViolation {} = False
 Built from a file and a module name, and never from a line: an id that moved
 when someone added a blank line above it would unsuppress every accepted
 Problem below it on the next edit.
+
+An 'UnjudgedImport' is the one Rule Violation whose id says more than the
+module, which is the one that wrote the dependency: it also names the
+dependency itself. Accepting one dynamic import is a decision about that
+import, and must not silence the next one written in the same module - nor a
+forbidden import Deslop could judge. It names no target that reaches it, so it
+holds however many do, and stays put as targets come and go.
 -}
 problemId :: Problem -> ProblemId
 problemId
@@ -117,4 +139,10 @@ problemId
         let
             mId = p.badModule.text
          in
-            ProblemId $ rbId <> "#" <> rId <> "#" <> mId
+            ProblemId $ rbId <> "#" <> rId <> "#" <> mId <> kindSuffix p.kind
+      where
+        kindSuffix UnjudgedImport {specifier} = "#unresolved#" <> specifier.text
+        kindSuffix DirectImport {} = ""
+        kindSuffix TransitiveImport {} = ""
+        kindSuffix MissingUse {} = ""
+        kindSuffix MissingModule {} = ""

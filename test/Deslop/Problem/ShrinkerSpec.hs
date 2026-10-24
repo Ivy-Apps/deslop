@@ -3,7 +3,7 @@ module Deslop.Problem.ShrinkerSpec (spec) where
 import Deslop.Module (EdgeKind (..), Location (..), ModuleName (..), moduleNameUnsafe)
 import Deslop.Problem (Problem (..), ProblemId, ViolationKind (..), problemId)
 import Deslop.Problem.Shrinker (compactProblems)
-import Fixtures.Deslop.Problem (BrokenRule, autoFixable, brokenRule, lintProblemAt, locatedAt, violationOf)
+import Fixtures.Deslop.Problem (BrokenRule, autoFixable, brokenRule, lintProblemAt, locatedAt, unjudgedImportOf, violationOf)
 import Hedgehog (Gen, assert, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
@@ -38,6 +38,13 @@ directImport bad imported =
         bad
         DirectImport {edge = ImportEdge, imported = moduleNameUnsafe imported, location = statementAt bad ("import '" <> imported <> "'")}
 
+{- | The same Rule unable to judge a dependency, which the target @target@
+reaches through @hops@. It is reported at the module that wrote it, the last
+of the chain, so every target reaching it reports the same ProblemId.
+-}
+unjudged :: Text -> [Text] -> Text -> Problem
+unjudged target hops = unjudgedImportOf hooksRule (target :| hops)
+
 hooksRule :: BrokenRule
 hooksRule = brokenRule "architecture" "hooks-cant-use-components"
 
@@ -63,6 +70,7 @@ genProblem =
         [ transitive <$> genModule <*> Gen.list (Range.linear 0 4) genModule
         , missingUse <$> genModule
         , directImport <$> genModule <*> genModule
+        , unjudged <$> genModule <*> Gen.list (Range.linear 0 4) genModule <*> Gen.element ["./. + n", "./gone.nix"]
         , lintProblem <$> Gen.element ["a.ts", "b.ts", "c.ts"]
         ]
 
@@ -76,6 +84,13 @@ genProblems = Gen.list (Range.linear 0 30) genProblem
 isTransitive :: Problem -> Bool
 isTransitive RuleViolation {kind = TransitiveImport {}} = True
 isTransitive _ = False
+
+isUnjudged :: Problem -> Bool
+isUnjudged RuleViolation {kind = UnjudgedImport {}} = True
+isUnjudged _ = False
+
+isDuplicable :: Problem -> Bool
+isDuplicable p = isTransitive p || isUnjudged p
 
 problemIds :: [Problem] -> [ProblemId]
 problemIds = sort . map problemId
@@ -148,6 +163,20 @@ spec = describe "Deslop.Problem.Shrinker" $ do
 
             compactProblems problems `shouldBe` sort problems
 
+        it "keeps one report of a dependency every target reaches, by the shortest chain" $ do
+            let problems =
+                    [ unjudged "@/hooks/b" ["@/hooks/a", "@/lib/z"] "./gone.nix"
+                    , unjudged "@/hooks/a" ["@/lib/z"] "./gone.nix"
+                    , unjudged "@/components/x" ["@/lib/z"] "./gone.nix"
+                    ]
+
+            compactProblems problems `shouldBe` [unjudged "@/components/x" ["@/lib/z"] "./gone.nix"]
+
+        it "keeps the dependencies one module wrote apart" $ do
+            let problems = [unjudged "@/hooks/a" ["@/lib/z"] "./gone.nix", unjudged "@/hooks/a" ["@/lib/z"] "./. + n"]
+
+            compactProblems problems `shouldBe` sort problems
+
         it "leaves lint problems in the same file apart" $ do
             let problems = [lintProblem "a.ts", lintProblem "a.ts"]
 
@@ -164,11 +193,17 @@ spec = describe "Deslop.Problem.Shrinker" $ do
 
             ordNub (problemIds (compactProblems problems)) === ordNub (problemIds problems)
 
-        prop "nothing but a transitive import is touched" $ do
+        prop "nothing but a transitive or unjudged import is touched" $ do
             problems <- forAll genProblems
 
-            sort (filter (not . isTransitive) (compactProblems problems))
-                === sort (filter (not . isTransitive) problems)
+            sort (filter (not . isDuplicable) (compactProblems problems))
+                === sort (filter (not . isDuplicable) problems)
+
+        prop "a dependency that cannot be judged is reported once per ProblemId" $ do
+            problems <- forAll genProblems
+
+            let survivors = problemIds . filter isUnjudged $ compactProblems problems
+            survivors === ordNub survivors
 
         prop "the report never grows" $ do
             problems <- forAll genProblems

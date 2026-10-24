@@ -1,0 +1,14 @@
+[Title] 🚀 Baselining project: nix-tiny-project
+[Plain] Nix project detected.
+[Plain] 📚 Loaded 1 rulebook, 2 rules
+[Warning] WARNING: broken.nix could not be read as Nix, so what it refers to was not read.
+[Warning] WARNING: foo.nix, foo/default.nix share the name foo, so a Rule cannot tell them apart; rename or move all but one.
+[Success] ✅ Success: Baseline generated with 5 problems.
+[summary] Baselined 14 modules enforcing 3 rules
+
+>>> baseline.yaml
+- layers#lib-stands-alone#lib/default
+- layers#packages-use-the-pinned-nixpkgs#packages/default
+- layers#packages-use-the-pinned-nixpkgs#packages/default#unresolved#./gone.nix
+- layers#packages-use-the-pinned-nixpkgs#packages/default#unresolved#dir + "/extra.nix"
+- no-import-cycles#modules/a.nix

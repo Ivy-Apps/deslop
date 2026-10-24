@@ -112,6 +112,19 @@
             '';
           };
 
+          # Re-records the nix-instantiate --parse corpus. node is carried here
+          # for the same reason as above, and so is the parser: `nix develop`
+          # puts the caller's PATH behind the shell's, so the nix-instantiate
+          # the recipe finds is this flake's pinned `pkgs.nix`, not whatever
+          # the machine has installed.
+          aiUpdateNixCorpusRunner = pkgs.writeShellApplication {
+            name = "ai-update-nix-corpus";
+            runtimeInputs = [ pkgs.nix pkgs.nodejs ];
+            text = ''
+              nix develop ".#ci" --no-warn-dirty --quiet -c just update-nix-corpus
+            '';
+          };
+
           # The ghcid daemon behind `nix run .#quick-typecheck`, and the tool
           # `just stop-ghcid` uses to retire every session on the machine.
           ghcidTools = import ./nix/ghcid.nix { inherit pkgs; };
@@ -137,6 +150,10 @@
             update-ghc-corpus = {
               type = "app";
               program = "${aiUpdateGhcCorpusRunner}/bin/ai-update-ghc-corpus";
+            };
+            update-nix-corpus = {
+              type = "app";
+              program = "${aiUpdateNixCorpusRunner}/bin/ai-update-nix-corpus";
             };
           };
 

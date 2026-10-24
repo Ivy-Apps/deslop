@@ -14,6 +14,10 @@ module TestUtils (
     listFixtures,
     copyDir,
 
+    -- * Corpora
+    loadCorpus,
+    corpusCase,
+
     -- * Paths
     ap,
     rp,
@@ -27,6 +31,7 @@ module TestUtils (
 
 import Control.Exception (throwIO)
 import Control.Exception.Base (AssertionFailed (..))
+import Data.Aeson (FromJSON, eitherDecodeFileStrict')
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Effectful
@@ -35,6 +40,7 @@ import FileSystem.Path (
     AbsPath,
     ProjectRelativePath,
     absPathUnsafe,
+    decodeOsPath,
     encodeOsPath,
     encodeOsPathString,
     relativePathUnsafe,
@@ -43,7 +49,7 @@ import Hedgehog (PropertyT)
 import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, takeExtension, (</>))
-import Test.Hspec (Spec, expectationFailure, it)
+import Test.Hspec (Spec, expectationFailure, it, shouldBe, shouldNotBe)
 import Test.Hspec.Hedgehog (hedgehog)
 
 --------------------------------------------------------------------------------
@@ -80,6 +86,36 @@ copyDir src dst = do
         if isDirectory
             then copyDir srcPath dstPath
             else SDO.copyFile srcPath dstPath
+
+--------------------------------------------------------------------------------
+-- Corpora
+--------------------------------------------------------------------------------
+
+-- | A corpus file: its cases, exactly as authored and recorded.
+newtype Corpus c = Corpus {cases :: [c]}
+    deriving stock (Generic)
+
+instance (FromJSON c) => FromJSON (Corpus c)
+
+loadCorpus :: forall c. (FromJSON c) => OsPath -> IO [c]
+loadCorpus file = do
+    let path = toString (decodeOsPath file)
+    decoded <- eitherDecodeFileStrict' @(Corpus c) path
+    corpus <- requireRight (("reading " <> path <> ": ") <>) decoded
+    pure corpus.cases
+
+{- | One case of a differential test against an oracle's recorded answer:
+Deslop's answer must be the oracle's. A case carrying a known gap is one
+Deslop does not yet answer the way the oracle does, and must /still differ/:
+closing a gap turns its own test red.
+-}
+corpusCase :: (HasCallStack, Eq a, Show a) => Text -> Maybe Text -> IO a -> a -> Spec
+corpusCase name knownGap answer oracle =
+    it (toString (name <> maybe "" (const " [known gap]") knownGap)) $ do
+        actual <- answer
+        case knownGap of
+            Nothing -> actual `shouldBe` oracle
+            Just _ -> actual `shouldNotBe` oracle
 
 --------------------------------------------------------------------------------
 -- Paths
