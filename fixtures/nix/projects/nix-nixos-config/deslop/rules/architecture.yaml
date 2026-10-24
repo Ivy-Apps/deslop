@@ -1,0 +1,122 @@
+id: architecture
+name: The layers of this NixOS configuration
+description: >-
+  flake.nix hands everything to lib, and lib assembles every host from shared
+  modules plus one hosts/<name> directory. Modules configure a platform
+  (nixos, macos) or a user's home, programs are host-agnostic packages and
+  configs, and secrets are read in one place.
+rules:
+  - id: programs-are-host-agnostic
+    description: >-
+      A program is the same on every machine: it knows no host and no
+      secret, even through what it imports.
+    target: "programs/**"
+    forbids:
+      - import: "hosts/**"
+        transitive: true
+      - import: "secrets/**"
+        transitive: true
+    fix: Take what differs per host as an argument, and let the host or a module pass it in.
+
+  - id: programs-are-isolated
+    description: >-
+      A program uses another program only through its entry point (its
+      default.nix).
+    target: "programs/{{program-name}}/**"
+    forbids:
+      - import: "programs/**"
+    allows:
+      - import: "programs/{{program-name}}/**"
+      - import: "programs/*/default"
+    fix: Expose it from the other program's default.nix, or move the shared code.
+
+  - id: hosts-are-identity-only
+    description: >-
+      A host directory says what is unique to one machine - its hardware,
+      disks and network identity - and imports nothing but its own files and
+      nixpkgs' own NixOS modules.
+    target: "hosts/{{host-name}}/**"
+    allows-only:
+      - import: "hosts/{{host-name}}/**"
+      - import: "inputs/nixpkgs/nixos/modules/**"
+    fix: Move what the host shares with others into a module, and let lib add it.
+
+  - id: only-lib-assembles-hosts
+    description: >-
+      lib's builders are the one place that turns a host directory into a
+      system, so every host gets the same shared modules.
+    target: "**"
+    exclude:
+      - "lib/default"
+      - "hosts/**"
+    forbids:
+      - import: "hosts/*/configuration"
+    fix: Add the host to nixosConfigurations or darwinConfigurations in flake.nix, through lib.
+
+  - id: lib-is-private-to-the-flake
+    description: >-
+      lib is the flake's own helpers. Only flake.nix and lib itself import it;
+      everything else is handed what it needs as an argument.
+    target: "**"
+    exclude:
+      - "flake"
+      - "lib/**"
+    forbids:
+      - import: "lib/**"
+    fix: Move what is shared into programs/, or pass it in through specialArgs.
+
+  - id: nixos-is-not-darwin
+    description: NixOS modules never reach nix-darwin modules, even transitively.
+    target: "modules/nixos/**"
+    forbids:
+      - import: "modules/macos/**"
+        transitive: true
+    fix: Move what both platforms share into a module outside modules/nixos and modules/macos.
+
+  - id: darwin-is-not-nixos
+    description: nix-darwin modules never reach NixOS modules, even transitively.
+    target: "modules/macos/**"
+    forbids:
+      - import: "modules/nixos/**"
+        transitive: true
+    fix: Move what both platforms share into a module outside modules/nixos and modules/macos.
+
+  - id: home-is-platform-agnostic
+    description: >-
+      Home Manager modules configure a user's home on any platform, so they
+      import no system module.
+    target: "modules/home/**"
+    forbids:
+      - import: "modules/nixos/**"
+      - import: "modules/macos/**"
+    fix: Configure the system from modules/nixos or modules/macos, and the home from modules/home.
+
+  - id: server-modules-are-server-only
+    description: >-
+      modules/nixos/server holds what only a headless server needs; only lib's
+      server builder and the server modules themselves import it.
+    target: "**"
+    exclude:
+      - "lib/default"
+      - "modules/nixos/server/**"
+    forbids:
+      - import: "modules/nixos/server/**"
+    fix: Move what other machines need too out of modules/nixos/server.
+
+  - id: secrets-are-read-in-one-place
+    description: >-
+      modules/secrets.nix is the one module that knows where ciphertext lives;
+      everything else asks it for a secret's path.
+    target: "**"
+    exclude:
+      - "modules/secrets"
+    forbids:
+      - import: "secrets/**"
+    fix: Declare the secret through myConfig.secrets and read its path from config.
+
+  - id: nothing-imports-the-flake
+    description: flake.nix is the entry point, so nothing imports it.
+    target: "**"
+    forbids:
+      - import: "flake"
+    fix: Import what flake.nix imports instead.

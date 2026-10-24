@@ -1,0 +1,56 @@
+MIT License (Personal Experimentation — Read Disclaimer Below)
+
+Copyright (c) 2026 Iliyan Germanov
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+---
+
+IMPORTANT — PERSONAL EXPERIMENTATION DISCLAIMER
+
+This repository contains the personal NixOS and NixVim configuration of
+Iliyan Germanov, maintained solely for his own experimentation, learning, and
+use on his personal machines. It is explicitly NOT designed, reviewed, tested,
+or maintained for use by any other person or for any production environment.
+
+USERS ARE STRONGLY ADVISED NOT TO USE THIS CONFIGURATION.
+
+This includes, but is not limited to:
+  - Copying system configuration files
+  - Applying disk encryption or SOPS secrets configurations from this repo
+  - Reusing any security-related settings, SSH configuration, or system hardening
+  - Using this as a reference for production NixOS deployments
+
+The configuration in this repository may at any point be:
+  - Incomplete or in a broken state
+  - Intentionally insecure for convenience during local experimentation
+  - Changed without notice in ways that are incompatible, destructive, or unsafe
+  - Based on incorrect assumptions about the author's own hardware and environment
+
+---
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE AUTHOR EXPRESSLY
+DISCLAIMS ALL LIABILITY FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING BUT NOT LIMITED TO: SYSTEM
+DAMAGE OR DATA LOSS, SECURITY BREACHES OR UNAUTHORIZED ACCESS, LOSS OF
+BUSINESS, LOSS OF DATA, OR ANY OTHER PECUNIARY LOSS) ARISING OUT OF THE USE
+OF OR INABILITY TO USE THIS SOFTWARE, EVEN IF THE AUTHOR HAS BEEN ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGES.
+
+USE OF THIS REPOSITORY IN WHOLE OR IN PART IS ENTIRELY AT YOUR OWN RISK.
