@@ -1,6 +1,7 @@
 TsModule
   { path =
-      AbsPath { osPath = "fixtures/typescript/01-line-comments.ts" }
+      AbsPath
+        { osPath = "fixtures/typescript/files/01-line-comments.ts" }
   , cst =
       [ Import
           { prefix = "import '"

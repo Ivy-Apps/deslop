@@ -25,7 +25,7 @@ the test suite.
 **GHC's answers are recorded once and committed; the suite tests against the
 recording**, exactly as ADR 18 does for `tsc`.
 
-`fixtures/ghc-corpus.json` holds hand-authored cases - which files exist and
+`fixtures/haskell/ghc-corpus.json` holds hand-authored cases - which files exist and
 their literal contents, all in one library whose source directory is `src` -
 each with a `ghc` field that is *only* ever written by
 `nix run .#update-ghc-corpus`. That app runs `just update-ghc-corpus` in the

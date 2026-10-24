@@ -77,7 +77,7 @@ additional workflows (`just --list` for all of them):
 | Command | What it does |
 |---------|-------------|
 | `just check` | Full local check: hlint, tests, build, plus a real run against the sandbox project |
-| `just sandbox` | Regenerate `sandbox/` from `fixtures/ts-project-1` for manual testing |
+| `just sandbox` | Regenerate `sandbox/` from `fixtures/typescript/projects/ts-project-1` for manual testing |
 | `just update-golden` | Re-record the hspec-golden snapshots in `.golden/` |
 | `just update-deps` | Update the Nix flake inputs and re-freeze cabal dependencies |
 | `just update-hie` | Regenerate `hie.yaml` |

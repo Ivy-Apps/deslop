@@ -101,8 +101,8 @@ nix run .#update-resolution-corpus
 ```
 
 Re-records what TypeScript itself resolves each case in
-`fixtures/resolution-corpus.json` to, by running `tsc --traceResolution` over a
-temp copy of each case. Only the `tsc` field is written; everything else is
+`fixtures/typescript/resolution-corpus.json` to, by running
+`tsc --traceResolution` over a temp copy of each case. Only the `tsc` field is written; everything else is
 authored by hand.
 
 The committed answers are what `Frontend.TypeScript.ResolutionCorpusSpec` judges our
@@ -117,7 +117,7 @@ here is a claim about what the compiler does. See
 nix run .#update-ghc-corpus
 ```
 
-Re-records what GHC says each case in `fixtures/ghc-corpus.json` depends on,
+Re-records what GHC says each case in `fixtures/haskell/ghc-corpus.json` depends on,
 by running `ghc -M` over a temp copy of each case. Only the `ghc` field is
 written. `Frontend.Haskell.GhcCorpusSpec` judges the Haskell frontend against
 it; the same rule applies as above: a failing corpus test is not a reason to
@@ -126,12 +126,12 @@ run this. See
 
 ### Test fixtures
 
-`fixtures/ts-gitignore-project/` contains real `.gitignore` files, which
-this repository's own git honours too. Anything they ignore must be force-added
+`fixtures/typescript/projects/ts-gitignore-project/` contains real `.gitignore`
+files, which this repository's own git honours too. Anything they ignore must be force-added
 once, or it will silently never be committed:
 
 ```bash
-git add -f fixtures/ts-gitignore-project/<path>
+git add -f fixtures/typescript/projects/ts-gitignore-project/<path>
 ```
 
 ## Architecture

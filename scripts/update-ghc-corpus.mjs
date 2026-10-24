@@ -1,7 +1,7 @@
 // Records what GHC says each module of each case in the ghc corpus depends on.
 //
-// The cases are authored by hand in fixtures/ghc-corpus.json - which files
-// exist and what they hold. This script materialises each one in a temp
+// The cases are authored by hand in fixtures/haskell/ghc-corpus.json - which
+// files exist and what they hold. This script materialises each one in a temp
 // directory, asks `ghc -M` for the dependencies between its files, and writes
 // the answer back into the `ghc` field. Nothing here decides what is correct;
 // the compiler does.
@@ -15,7 +15,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync, rmSy
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-const corpusPath = "fixtures/ghc-corpus.json";
+const corpusPath = "fixtures/haskell/ghc-corpus.json";
 const corpus = JSON.parse(readFileSync(corpusPath, "utf8"));
 
 // `ghc -M` writes one `target : dependency` line per dependency, between two

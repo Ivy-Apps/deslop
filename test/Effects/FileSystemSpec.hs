@@ -6,6 +6,7 @@ import FileSystem.Path (AbsPath (..), decodeOsPath, encodeOsPath, encodeOsPathSt
 import System.Directory.OsPath qualified as SDO
 import System.OsPath (isAbsolute, osp)
 import System.OsString qualified as OS
+import Fixtures.OnDisk (staticTree)
 import Test.Hspec
 
 spec :: Spec
@@ -24,7 +25,7 @@ spec = describe "Effects.FileSystem" $ do
 
     it "fsListDirectory" $ do
         -- Given
-        let path = [osp|fixtures/static|]
+        let path = staticTree
         absPath <- runEff . runRoFileSystemIO $ fsMkAbsolute path
 
         -- When

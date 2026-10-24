@@ -132,7 +132,7 @@ qualifies - its output is an ordinary rulebook.
   means threading the source field through the core language, and it buys one
   word in one message. If a second sugar feature ever feeds an existing field,
   this should be revisited - the cost grows with each one.
-- `fixtures/rulebook/syntax-sugar.yaml` and its
+- `fixtures/shared/rulebook/syntax-sugar.yaml` and its
   `rulebook-from-file--syntax-sugar` golden are this repository's `-ddump-ds`:
   the golden *is* the desugared, compiled output, so what any piece of sugar
   expands to is readable in a diff.

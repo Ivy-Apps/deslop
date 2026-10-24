@@ -12,25 +12,23 @@ import Fixtures.Deslop.Rule.Book.Dto (rulebookYaml)
 import System.OsPath (OsPath, osp, takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
+import Fixtures.OnDisk (rulebooks)
 import TestUtils (listFixtures, mkAbsolute)
 import Text.Show.Pretty (ppShow)
-
-rbFixturesPath :: OsPath
-rbFixturesPath = [osp|fixtures/rulebook|]
 
 spec :: Spec
 spec = describe "Deslop.Rule.Book.Loader" $ do
     describe "loadRulebookFromFile" $
-        runIO (listFixtures rbFixturesPath ".yaml") >>= mapM_ loadRulebookFromFileTest
+        runIO (listFixtures rulebooks ".yaml") >>= mapM_ loadRulebookFromFileTest
     shippedExamplesSpec
     globCompilationSpec
     kebabKeySpec
   where
     loadRulebookFromFileTest :: OsPath -> Spec
     loadRulebookFromFileTest fpath = do
-        let testName = T.unpack $ "rulebook-from-file--" <> decodeOsPath (takeBaseName fpath)
+        let testName = T.unpack $ "shared/rulebook-from-file--" <> decodeOsPath (takeBaseName fpath)
         it ("case: " <> testName) $ do
-            rbPath <- mkAbsolute (rbFixturesPath </> fpath)
+            rbPath <- mkAbsolute (rulebooks </> fpath)
             res <- runEff . runFileSystemIO $ loadRulebookFromFile rbPath
             return $ defaultGolden testName (ppShow res)
 

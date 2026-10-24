@@ -26,12 +26,24 @@ import Frontend.TypeScript.Iterator (getTsFiles)
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
 import System.Directory (removeFile)
-import System.OsPath (OsPath, osp, (</>))
+import System.OsPath (OsPath, osp)
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
-import TestUtils (copyDir, fixturesPath, mkAbsolute, requireJust, snapshot)
+import Fixtures.OnDisk (haskellProject, typescriptProject)
+import TestUtils (copyDir, mkAbsolute, requireJust, snapshot)
 import UI (coverage, humanReadable, problemsFoundText)
 import UnliftIO.Temporary (withSystemTempDirectory)
+
+-- | Which language a fixture project is written in, and so where it and its goldens live.
+data Language = TypeScript | Haskell
+
+projectIn :: Language -> String -> OsPath
+projectIn TypeScript = typescriptProject
+projectIn Haskell = haskellProject
+
+goldenDir :: Language -> String
+goldenDir TypeScript = "typescript/"
+goldenDir Haskell = "haskell/"
 
 {- | The 'Params' every golden run starts from. Only this spec runs 'doWork'
 end to end, so it is the only place that needs one.
@@ -47,45 +59,46 @@ defaultParams projPath = do
 
 spec :: Spec
 spec = describe "E2E.Project" $ do
-    itChecks "ts-project-1"
-    itChecks "ixartz-next-js-boilerplate"
-    itChecks "melzar-nextjs-clean-architecture"
-    itChecks "ts-cycles-project"
-    itChecks "ts-gitignore-project"
-    itChecks "ts-globplus-project"
-    itChecks "ts-casing-project"
-    itChecks "ts-monorepo-project"
-    itChecks "ts-barrel-project"
-    itChecks "ts-unscanned-project"
-    itChecks "ts-not-utf8-project"
+    itChecks TypeScript "ts-project-1"
+    itChecks TypeScript "ixartz-next-js-boilerplate"
+    itChecks TypeScript "melzar-nextjs-clean-architecture"
+    itChecks TypeScript "ts-cycles-project"
+    itChecks TypeScript "ts-gitignore-project"
+    itChecks TypeScript "ts-globplus-project"
+    itChecks TypeScript "ts-casing-project"
+    itChecks TypeScript "ts-monorepo-project"
+    itChecks TypeScript "ts-barrel-project"
+    itChecks TypeScript "ts-unscanned-project"
+    itChecks TypeScript "ts-not-utf8-project"
 
-    itFailsToLoadRulebook "ts-invalid-rulebook-project"
-    itFailsToLoadConfig "tsconfig-error-" "ts-broken-extends-project"
+    itFailsToLoadRulebook TypeScript "ts-invalid-rulebook-project"
+    itFailsToLoadConfig TypeScript "tsconfig-error-" "ts-broken-extends-project"
 
-    itChecks "hs-tiny-project"
-    itBaselines "hs-tiny-project"
-    itFailsToLoadConfig "cabal-error-" "hs-multi-package-project"
-    itFailsToLoadConfig "cabal-error-" "hs-two-packages-project"
+    itChecks Haskell "hs-tiny-project"
+    itBaselines Haskell "hs-tiny-project"
+    itFailsToLoadConfig Haskell "cabal-error-" "hs-multi-package-project"
+    itFailsToLoadConfig Haskell "cabal-error-" "hs-two-packages-project"
     itChecksItself
 
     itFindsNoLanguage
     itFindsNoLanguageInMissingPath
-    itReportsRulebookBeforeLanguage "ts-invalid-rulebook-project"
+    itReportsRulebookBeforeLanguage TypeScript "ts-invalid-rulebook-project"
 
-    itBaselines "ts-project-1"
-    itBaselines "ixartz-next-js-boilerplate"
-    itBaselines "melzar-nextjs-clean-architecture"
-    itBaselines "ts-cycles-project"
-    itBaselines "ts-gitignore-project"
-    itBaselines "ts-globplus-project"
-    itBaselines "ts-casing-project"
-    itBaselines "ts-monorepo-project"
-    itBaselines "ts-barrel-project"
-    itBaselines "ts-unscanned-project"
+    itBaselines TypeScript "ts-project-1"
+    itBaselines TypeScript "ixartz-next-js-boilerplate"
+    itBaselines TypeScript "melzar-nextjs-clean-architecture"
+    itBaselines TypeScript "ts-cycles-project"
+    itBaselines TypeScript "ts-gitignore-project"
+    itBaselines TypeScript "ts-globplus-project"
+    itBaselines TypeScript "ts-casing-project"
+    itBaselines TypeScript "ts-monorepo-project"
+    itBaselines TypeScript "ts-barrel-project"
+    itBaselines TypeScript "ts-unscanned-project"
 
-    itIterates "ts-gitignore-project"
+    itIterates TypeScript "ts-gitignore-project"
 
     itFixes
+        TypeScript
         "ts-barrel-project"
         [ "src/lib/index.ts"
         , "src/lib/literals.ts" -- statement-shaped text, must not be rewritten
@@ -93,6 +106,7 @@ spec = describe "E2E.Project" $ do
         ]
 
     itFixes
+        TypeScript
         "ts-project-1"
         [ "src/app/[locale]/login/page.tsx"
         , "src/features/home/home-screen.tsx"
@@ -109,6 +123,7 @@ spec = describe "E2E.Project" $ do
         ]
 
     itFixes
+        TypeScript
         "ixartz-next-js-boilerplate"
         [ ".storybook/preview.ts"
         , "next.config.ts"
@@ -124,6 +139,7 @@ spec = describe "E2E.Project" $ do
         ]
 
     itFixes
+        TypeScript
         "melzar-nextjs-clean-architecture"
         [ "src/app/layout.tsx"
         , "src/ui/common/components/layout/ContainerBox/ContainerBox.tsx"
@@ -135,6 +151,7 @@ spec = describe "E2E.Project" $ do
         ]
 
     itFixes
+        TypeScript
         "ts-monorepo-project"
         [ "packages/app/src/main.ts"
         , "packages/app/src/checkout.ts"
@@ -171,9 +188,9 @@ spec = describe "E2E.Project" $ do
     -- Goldens exactly which files the iteration produced. Unlike the check and
     -- baseline goldens, which can only show a skipped file as an absence, this
     -- states the outcome positively: a regression makes a named path appear.
-    itIterates project = it ("iterates " <> project) $ do
+    itIterates language project = it ("iterates " <> project) $ do
         -- Given
-        let projectPath = fixturesPath </> encodeOsPathString project
+        let projectPath = projectIn language project
         absProjectPath <- mkAbsolute projectPath
 
         -- When
@@ -182,7 +199,7 @@ spec = describe "E2E.Project" $ do
                 loadGitIgnore jsEcosystemIgnored absProjectPath >>= (`getTsFiles` absProjectPath)
 
         -- Then
-        pure . defaultGolden ("iterated-" <> project) . T.unpack . T.unlines . sort $
+        pure . defaultGolden (goldenDir language <> "iterated-" <> project) . T.unpack . T.unlines . sort $
             fmap (decodeOsPath . (.osPath) . relativePathTo (ProjectRoot absProjectPath)) files
 
     -- A rulebook deslop cannot use must abort the run before any file is
@@ -191,9 +208,9 @@ spec = describe "E2E.Project" $ do
     -- The fixture holds both ways a rulebook can be unusable, because the
     -- report has to survive the mixture: two files whose patterns do not
     -- compile, and two that never parsed at all because of an unknown key.
-    itFailsToLoadRulebook project = it ("refuses to run " <> project) $ do
+    itFailsToLoadRulebook language project = it ("refuses to run " <> project) $ do
         -- Given
-        let projectPath = fixturesPath </> encodeOsPathString project
+        let projectPath = projectIn language project
         filesRef <- newIORef Nothing
         logsRef <- newIORef (TestLogs [])
         defParams <- defaultParams projectPath
@@ -215,15 +232,15 @@ spec = describe "E2E.Project" $ do
         written <- readIORef filesRef
         written `shouldBe` Nothing
         logs <- readIORef logsRef
-        pure . defaultGolden ("rulebook-error-" <> project) . T.unpack $
+        pure . defaultGolden (goldenDir language <> "rulebook-error-" <> project) . T.unpack $
             renderTranscript logs <> renderResult res
 
     -- A project configuration Deslop cannot use must abort the run before any
     -- file is checked, naming the file at fault: a tsconfig whose `extends`
     -- names a file that is not there, a cabal.project of several packages.
-    itFailsToLoadConfig goldenPrefix project = it ("refuses to run " <> project) $ do
+    itFailsToLoadConfig language goldenPrefix project = it ("refuses to run " <> project) $ do
         -- Given
-        let projectPath = fixturesPath </> encodeOsPathString project
+        let projectPath = projectIn language project
         filesRef <- newIORef Nothing
         logsRef <- newIORef (TestLogs [])
         defParams <- defaultParams projectPath
@@ -245,7 +262,7 @@ spec = describe "E2E.Project" $ do
         written <- readIORef filesRef
         written `shouldBe` Nothing
         logs <- readIORef logsRef
-        pure . defaultGolden (goldenPrefix <> project) . T.unpack $
+        pure . defaultGolden (goldenDir language <> goldenPrefix <> project) . T.unpack $
             renderTranscript logs <> renderResult res
 
     -- A directory no frontend recognises cannot be checked at all; saying so
@@ -296,12 +313,12 @@ spec = describe "E2E.Project" $ do
 
     -- Detecting the language must not reorder what a broken project hears
     -- first: its Rulebooks are read before any language is required.
-    itReportsRulebookBeforeLanguage project =
+    itReportsRulebookBeforeLanguage language project =
         it ("reports the broken rulebooks of " <> project <> " before finding no language") $
             withSystemTempDirectory "deslop-test" $ \tmpFp -> do
                 -- Given
                 let tmpDir = encodeOsPathString tmpFp
-                copyDir (fixturesPath </> encodeOsPathString project) tmpDir
+                copyDir (projectIn language project) tmpDir
                 removeFile (tmpFp <> "/tsconfig.json")
                 params <- defaultParams tmpDir
 
@@ -344,9 +361,9 @@ spec = describe "E2E.Project" $ do
         logs <- readIORef logsRef
         (renderTranscript logs, fmap (.verdict) res) `shouldSatisfy` ((== Right Clean) . snd)
 
-    itChecks project = it ("checks " <> project) $ do
+    itChecks language project = it ("checks " <> project) $ do
         -- Given
-        let projectPath = fixturesPath </> encodeOsPathString project
+        let projectPath = projectIn language project
         filesRef <- newIORef Nothing
         logsRef <- newIORef (TestLogs [])
         defParams <- defaultParams projectPath
@@ -367,12 +384,12 @@ spec = describe "E2E.Project" $ do
         written <- readIORef filesRef
         written `shouldBe` Nothing
         logs <- readIORef logsRef
-        pure . defaultGolden ("check-" <> project) . T.unpack $
+        pure . defaultGolden (goldenDir language <> "check-" <> project) . T.unpack $
             renderTranscript logs <> renderResult res
 
-    itBaselines project = it ("baselines " <> project) $ do
+    itBaselines language project = it ("baselines " <> project) $ do
         -- Given
-        let projectPath = fixturesPath </> encodeOsPathString project
+        let projectPath = projectIn language project
         filesRef <- newIORef Nothing
         logsRef <- newIORef (TestLogs [])
         defParams <- defaultParams projectPath
@@ -396,17 +413,17 @@ spec = describe "E2E.Project" $ do
             . baselineEntries
             $ content
         logs <- readIORef logsRef
-        pure . defaultGolden ("baseline-" <> project) . T.unpack $
+        pure . defaultGolden (goldenDir language <> "baseline-" <> project) . T.unpack $
             renderTranscript logs
                 <> renderResult res
                 <> "\n>>> baseline.yaml\n"
                 <> TE.decodeUtf8 content
 
-    itFixes project filesToCheck = it ("fixes " <> project) $ do
+    itFixes language project filesToCheck = it ("fixes " <> project) $ do
         withSystemTempDirectory "deslop-test" $ \tmpFp -> do
             let tmpDir = encodeOsPathString tmpFp
             -- Given
-            let projectPath = fixturesPath </> encodeOsPathString project
+            let projectPath = projectIn language project
             copyDir projectPath tmpDir
             params <- defaultParams tmpDir
             logsRef <- newIORef (TestLogs [])
@@ -428,5 +445,5 @@ spec = describe "E2E.Project" $ do
             -- Files are repaired concurrently; the changelog must not say so.
             modified `shouldBe` sort modified
             fullSnapshot <- snapshot tmpDir filesToCheck
-            return . defaultGolden ("fix-" <> project) $
+            return . defaultGolden (goldenDir language <> "fix-" <> project) $
                 fullSnapshot <> "\n>>> changelog\n" <> T.unpack (T.unlines modified)

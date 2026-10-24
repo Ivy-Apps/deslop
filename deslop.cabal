@@ -202,6 +202,7 @@ test-suite deslop-test
     Fixtures.Frontend.Haskell.CST
     Fixtures.Frontend.Haskell.Project
     Fixtures.Frontend.TypeScript.Config
+    Fixtures.OnDisk
     Frontend.Haskell.CabalSpec
     Frontend.Haskell.CSTSpec
     Frontend.Haskell.GhcCorpusSpec

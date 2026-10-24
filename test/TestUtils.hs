@@ -13,7 +13,6 @@ module TestUtils (
     pathSafeGolden,
 
     -- * Fixtures on disk
-    fixturesPath,
     listFixtures,
     copyDir,
 
@@ -86,9 +85,6 @@ pathSafeGolden name content = do
 --------------------------------------------------------------------------------
 -- Fixtures on disk
 --------------------------------------------------------------------------------
-
-fixturesPath :: OsPath
-fixturesPath = [osp|fixtures|]
 
 listFixtures :: OsPath -> String -> IO [OsPath]
 listFixtures dir ext = do

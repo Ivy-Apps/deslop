@@ -1,6 +1,7 @@
 TsModule
   { path =
-      AbsPath { osPath = "fixtures/typescript/02-multiline-import.ts" }
+      AbsPath
+        { osPath = "fixtures/typescript/files/02-multiline-import.ts" }
   , cst =
       [ Import
           { prefix = "import {\n    itemsPerPage,\n    itemInfo,\n} from '"

@@ -8,21 +8,19 @@ import Frontend.TypeScript.Parser
 import Frontend.TypeScript.Tokens
 import Renderable (Renderable (render))
 import System.File.OsPath qualified as SFO
-import System.OsPath (OsPath, osp, takeBaseName, (</>))
+import System.OsPath (OsPath, takeBaseName, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
+import Fixtures.OnDisk (typescriptFiles)
 import TestUtils (listFixtures, requireRight)
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 import Text.Show.Pretty (ppShow)
 
-tsFixturesPath :: OsPath
-tsFixturesPath = [osp|fixtures/typescript|]
-
 spec :: Spec
 spec = do
     describe "E2E.File" $
-        runIO (listFixtures tsFixturesPath ".ts") >>= mapM_ tsGoldenTest
+        runIO (listFixtures typescriptFiles ".ts") >>= mapM_ tsGoldenTest
   where
     tsGoldenTest :: OsPath -> Spec
     tsGoldenTest filename = do
@@ -31,7 +29,7 @@ spec = do
 
         it ("Lexer " <> testName) $ do
             -- Given
-            source <- decodeUtf8 <$> SFO.readFile' (tsFixturesPath </> filename)
+            source <- decodeUtf8 <$> SFO.readFile' (typescriptFiles </> filename)
 
             -- When
             let res = runParser lexer fnameStr source
@@ -39,11 +37,11 @@ spec = do
             -- Then
             tokens <- requireRight errorBundlePretty res
             reconstruct tokens `shouldBe` source
-            return $ defaultGolden (testName <> "-lexer") (ppShow tokens)
+            return $ defaultGolden ("typescript/" <> testName <> "-lexer") (ppShow tokens)
 
         it ("Parse " <> testName) $ do
             -- Given
-            let path = tsFixturesPath </> filename
+            let path = typescriptFiles </> filename
             source <- decodeUtf8 <$> SFO.readFile' path
 
             -- When
@@ -51,7 +49,7 @@ spec = do
 
             -- Then
             render p.cst `shouldBe` source
-            return $ defaultGolden (testName <> "-parser") (ppShow p)
+            return $ defaultGolden ("typescript/" <> testName <> "-parser") (ppShow p)
 
 reconstruct :: [TsToken] -> T.Text
 reconstruct = foldMap (.raw)

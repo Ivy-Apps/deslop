@@ -12,9 +12,10 @@ import Frontend.TypeScript.Config.Loader (
     loadTsConfig,
     renderTsConfigLoadError,
  )
+import Fixtures.OnDisk (typescriptConfigs)
 import Hedgehog (Gen, evalIO, forAll, success)
 import Hedgehog.Gen qualified as Gen
-import System.OsPath (osp, (</>))
+import System.OsPath ((</>))
 import Test.Hspec
 import TestUtils (ap, mkAbsolute, pathSafeGolden, prop, requireRight)
 import Text.Show.Pretty (ppShow)
@@ -197,9 +198,9 @@ spec = describe "Frontend.TypeScript.Config.Loader" $ do
                 ]
         forM_ cases $ \file ->
             it file $ do
-                cfgPath <- mkAbsolute ([osp|fixtures/typescript/config|] </> encodeOsPath (T.pack file))
+                cfgPath <- mkAbsolute (typescriptConfigs </> encodeOsPath (T.pack file))
                 res <- runEff . runFileSystemIO $ loadTsConfig cfgPath
-                pathSafeGolden ("loadTsConfig-" <> file) (ppShow res)
+                pathSafeGolden ("typescript/loadTsConfig-" <> file) (ppShow res)
 
 --------------------------------------------------------------------------------
 -- Running the loader

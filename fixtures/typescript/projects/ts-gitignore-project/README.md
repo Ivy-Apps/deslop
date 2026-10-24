@@ -26,7 +26,7 @@ too, so anything they ignore is untracked and will not be committed by an
 ordinary `git add`. Force it:
 
 ```sh
-git add -f fixtures/ts-gitignore-project/<path>
+git add -f fixtures/typescript/projects/ts-gitignore-project/<path>
 ```
 
 Once tracked, git leaves the file alone, so this is a one-time step per file.

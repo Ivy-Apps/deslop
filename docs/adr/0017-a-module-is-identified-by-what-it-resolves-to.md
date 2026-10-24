@@ -30,7 +30,7 @@ Every disagreement is a dropped chain, and the report says nothing about it:
 - **The baseline changed the graph.** The AST was built from the CST *after*
   the lint pass rewrote it, so accepting a `no-relative-imports` Problem left a
   raw `./helper` as an edge key and truncated every chain through it.
-  `fixtures/ts-project-1` did exactly this, hiding a real violation.
+  `fixtures/typescript/projects/ts-project-1` did exactly this, hiding a real violation.
 
 All four are one defect: a `forbids: transitive: true` rule stops checking
 partway and CI stays green, which is worse than having no rule, because a
@@ -129,7 +129,7 @@ and Kotlin have no such construct and mint only `ImportEdge`.
 vacuously on a name nothing on disk answers to, and cycles through a re-export
 are found.
 
-Chains that were being silently truncated now report. `fixtures/ts-project-1`
+Chains that were being silently truncated now report. `fixtures/typescript/projects/ts-project-1`
 gains one violation that the Baseline had been hiding - a true positive, and
 the reason P12 in `TypeScript.Lint.RelativeSpecifiersPropSpec` exists.
 
@@ -147,7 +147,7 @@ An `UnscannedModule` has no outgoing edges, so a `transitive: true` chain stops
 there and says nothing about it - the same class of defect this ADR is about, in
 its last remaining form. `ParsedModule`/`UnscannedModule`/`ExternalModule` are
 separate constructors so that a report *can* say which happened;
-`fixtures/ts-unscanned-project` is the case, and making the report say it is
+`fixtures/typescript/projects/ts-unscanned-project` is the case, and making the report say it is
 [#225](https://github.com/Ivy-Apps/deslop/issues/225).
 
 `TypeScript.Module` lowers the CST *after* the lint pass has rewritten it, so a

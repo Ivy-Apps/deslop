@@ -159,7 +159,7 @@ a literal step before folding, so exactly one rendering comes out and
   what some ladder of `..` says. P31 pins that a `Deterministic` pattern always
   yields a module, which is what keeps the enforcer's retained `InvalidRuleConfig`
   branch unreachable.
-- `fixtures/ts-globplus-project` gains `views-reach-shared-at-any-depth`.
+- `fixtures/typescript/projects/ts-globplus-project` gains `views-reach-shared-at-any-depth`.
   `BadgeView`, which exists in that fixture precisely because it violates the
   fixed `../shared/format-money` rule *only* on account of its depth, satisfies
   the `..*` one - which is the difference this ADR is about, pinned end to end.

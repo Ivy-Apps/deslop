@@ -49,11 +49,11 @@ deslop-self:
     cabal build exe:deslop
     cabal run -v0 deslop -- check .
 
-# Re-record what `tsc` resolves each case in fixtures/resolution-corpus.json to
+# Re-record what `tsc` resolves each case in fixtures/typescript/resolution-corpus.json to
 update-resolution-corpus:
     node scripts/update-resolution-corpus.mjs
 
-# Re-record what `ghc -M` says each case in fixtures/ghc-corpus.json depends on
+# Re-record what `ghc -M` says each case in fixtures/haskell/ghc-corpus.json depends on
 update-ghc-corpus:
     node scripts/update-ghc-corpus.mjs
 
@@ -69,7 +69,7 @@ update-benchmark:
 @sandbox:
     rm -rf sandbox
     mkdir -p sandbox
-    cp -a fixtures/ts-project-1/. sandbox/
+    cp -a fixtures/typescript/projects/ts-project-1/. sandbox/
     echo 'Sandbox generated ✅'
 
 # Update Dependencies versions by updating the Nix flake input
