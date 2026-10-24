@@ -257,9 +257,11 @@ Tests mirror `src/`:
     and writes, and `runWritesInMemory`, which records every write by path.
 - `E2E.ProjectGoldenSpec` runs `doWork` in-process through one runner
   (`runDeslopOn`) and goldens what each fixture project prints for check,
-  baseline and fix. `E2E.ExecutableSpec` runs the real `deslop` executable
-  (a `build-tool-depends` of the suite) for what only a process shows: exit
-  codes, stdout versus stderr, and the command line. Keep it to a handful.
+  baseline and fix. `E2E.CommandLineSpec` pins what surrounds a run, still
+  in-process: the exit code `Deslop.deslop` returns, the reason it logs as an
+  `Error` (stderr), and what `paramsParser` answers for `--help`, `--version`
+  and bad arguments. Keep it to a handful. No test spawns the `deslop`
+  executable: a `build-tool-depends` on it breaks `quick-typecheck`.
 - `fixtures/` (repo root) cannot live under `test/` - it would collide with
   `test/Fixtures/` on macOS.
 

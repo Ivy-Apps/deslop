@@ -1,4 +1,5 @@
 module Deslop (
+    deslop,
     doWork,
     runDeslop,
 ) where
@@ -35,34 +36,53 @@ import FileSystem.Path (
  )
 import Frontend (detectFrontend, lookedFor)
 import Params (Command (..), Params (..), ParamsDto (..), paramsFromDto)
+import System.Exit (ExitCode (..))
 import System.OsPath (takeFileName)
 import UI (divider, humanReadable, problemsFoundText, problemsLogText, summaryLine)
 import Utils (pluralise)
 
+{- | The @deslop@ executable: one run against the real terminal and filesystem,
+exiting as it says.
+-}
 runDeslop :: ParamsDto -> IO ()
-runDeslop paramsDto =
-    runEff
-        . runFileSystemIO
-        . runCLI
-        . runConcurrent
-        . runReportProblem
-        $ do
-            start <- liftIO getCurrentTime
-            res <-
-                runErrorNoCallStack @DeslopError $
-                    paramsFromDto paramsDto >>= doWork
-            end <- liftIO getCurrentTime
-            case res of
-                Left err -> failWith . humanReadable $ err
-                Right report -> do
-                    cliLog Plain . summaryLine report.summary $ diffUTCTime end start
-                    case report.verdict of
-                        Clean -> pure ()
-                        ProblemsFound counts -> failWith . problemsFoundText $ counts
+runDeslop =
+    exitWith
+        <=< runEff
+            . runFileSystemIO
+            . runCLI
+            . runConcurrent
+            . deslop
+
+{- | One whole run of a command, from the command line's parameters to the exit
+code a CI job gates on: non-zero, with the reason logged as an 'Error', when the
+run fails or check finds problems.
+-}
+deslop ::
+    ( WrFileSystem :> es
+    , RoFileSystem :> es
+    , CLI :> es
+    , IOE :> es
+    , Concurrent :> es
+    ) =>
+    ParamsDto ->
+    Eff es ExitCode
+deslop paramsDto = runReportProblem $ do
+    start <- liftIO getCurrentTime
+    res <-
+        runErrorNoCallStack @DeslopError $
+            paramsFromDto paramsDto >>= doWork
+    end <- liftIO getCurrentTime
+    case res of
+        Left err -> failWith . humanReadable $ err
+        Right report -> do
+            cliLog Plain . summaryLine report.summary $ diffUTCTime end start
+            case report.verdict of
+                Clean -> pure ExitSuccess
+                ProblemsFound counts -> failWith . problemsFoundText $ counts
   where
     failWith msg = do
         cliLog Error $ "❌ Error: " <> msg
-        liftIO exitFailure
+        pure $ ExitFailure 1
 
 doWork ::
     ( WrFileSystem :> es

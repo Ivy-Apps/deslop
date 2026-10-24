@@ -93,7 +93,7 @@ additional workflows (`just --list` for all of them):
 | `src/Frontend.hs` | The registry of supported languages, tried in order |
 | `src/Frontend/TypeScript/` | TypeScript lexer, parser, CST, module resolver, tsconfig handling |
 | `src/Effects/` | `effectful` effects for CLI, file system, and problem reporting |
-| `test/` | hspec suites, plus `test/E2E/` golden and executable tests |
+| `test/` | hspec suites, plus `test/E2E/` golden and command-line tests |
 | `fixtures/` | Sample projects and files by language (`typescript/`, `haskell/`, `nix/`), and rulebooks (`shared/`), used by tests |
 | `.golden/` | Recorded golden output for the E2E tests, by language |
 | `npm/` | npm wrapper package and per-platform binary packages |
