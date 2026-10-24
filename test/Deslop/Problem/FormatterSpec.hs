@@ -4,9 +4,10 @@ import Data.Text qualified as T
 import Deslop.Module (EdgeKind (..), Location (..), ModuleName (..), moduleNameUnsafe)
 import Deslop.Problem (Problem (..), ViolationKind (..))
 import Deslop.Problem.Formatter (CodeFence (..), formatProblem)
-import Fixtures.Deslop.Problem (BrokenRule (..), autoFixable, brokenRule, describedAs, lintProblemAt, locatedAt, reportedFrom, withFix)
+import Fixtures.Deslop.Problem (BrokenRule (..), autoFixable, brokenRule, describedAs, lintProblemAt, locatedAt, withFix)
 import Fixtures.Deslop.Problem qualified as Fixture
 import Test.Hspec (Spec, describe, it, shouldBe, shouldSatisfy)
+import TestUtils (rp)
 
 lintProblem :: Problem
 lintProblem =
@@ -27,6 +28,12 @@ violationOf = reportedFrom "src/lib/util.ts" . Fixture.violationOf barrelRule "@
             { ruleProse = "Barrel imports are forbidden"
             , ruleFix = "Import directly from the module"
             }
+
+-- | A Rule Violation by a module whose source sits elsewhere than 'Fixture.violationOf' puts it.
+reportedFrom :: Text -> Problem -> Problem
+reportedFrom path = \case
+    p@LintProblem {} -> p
+    p@RuleViolation {} -> p {modulePath = rp path}
 
 {- | A statement written at a given line of the module every violation here is
 reported against.

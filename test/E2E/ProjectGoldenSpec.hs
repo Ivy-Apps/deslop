@@ -65,7 +65,7 @@ spec = describe "E2E.Project" $ do
 
     itFindsNoLanguage
     itFindsNoLanguageInMissingPath
-    itReportsRulebookBeforeLanguage TypeScript "ts-invalid-rulebook-project"
+    itReportsRulebookBeforeLanguage "ts-invalid-rulebook-project"
 
     itBaselines TypeScript "ts-project-1"
     itBaselines TypeScript "ixartz-next-js-boilerplate"
@@ -79,7 +79,7 @@ spec = describe "E2E.Project" $ do
     itBaselines TypeScript "ts-unscanned-project"
     itBaselines TypeScript "ts-not-utf8-project"
 
-    itIterates TypeScript "ts-gitignore-project"
+    itIterates "ts-gitignore-project"
 
     itFixes
         TypeScript
@@ -304,18 +304,19 @@ itLeavesUnreadFilesAlone language project file =
 {- | Goldens exactly which files the walk produced. Unlike the check and
 baseline goldens, which can only show a skipped file as an absence, this
 states the outcome positively: a regression makes a named path appear. Goes
-through the frontend's own stages, strung together as the driver strings them.
+through the TypeScript frontend's own stages, strung together as the driver
+strings them.
 -}
-itIterates :: Language -> String -> Spec
-itIterates language project = it ("iterates " <> project) $ do
-    projectRoot <- ProjectRoot <$> mkAbsolute (projectIn language project)
+itIterates :: String -> Spec
+itIterates project = it ("iterates " <> project) $ do
+    projectRoot <- ProjectRoot <$> mkAbsolute (projectIn TypeScript project)
 
     files <- runEff . runRoFileSystemIO $ do
         (cfg, _) <- either (error . Renderable.render) id <$> loadConfig TsFrontend projectRoot
         gitIgnore <- loadGitIgnore (ecosystemIgnored TsFrontend cfg) projectRoot.path
         discover TsFrontend cfg projectRoot gitIgnore
 
-    pure . projectGolden language "iterated" project . T.unpack . T.unlines . sort $
+    pure . projectGolden TypeScript "iterated" project . T.unpack . T.unlines . sort $
         fmap (decodeOsPath . (.osPath) . relativePathTo projectRoot) files
 
 {- | A rulebook deslop cannot use must abort the run before any file is
@@ -377,10 +378,10 @@ itFindsNoLanguageInMissingPath = it "refuses to run a project path that does not
 {- | Detecting the language must not reorder what a broken project hears
 first: its Rulebooks are read before any language is required.
 -}
-itReportsRulebookBeforeLanguage :: Language -> String -> Spec
-itReportsRulebookBeforeLanguage language project =
+itReportsRulebookBeforeLanguage :: String -> Spec
+itReportsRulebookBeforeLanguage project =
     it ("reports the broken rulebooks of " <> project <> " before finding no language")
-        . runDeslopOnCopy CheckC language project (removeFile . (</> [osp|tsconfig.json|]))
+        . runDeslopOnCopy CheckC TypeScript project (removeFile . (</> [osp|tsconfig.json|]))
         $ \_ run -> run.result `shouldSatisfy` isRulebookError
 
 {- | Deslop's own layering (deslop/rules/), judged by its own Haskell frontend.

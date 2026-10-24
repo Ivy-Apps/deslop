@@ -15,19 +15,16 @@ module Fixtures.Deslop.Problem (
     BrokenRule (..),
     brokenRule,
     violationOf,
-    importedBy,
 
     -- * Modifiers
     describedAs,
     withFix,
     autoFixable,
-    reportedFrom,
 ) where
 
-import Deslop.Module (EdgeKind (ImportEdge), Location (..), Module, moduleNameUnsafe)
+import Deslop.Module (Location (..), moduleNameUnsafe)
 import Deslop.Problem (LintRuleId (..), Problem (..), ViolationKind (..))
 import Deslop.Rule.Book (RuleId (..), RulebookId (..))
-import Fixtures.Deslop.Module (edgeTo)
 import TestUtils (rp)
 
 {- | A Lint Problem of the rule at the location, which @deslop fix@ cannot
@@ -83,15 +80,6 @@ violationOf broken bad kind =
         , fix = broken.ruleFix
         }
 
--- | The module importing @dep@ directly, at the line 'Fixtures.Deslop.Module.mkModule' gave it.
-importedBy :: Module -> Text -> ViolationKind
-importedBy m dep =
-    DirectImport
-        { imported = moduleNameUnsafe dep
-        , edge = ImportEdge
-        , location = edgeTo m dep
-        }
-
 -- | A Lint Problem described in other words. A Rule Violation's prose is its Rule's.
 describedAs :: Text -> Problem -> Problem
 describedAs description = \case
@@ -109,9 +97,3 @@ autoFixable :: Problem -> Problem
 autoFixable = \case
     p@LintProblem {} -> p {autoFixable = True}
     p@RuleViolation {} -> p
-
--- | A Rule Violation by a module whose source sits elsewhere than 'violationOf' puts it.
-reportedFrom :: Text -> Problem -> Problem
-reportedFrom path = \case
-    p@LintProblem {} -> p
-    p@RuleViolation {} -> p {modulePath = rp path}

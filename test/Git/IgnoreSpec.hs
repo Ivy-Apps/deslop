@@ -5,7 +5,8 @@ import Data.Text qualified as T
 import Doubles.FileSystem (mockTree, runMockRoFileSystem)
 import Effectful (runPureEff)
 import FileSystem.Iterator (Entry (..))
-import FileSystem.Path (AbsPath)
+import FileSystem.Path (ProjectRoot (..))
+import Fixtures.FileSystem.Path (inProject, projectRoot)
 import Fixtures.Git.Ignore (gitIgnoreWith)
 import Git.Ignore (GitIgnore, alwaysIgnored, isIgnored, loadGitIgnore)
 import Hedgehog (Gen, cover, discard, forAll, (===))
@@ -17,25 +18,18 @@ import System.Exit (ExitCode (..))
 import System.FilePath (takeDirectory)
 import System.Process (CreateProcess (..), proc, readCreateProcessWithExitCode)
 import Test.Hspec
-import TestUtils (ap, prop)
+import TestUtils (prop)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
 
-projectRoot :: AbsPath
-projectRoot = ap "/proj"
-
-inProject :: Text -> AbsPath
-inProject "" = projectRoot
-inProject p = ap ("/proj/" <> p)
-
 {- | The 'GitIgnore' of a project holding exactly these @.gitignore@ files,
 keyed by the project-relative directory each sits in.
 -}
 gitIgnoreOf :: [(Text, Text)] -> GitIgnore
-gitIgnoreOf = gitIgnoreWith (const False) projectRoot
+gitIgnoreOf = gitIgnoreWith (const False) projectRoot.path
 
 rootOnly :: Text -> GitIgnore
 rootOnly content = gitIgnoreOf [("", content)]
@@ -355,7 +349,7 @@ uncommittedSpec = describe "what is not a committed .gitignore" $ do
     inTree :: [(Text, Text)] -> GitIgnore
     inTree files =
         runPureEff . runMockRoFileSystem (mockTree [(inProject path, encodeUtf8 content) | (path, content) <- files]) $
-            loadGitIgnore (const False) projectRoot
+            loadGitIgnore (const False) projectRoot.path
 
 ecosystemSpec :: Spec
 ecosystemSpec = describe "what the language's tooling generates" $ do
@@ -371,7 +365,7 @@ ecosystemSpec = describe "what the language's tooling generates" $ do
     it "still honours the gitignore rules alongside it" $
         ignoresFile (withVendor "*.log") "debug.log" `shouldBe` True
   where
-    withVendor content = gitIgnoreWith ((== inProject "vendor") . (.path)) projectRoot [("", content)]
+    withVendor content = gitIgnoreWith ((== inProject "vendor") . (.path)) projectRoot.path [("", content)]
 
 orderingProps :: Spec
 orderingProps = describe "ordering and negation laws" $ do

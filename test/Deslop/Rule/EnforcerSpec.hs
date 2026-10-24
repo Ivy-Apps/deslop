@@ -2,7 +2,7 @@ module Deslop.Rule.EnforcerSpec (spec) where
 
 import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Error (DeslopError (..))
-import Deslop.Module (Module (..), moduleNameUnsafe)
+import Deslop.Module (EdgeKind (ImportEdge), Module (..), moduleNameUnsafe)
 import Deslop.Problem (Problem (..), ViolationKind (..))
 import Deslop.Rule.Book (RuleId (..), Rulebook, RulebookId (..))
 import Deslop.Rule.Book.Compiler (CompileError (..), Field (..))
@@ -13,8 +13,9 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Fixtures.Deslop.Module (edgeTo, mkModule)
-import Fixtures.Deslop.Problem (BrokenRule (..), importedBy, violationOf)
-import Fixtures.Deslop.Rule.Book (rulebookFrom, rulebookOf)
+import Fixtures.Deslop.Problem (BrokenRule (..), violationOf)
+import Fixtures.Deslop.Rule.Book (loadRulebookBytes)
+import Fixtures.Deslop.Rule.Book.Dto (rulebookYamlOf)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn, shouldSatisfy)
 import TestUtils (requireRight)
 
@@ -24,6 +25,24 @@ import TestUtils (requireRight)
 -- Written as their authors would write them and loaded through the loader, so
 -- every rule here reaches the enforcer exactly as a real rulebook does.
 --------------------------------------------------------------------------------
+
+-- | The rulebook of that id holding these rules, each written as 'rulebookYamlOf' takes it.
+rulebookOf :: Text -> [[Text]] -> Either RulebookLoadError Rulebook
+rulebookOf rulebookId = loadRulebookBytes . rulebookYamlOf rulebookId
+
+-- | As 'rulebookOf', for a rulebook the spec relies on being valid.
+rulebookFrom :: (HasCallStack) => Text -> [[Text]] -> Rulebook
+rulebookFrom rulebookId =
+    either (error . ("rulebook fixture does not load: " <>) . show) id . rulebookOf rulebookId
+
+-- | The module importing @dep@ directly, at the line 'Fixtures.Deslop.Module.mkModule' gave it.
+importedBy :: Module -> Text -> ViolationKind
+importedBy m dep =
+    DirectImport
+        { imported = moduleNameUnsafe dep
+        , edge = ImportEdge
+        , location = edgeTo m dep
+        }
 
 testRulebook :: Rulebook
 testRulebook =
