@@ -7,7 +7,7 @@ import Effects.FileSystem (runRoFileSystemIO)
 import FileSystem.Path (ProjectRoot (..), absPathUnsafe, encodeOsPathString, portablePath, relativePathTo)
 import Fixtures.FileSystem.Path (fromProject, inProject, projectFileSystem, projectRoot)
 import Fixtures.Frontend.Nix.Reference (lit)
-import Frontend.Nix.PathResolver (matchesSegment, reachedBy)
+import Frontend.Nix.PathResolver (reachedBy)
 import Frontend.Nix.Reference (Piece (..))
 import System.Directory (createDirectoryIfMissing, createDirectoryLink)
 import System.FilePath ((</>))
@@ -24,6 +24,12 @@ files =
     , "skills/x/SKILL.md"
     , "skills/y/SKILL.md"
     , "secrets/common.yaml"
+    , "names/a"
+    , "names/a.nix"
+    , "names/x-a.nix"
+    , "names/x-.nix"
+    , "names/y-a.nix"
+    , "names/x-a.nix.bak"
     ]
 
 -- | What the pattern reaches from the directory, both spelled from the project root, @""@ for the root itself.
@@ -92,8 +98,9 @@ spec = describe "Frontend.Nix.PathResolver" $ do
             reached "" [lit "hosts", [Hole], lit "missing.nix"] `shouldReturn` []
 
     describe "matching one segment" $ do
-        it "matches a hole against anything, the empty name included" $
-            fmap (matchesSegment [Hole]) ["", "a", "a.nix"] `shouldBe` [True, True, True]
+        it "lets a hole stand for any name" $
+            reached "" [lit "names", [Hole]]
+                `shouldReturn` ["names/a", "names/a.nix", "names/x-.nix", "names/x-a.nix", "names/x-a.nix.bak", "names/y-a.nix"]
 
-        it "matches literal text exactly around a hole" $
-            fmap (matchesSegment [Literal "x-", Hole, Literal ".nix"]) ["x-a.nix", "x-.nix", "y-a.nix", "x-a.nix.bak"] `shouldBe` [True, True, False, False]
+        it "matches literal text exactly around a hole, which may stand for nothing" $
+            reached "" [lit "names", [Literal "x-", Hole, Literal ".nix"]] `shouldReturn` ["names/x-.nix", "names/x-a.nix"]

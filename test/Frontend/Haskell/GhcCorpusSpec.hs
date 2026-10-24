@@ -13,9 +13,9 @@ module Frontend.Haskell.GhcCorpusSpec (spec) where
 
 import Data.Aeson (FromJSON)
 import Data.Map.Strict qualified as Map
-import Data.Text qualified as T
 import Deslop.Module (DependencyEdge (..), EdgeTarget (..), Module (..), ModuleId (..))
 import FileSystem.Path (portablePath)
+import Fixtures.FileSystem.Path (fromProjectText)
 import Fixtures.Frontend.Haskell.Project (Lowered (..), lowerFiles)
 import Fixtures.OnDisk (ghcCorpus)
 import Renderable qualified
@@ -47,10 +47,9 @@ dependenciesOf :: GhcCase -> IO [(Text, Text)]
 dependenciesOf c = do
     lowered <- requireRight (toString . Renderable.render) =<< lowerFiles (cabal : fmap (second encodeUtf8) (Map.toList c.files))
     pure . sortNub $
-        [ (portablePath m.path, fromRoot targetId)
+        [ (portablePath m.path, fromProjectText targetId.text)
         | m <- lowered.modules
         , DependencyEdge {target = Resolved targetId _} <- m.edges
         ]
   where
     cabal = ("deslop-corpus.cabal", "cabal-version: 3.0\nname: corpus\nversion: 0\nlibrary\n  hs-source-dirs: src\n")
-    fromRoot moduleId = fromMaybe moduleId.text (T.stripPrefix "/project/" moduleId.text)

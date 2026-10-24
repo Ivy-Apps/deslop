@@ -5,6 +5,7 @@ module Fixtures.FileSystem.Path (
     projectRoot,
     inProject,
     fromProject,
+    fromProjectText,
     projectFileSystem,
 ) where
 
@@ -22,7 +23,11 @@ inProject = ap . ("/project/" <>)
 
 -- | The inverse of 'inProject': a path by its path from the root, when it is in the project.
 fromProject :: AbsPath -> Text
-fromProject path = let text = decodeOsPath path.osPath in fromMaybe text (T.stripPrefix "/project/" text)
+fromProject = fromProjectText . decodeOsPath . (.osPath)
+
+-- | 'fromProject' for a path already spelled as text, such as a 'Deslop.Module.ModuleId'.
+fromProjectText :: Text -> Text
+fromProjectText text = fromMaybe text (T.stripPrefix "/project/" text)
 
 -- | A file system holding exactly these files, by their path from the project root.
 projectFileSystem :: [(Text, ByteString)] -> IO InMemoryFileSystem

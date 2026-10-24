@@ -11,10 +11,7 @@ segment: an over-approximation the pattern's base bounds. Nothing outside
 the project is reached, not even through a symbolic link, and a path to
 nothing reaches nothing.
 -}
-module Frontend.Nix.PathResolver (
-    reachedBy,
-    matchesSegment,
-) where
+module Frontend.Nix.PathResolver (reachedBy) where
 
 import Data.Text qualified as T
 import Effectful (Eff, type (:>))
