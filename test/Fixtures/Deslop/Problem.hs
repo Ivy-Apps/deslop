@@ -15,6 +15,7 @@ module Fixtures.Deslop.Problem (
     BrokenRule (..),
     brokenRule,
     violationOf,
+    unjudgedImportOf,
 
     -- * Modifiers
     describedAs,
@@ -22,7 +23,7 @@ module Fixtures.Deslop.Problem (
     autoFixable,
 ) where
 
-import Deslop.Module (Location (..), moduleNameUnsafe)
+import Deslop.Module (EdgeKind (..), Location (..), moduleNameUnsafe, specifierUnsafe)
 import Deslop.Problem (LintRuleId (..), Problem (..), ViolationKind (..))
 import Deslop.Rule.Book (RuleId (..), RulebookId (..))
 import TestUtils (rp)
@@ -79,6 +80,24 @@ violationOf broken bad kind =
         , kind
         , fix = broken.ruleFix
         }
+
+{- | The Rule unable to judge a dependency, spelled @spelling@, which the first
+module of the chain reaches through the rest. It is reported at the module
+that wrote it, the last of the chain, on line 1 of its source.
+-}
+unjudgedImportOf :: BrokenRule -> NonEmpty Text -> Text -> Problem
+unjudgedImportOf broken chain spelling =
+    violationOf
+        broken
+        writer
+        UnjudgedImport
+            { chain = moduleNameUnsafe <$> chain
+            , specifier = specifierUnsafe spelling
+            , edge = ImportEdge
+            , location = locatedAt (writer <> ".ts") 1 ("import (" <> spelling <> ")")
+            }
+  where
+    writer = last chain
 
 -- | A Lint Problem described in other words. A Rule Violation's prose is its Rule's.
 describedAs :: Text -> Problem -> Problem

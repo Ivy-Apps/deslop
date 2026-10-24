@@ -2,8 +2,9 @@ module Deslop.Rule.EnforcerSpec (spec) where
 
 import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Error (DeslopError (..))
-import Deslop.Module (EdgeKind (ImportEdge), Module (..), moduleNameUnsafe)
+import Deslop.Module (EdgeKind (ImportEdge), Module (..), ModuleName (..), moduleNameUnsafe, specifierUnsafe)
 import Deslop.Problem (Problem (..), ViolationKind (..))
+import Deslop.Problem.Shrinker (compactProblems)
 import Deslop.Rule.Book (RuleId (..), Rulebook, RulebookId (..))
 import Deslop.Rule.Book.Compiler (CompileError (..), Field (..))
 import Deslop.Rule.Book.Loader (RulebookLoadError (..))
@@ -12,7 +13,7 @@ import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
-import Fixtures.Deslop.Module (edgeTo, mkModule)
+import Fixtures.Deslop.Module (edgeTo, mkModule, withUnresolved)
 import Fixtures.Deslop.Problem (BrokenRule (..), violationOf)
 import Fixtures.Deslop.Rule.Book (loadRulebookBytes)
 import Fixtures.Deslop.Rule.Book.Dto (rulebookYamlOf)
@@ -328,6 +329,10 @@ kindsOf = mapMaybe kindOf
     kindOf RuleViolation {kind = k} = Just k
     kindOf _ = Nothing
 
+badModuleOf :: Problem -> Maybe ModuleName
+badModuleOf RuleViolation {badModule} = Just badModule
+badModuleOf _ = Nothing
+
 ruleIdsOf :: [Problem] -> [Text]
 ruleIdsOf = mapMaybe ruleIdOf
   where
@@ -491,10 +496,135 @@ multiVariableSpec = describe "several variables in one rule" $ do
             let m = mkModule "@/allows/stripe-connect/payment/CheckoutView" ["@/services/stripe-connect/PAYMENT-checkout"]
             ruleIdsOf <$> runMultiVarTest [m] m `shouldReturn` ["view-imports-only-its-own-service"]
 
+--------------------------------------------------------------------------------
+-- Dependencies only evaluation can name
+--------------------------------------------------------------------------------
+
+-- | One Rule about @app/**@ holding these clauses, enforced on every module of the graph.
+runUnjudgedTest :: [Text] -> [Module] -> IO [Problem]
+runUnjudgedTest clauses allModules =
+    fmap (either (error . show) id)
+        . runEff
+        . runErrorNoCallStack @DeslopError
+        . runReportProblem
+        . runReader (buildModuleGraph allModules)
+        . runReader [appRulebook]
+        $ do
+            traverse_ enforceRulebooks allModules
+            getProblems
+  where
+    appRulebook =
+        rulebookFrom
+            "architecture"
+            [ ["id: layering", "description: 'App modules keep to their layer.'", "target: 'app/**'"]
+                <> clauses
+                <> ["fix: 'Depend on a module the Rule can judge.'"]
+            ]
+
+-- | A clause of the key, @forbids@ or @uses@, naming each pattern, transitively or not.
+clauseOf :: Text -> Bool -> [Text] -> [Text]
+clauseOf key transitive patterns =
+    (key <> ":") : concat [["  - import: '" <> p <> "'", "    transitive: " <> bool "false" "true" transitive] | p <- patterns]
+
+-- | A clause allowing what each pattern names: @allows@ or @allows-only@.
+allowing :: Text -> [Text] -> [Text]
+allowing key patterns = (key <> ":") : ["  - import: '" <> p <> "'" | p <- patterns]
+
+-- | The writer's dependency it cannot name, reached along the chain.
+unjudged :: Module -> NonEmpty Text -> Text -> ViolationKind
+unjudged writer chain spelling =
+    UnjudgedImport
+        { chain = moduleNameUnsafe <$> chain
+        , specifier = specifierUnsafe spelling
+        , edge = ImportEdge
+        , location = edgeTo writer spelling
+        }
+
+unresolvedSpec :: Spec
+unresolvedSpec = describe "unresolved dependencies" $ do
+    describe "a direct forbids" $ do
+        it "reports every dependency of the target it cannot name, beside what it can judge" $ do
+            let m = withUnresolved "./. + n" . withUnresolved "./gone.nix" $ mkModule "app/main" ["lib/secret"]
+            problems <- runUnjudgedTest (clauseOf "forbids" False ["lib/**"]) [m]
+            sort (kindsOf problems)
+                `shouldBe` sort
+                    [ importedBy m "lib/secret"
+                    , unjudged m ("app/main" :| []) "./gone.nix"
+                    , unjudged m ("app/main" :| []) "./. + n"
+                    ]
+
+        it "reports one even when nothing the target names is forbidden" $ do
+            let m = withUnresolved "./gone.nix" $ mkModule "app/main" ["lib/public"]
+            problems <- runUnjudgedTest (clauseOf "forbids" False ["lib/secret"]) [m]
+            kindsOf problems `shouldBe` [unjudged m ("app/main" :| []) "./gone.nix"]
+
+        it "does not judge a dependency of a module the target only reaches" $ do
+            let m = mkModule "app/main" ["lib/relay"]
+                relay = withUnresolved "./gone.nix" $ mkModule "lib/relay" []
+            runUnjudgedTest (clauseOf "forbids" False ["lib/secret"]) [m, relay] `shouldReturn` []
+
+        -- Every way a Rule can forbid reports the dependency once, and none
+        -- can excuse it: an allows only ever matches a name.
+        for_
+            [ ("however many clauses would have judged it", clauseOf "forbids" False ["lib/**", "db/**"])
+            , ("even beside an allows, which can only match a name", clauseOf "forbids" False ["**"] <> allowing "allows" ["**"])
+            , ("by allows-only, which is a forbids", allowing "allows-only" ["**"])
+            , ("when a direct and a transitive clause would both judge it", clauseOf "forbids" False ["db/**"] <> clauseOf "forbids" True ["db/**"])
+            ]
+            $ \(how, clauses) ->
+                it ("reports each dependency once " <> how) $ do
+                    let m = withUnresolved "./gone.nix" $ mkModule "app/main" []
+                    problems <- runUnjudgedTest clauses [m]
+                    kindsOf problems `shouldBe` [unjudged m ("app/main" :| []) "./gone.nix"]
+
+        it "is not reported for a module the Rule does not target" $ do
+            let m = withUnresolved "./gone.nix" $ mkModule "lib/main" []
+            runUnjudgedTest (clauseOf "forbids" False ["**"]) [m] `shouldReturn` []
+
+    describe "a transitive forbids" $ do
+        it "reports what it cannot name in the target and in every module the target reaches, with the chain there" $ do
+            let m = withUnresolved "./own.nix" $ mkModule "app/main" ["lib/relay"]
+                relay = withUnresolved "./gone.nix" $ mkModule "lib/relay" ["lib/leaf"]
+                leaf = withUnresolved "./. + n" $ mkModule "lib/leaf" []
+            problems <- runUnjudgedTest (clauseOf "forbids" True ["db/**"]) [m, relay, leaf]
+            sort (kindsOf problems)
+                `shouldBe` sort
+                    [ unjudged m ("app/main" :| []) "./own.nix"
+                    , unjudged relay ("app/main" :| ["lib/relay"]) "./gone.nix"
+                    , unjudged leaf ("app/main" :| ["lib/relay", "lib/leaf"]) "./. + n"
+                    ]
+
+        it "reports each at the module that wrote it" $ do
+            let m = mkModule "app/main" ["lib/relay"]
+                relay = withUnresolved "./gone.nix" $ mkModule "lib/relay" []
+            problems <- runUnjudgedTest (clauseOf "forbids" True ["db/**"]) [m, relay]
+            map (.text) (mapMaybe badModuleOf problems) `shouldBe` ["lib/relay"]
+
+        it "reports a dependency many targets reach once, by the shortest chain there" $ do
+            let a = mkModule "app/a" ["lib/relay"]
+                b = mkModule "app/b" ["app/a"]
+                c = mkModule "app/c" ["lib/relay"]
+                relay = withUnresolved "./gone.nix" $ mkModule "lib/relay" []
+            problems <- runUnjudgedTest (clauseOf "forbids" True ["db/**"]) [c, b, a, relay]
+            kindsOf (compactProblems problems) `shouldBe` [unjudged relay ("app/a" :| ["lib/relay"]) "./gone.nix"]
+
+    describe "a Rule with no forbids" $ do
+        it "is never satisfied by a dependency nobody can name" $ do
+            let m = withUnresolved "./gone.nix" $ mkModule "app/main" []
+            problems <- runUnjudgedTest (clauseOf "uses" False ["**"]) [m]
+            kindsOf problems `shouldBe` [MissingUse {requiredImport = "**", transitive = False}]
+
+        it "is never satisfied transitively by one either" $ do
+            let m = mkModule "app/main" ["lib/relay"]
+                relay = withUnresolved "./gone.nix" $ mkModule "lib/relay" []
+            problems <- runUnjudgedTest (clauseOf "uses" True ["db/**"]) [m, relay]
+            kindsOf problems `shouldBe` [MissingUse {requiredImport = "db/**", transitive = True}]
+
 spec :: Spec
 spec = describe "Deslop.Rule.Enforcer" $ do
     multiVariableSpec
     proseSpec
+    unresolvedSpec
     describe "forbids imports" $ do
         it "no violations" $ do
             let m = mkModule "@/components/Button" ["react"]

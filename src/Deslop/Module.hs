@@ -132,7 +132,8 @@ frontend answers "one import path" and a Rust one "the crate path plus every
 @pub use@ alias". The core would have to invent them, and the only material it
 could invent them from is the specifier, which is not a name. 'External'
 carries a name for the same reason: @import Data.Text@ is written with dots,
-and only the Haskell frontend knows it names @Data\/Text@.
+and only the Haskell frontend knows it names @Data\/Text@. 'Unresolved' is
+what is left when even the frontend has no name to give.
 -}
 data EdgeTarget
     = {- | Resolved to a module the frontend recognises, and every name that
@@ -147,6 +148,15 @@ data EdgeTarget
       'specifier'.
       -}
       External ModuleName
+    | {- | A dependency the frontend knows exists and cannot name: a path only
+      evaluation computes, @import (./. + "\/${n}.nix")@, or a literal one
+      to nothing in the project. It carries the author's spelling, because
+      there is no name to carry. Never an 'External', which is a package
+      that does exist, outside the project. It is no vertex of the graph:
+      a Rule cannot match it, so a @forbids@ reports it as one it cannot
+      judge - see @docs\/adr\/0020@.
+      -}
+      Unresolved Specifier
     deriving stock (Show, Eq, Ord)
 
 {- | Whether a dependency is private to the module or part of the surface it

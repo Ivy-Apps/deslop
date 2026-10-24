@@ -62,7 +62,7 @@ moduleNamed :: Text -> Lowered -> Maybe Module
 moduleNamed name = find ((== name) . (.text) . head . (.names)) . (.modules)
 
 {- | A module's edges as what was written, what it reached - by canonical name,
-or @External:@ name - and how.
+@External:@ name or @Unresolved:@ spelling - and how.
 -}
 edgesFrom :: Text -> Lowered -> [(Text, Text, Text)]
 edgesFrom name lowered = maybe [] (fmap summary . (.edges)) (moduleNamed name lowered)
@@ -71,3 +71,4 @@ edgesFrom name lowered = maybe [] (fmap summary . (.edges)) (moduleNamed name lo
     targetName = \case
         Resolved _ names -> (head names).text
         External n -> "External:" <> n.text
+        Unresolved s -> "Unresolved:" <> s.text
