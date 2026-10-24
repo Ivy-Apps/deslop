@@ -57,8 +57,10 @@ nix develop .#ci -c cabal update   # once per machine
 nix develop .#ci -c just check
 ```
 
-It runs the same steps as CI, except the benchmark build: agents do not touch
-the benchmark, so only CI compiles it (`just build-bench`).
+It is exactly what CI runs; CI adds only `cabal update` and the benchmark
+build, since agents do not touch the benchmark (`just build-bench`).
+It starts with `just format-check` (fourmolu); `just format` fixes what it
+reports.
 
 Run all tests:
 ```bash
@@ -117,8 +119,8 @@ here is a claim about what the compiler does. See
 nix run .#update-ghc-corpus
 ```
 
-Re-records what GHC says each case in `fixtures/haskell/ghc-corpus.json` depends on,
-by running `ghc -M` over a temp copy of each case. Only the `ghc` field is
+Re-records what GHC says each case in `fixtures/haskell/ghc-corpus.json`
+depends on, by running `ghc -M` over a temp copy of each case. Only the `ghc` field is
 written. `Frontend.Haskell.GhcCorpusSpec` judges the Haskell frontend against
 it; the same rule applies as above: a failing corpus test is not a reason to
 run this. See
@@ -126,9 +128,28 @@ run this. See
 
 ### Test fixtures
 
-`fixtures/typescript/projects/ts-gitignore-project/` contains real `.gitignore`
-files, which this repository's own git honours too. Anything they ignore must be force-added
-once, or it will silently never be committed:
+`fixtures/` is laid out by language, then kind; what no language owns is under
+`fixtures/shared/`. Goldens mirror it under `.golden/typescript/`,
+`.golden/haskell/` and `.golden/shared/`.
+
+| Path | Holds |
+|------|-------|
+| `fixtures/typescript/projects/` | whole TypeScript projects (`ts-*`, plus two real apps) |
+| `fixtures/typescript/files/` | single `.ts` files read on their own |
+| `fixtures/typescript/config/` | standalone `tsconfig.json` files |
+| `fixtures/typescript/resolution-corpus.json` | the tsc oracle corpus (ADR 18) |
+| `fixtures/haskell/projects/` | whole Haskell projects (`hs-*`) |
+| `fixtures/haskell/ghc-corpus.json` | the ghc oracle corpus (ADR 22) |
+| `fixtures/shared/rulebook/` | rulebook files, valid and broken |
+| `fixtures/shared/static/` | a tree of names, for filesystem effects |
+
+**No spec spells a fixture path**: every root has one helper in
+`Fixtures.OnDisk` (`typescriptProject "ts-cycles-project"`, `rulebooks`, ...),
+so moving a directory is a one-line change there. A new root gets a new helper.
+
+`fixtures/typescript/projects/ts-gitignore-project/` contains real
+`.gitignore` files, which this repository's own git honours too. Anything they
+ignore must be force-added once, or it will silently never be committed:
 
 ```bash
 git add -f fixtures/typescript/projects/ts-gitignore-project/<path>
@@ -192,11 +213,35 @@ Tests mirror `src/`:
 - A helper stays private in its spec until a **second** spec needs it. Then it
   moves to `Fixtures.<full.module.path>` or `Generators.<full.module.path>`.
   `TestUtils` holds only domain-free plumbing.
+- Test a module through its public interface, never its internals: compile
+  and match Glob+ rather than build its AST, load a rulebook through the
+  loader rather than Dto -> desugar -> compile by hand, ask a `GitIgnore` what
+  it ignores rather than inspect its rules. A lexer is the exception: it is a
+  stage boundary, and keeps its own unit tests. Never golden a derived `Show`
+  (`ppShow`); assert the fields, or golden what Deslop prints.
 - `Doubles.Frontend` is a fake line-based language for testing what every
-  frontend shares - the driver and the registry - without TypeScript.
-- `fixtures/` (repo root) holds the sample TypeScript (`ts-*`) and Haskell
-  (`hs-*`) projects. It cannot live
-  under `test/` - it would collide with `test/Fixtures/` on macOS.
+  frontend shares - the driver and the registry - without TypeScript. Its
+  `lines.project` can warn (`warn: ...`) or be broken (`broken: ...`).
+- Shared helpers, so no spec rebuilds them:
+  - `Fixtures.Deslop.Problem` builds Lint Problems and Rule Violations
+    (`lintProblemAt`, `violationOf`, `importedBy`) with total modifiers
+    (`withFix`, `describedAs`, `autoFixable`, `reportedFrom`); a record update
+    on `Problem` is partial, so use those.
+  - `Fixtures.Deslop.Rule.Book` loads rulebook YAML through the loader
+    (`rulebookFrom`, `rulebookOf`); `Fixtures.Deslop.Rule.Book.Dto` writes it.
+  - `Fixtures.Deslop.GlobPlus` compiles and matches Glob+ patterns.
+  - `Fixtures.Git.Ignore` loads a `GitIgnore` from in-memory `.gitignore`s.
+  - `Fixtures.FileSystem.Path` is the one in-memory project, at `/project`.
+  - `Doubles.FileSystem`: `runReadOnly` for a read-only mock, `mockTree` for a
+    pure tree a directory walk can run over, `InMemoryFileSystem` for reads
+    and writes, and `runWritesInMemory`, which records every write by path.
+- `E2E.ProjectGoldenSpec` runs `doWork` in-process through one runner
+  (`runDeslopOn`) and goldens what each fixture project prints for check,
+  baseline and fix. `E2E.ExecutableSpec` runs the real `deslop` executable
+  (a `build-tool-depends` of the suite) for what only a process shows: exit
+  codes, stdout versus stderr, and the command line. Keep it to a handful.
+- `fixtures/` (repo root) cannot live under `test/` - it would collide with
+  `test/Fixtures/` on macOS.
 
 ## Coding Conventions
 

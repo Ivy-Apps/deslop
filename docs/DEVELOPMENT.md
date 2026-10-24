@@ -76,7 +76,8 @@ additional workflows (`just --list` for all of them):
 
 | Command | What it does |
 |---------|-------------|
-| `just check` | Full local check: hlint, tests, build, plus a real run against the sandbox project |
+| `just check` | Full local check, exactly what CI runs: fourmolu, hlint, build, tests, a real run against the sandbox project, and Deslop's own rules |
+| `just format` | Format every Haskell source with fourmolu, as `just check` expects |
 | `just sandbox` | Regenerate `sandbox/` from `fixtures/typescript/projects/ts-project-1` for manual testing |
 | `just update-golden` | Re-record the hspec-golden snapshots in `.golden/` |
 | `just update-deps` | Update the Nix flake inputs and re-freeze cabal dependencies |
@@ -92,9 +93,9 @@ additional workflows (`just --list` for all of them):
 | `src/Frontend.hs` | The registry of supported languages, tried in order |
 | `src/Frontend/TypeScript/` | TypeScript lexer, parser, CST, module resolver, tsconfig handling |
 | `src/Effects/` | `effectful` effects for CLI, file system, and problem reporting |
-| `test/` | hspec suites, plus `test/E2E/` golden tests |
-| `fixtures/` | Sample TypeScript projects and rulebooks used by tests |
-| `.golden/` | Recorded golden output for the E2E tests |
+| `test/` | hspec suites, plus `test/E2E/` golden and executable tests |
+| `fixtures/` | Sample projects and files by language (`typescript/`, `haskell/`), and rulebooks (`shared/`), used by tests |
+| `.golden/` | Recorded golden output for the E2E tests, by language |
 | `npm/` | npm wrapper package and per-platform binary packages |
 | `docs/` | Internal references (e.g. the Glob+ pattern language) |
 | `examples/rules/` | Example rulebooks shipped for users to copy |
@@ -108,7 +109,7 @@ what that means and where new code goes.
 - **Custom prelude:** the project uses [`relude`](https://hackage.haskell.org/package/relude), so `Text` is available without importing.
 - **Extensions:** `GHC2024` with `OverloadedRecordDot` enabled.
 - **Warnings are errors:** the build runs with `-Wall -Werror`.
-- Formatting is handled by [fourmolu](https://github.com/fourmolu/fourmolu) (see `fourmolu.yaml`).
+- Formatting is handled by [fourmolu](https://github.com/fourmolu/fourmolu) (see `fourmolu.yaml`), and checked by `just check`.
 
 [`CLAUDE.md`](../CLAUDE.md) documents the architecture, module naming and test
 layout in more detail. It is written for AI agents, and it is also the fastest
