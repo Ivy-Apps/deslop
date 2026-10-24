@@ -140,10 +140,14 @@ never started, died, or belongs to another worktree, the outputfile still says
 `All good`, and the timestamp `ghcid` writes carries a clock time but no date,
 so a reader cannot tell a green from two seconds ago from one from yesterday.
 
-`quick-typecheck` therefore refuses to report until no `.hs` or cabal file is
-newer than the outputfile, using `find -newer`, and fails loudly after 180s
-rather than reporting anything at all. Stale green is made structurally
-impossible rather than merely unlikely.
+`quick-typecheck` therefore refuses to report until no `.hs` file is newer than
+the outputfile, using `find -newer`, and fails loudly after 180s rather than
+reporting anything at all. Cabal files are judged against the start of the
+session instead: ghcid can reload a module edited alongside `deslop.cabal`, and
+rewrite the outputfile, before it restarts for the cabal edit. So every session
+stamps a file before `cabal repl` reads the cabal files, and a verdict counts
+only if it is newer than that stamp and the stamp is newer than every cabal
+file. Stale green is made structurally impossible rather than merely unlikely.
 
 That refusal has a cost, and it is paid whenever the wait cannot succeed. Waiting
 the full 180s and then saying only "no verdict" is worse for an agent than the
@@ -151,7 +155,9 @@ the full 180s and then saying only "no verdict" is worse for an agent than the
 wait ends as soon as no answer is coming, and says which of the two it was. If
 the daemon is not in the process table shortly after being spawned it has exited,
 and the log holds why - a broken `flake.nix` is the likely reason, being the edit
-that forces a respawn. If it is alive but has not rewritten its verdict for 30s
+that forces a respawn. ghcid also exits when `cabal repl` does, leaving only
+"Ghcid has stopped." in the outputfile, so that line is never read as a verdict.
+If the daemon is alive but has not rewritten its verdict for 30s
 while an input is still newer, it is not going to: ghcid watches its own module
 graph, the freshness check watches every `.hs` file under the source directories,
 and a module not yet registered in `deslop.cabal` sits in the gap. Those files are

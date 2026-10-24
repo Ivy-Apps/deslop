@@ -9,6 +9,11 @@
 #   * `--restart` on the cabal files is not optional. Without it, adding a
 #     module to `deslop.cabal` leaves ghcid reporting a stale `All good`
 #     indefinitely, which is the worst failure this tool can have.
+#   * Every session stamps `$SESSION` before `cabal repl` reads the cabal
+#     files, and a verdict counts only if it is newer than that stamp and the
+#     stamp is newer than every cabal file. ghcid can reload an edited module
+#     before it notices a cabal edit made at the same time, so a fresh mtime on
+#     the verdict alone does not prove the session saw the cabal edit.
 #   * State lives outside the worktree. An `--outputfile` under the root ghcid
 #     watches makes it re-trigger on its own writes, costing ~3.2s per reload
 #     instead of ~0.3s.
@@ -37,7 +42,8 @@ let
 
   # Edits to these change the module graph itself, which ghcid cannot reload
   # into a live session; it has to restart. They double as staleness inputs,
-  # since a verdict predating a cabal edit does not describe the code.
+  # since a verdict from a session started before a cabal edit does not
+  # describe the code.
   cabalFiles = [ "deslop.cabal" "cabal.project" "cabal.project.freeze" ];
 
   # Edits here change the dev shell the daemon was spawned inside, which no
@@ -65,12 +71,17 @@ let
   ghcidInvocation = lib.concatStringsSep " " (
     [
       "${pkgs.ghcid}/bin/ghcid"
-      ''--command "cabal repl --enable-multi-repl ${lib.concatStringsSep " " components}"''
+      ''--command "touch '$SESSION' && exec cabal repl --enable-multi-repl ${lib.concatStringsSep " " components}"''
       ''--outputfile "$OUTF"''
       "--no-title"
     ]
     ++ map (f: "--restart ${f}") cabalFiles
   );
+
+  # Recorded in `$STAMP` at spawn, so a daemon started by an older version of
+  # this tool, whose session may not stamp `$SESSION`, is respawned rather
+  # than waited on.
+  daemonVersion = builtins.hashString "sha256" ghcidInvocation;
 
   # ── Composable shell fragments ─────────────────────────────────────────────
   # Functions only, so every tool can carry them without shellcheck objecting to
@@ -163,6 +174,7 @@ let
     state = worktreeState + ''
       LOGF="$STATE/log"
       STAMP="$STATE/started"
+      SESSION="$STATE/session"
       LOCK="$STATE/lock"
       WATCHDOG_MATCH="${watchdogName} $ROOT"
     '';
@@ -187,7 +199,7 @@ let
 
       needs_start() {
         pgrep -f "$DAEMON_MATCH" >/dev/null 2>&1 || return 0
-        [ -f "$STAMP" ] || return 0
+        [ "$(cat "$STAMP" 2>/dev/null)" = "${daemonVersion}" ] || return 0
         for f in ${lib.concatStringsSep " " shellFiles}; do
           [ "$f" -nt "$STAMP" ] && return 0
         done
@@ -229,8 +241,8 @@ let
       }
 
       start_daemon() {
-        rm -f "$OUTF"
-        touch "$STAMP"
+        rm -f "$OUTF" "$SESSION"
+        printf '%s\n' "${daemonVersion}" > "$STAMP"
         # Truncated per spawn, not appended to forever: ghcid renders in full on
         # every reload, and the "see $LOGF" pointer is only useful if it holds
         # this session rather than every session since the cache was cleared.
@@ -252,7 +264,8 @@ let
       # next call, which is worse than the slow build this tool replaces:
       #
       #   2  the daemon is gone - a broken flake.nix, say, which is exactly the
-      #      edit that forces a respawn, so it recurs every call until fixed.
+      #      edit that forces a respawn, so it recurs every call until fixed -
+      #      or its `cabal repl` exited, which ghcid does not survive either.
       #   3  the daemon is alive but has stopped reacting. ghcid only watches its
       #      own module graph, while the freshness check watches every .hs file,
       #      so an unregistered new module is stale in a way no reload can clear.
@@ -264,7 +277,11 @@ let
         seen=0
 
         while [ "$(date +%s)" -lt "$deadline" ]; do
-          if [ -s "$OUTF" ] && [ -z "$(stale_inputs)" ]; then
+          # ghcid writes "Ghcid has stopped." when `cabal repl` exits, and then
+          # exits itself. That is not a verdict; the check below reports the
+          # death once ghcid is gone, by which time the log says why.
+          if [ -s "$OUTF" ] && [ -z "$(stale_inputs)" ] \
+            && [ "$(head -n 1 "$OUTF")" != "Ghcid has stopped." ]; then
             return 0
           fi
 
@@ -291,15 +308,18 @@ let
       # Non-empty means some input is newer than ghcid's verdict, i.e. the
       # verdict does not describe what is on disk. This is what makes a stale
       # `All good` impossible rather than merely unlikely.
+      #
+      # Source files are judged against the verdict, cabal files against the
+      # start of the session that wrote it: only a restart reads them.
       stale_inputs() {
-        if [ ! -f "$OUTF" ]; then
+        if [ ! -f "$SESSION" ] || [ ! "$OUTF" -nt "$SESSION" ]; then
           echo stale
           return 0
         fi
         find ${lib.concatStringsSep " " sourceDirs} -type f -name '*.hs' \
           -newer "$OUTF" -print -quit 2>/dev/null
         for f in ${lib.concatStringsSep " " cabalFiles}; do
-          [ "$f" -nt "$OUTF" ] && printf '%s\n' "$f"
+          [ "$f" -nt "$SESSION" ] && printf '%s\n' "$f"
         done
         return 0
       }
@@ -332,7 +352,8 @@ let
           # missing package index, a broken flake - so show it rather than
           # sending the agent off to read a file.
           printf 'quick-typecheck: the ghcid daemon exited. The end of %s:\n' "$LOGF" >&2
-          tail -n ${toString deathLogLines} "$LOGF" >&2
+          # ghcid pads every screen it renders with blank lines; skip them.
+          grep -v '^[[:space:]]*$' "$LOGF" | tail -n ${toString deathLogLines} >&2
           exit 2
           ;;
         3)
