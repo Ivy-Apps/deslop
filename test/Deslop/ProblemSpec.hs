@@ -1,68 +1,35 @@
 module Deslop.ProblemSpec (spec) where
 
-import Deslop.Module (Location (..), EdgeKind (..), moduleNameUnsafe)
-import Deslop.Problem (LintRuleId (LintRuleId), Problem (..), ProblemId (..), ViolationKind (..), problemId)
-import Deslop.Rule.Book (RuleId (RuleId), RulebookId (RulebookId))
-import FileSystem.Path (encodeOsPath, relativePathUnsafe)
+import Deslop.Module (EdgeKind (..), moduleNameUnsafe)
+import Deslop.Problem (ProblemId (..), ViolationKind (..), problemId)
+import Fixtures.Deslop.Problem (brokenRule, lintProblemAt, locatedAt, violationOf)
 import Test.Hspec (Spec, describe, it, shouldBe)
 
 spec :: Spec
 spec = describe "Deslop.Problem" $ do
     describe "problemId" $ do
         it "lint problem id" $ do
-            let p =
-                    LintProblem
-                        { lintRule = LintRuleId "no-relative-imports"
-                        , location =
-                            Location
-                                { file = relativePathUnsafe (encodeOsPath "src/Foo.ts")
-                                , line = 1
-                                , code = "import {bar} from './bar'"
-                                }
-                        , description = "No relative imports allowed"
-                        , fix = "Use absolute imports"
-                        , autoFixable = False
-                        }
+            let p = lintProblemAt "no-relative-imports" (locatedAt "src/Foo.ts" 1 "import {bar} from './bar'")
+
             problemId p `shouldBe` ProblemId "no-relative-imports#src/Foo.ts"
 
         -- A Windows run decodes a native ProjectRelativePath with backslashes; the
         -- id has to stay spellable by (and matchable against) a baseline
         -- written on POSIX, so the separator is normalised.
         it "lint problem id normalises windows separators" $ do
-            let p =
-                    LintProblem
-                        { lintRule = LintRuleId "no-relative-imports"
-                        , location =
-                            Location
-                                { file = relativePathUnsafe (encodeOsPath "src\\features\\home\\home.ts")
-                                , line = 1
-                                , code = "import {x} from './x'"
-                                }
-                        , description = "No relative imports allowed"
-                        , fix = "Use absolute imports"
-                        , autoFixable = False
-                        }
+            let p = lintProblemAt "no-relative-imports" (locatedAt "src\\features\\home\\home.ts" 1 "import {x} from './x'")
+
             problemId p `shouldBe` ProblemId "no-relative-imports#src/features/home/home.ts"
 
         it "rule violation id" $ do
             let p =
-                    RuleViolation
-                        { rulebook = RulebookId "architecture"
-                        , rule = RuleId "no-barrel-imports"
-                        , badModule = moduleNameUnsafe "@/lib/util"
-                        , modulePath = relativePathUnsafe (encodeOsPath "src/lib/util.ts")
-                        , prose = "Barrel imports are forbidden"
-                        , kind =
-                            DirectImport
-                                { imported = moduleNameUnsafe "@/lib/index"
-                                , edge = ImportEdge
-                                , location =
-                                    Location
-                                        { file = relativePathUnsafe (encodeOsPath "src/lib/util.ts")
-                                        , line = 4
-                                        , code = "import { util } from '@/lib/index'"
-                                        }
-                                }
-                        , fix = "Import directly from the module"
-                        }
+                    violationOf
+                        (brokenRule "architecture" "no-barrel-imports")
+                        "@/lib/util"
+                        DirectImport
+                            { imported = moduleNameUnsafe "@/lib/index"
+                            , edge = ImportEdge
+                            , location = locatedAt "src/lib/util.ts" 4 "import { util } from '@/lib/index'"
+                            }
+
             problemId p `shouldBe` ProblemId "architecture#no-barrel-imports#@/lib/util"

@@ -1,0 +1,52 @@
+>>> FILE: src/bad.ts
+import { app } from '@/app';
+
+export const bad = () => app();
+
+
+
+>>> FILE: src/features/sub/scratch.ts
+import { app } from '@/app';
+
+export const subScratch = () => app();
+
+
+
+>>> FILE: src/keep.gen.ts
+import { app } from '@/app';
+
+export const keep = () => app();
+
+
+
+>>> FILE: src/other.gen.ts
+import { app } from '@/app';
+
+export const other = () => app();
+
+
+
+>>> FILE: src/features/scratch.ts
+import { app } from '../app';
+
+export const scratch = () => app();
+
+
+
+>>> FILE: generated/model.ts
+import { app } from '../src/app';
+
+export const model = () => app();
+
+
+
+>>> FILE: vendor/legacy.ts
+import { app } from '../src/app';
+
+export const legacy = () => app();
+
+>>> changelog
+  modified  src/bad.ts
+  modified  src/features/sub/scratch.ts
+  modified  src/keep.gen.ts
+  modified  src/other.gen.ts

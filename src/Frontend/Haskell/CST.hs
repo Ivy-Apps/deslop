@@ -30,12 +30,14 @@ data HsProgram = HsProgram
 
 data HsSource = HsSource
     { leading :: [HsToken]
-    -- ^ Whitespace, comments and pragmas before the first token that counts:
-    -- where @LANGUAGE@ and @OPTIONS_GHC@ pragmas live.
+    {- ^ Whitespace, comments and pragmas before the first token that counts:
+    where @LANGUAGE@ and @OPTIONS_GHC@ pragmas live.
+    -}
     , header :: Header
     , opening :: [HsToken]
-    -- ^ Between the header and the first declaration: trivia, and the @{@ of
-    -- an explicitly braced module.
+    {- ^ Between the header and the first declaration: trivia, and the @{@ of
+    an explicitly braced module.
+    -}
     , imports :: [Import]
     , body :: [HsToken]
     -- ^ From the first top-level declaration that is not an import to the end.

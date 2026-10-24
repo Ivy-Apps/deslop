@@ -1,9 +1,8 @@
 module Deslop.Frontend.FindingSpec (spec) where
 
 import Deslop.Frontend.Finding (Finding, applyFindings, fixable, problem, unfixable)
-import Deslop.Module (Location (..))
-import Deslop.Problem (LintRuleId (..), Problem (..), isAutoFixable)
-import FileSystem.Path (encodeOsPath, relativePathUnsafe)
+import Deslop.Problem (Problem, isAutoFixable)
+import Fixtures.Deslop.Problem (autoFixable, lintProblemAt, locatedAt)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
 import Test.Hspec
 
@@ -27,12 +26,6 @@ spec = describe "Deslop.Frontend.Finding" $ do
 repaired :: Finding Int -> Int
 repaired = applyFindings (baselineOf []) 0 . pure
 
+-- | What a frontend reports, given whether the Finding can repair it.
 unfinished :: Bool -> Problem
-unfinished autoFixable =
-    LintProblem
-        { lintRule = LintRuleId "no-unfinished"
-        , location = Location {file = relativePathUnsafe (encodeOsPath "a.lines"), line = 1, code = "TODO"}
-        , description = "Unfinished work."
-        , fix = "Finish it."
-        , autoFixable
-        }
+unfinished canRepair = bool id autoFixable canRepair . lintProblemAt "no-unfinished" $ locatedAt "a.lines" 1 "TODO"

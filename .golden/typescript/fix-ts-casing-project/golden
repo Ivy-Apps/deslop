@@ -1,0 +1,14 @@
+>>> FILE: src/components/aws-s3/AWSS3View.tsx
+// Two acronym words running together; the kebab folder pins the split.
+import { config } from '@/config/aws-s3';
+
+export function AWSS3View() {
+  return config.name;
+}
+
+
+
+>>> FILE: src/config/a-b.ts
+export const config = { name: 'a-b' };
+
+>>> changelog

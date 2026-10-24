@@ -2,8 +2,9 @@
 default:
     @just --list
 
-# Run the full quality suite (use from nix develop); mirrors the Quality CI
+# Run the full quality suite (use from nix develop); the Quality CI runs exactly this
 check:
+    just format-check
     just lint
     just lint-actions
     just build
@@ -14,6 +15,15 @@ check:
 # Haskell lint (hlint)
 lint:
     hlint .
+
+# Fail if any Haskell source is not formatted as fourmolu.yaml says. Fixtures
+# are test inputs whose bytes the goldens pin, so they are never formatted.
+format-check:
+    fourmolu --mode check --quiet $(git ls-files '*.hs' ':!:fixtures/')
+
+# Format every Haskell source in place, as format-check expects
+format:
+    fourmolu --mode inplace --quiet $(git ls-files '*.hs' ':!:fixtures/')
 
 # Lint the GitHub Actions workflows (actionlint, with shellcheck over `run:`).
 # SC2153 is off because shellcheck cannot see a workflow's `env:` block, so
@@ -49,11 +59,11 @@ deslop-self:
     cabal build exe:deslop
     cabal run -v0 deslop -- check .
 
-# Re-record what `tsc` resolves each case in fixtures/resolution-corpus.json to
+# Re-record what `tsc` resolves each case in fixtures/typescript/resolution-corpus.json to
 update-resolution-corpus:
     node scripts/update-resolution-corpus.mjs
 
-# Re-record what `ghc -M` says each case in fixtures/ghc-corpus.json depends on
+# Re-record what `ghc -M` says each case in fixtures/haskell/ghc-corpus.json depends on
 update-ghc-corpus:
     node scripts/update-ghc-corpus.mjs
 
@@ -69,7 +79,7 @@ update-benchmark:
 @sandbox:
     rm -rf sandbox
     mkdir -p sandbox
-    cp -a fixtures/ts-project-1/. sandbox/
+    cp -a fixtures/typescript/projects/ts-project-1/. sandbox/
     echo 'Sandbox generated ✅'
 
 # Update Dependencies versions by updating the Nix flake input

@@ -33,8 +33,8 @@ import Deslop.Module (
 import Effectful (Eff, type (:>))
 import Effects.FileSystem (RoFileSystem, fsMkAbsolute)
 import FileSystem.Path (AbsPath (..), ProjectRelativePath (..), ProjectRoot, decodeOsPath, portablePath, relativePathTo)
-import Frontend.Haskell.Cabal (Component (..), ComponentKind (..), HsConfig (..), OwnedAs (..), Owner (..), ownerOf, qualifier, sourceNamesOf)
 import Frontend.Haskell.CST (Header (..), HsProgram (..), HsSource (..), Import (..), ImportDecl (..), ModuleExport (..), ModuleHeader (..), Qualification (..))
+import Frontend.Haskell.Cabal (Component (..), ComponentKind (..), HsConfig (..), OwnedAs (..), Owner (..), ownerOf, qualifier, sourceNamesOf)
 import Frontend.Haskell.HspecDiscover (DiscoveredSpec (..), discoveredSpecs)
 import Frontend.Haskell.ModuleName (HsModuleName, dotted, hsModuleName, mainModule, slashed)
 import Frontend.Haskell.Preprocessor (Preprocessor (..), Request (..), RequestedBy (..), requestedInFile)
@@ -48,8 +48,9 @@ data HsLowerError
       ImportsNotRead ProjectRelativePath Opacity
     | -- | @module A.B@ in a file GHC would look up as @A.C@: Deslop goes by the path.
       HeaderDisagrees ProjectRelativePath HsModuleName HsModuleName
-    | -- | Files of one component claiming one name, from two of its source
-      -- directories: GHC rejects the import as ambiguous.
+    | {- | Files of one component claiming one name, from two of its source
+      directories: GHC rejects the import as ambiguous.
+      -}
       NameShared ModuleName [ProjectRelativePath]
     deriving stock (Show, Eq)
 

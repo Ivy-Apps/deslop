@@ -2,7 +2,8 @@
 
 {- | The projects the benchmark runs against, and the cases built from them.
 
-The list is spelled out rather than discovered by scanning @fixtures@ for
+The list is spelled out rather than discovered by scanning
+@fixtures\/typescript\/projects@ for
 @tsconfig.json@ files. Discovery would silently enrol a fixture added for an
 unrelated test, which changes the set the Reference was recorded against
 without anyone deciding to.
@@ -20,7 +21,8 @@ import FileSystem.Path (encodeOsPathString)
 import Params (Command (..))
 import System.OsPath (OsPath, osp, (</>))
 
-{- | One TypeScript project under @fixtures@ that the benchmark measures.
+{- | One TypeScript project under @fixtures\/typescript\/projects@ that the
+benchmark measures.
 -}
 newtype Fixture = Fixture
     { name :: Text
@@ -38,11 +40,10 @@ data Case = Case
 the report opens with the rows carrying the most signal.
 
 Excluded on purpose: @ts-invalid-rulebook-project@, whose rulebook fails to
-load, so a run of it measures error handling rather than Deslop's work;
-@rulebook@, @secrets@, @static@ and @typescript@, which are not projects and
-have no @tsconfig.json@; and @ts-cycles-project@, six files that finish in half
-a millisecond, which is short enough that the measurement was mostly scheduling
-noise and its cycle detection is covered by the larger fixtures anyway.
+load, so a run of it measures error handling rather than Deslop's work; and
+@ts-cycles-project@, six files that finish in half a millisecond, which is
+short enough that the measurement was mostly scheduling noise and its cycle
+detection is covered by the larger fixtures anyway.
 -}
 fixtures :: [Fixture]
 fixtures =
@@ -65,7 +66,7 @@ cases :: [Case]
 cases = [Case f c | c <- [CheckC, FixC, BaselineC], f <- fixtures]
 
 fixturePath :: Fixture -> OsPath
-fixturePath f = [osp|fixtures|] </> encodeFixtureName f
+fixturePath f = [osp|fixtures/typescript/projects|] </> encodeFixtureName f
   where
     encodeFixtureName = encodeOsPathString . toString . (.name)
 

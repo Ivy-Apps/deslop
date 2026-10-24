@@ -65,17 +65,20 @@ data GlobPlusError
       TargetDirInTargetPattern Text
     | -- | Any variable in an exclude pattern, which binds nothing.
       VariableInExcludePattern Text
-    | -- | @..@ or @..*@ in a target pattern, which is matched against whole
-      -- module ids. Carries the token as written.
+    | {- | @..@ or @..*@ in a target pattern, which is matched against whole
+      module ids. Carries the token as written.
+      -}
       ParentDirInTargetPattern Text
     | -- | @..@ or @..*@ in an exclude pattern, for the same reason.
       ParentDirInExcludePattern Text
-    | -- | @**\/..@ or @*\/..*@ - the segment it would cancel names no one
-      -- directory. Carries the navigation token and that segment, both as
-      -- written.
+    | {- | @**\/..@ or @*\/..*@ - the segment it would cancel names no one
+      directory. Carries the navigation token and that segment, both as
+      written.
+      -}
       ParentDirPastWildcard Text Text
-    | -- | @*@, @**@ or @..*@ where the pattern must name exactly one module.
-      -- Carries the offending token or segment as written.
+    | {- | @*@, @**@ or @..*@ where the pattern must name exactly one module.
+      Carries the offending token or segment as written.
+      -}
       NondeterministicPattern Text
     | -- | A clause variable the rule's target pattern never captures.
       UnboundVariable VarName (Set VarName)
@@ -380,8 +383,9 @@ pLiteral = Lit . T.pack <$> some pLitChar
   where
     pLitChar = try (char '{' <* notFollowedBy (char '{')) <|> noneOf ['*', '{']
 
--- | Anything that is not structural is a name character, so that a bad name
--- yields our own casing diagnostic rather than a raw megaparsec error.
+{- | Anything that is not structural is a name character, so that a bad name
+yields our own casing diagnostic rather than a raw megaparsec error.
+-}
 pRawVar :: Parser Text
 pRawVar = between (string "{{") (string "}}") (T.pack <$> some (noneOf ['{', '}', '*', '/']))
 
@@ -469,7 +473,8 @@ checkAnchoring :: [PatternSegment TargetVar] -> Either GlobPlusError ()
 checkAnchoring segments = maybe (Right ()) (Left . UnanchoredVariable) unanchored
   where
     unanchored =
-        viaNonEmpty head
+        viaNonEmpty
+            head
             [ name
             | (index, Segment parts) <- indexed
             , globStarsWhere (< index)

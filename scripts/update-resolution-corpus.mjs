@@ -1,7 +1,8 @@
 // Records what `tsc` resolves each case in the resolution corpus to.
 //
-// The cases are authored by hand in fixtures/resolution-corpus.json - what
-// files exist, what the tsconfig says, and which specifier is written where.
+// The cases are authored by hand in fixtures/typescript/resolution-corpus.json -
+// what files exist, what the tsconfig says, and which specifier is written
+// where.
 // This script materialises each one in a temp directory, asks the real
 // compiler, and writes its answer back into the `tsc` field. Nothing here
 // decides what is correct; the compiler does.
@@ -15,7 +16,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync, rmSy
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 
-const corpusPath = "fixtures/resolution-corpus.json";
+const corpusPath = "fixtures/typescript/resolution-corpus.json";
 const corpus = JSON.parse(readFileSync(corpusPath, "utf8"));
 
 // `tsc` prints one of these per module it tries to resolve.

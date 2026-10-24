@@ -18,6 +18,7 @@ import Deslop.GlobPlus.Casing (render, renderings, spells)
 import Deslop.GlobPlus.Compiler
 import Deslop.GlobPlus.Oracle (OPart (..), OPattern, OSeg (..))
 import Deslop.GlobPlus.Oracle qualified as O
+import Fixtures.Deslop.GlobPlus (braced, clausePattern)
 import Hedgehog (Gen, MonadTest, PropertyT, annotate, annotateShow, assert, discard, failure, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
@@ -205,7 +206,7 @@ tier5 = describe "tier 5 - polarity and casing" $ do
     prop "P15 Narrow is contained in Widen" $ do
         (env, name, casing) <- forAll genBoundEnv
         candidate <- forAll (genSpellingOf env name casing)
-        let clause polarity = unsafeClause polarity (boundOf env) ("@/x/" <> braced (render casing name))
+        let clause polarity = clausePattern polarity (boundOf env) ("@/x/" <> braced (render casing name))
             path = "@/x/" <> candidate
         when (matchClause (clause Narrow) env (segmentsOf path)) $
             assert (matchClause (clause Widen) env (segmentsOf path))
@@ -214,13 +215,13 @@ tier5 = describe "tier 5 - polarity and casing" $ do
         (env, name, casing) <- forAll genBoundEnv
         literal <- maybe discard (pure . casedAs casing) (Map.lookup (varNameOf name) env.variables)
         for_ [Narrow, Widen] $ \polarity ->
-            assert (matchClause (unsafeClause polarity (boundOf env) ("@/x/" <> braced (render casing name))) env (segmentsOf ("@/x/" <> literal)))
+            assert (matchClause (clausePattern polarity (boundOf env) ("@/x/" <> braced (render casing name))) env (segmentsOf ("@/x/" <> literal)))
 
     prop "P17 Widen accepts every spelling of every name the capture could denote" $ do
         (env, name, casing) <- forAll genBoundEnv
         bound <- maybe discard pure (Map.lookup (varNameOf name) env.variables)
         candidate <- forAll (Gen.element (spellingsOf casing bound))
-        assert (matchClause (unsafeClause Widen (boundOf env) ("@/x/" <> braced (render casing name))) env (segmentsOf ("@/x/" <> candidate)))
+        assert (matchClause (clausePattern Widen (boundOf env) ("@/x/" <> braced (render casing name))) env (segmentsOf ("@/x/" <> candidate)))
 
     prop "P18 occurrences agree when some name spells both, not when both decode alike" $ do
         name <- forAll O.genVarName
@@ -386,8 +387,8 @@ tier7 = describe "tier 7 - parent directories" $ do
         directory <- forAll (Gen.list (Range.linear 1 4) O.genOpaqueSegment)
         let env = MatchEnv {targetDir = T.intercalate "/" directory, variables = Map.empty}
         for_ (rightToMaybe deterministic) (assert . isJust . moduleFromGlob env)
-      where
-        nondetermines segment = segment == "..*" || "*" `T.isInfixOf` segment
+  where
+    nondetermines segment = segment == "..*" || "*" `T.isInfixOf` segment
 
 --------------------------------------------------------------------------------
 -- Assertions
@@ -504,8 +505,9 @@ navigates segment = segment == ".." || segment == "..*"
 climbable :: Text -> Bool
 climbable segment = not ("*" `T.isInfixOf` segment)
 
--- | One raw segment as the step it stands for, so 'resolveSteps' can be
--- measured against an oracle that works on plain text.
+{- | One raw segment as the step it stands for, so 'resolveSteps' can be
+measured against an oracle that works on plain text.
+-}
 stepOf :: Text -> Step [Text]
 stepOf ".." = ParentDir
 stepOf "..*" = ParentDirStar
@@ -557,9 +559,6 @@ unambiguous = fmap simplify
 
 varNameOf :: [Text] -> VarName
 varNameOf = VarName . render KebabCase
-
-braced :: Text -> Text
-braced t = "{{" <> t <> "}}"
 
 -- | Every variable name occurring in a pattern.
 namesOf :: OPattern -> [[Text]]
@@ -621,8 +620,3 @@ spellingsOf casing bound = ordNub (concatMap (toList . renderings casing) bound.
 
 boundOf :: MatchEnv -> Set VarName
 boundOf env = Map.keysSet env.variables
-
-unsafeClause :: Polarity -> Set VarName -> Text -> CompiledClausePattern
-unsafeClause polarity bound text = case compileClausePattern polarity Nondeterministic bound text of
-    Right compiled -> compiled
-    Left err -> error ("clause did not compile: " <> renderGlobPlusError err)

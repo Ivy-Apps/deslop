@@ -81,3 +81,12 @@ If the per-step cost ever becomes material, the maintained
   check adds a recipe, and wires an app only if agents need it.
 - Formatting is still unchecked. Introducing `nix fmt` and a first fourmolu
   pass remains open, and is deliberately separate from this decision.
+
+## Update (test hardening, #245)
+
+CI keeps one step per recipe, in the order `just check` runs them, so a red
+run names the stage that failed. `just check` stays the local full pipeline: a
+recipe added to it must be added to the workflow too. Only `cabal update` and
+`just build-bench` are CI-only. Formatting is now checked: `just check` starts
+with `just format-check` (fourmolu), after one formatting pass over the whole
+codebase in its own commit.

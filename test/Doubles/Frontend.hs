@@ -8,26 +8,31 @@ files. Each line is a statement. @TODO@ breaks a rule and is repaired to
 @DONE@; @FIXME@ breaks another that cannot be repaired. A file whose bytes are
 not UTF-8 is kept as those bytes, unread, as every frontend's 'parse' is total.
 Every file lowers to a 'Module' with no dependencies, named by its path.
+
+Its @lines.project@ configures nothing, but can complain: a line
+@warn: \<text\>@ is a warning the run goes on after, and a line
+@broken: \<text\>@ is a configuration the run cannot use.
 -}
 module Doubles.Frontend (
     LinesFrontend (..),
     LinesUnit (..),
     LinesFile (..),
     LinesLowerError (..),
-    LinesConfigError,
+    LinesConfigError (..),
     todoRule,
     fixmeRule,
 ) where
 
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
+import Deslop.Error (Warning (..))
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Frontend.Finding (fixable, unfixable, within)
 import Deslop.Module (Location (..), Module (..), moduleIdUnsafe, moduleNameUnsafe)
 import Deslop.Problem (LintRuleId (..), Problem (..))
 import Deslop.Problem.Formatter (CodeFence (..))
 import Effectful.Reader.Static (ask)
-import Effects.FileSystem (fsFileExists)
+import Effects.FileSystem (fsFileExists, fsReadFile)
 import FileSystem.Iterator (Entry (..), walkDir)
 import FileSystem.Path (AbsPath (..), ProjectRelativePath, ProjectRoot (..), decodeOsPath, portablePath, relativePathTo, withAbsBaseUnsafe)
 import Git.Ignore (isIgnored)
@@ -56,12 +61,12 @@ newtype LinesLowerError = StatementsNotRead ProjectRelativePath
 instance Renderable LinesLowerError where
     render (StatementsNotRead path) = portablePath path <> " is not UTF-8"
 
--- | A Lines project has nothing to configure, so its configuration never fails.
-data LinesConfigError
+-- | A @lines.project@ the run cannot go on with, saying why.
+newtype LinesConfigError = BrokenConfig Text
     deriving stock (Show, Eq)
 
 instance Renderable LinesConfigError where
-    render e = case e of {}
+    render (BrokenConfig why) = "lines.project is broken: " <> why
 
 todoRule :: LintRuleId
 todoRule = LintRuleId "no-todo"
@@ -83,7 +88,11 @@ instance CompilerFrontend LinesFrontend where
     codeFence _ = CodeFence "lines"
     builtInRules _ = [todoRule, fixmeRule]
     ecosystemIgnored _ _ = (== [osp|generated|]) . takeFileName . (.osPath) . (.path)
-    loadConfig _ _ = pure $ Right ((), [])
+    loadConfig _ projectRoot = configOf . T.lines . decodeUtf8 <$> fsReadFile (withAbsBaseUnsafe projectRoot.path [osp|lines.project|])
+      where
+        configOf ls = case mapMaybe (T.stripPrefix "broken: ") ls of
+            why : _ -> Left (BrokenConfig why)
+            [] -> Right ((), Warning <$> mapMaybe (T.stripPrefix "warn: ") ls)
     discover _ _ projectRoot gitIgnore = walkDir (isIgnored gitIgnore) source projectRoot.path
       where
         source entry = entry.path <$ guard (not entry.isDir && takeExtension entry.path.osPath == [osp|.lines|])

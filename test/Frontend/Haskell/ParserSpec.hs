@@ -174,4 +174,3 @@ spec = describe "Frontend.Haskell.Parser" $ do
         source <- parsed text
 
         Renderable.render source `shouldBe` text
-

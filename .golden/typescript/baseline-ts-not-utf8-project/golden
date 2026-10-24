@@ -1,0 +1,9 @@
+[Title] 🚀 Baselining project: ts-not-utf8-project
+[Plain] TypeScript project detected.
+[Plain] 📚 Loaded 1 rulebook, 1 rule
+[Warning] WARNING: src/app/legacy.ts is not UTF-8, so its imports were not read.
+[Success] ✅ Success: Baseline generated with 1 problem.
+[summary] Baselined 3 modules enforcing 4 rules
+
+>>> baseline.yaml
+- boundaries#app-must-not-use-server#@/app/page

@@ -12,8 +12,9 @@ import Deslop.Problem (isAutoFixable, problemId)
 import Deslop.Problem.Baseline (Baseline, inBaseline)
 import Effects.CLI (LogStyle (..))
 import FileSystem.Path (AbsPath (..), decodeOsPath)
-import Fixtures.Deslop.Frontend.Pipeline (Outcome (..), inLines, runLines)
+import Fixtures.Deslop.Frontend.Pipeline (Outcome (..), runLines)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
+import Fixtures.FileSystem.Path (inProject)
 import Hedgehog (Gen, assert, cover, evalIO, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
@@ -70,7 +71,7 @@ modified = ("  modified  " <>) . fromMaybe "" . T.stripPrefix "/project/" . deco
 genProject :: Gen [(AbsPath, ByteString)]
 genProject = Gen.subsequence fileNames >>= traverse sourceOf
   where
-    sourceOf name = (inLines name,) <$> Gen.frequency [(5, readable), (1, pure "TODO\n\xff")]
+    sourceOf name = (inProject name,) <$> Gen.frequency [(5, readable), (1, pure "TODO\n\xff")]
     readable = TE.encodeUtf8 . T.intercalate "\n" <$> Gen.list (Range.linear 1 5) genStatement
     genStatement = Gen.frequency [(3, pure "ok"), (3, pure "TODO"), (2, pure "FIXME")]
 

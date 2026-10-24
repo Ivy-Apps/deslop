@@ -49,8 +49,8 @@ expectedEdges shape =
            | export <- shape.reExports
            , i <- shape.imports
            , -- A qualified import brings nothing unqualified into scope, so
-             -- module X exports none of it (Haskell 2010, 5.2).
-             not i.qualified
+           -- module X exports none of it (Haskell 2010, 5.2).
+           not i.qualified
            , fromMaybe i.name i.alias == export
            ]
   where

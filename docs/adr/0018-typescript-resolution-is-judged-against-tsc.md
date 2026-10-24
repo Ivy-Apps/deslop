@@ -29,9 +29,9 @@ otherwise hermetic and runs in milliseconds.
 **The compiler's answers are recorded once and committed; the suite tests
 against the recording.**
 
-`fixtures/resolution-corpus.json` holds hand-authored cases - the tsconfig
-files, which files exist, and which specifier is written where - each with a
-`tsc` field that is *only* ever written by
+`fixtures/typescript/resolution-corpus.json` holds hand-authored cases - the
+tsconfig files, which files exist, and which specifier is written where - each
+with a `tsc` field that is *only* ever written by
 `nix run .#update-resolution-corpus`. That app puts node and typescript on
 PATH, materialises each case in a temp directory, runs
 `tsc --noEmit --traceResolution`, and records what it resolved to. Nothing in

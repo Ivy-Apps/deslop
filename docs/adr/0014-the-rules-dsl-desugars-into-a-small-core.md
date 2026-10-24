@@ -132,10 +132,11 @@ qualifies - its output is an ordinary rulebook.
   means threading the source field through the core language, and it buys one
   word in one message. If a second sugar feature ever feeds an existing field,
   this should be revisited - the cost grows with each one.
-- `fixtures/rulebook/syntax-sugar.yaml` and its
-  `rulebook-from-file--syntax-sugar` golden are this repository's `-ddump-ds`:
-  the golden *is* the desugared, compiled output, so what any piece of sugar
-  expands to is readable in a diff.
+- `fixtures/shared/rulebook/syntax-sugar.yaml` is this repository's
+  `-ddump-ds`: `Deslop.Rule.Book.LoaderSpec` spells out what each of its rules
+  loads to - every target and clause, with its polarity and reach - so what
+  any piece of sugar expands to is readable in a diff. (It was a `ppShow`
+  golden of the compiled rulebook until the test hardening of #245.)
 - Properties D1-D3 join the suite. D1 is differential against the longhand a
   user would have written, which is the whole claim `allows-only` makes. All
   three generate arbitrary glob *text*, which tests condition 1 rather than

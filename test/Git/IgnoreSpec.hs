@@ -2,24 +2,14 @@ module Git.IgnoreSpec (spec) where
 
 import Data.Set qualified as Set
 import Data.Text qualified as T
+import Doubles.FileSystem (mockTree, runMockRoFileSystem)
+import Effectful (runPureEff)
 import FileSystem.Iterator (Entry (..))
-import FileSystem.Path (AbsPath)
-import Git.Ignore (
-    CharMatch (..),
-    ClassItem (..),
-    GitIgnore (..),
-    IgnorePattern (..),
-    IgnoreRule (..),
-    IgnoreScope (..),
-    Seg (..),
-    Tok (..),
-    alwaysIgnored,
-    isIgnored,
-    parseIgnoreFile,
-    parseIgnoreRule,
-    renderIgnoreRule,
- )
-import Hedgehog (Gen, discard, forAll, (/==), (===))
+import FileSystem.Path (ProjectRoot (..))
+import Fixtures.FileSystem.Path (inProject, projectRoot)
+import Fixtures.Git.Ignore (gitIgnoreWith)
+import Git.Ignore (GitIgnore, alwaysIgnored, isIgnored, loadGitIgnore)
+import Hedgehog (Gen, cover, discard, forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import System.Directory (createDirectoryIfMissing)
@@ -28,27 +18,18 @@ import System.Exit (ExitCode (..))
 import System.FilePath (takeDirectory)
 import System.Process (CreateProcess (..), proc, readCreateProcessWithExitCode)
 import Test.Hspec
-import TestUtils (ap, prop)
+import TestUtils (prop)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 --------------------------------------------------------------------------------
 -- Helpers
 --------------------------------------------------------------------------------
 
-projectRoot :: AbsPath
-projectRoot = ap "/proj"
-
-inProject :: Text -> AbsPath
-inProject "" = projectRoot
-inProject p = ap ("/proj/" <> p)
-
-{- | Builds a 'GitIgnore' from @.gitignore@ contents keyed by project-relative
-directory. Scopes must be listed shallowest-first, as 'loadGitIgnore' sorts them.
+{- | The 'GitIgnore' of a project holding exactly these @.gitignore@ files,
+keyed by the project-relative directory each sits in.
 -}
 gitIgnoreOf :: [(Text, Text)] -> GitIgnore
-gitIgnoreOf ss = GitIgnore {root = projectRoot, ecosystem = const False, scopes = fmap mkScope ss}
-  where
-    mkScope (dir, content) = IgnoreScope (inProject dir) (parseIgnoreFile content)
+gitIgnoreOf = gitIgnoreWith (const False) projectRoot.path
 
 rootOnly :: Text -> GitIgnore
 rootOnly content = gitIgnoreOf [("", content)]
@@ -189,51 +170,6 @@ genQuery = do
     pure $ p <> bool "" "/" isDir
 
 --------------------------------------------------------------------------------
--- Canonical rule generator, for the parse . render round trip
---------------------------------------------------------------------------------
-
-{- | Generates only rules the parser could itself have produced.
-
-The parser normalises: a metacharacter-free segment becomes 'Exact', and an
-unanchored rule always holds exactly one segment.
--}
-genIgnoreRule :: Gen IgnoreRule
-genIgnoreRule = do
-    negated <- Gen.bool
-    dirOnly <- Gen.bool
-    anchored <- Gen.bool
-    segs <-
-        if anchored
-            then Gen.list (Range.linear 1 3) genSeg
-            else one <$> genSeg
-    pure IgnoreRule {pattern = IgnorePattern segs, negated, dirOnly, anchored}
-
-genSeg :: Gen Seg
-genSeg = Gen.choice [pure GlobStar, Exact <$> genLiteralText, Seg <$> genMetaToks]
-  where
-    genLiteralText = Gen.text (Range.linear 1 6) (Gen.element literalChars)
-
-    -- At least one non-literal token, otherwise the parser would emit 'Exact'.
-    genMetaToks = Gen.filter (/= [Star, Star]) $ do
-        lead <- Gen.list (Range.linear 0 2) genTok
-        meta <- genMetaTok
-        trail <- Gen.list (Range.linear 0 2) genTok
-        pure $ lead <> [meta] <> trail
-
-    genTok = Gen.choice [genMetaTok, One . Lit <$> Gen.element literalChars]
-    genMetaTok = Gen.choice [pure Star, pure (One AnyChar), One <$> genClass]
-
-    genClass = Class <$> Gen.bool <*> Gen.list (Range.linear 1 3) genClassItem
-    genClassItem =
-        Gen.choice
-            [ ClassChar <$> Gen.element literalChars
-            , ClassRange <$> Gen.element ['a', 'b', 'x'] <*> Gen.element ['y', 'z']
-            , ClassPosix <$> Gen.element [minBound .. maxBound]
-            ]
-
-    literalChars = "abz.-_# !" :: [Char]
-
---------------------------------------------------------------------------------
 -- Spec
 --------------------------------------------------------------------------------
 
@@ -243,6 +179,7 @@ spec = describe "Git.Ignore" $ do
     matchingSpec
     scopeSpec
     alwaysIgnoredSpec
+    uncommittedSpec
     ecosystemSpec
     orderingProps
     anchoringProps
@@ -250,49 +187,55 @@ spec = describe "Git.Ignore" $ do
     differentialProps
 
 parsingSpec :: Spec
-parsingSpec = describe "parsing" $ do
-    it "skips blank lines and comments" $
-        parseIgnoreFile "# a comment\n\n   \nfoo\n" `shouldBe` [litRule "foo"]
+parsingSpec = describe "reading a .gitignore" $ do
+    it "skips blank lines and comments" $ do
+        let gi = rootOnly "# a comment\n\n   \nfoo\n"
+        (ignoresFile gi "foo", ignoresFile gi "# a comment") `shouldBe` (True, False)
 
     it "treats an escaped hash as a literal" $
-        (fmap (.pattern) . parseIgnoreRule) "\\#foo" `shouldBe` Just (IgnorePattern [Exact "#foo"])
+        ignoresFile (rootOnly "\\#foo") "#foo" `shouldBe` True
 
-    it "treats an escaped bang as a literal" $
-        parseIgnoreRule "\\!foo" `shouldBe` Just (litRule "!foo")
+    it "treats an escaped bang as a literal" $ do
+        let gi = rootOnly "\\!foo"
+        (ignoresFile gi "!foo", ignoresFile gi "foo") `shouldBe` (True, False)
 
     it "reads a leading bang as negation" $
-        (fmap (.negated) . parseIgnoreRule) "!foo" `shouldBe` Just True
+        ignoresFile (rootOnly "*\n!foo") "foo" `shouldBe` False
 
-    it "reads a trailing slash as directory-only" $
-        (fmap (.dirOnly) . parseIgnoreRule) "build/" `shouldBe` Just True
+    it "reads a trailing slash as directory-only" $ do
+        let gi = rootOnly "build/"
+        (ignoresDir gi "build", ignoresFile gi "build") `shouldBe` (True, False)
 
     it "does not anchor a pattern whose only slash was the directory marker" $
-        (fmap (.anchored) . parseIgnoreRule) "build/" `shouldBe` Just False
+        ignoresDir (rootOnly "build/") "a/build" `shouldBe` True
 
-    it "anchors on a leading slash" $
-        (fmap (.anchored) . parseIgnoreRule) "/build" `shouldBe` Just True
+    it "anchors on a leading slash" $ do
+        let gi = rootOnly "/build"
+        (ignoresFile gi "build", ignoresFile gi "a/build") `shouldBe` (True, False)
 
-    it "anchors on an interior slash" $
-        (fmap (.anchored) . parseIgnoreRule) "a/b" `shouldBe` Just True
+    it "anchors on an interior slash" $ do
+        let gi = rootOnly "a/b"
+        (ignoresFile gi "a/b", ignoresFile gi "x/a/b") `shouldBe` (True, False)
 
-    it "strips unescaped trailing spaces" $
-        parseIgnoreRule "foo   " `shouldBe` parseIgnoreRule "foo"
+    it "strips unescaped trailing spaces" $ do
+        let gi = rootOnly "foo   "
+        (ignoresFile gi "foo", ignoresFile gi "foo   ") `shouldBe` (True, False)
 
-    it "keeps a trailing space escaped by a backslash" $
-        parseIgnoreRule "foo\\ " `shouldBe` Just (litRule "foo ")
+    it "keeps a trailing space escaped by a backslash" $ do
+        let gi = rootOnly "foo\\ "
+        (ignoresFile gi "foo ", ignoresFile gi "foo") `shouldBe` (True, False)
 
-    it "collapses a metacharacter-free segment to Exact" $
-        (fmap (.pattern) . parseIgnoreRule) "foo.ts" `shouldBe` Just (IgnorePattern [Exact "foo.ts"])
+    it "matches a metacharacter-free segment exactly" $ do
+        let gi = rootOnly "foo.ts"
+        (ignoresFile gi "foo.ts", ignoresFile gi "foo.tsx", ignoresFile gi "xfoo.ts") `shouldBe` (True, False, False)
 
-    it "parses a lone ** segment as GlobStar" $
-        (fmap (.pattern) . parseIgnoreRule) "a/**/b"
-            `shouldBe` Just (IgnorePattern [Exact "a", GlobStar, Exact "b"])
+    it "reads a lone ** segment as any number of directories" $ do
+        let gi = rootOnly "a/**/b"
+        (ignoresFile gi "a/x/y/b", ignoresFile gi "a/xb") `shouldBe` (True, False)
 
-    it "treats an unterminated bracket as a literal" $
-        parseIgnoreRule "a[b" `shouldBe` Just (litRule "a[b")
-  where
-    litRule t =
-        IgnoreRule {pattern = IgnorePattern [Exact t], negated = False, dirOnly = False, anchored = False}
+    it "treats an unterminated bracket as a literal" $ do
+        let gi = rootOnly "a[b"
+        (ignoresFile gi "a[b", ignoresFile gi "ab") `shouldBe` (True, False)
 
 matchingSpec :: Spec
 matchingSpec = describe "matching" $ do
@@ -380,30 +323,61 @@ alwaysIgnoredSpec = describe "always-ignored directories" $ do
     it "leaves a language's generated directories to that language" $
         ignoresDir (rootOnly "") "node_modules" `shouldBe` False
 
+{- | Only committed, in-tree @.gitignore@ files count, so a commit gives the
+same verdict on CI and on every machine (ADR 4). What git also reads from
+outside the tree is deliberately not read.
+-}
+uncommittedSpec :: Spec
+uncommittedSpec = describe "what is not a committed .gitignore" $ do
+    it "does not read .git/info/exclude" $
+        ignoresFile (inTree [(".git/info/exclude", "excluded.ts\n")]) "excluded.ts" `shouldBe` False
+
+    it "does not read a core.excludesFile the repository's config names" $ do
+        let gi =
+                inTree
+                    [ (".git/config", "[core]\n\texcludesFile = /proj/.global-ignore\n")
+                    , (".global-ignore", "global.ts\n")
+                    ]
+        ignoresFile gi "global.ts" `shouldBe` False
+
+    it "does not read git's default global ignore file" $
+        ignoresFile (inTree [(".config/git/ignore", "global.ts\n")]) "global.ts" `shouldBe` False
+
+    it "reads a committed .gitignore beside them" $
+        ignoresFile (inTree [(".git/info/exclude", "excluded.ts\n"), (".gitignore", "kept.ts\n")]) "kept.ts" `shouldBe` True
+  where
+    inTree :: [(Text, Text)] -> GitIgnore
+    inTree files =
+        runPureEff . runMockRoFileSystem (mockTree [(inProject path, encodeUtf8 content) | (path, content) <- files]) $
+            loadGitIgnore (const False) projectRoot.path
+
 ecosystemSpec :: Spec
 ecosystemSpec = describe "what the language's tooling generates" $ do
     it "ignores a directory the ecosystem names" $
-        ignoresDir (withVendor . rootOnly $ "") "vendor" `shouldBe` True
+        ignoresDir (withVendor "") "vendor" `shouldBe` True
 
     it "ignores files beneath a directory the ecosystem names" $
-        ignoresFile (withVendor . rootOnly $ "") "vendor/dep.ts" `shouldBe` True
+        ignoresFile (withVendor "") "vendor/dep.ts" `shouldBe` True
 
     it "ignores it even when a rule re-includes it" $
-        ignoresDir (withVendor . rootOnly $ "!vendor") "vendor" `shouldBe` True
+        ignoresDir (withVendor "!vendor") "vendor" `shouldBe` True
 
     it "still honours the gitignore rules alongside it" $
-        ignoresFile (withVendor . rootOnly $ "*.log") "debug.log" `shouldBe` True
+        ignoresFile (withVendor "*.log") "debug.log" `shouldBe` True
   where
-    withVendor gi = gi {ecosystem = (== inProject "vendor") . (.path)} :: GitIgnore
+    withVendor content = gitIgnoreWith ((== inProject "vendor") . (.path)) projectRoot.path [("", content)]
 
 orderingProps :: Spec
 orderingProps = describe "ordering and negation laws" $ do
+    -- Every path the rule matches, and every directory above one, the
+    -- negation matches too and is read after it, so nothing stays ignored.
     prop "negating a rule un-ignores everything it ignored" $ do
         line <- forAll genPositiveLine
         query <- forAll genQuery
         let ignored = ignoresQuery (rootOnly line) query
-        let unIgnored = ignoresQuery (rootOnly (line <> "\n!" <> line)) query
-        (ignored, ignored && unIgnored) === (ignored, False)
+        cover 10 "the rule alone ignores the path" ignored
+
+        ignoresQuery (rootOnly (line <> "\n!" <> line)) query === False
 
     prop "re-asserting after a negation ignores again" $ do
         line <- forAll genPositiveLine
@@ -417,8 +391,10 @@ orderingProps = describe "ordering and negation laws" $ do
         extra <- forAll genPositiveLine
         query <- forAll genQuery
         let ignored = ignoresQuery (rootOnly line) query
-        let stillIgnored = ignoresQuery (rootOnly (line <> "\n" <> extra)) query
-        (ignored, ignored && not stillIgnored) === (ignored, False)
+        cover 10 "the first rule ignores the path" ignored
+
+        when ignored $
+            ignoresQuery (rootOnly (line <> "\n" <> extra)) query === True
 
     prop "a deeper scope overrides a shallower one" $ do
         line <- forAll genUnanchoredLine
@@ -464,19 +440,17 @@ anchoringProps = describe "anchoring and shape laws" $ do
         ignoresQuery (rootOnly noise) query === ignoresQuery (rootOnly (T.intercalate "\n" lns)) query
 
 lexerProps :: Spec
-lexerProps = describe "lexer laws" $ do
-    prop "parse . render is the identity on canonical rules" $ do
-        rule <- forAll genIgnoreRule
-        parseIgnoreRule (renderIgnoreRule rule) === Just rule
-
+lexerProps = describe "whitespace laws" $ do
     prop "unescaped trailing spaces are insignificant" $ do
         line <- forAll genPositiveLine
         n <- forAll (Gen.int (Range.linear 1 4))
-        parseIgnoreRule (line <> T.replicate n " ") === parseIgnoreRule line
+        query <- forAll genQuery
+        ignoresQuery (rootOnly (line <> T.replicate n " ")) query === ignoresQuery (rootOnly line) query
 
-    prop "an escaped trailing space is significant" $ do
-        line <- forAll genPositiveLine
-        parseIgnoreRule (line <> "\\ ") /== parseIgnoreRule line
+    prop "an escaped trailing space is part of the name" $ do
+        name <- forAll genName
+        let gi = rootOnly (name <> "\\ ")
+        (ignoresFile gi (name <> " "), ignoresFile gi name) === (True, False)
 
 differentialProps :: Spec
 differentialProps = describe "differential against git check-ignore" $ do

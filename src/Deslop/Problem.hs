@@ -30,9 +30,10 @@ data Problem
         , rule :: RuleId
         , badModule :: ModuleName
         , modulePath :: ProjectRelativePath
-        -- ^ Where the module that broke the Rule lives. Every module has one,
-        -- which is what lets the two 'ViolationKind's with no statement to
-        -- point at still name a file.
+        {- ^ Where the module that broke the Rule lives. Every module has one,
+        which is what lets the two 'ViolationKind's with no statement to
+        point at still name a file.
+        -}
         , prose :: Text
         , kind :: ViolationKind
         , fix :: Text
@@ -66,10 +67,11 @@ data ViolationKind
       TransitiveImport
         { chain :: NonEmpty ModuleName
         , firstImport :: Maybe Location
-        , -- | The chains this violation stands in for, once duplicates have
-          -- been compacted. Empty until "Deslop.Problem.Shrinker" runs, and
-          -- empty afterwards for a violation that had no duplicates.
-          alsoReached :: [NonEmpty ModuleName]
+        , alsoReached :: [NonEmpty ModuleName]
+        {- ^ The chains this violation stands in for, once duplicates have
+        been compacted. Empty until "Deslop.Problem.Shrinker" runs, and
+        empty afterwards for a violation that had no duplicates.
+        -}
         }
     | -- | The module does not import something the Rule requires it to.
       MissingUse

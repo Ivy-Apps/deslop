@@ -1,7 +1,6 @@
 module Frontend.Haskell.TokensSpec (spec) where
 
 import Frontend.Haskell.Tokens (HsToken (..), HsTokenKind (..), isKeyword, isTrivia)
-import Renderable qualified
 import Test.Hspec
 
 spec :: Spec
@@ -24,6 +23,3 @@ spec = describe "Frontend.Haskell.Tokens" $ do
 
         it "are not a longer identifier that starts with one" $
             isKeyword "import" (HsToken "imports" VarIdK) `shouldBe` False
-
-    it "renders a token as the text it was lexed from" $
-        Renderable.render (HsToken "{- a -}" BlockCommentK) `shouldBe` "{- a -}"

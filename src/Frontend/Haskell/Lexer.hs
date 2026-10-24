@@ -1,7 +1,7 @@
 {- | Splitting Haskell source into 'HsToken's, losslessly.
 
 The rules that decide whether an @import@ is really one are lexical, so they
-are the ones followed exactly: block comments nest, @{-# ... #-}@ is a pragma, and a
+are the ones followed exactly: block comments nest, @{\-# ... #-\}@ is a pragma, and a
 run of symbol characters is a line comment only when it is all dashes and at
 least two long - @-- |@ is a comment, @--|@ and @-->@ are operators. Strings
 and character literals are tokens of their own, so nothing inside one is ever

@@ -165,8 +165,13 @@ test-suite deslop-test
   type:               exitcode-stdio-1.0
   hs-source-dirs:     test
   main-is:            Spec.hs
-  build-tool-depends: hspec-discover:hspec-discover
+  build-tool-depends:
+    , deslop:deslop
+    , hspec-discover:hspec-discover
+
+  autogen-modules:    Paths_deslop
   other-modules:
+    Paths_deslop
     Deslop.CodeGraphPropSpec
     Deslop.CodeGraphSpec
     Deslop.Frontend.FindingSpec
@@ -189,19 +194,26 @@ test-suite deslop-test
     Doubles.CLI
     Doubles.FileSystem
     Doubles.Frontend
-    E2E.FileGoldenSpec
+    E2E.ExecutableSpec
+    E2E.FileSpec
     E2E.ProjectGoldenSpec
     Effects.FileSystemSpec
     Effects.ReportProblemSpec
     FileSystem.IteratorSpec
     FileSystem.PathSpec
     Fixtures.Deslop.Frontend.Pipeline
+    Fixtures.Deslop.GlobPlus
     Fixtures.Deslop.Module
+    Fixtures.Deslop.Problem
     Fixtures.Deslop.Problem.Baseline
+    Fixtures.Deslop.Rule.Book
     Fixtures.Deslop.Rule.Book.Dto
+    Fixtures.FileSystem.Path
     Fixtures.Frontend.Haskell.CST
     Fixtures.Frontend.Haskell.Project
     Fixtures.Frontend.TypeScript.Config
+    Fixtures.Git.Ignore
+    Fixtures.OnDisk
     Frontend.Haskell.CabalSpec
     Frontend.Haskell.CSTSpec
     Frontend.Haskell.GhcCorpusSpec
@@ -261,7 +273,6 @@ test-suite deslop-test
     , megaparsec
     , optparse-applicative
     , os-string
-    , pretty-show
     , process
     , template-haskell
     , text

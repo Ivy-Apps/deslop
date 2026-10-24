@@ -2,12 +2,14 @@ module Doubles.FileSystem (
     MockRoFileSystem (..),
     defaultMockRoFileSystem,
     runMockRoFileSystem,
-    runMockWrFileSystem,
+    runReadOnly,
+    runWritesInMemory,
     mockFiles,
     mockFileSystem,
     mockDirs,
     mockDirsWithSymlinks,
     mockFileAt,
+    mockTree,
     InMemoryFileSystem (..),
     newInMemoryFileSystem,
     runInMemoryFileSystem,
@@ -21,13 +23,19 @@ import Effects.FileSystem (RoFileSystem (..), WrFileSystem (..))
 import FileSystem.Path (AbsPath (..), absPathUnsafe, decodeOsPath, encodeOsPath)
 import System.OsPath (OsPath, splitDirectories, (</>))
 
-runMockWrFileSystem ::
+{- | Every write lands in memory, keyed by the path it was written to, and
+never reaches the disk: a run can read a real fixture while what it would have
+written is asserted on instead. Writing a path again replaces what it held, as
+on disk. Directories are implied by the files beneath them, so 'MkDirP'
+records nothing.
+-}
+runWritesInMemory ::
     (IOE :> es) =>
-    IORef (Maybe ByteString) ->
+    IORef (Map AbsPath ByteString) ->
     Eff (WrFileSystem : es) a ->
     Eff es a
-runMockWrFileSystem ref = interpret $ \_ -> \case
-    WriteFile _path content -> liftIO $ writeIORef ref (Just content)
+runWritesInMemory ref = interpret $ \_ -> \case
+    WriteFile path content -> liftIO . modifyIORef' ref $ Map.insert path content
     MkDirP _ -> pure ()
 
 {- | A product type containing mock implementations for all RoFileSystem operations.
@@ -76,6 +84,10 @@ normalizeMockPath p =
         -- Ensure root slash is preserved correctly if it was reduced to [""]
         finalParts = if resolvedParts == [""] then ["", ""] else resolvedParts
      in encodeOsPath $ T.intercalate "/" finalParts
+
+-- | Runs a read-only computation over a mock, with nothing else in the stack.
+runReadOnly :: MockRoFileSystem '[IOE] -> Eff '[RoFileSystem, IOE] a -> IO a
+runReadOnly mocks = runEff . runMockRoFileSystem mocks
 
 -- | Interprets the RoFileSystem effect using the provided mock configurations.
 runMockRoFileSystem :: MockRoFileSystem es -> Eff (RoFileSystem : es) a -> Eff es a
@@ -145,7 +157,7 @@ runInMemoryFileSystem ::
     InMemoryFileSystem ->
     Eff (WrFileSystem : RoFileSystem : es) a ->
     Eff es a
-runInMemoryFileSystem fs = runMockRoFileSystem reading . writing
+runInMemoryFileSystem fs = runMockRoFileSystem (readingFrom (readIORef fs.files)) . writing
   where
     writing = interpret $ \_ -> \case
         WriteFile p content -> liftIO $ do
@@ -153,17 +165,23 @@ runInMemoryFileSystem fs = runMockRoFileSystem reading . writing
             modifyIORef' fs.written (<> [p])
         MkDirP _ -> pure ()
 
-    reading =
-        defaultMockRoFileSystem
-            { mockReadFile = \p -> fromMaybe mempty . Map.lookup p <$> current
-            , mockFileExists = \p -> Map.member p <$> current
-            , mockDirectoryExists = \p -> any (isBeneath p) . Map.keys <$> current
-            , mockListDirectory = \p -> ordNub . mapMaybe (childOf p) . Map.keys <$> current
-            }
+{- | A read-only tree of files, held purely: exactly these paths exist, holding
+exactly these bytes, inside directories the files imply. Enough for a directory
+walk, so it runs under 'Effectful.runPureEff'.
+-}
+mockTree :: [(AbsPath, ByteString)] -> MockRoFileSystem es
+mockTree = readingFrom . pure . Map.fromList
 
-    current :: (IOE :> es') => Eff es' (Map AbsPath ByteString)
-    current = readIORef fs.files
-
+-- | Reads whatever files the action says there are, as 'mockTree' does.
+readingFrom :: Eff es (Map AbsPath ByteString) -> MockRoFileSystem es
+readingFrom current =
+    defaultMockRoFileSystem
+        { mockReadFile = \p -> fromMaybe mempty . Map.lookup p <$> current
+        , mockFileExists = \p -> Map.member p <$> current
+        , mockDirectoryExists = \p -> any (isBeneath p) . Map.keys <$> current
+        , mockListDirectory = \p -> ordNub . mapMaybe (childOf p) . Map.keys <$> current
+        }
+  where
     segments = splitDirectories . (.osPath)
     isBeneath dir file = segments dir `isPrefixOf` segments file && segments dir /= segments file
     childOf dir file = case drop (length (segments dir)) (segments file) of

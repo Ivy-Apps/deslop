@@ -183,7 +183,8 @@ coarsestGrouping isFirstBlock as = case longest of
     Nothing -> T.toLower <$> as
   where
     longest =
-        viaNonEmpty head
+        viaNonEmpty
+            head
             [ (n, block)
             | n <- reverse [1 .. length as]
             , let block = T.concat (take n as)

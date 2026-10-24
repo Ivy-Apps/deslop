@@ -1,15 +1,16 @@
 module Frontend.Haskell.UnitSpec (spec) where
 
 import Fixtures.Frontend.Haskell.Project (cabalPackage, configFrom, inProject)
+import Frontend.Haskell.CST (HsProgram (..), HsSource (..), Import (..), ImportDecl (..))
 import Frontend.Haskell.Cabal (Component, HsConfig (..))
-import Frontend.Haskell.CST (HsProgram (..), HsSource (..))
+import Frontend.Haskell.ModuleName (fromDotted)
 import Frontend.Haskell.Preprocessor (Preprocessor (..), Request (..), RequestedBy (..))
 import Frontend.Haskell.Unit (HsUnit (..), Opacity (..), readUnit, renderUnit, unitPath)
 import Hedgehog (forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import Test.Hspec
-import TestUtils (prop)
+import TestUtils (prop, requireJust)
 
 configWith :: [Text] -> IO [Component]
 configWith libraryFields =
@@ -24,11 +25,12 @@ opacityOf components bytes = case readUnit components (inProject "src/A.hs") byt
 spec :: Spec
 spec = describe "Frontend.Haskell.Unit" $ do
     plain <- runIO (configWith [])
+    moduleB <- runIO . requireJust "a module name" $ fromDotted "B"
 
     describe "a file it reads" $ do
         it "keeps its path and its imports" $
             case readUnit plain (inProject "src/A.hs") "module A where\nimport B\n" of
-                Readable program -> (program.path, length program.source.imports) `shouldBe` (inProject "src/A.hs", 1)
+                Readable program -> (program.path, fmap (.decl.moduleName) program.source.imports) `shouldBe` (inProject "src/A.hs", [moduleB])
                 Opaque {} -> expectationFailure "expected the file to be read"
 
         it "is read through hspec-discover, whose output Deslop knows" $

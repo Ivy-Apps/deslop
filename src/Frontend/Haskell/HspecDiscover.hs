@@ -1,8 +1,8 @@
 {- | What @hspec-discover@ generates for a test driver, so the driver's
 dependencies are known without running it.
 
-A driver is a file whose header asks for @{-# OPTIONS_GHC -F -pgmF
-hspec-discover #-}@. GHC compiles the module @hspec-discover@ writes in its
+A driver is a file whose header asks for @{\-# OPTIONS_GHC -F -pgmF
+hspec-discover #-\}@. GHC compiles the module @hspec-discover@ writes in its
 place, which imports every spec below the driver's directory: every file whose
 name ends in @Spec.hs@ and whose path, from that directory, is a valid module
 name - @Deslop\/ModuleSpec.hs@ is @Deslop.ModuleSpec@, and @Spec.hs@ itself,

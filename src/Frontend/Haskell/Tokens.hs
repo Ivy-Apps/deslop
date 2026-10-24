@@ -28,12 +28,13 @@ data HsTokenKind
       WhitespaceK
     | -- | @-- ...@ to the end of the line, or a @#!@ line opening the file.
       LineCommentK
-    | -- | @{- ... -}@, nested.
+    | -- | @{\- ... -\}@, nested.
       BlockCommentK
-    | -- | @{-# ... #-}@.
+    | -- | @{\-# ... #-\}@.
       PragmaK
-    | -- | @foo@, @_x@, @x'@ - and the keywords @module@, @import@, @where@,
-      -- which Haskell spells as variable identifiers.
+    | {- | @foo@, @_x@, @x'@ - and the keywords @module@, @import@, @where@,
+      which Haskell spells as variable identifiers.
+      -}
       VarIdK
     | -- | @Map@, or a dotted run of them, @Data.Map.Strict@.
       ConIdK

@@ -91,12 +91,13 @@ data Group
 data GroupResult = GroupResult
     { group :: Group
     , entries :: [Entry]
-    , -- | Every project in the group added up: what one Deslop run over all of
-      -- them costs in time and memory. Reported, never gated - it is the same
-      -- measurements the entries above already account for.
-      total :: Maybe Total
-    , -- | Absent when no entry in the group had a Reference counterpart.
-      aggregate :: Maybe Shift
+    , total :: Maybe Total
+    {- ^ Every project in the group added up: what one Deslop run over all of
+    them costs in time and memory. Reported, never gated - it is the same
+    measurements the entries above already account for.
+    -}
+    , aggregate :: Maybe Shift
+    -- ^ Absent when no entry in the group had a Reference counterpart.
     }
     deriving stock (Show, Eq)
 
@@ -163,8 +164,8 @@ limits =
 
 data Run = Run
     { groups :: [GroupResult]
-    , -- | Cases the Reference holds that this run did not measure.
-      retired :: [RecordedCase]
+    , retired :: [RecordedCase]
+    -- ^ Cases the Reference holds that this run did not measure.
     , outcome :: Outcome
     }
     deriving stock (Show, Eq)

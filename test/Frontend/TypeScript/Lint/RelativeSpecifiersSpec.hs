@@ -3,11 +3,12 @@ module Frontend.TypeScript.Lint.RelativeSpecifiersSpec (spec) where
 import Data.Text qualified as T
 import Deslop.Frontend.Finding (applyFindings, problem)
 import Deslop.Module (Location (..))
-import Deslop.Problem (LintRuleId (..), Problem (..), ProblemId (..), problemId)
+import Deslop.Problem (Problem (..), ProblemId (..), problemId)
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import FileSystem.Path (ProjectRelativePath (..), ProjectRoot (..), absPathUnsafe, decodeOsPath, encodeOsPath)
+import Fixtures.Deslop.Problem (autoFixable, describedAs, lintProblemAt, locatedAt, withFix)
 import Fixtures.Deslop.Problem.Baseline (baselineOf)
 import Fixtures.Frontend.TypeScript.Config (defaultTsConfig, mkMapping)
 import Frontend.TypeScript.CST (TsNode (..), TsProgram (..))
@@ -53,10 +54,7 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers" $ do
                     [[osp|/home/repo/src/lib/welcome.ts|]]
                     prog
             map (.target) result.cst `shouldBe` ["@/lib/welcome"]
-            length problems `shouldBe` 1
-            case problems of
-                (LintProblem {lintRule = r} : _) -> r `shouldBe` LintRuleId "no-relative-imports"
-                _ -> expectationFailure "expected at least one problem"
+            problems `shouldBe` [relativeImport "src/features/home/home.ts" "../../lib/welcome" "@/lib/welcome"]
 
         it "converts a same-dir relative import to an alias" $ do
             let prog =
@@ -69,10 +67,7 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers" $ do
                     [[osp|/home/repo/src/features/home/useHomeViewModel.ts|]]
                     prog
             map (.target) result.cst `shouldBe` ["@/features/home/useHomeViewModel"]
-            length problems `shouldBe` 1
-            case problems of
-                (LintProblem {lintRule = r} : _) -> r `shouldBe` LintRuleId "no-relative-imports"
-                _ -> expectationFailure "expected at least one problem"
+            problems `shouldBe` [relativeImport "src/features/home/home.ts" "./useHomeViewModel" "@/features/home/useHomeViewModel"]
 
         it "converts a relative import crossing into the test directory" $ do
             let prog =
@@ -85,7 +80,7 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers" $ do
                     [[osp|/home/repo/test/auth-fixture.ts|]]
                     prog
             map (.target) result.cst `shouldBe` ["@test/auth-fixture"]
-            length problems `shouldBe` 1
+            problems `shouldBe` [relativeImport "src/app.ts" "../test/auth-fixture" "@test/auth-fixture"]
 
         it "leaves a package import unchanged and reports no problem" $ do
             let prog = mkProg [osp|/home/repo/src/app.ts|] [mkImport "react"]
@@ -115,9 +110,13 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers" $ do
                 runTestNoBaseline defaultTsConfig [[osp|/home/repo/src/lib/welcome.ts|]] prog
 
             map (.target) result.cst `shouldBe` ["@/lib/welcome"]
-            case problems of
-                [LintProblem {lintRule = r}] -> r `shouldBe` LintRuleId "no-relative-exports"
-                _ -> expectationFailure "expected exactly one no-relative-exports problem"
+            problems
+                `shouldBe` [ autoFixable
+                                . withFix "Use ```export * from '@/lib/welcome';\n``` instead."
+                                . describedAs "Relative re-exports are not allowed. Use aliased ones."
+                                . lintProblemAt "no-relative-exports"
+                                $ locatedAt "src/lib/index.ts" 1 "export * from './welcome';\n"
+                           ]
 
         it "leaves an already-aliased re-export unchanged and reports no problem" $ do
             let prog =
@@ -188,7 +187,7 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers" $ do
                     [[osp|/home/repo/test/auth-fixture.ts|]]
                     prog
             map (.target) result.cst `shouldBe` ["@test/auth-fixture", "react"]
-            length problems `shouldBe` 1
+            problems `shouldBe` [relativeImport "src/features/auth/auth.ts" "../../../test/auth-fixture" "@test/auth-fixture"]
 
         it "preserves non-import nodes unchanged" $ do
             let prog =
@@ -228,7 +227,7 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers" $ do
             -- import is NOT fixed — kept as original relative import
             map (.target) result.cst `shouldBe` ["../../lib/welcome"]
             -- problem is still reported
-            length problems `shouldBe` 1
+            problems `shouldBe` [relativeImport "src/features/home/home.ts" "../../lib/welcome" "@/lib/welcome"]
 
         it "import in a different (non-baselined) file is still fixed" $ do
             -- baseline only covers home.ts, not auth.ts
@@ -245,7 +244,7 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers" $ do
                     prog
             -- auth.ts is not baselined, so the import is fixed
             map (.target) result.cst `shouldBe` ["@test/auth-fixture"]
-            length problems `shouldBe` 1
+            problems `shouldBe` [relativeImport "src/features/auth/auth.ts" "../../../test/auth-fixture" "@test/auth-fixture"]
 
     describe "the reported location" $ do
         -- The mono-repo layout this rule is most often wrong in: no `baseUrl`
@@ -294,6 +293,19 @@ spec = describe "Frontend.TypeScript.Lint.RelativeSpecifiers" $ do
                         prog
 
             map locationOf problems === [T.intercalate "/" (dirSegs <> ["main.ts"])]
+
+{- | What the rule reports about the relative import on the first line of a
+file, and the aliased one it repairs it to.
+-}
+relativeImport :: Text -> Text -> Text -> Problem
+relativeImport file relative alias =
+    autoFixable
+        . withFix ("Use ```" <> importOf alias <> "``` instead.")
+        . describedAs "Relative imports are not allowed. Use aliased ones."
+        . lintProblemAt "no-relative-imports"
+        $ locatedAt file 1 (importOf relative)
+  where
+    importOf specifier = "import * from '" <> specifier <> "';\n"
 
 locationOf :: Problem -> Text
 locationOf p = case p of

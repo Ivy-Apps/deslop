@@ -1,8 +1,8 @@
 module Frontend.Haskell.ModuleSpec (spec) where
 
 import Deslop.Module (DependencyEdge (..), Location (..), Module (..), ModuleName (..), canonicalName)
-import Fixtures.Frontend.Haskell.Project (Lowered (..), cabalPackage, edgesFrom, lowerFiles, moduleNamed)
 import FileSystem.Path (portablePath)
+import Fixtures.Frontend.Haskell.Project (Lowered (..), cabalPackage, edgesFrom, lowerFiles, moduleNamed)
 import Renderable qualified
 import Test.Hspec
 import TestUtils (requireJust, requireRight)
@@ -61,8 +61,22 @@ spec = describe "Frontend.Haskell.Module" $ do
     let namesOf name = maybe [] (fmap (.text) . toList . (.names)) (moduleNamed name lowered)
 
     describe "naming" $ do
-        it "lowers every file to one module" $
-            length lowered.modules `shouldBe` length files - 1
+        it "lowers every source file to one module" $
+            sort (fmap ((.text) . canonicalName) lowered.modules)
+                `shouldBe` sort
+                    [ "lib/p/P/A"
+                    , "lib/p/P/B"
+                    , "lib/p/P/C"
+                    , "lib/p/Utils"
+                    , "lib/p/P/Wrong"
+                    , "lib/p/P/Cpp"
+                    , "exe/p/Main"
+                    , "exe/p/Helper"
+                    , "test/p-test/Main"
+                    , "test/p-test/P/ASpec"
+                    , "test/p-test/Utils"
+                    , "bench/p-bench/Main"
+                    ]
 
         it "names a module by its component and its path, aliased by its path alone" $
             namesOf "lib/p/P/A" `shouldBe` ["lib/p/P/A", "P/A"]

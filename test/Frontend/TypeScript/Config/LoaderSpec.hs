@@ -4,7 +4,9 @@ import Data.Text qualified as T
 import Doubles.FileSystem (mockFileSystem, runMockRoFileSystem)
 import Effectful (runEff)
 import Effects.FileSystem (runFileSystemIO)
-import FileSystem.Path (ProjectRoot (..), encodeOsPath)
+import FileSystem.Path (AbsPath, ProjectRoot (..), encodeOsPathString, withAbsBaseUnsafe)
+import Fixtures.Frontend.TypeScript.Config (mkMapping)
+import Fixtures.OnDisk (typescriptConfigs)
 import Frontend.TypeScript.Config (KeyPattern (..), PathMapping (..), Pattern (..), TsConfig (..))
 import Frontend.TypeScript.Config.Loader (
     SkippedExtends (..),
@@ -16,8 +18,7 @@ import Hedgehog (Gen, evalIO, forAll, success)
 import Hedgehog.Gen qualified as Gen
 import System.OsPath (osp, (</>))
 import Test.Hspec
-import TestUtils (ap, mkAbsolute, pathSafeGolden, prop, requireRight)
-import Text.Show.Pretty (ppShow)
+import TestUtils (ap, mkAbsolute, prop, requireRight)
 
 spec :: Spec
 spec = describe "Frontend.TypeScript.Config.Loader" $ do
@@ -186,20 +187,48 @@ spec = describe "Frontend.TypeScript.Config.Loader" $ do
             success
 
     describe "loading a config off disk" $ do
-        let cases =
-                [ "simple.json"
-                , "invalid.json"
-                , "complex.json"
-                , "minimal.json"
-                , "base-url.json"
-                , "sorting-and-comments.json"
-                , "extends.json"
-                ]
-        forM_ cases $ \file ->
-            it file $ do
-                cfgPath <- mkAbsolute ([osp|fixtures/typescript/config|] </> encodeOsPath (T.pack file))
-                res <- runEff . runFileSystemIO $ loadTsConfig cfgPath
-                pathSafeGolden ("loadTsConfig-" <> file) (ppShow res)
+        let loadsTo file pathsBase paths = it file $ do
+                configs <- mkAbsolute typescriptConfigs
+
+                loaded <- loadFixture file
+
+                loaded `shouldBe` Right (TsConfig {pathsBase = pathsBase configs, paths}, [])
+
+        loadsTo "simple.json" id [mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]]
+        loadsTo "minimal.json" id [mkMapping (Wildcard "@/" "") [Wildcard "" ""]]
+        loadsTo "base-url.json" inSrc [mkMapping (Wildcard "@/" "") [Wildcard "" ""]]
+        loadsTo "extends.json" inSrc [mkMapping (Wildcard "@app/" "") [Wildcard "app/" ""]]
+        loadsTo
+            "complex.json"
+            id
+            [ mkMapping (Wildcard "@components/" "") [Wildcard "src/components/" ""]
+            , mkMapping (Wildcard "@assets/" "") [Wildcard "src/assets/" ""]
+            , mkMapping (Wildcard "@hooks/" "") [Wildcard "src/hooks/" ""]
+            , mkMapping (Wildcard "@utils/" "") [Wildcard "src/utils/" ""]
+            , mkMapping (Wildcard "@/" "") [Wildcard "src/" ""]
+            ]
+        -- Comments are skipped, and the mappings come out in the order they
+        -- are tried: exact keys, then the longest prefix, then the longest suffix.
+        loadsTo
+            "sorting-and-comments.json"
+            id
+            [ mkMapping (Exact "a-very-very-long-exact-match") [Exact "exact/long.ts"]
+            , mkMapping (Exact "a-short-exact") [Exact "exact/short.ts"]
+            , mkMapping (Wildcard "@app/features/" "") [Wildcard "src/app/features/" ""]
+            , mkMapping (Wildcard "module-" "-longest") [Wildcard "modules/long/" ""]
+            , mkMapping (Wildcard "module-" "-short") [Wildcard "modules/short/" ""]
+            , mkMapping (Wildcard "@app/" "") [Wildcard "src/app/" ""]
+            , mkMapping (Wildcard "same" "longer") [Wildcard "/longer/" ""]
+            , mkMapping (Wildcard "same" "short") [Wildcard "/short/" ""]
+            , mkMapping (Wildcard "" "") [Wildcard "vendor/" ""]
+            ]
+
+        it "invalid.json" $ do
+            invalid <- mkAbsolute (typescriptConfigs </> [osp|invalid.json|])
+
+            loaded <- loadFixture "invalid.json"
+
+            loaded `shouldBe` Left (TsConfigUnparseable invalid [] "Unexpected \"}\\n\", expecting :")
 
 --------------------------------------------------------------------------------
 -- Running the loader
@@ -211,6 +240,16 @@ load files =
         . runMockRoFileSystem (mockFileSystem (bimap ap encodeUtf8 <$> files))
         . loadTsConfig
         $ ap "/repo/tsconfig.json"
+
+-- | A config from the TypeScript config fixtures, read off disk.
+loadFixture :: String -> IO (Either TsConfigLoadError (TsConfig, [SkippedExtends]))
+loadFixture file = do
+    path <- mkAbsolute (typescriptConfigs </> encodeOsPathString file)
+    runEff . runFileSystemIO $ loadTsConfig path
+
+-- | The paths base of a config whose @baseUrl@ is its @src@ directory.
+inSrc :: AbsPath -> AbsPath
+inSrc = (`withAbsBaseUnsafe` [osp|src|])
 
 -- | The root the in-memory filesystem's @\/repo@ project is rooted at.
 mockRepoRoot :: ProjectRoot

@@ -26,8 +26,9 @@ data TsNode
         , target :: Text
         , suffix :: Text
         }
-    | -- | @export ... from "..."@. Its target is a dependency exactly as an
-      -- import's is; what differs is that the module re-exposes it.
+    | {- | @export ... from "..."@. Its target is a dependency exactly as an
+      import's is; what differs is that the module re-exposes it.
+      -}
       ReExport
         { prefix :: Text
         , target :: Text

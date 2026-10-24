@@ -30,8 +30,8 @@ import Effectful
 import Effects.FileSystem (RoFileSystem, fsDirectoryExists, fsListDirectory, fsReadFile)
 import FileSystem.Path (
     AbsPath,
-    ProjectRoot (..),
     ProjectRelativePath (..),
+    ProjectRoot (..),
     decodeOsPath,
     relativePathTo,
     withAbsBaseUnsafe,

@@ -2,110 +2,77 @@ module Deslop.Rule.EnforcerSpec (spec) where
 
 import Deslop.CodeGraph (buildModuleGraph)
 import Deslop.Error (DeslopError (..))
-import Deslop.Module (Module (..), EdgeKind (..), moduleNameUnsafe)
+import Deslop.Module (EdgeKind (ImportEdge), Module (..), moduleNameUnsafe)
 import Deslop.Problem (Problem (..), ViolationKind (..))
 import Deslop.Rule.Book (RuleId (..), Rulebook, RulebookId (..))
-import Deslop.Rule.Book.Compiler (CompileError (..), Field (..), compileRulebook)
-import Deslop.Rule.Book.Desugar (desugarRulebook)
-import Deslop.Rule.Book.Dto (
-    AllowsDto (AllowsImportDto),
-    ExistsDto (ExistsModuleDto),
-    ForbidsDto (..),
-    GlobDto (..),
-    RuleDto (..),
-    RulebookDto (..),
-    UsesDto (UsesImportDto),
- )
+import Deslop.Rule.Book.Compiler (CompileError (..), Field (..))
+import Deslop.Rule.Book.Loader (RulebookLoadError (..))
 import Deslop.Rule.Enforcer (enforceRulebooks)
 import Effectful (runEff)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Static (runReader)
 import Effects.ReportProblem (getProblems, runReportProblem)
 import Fixtures.Deslop.Module (edgeTo, mkModule)
+import Fixtures.Deslop.Problem (BrokenRule (..), violationOf)
+import Fixtures.Deslop.Rule.Book (loadRulebookBytes)
+import Fixtures.Deslop.Rule.Book.Dto (rulebookYamlOf)
 import Test.Hspec (Spec, describe, it, shouldBe, shouldReturn, shouldSatisfy)
-import TestUtils (requireRight, rp)
+import TestUtils (requireRight)
 
 --------------------------------------------------------------------------------
--- Rulebook DTO builders
+-- Rulebooks
 --
--- Only this spec builds rulebooks by hand: every other rulebook in the suite
--- is read from a YAML fixture. They stay here until a second spec needs them.
+-- Written as their authors would write them and loaded through the loader, so
+-- every rule here reaches the enforcer exactly as a real rulebook does.
 --------------------------------------------------------------------------------
 
-mkForbidsImportDto :: Text -> Bool -> ForbidsDto
-mkForbidsImportDto p transitive = ForbidsImportDto (GlobDto p) (Just transitive)
+-- | The rulebook of that id holding these rules, each written as 'rulebookYamlOf' takes it.
+rulebookOf :: Text -> [[Text]] -> Either RulebookLoadError Rulebook
+rulebookOf rulebookId = loadRulebookBytes . rulebookYamlOf rulebookId
 
-mkAllowsImportDto :: Text -> AllowsDto
-mkAllowsImportDto p = AllowsImportDto (GlobDto p)
+-- | As 'rulebookOf', for a rulebook the spec relies on being valid.
+rulebookFrom :: (HasCallStack) => Text -> [[Text]] -> Rulebook
+rulebookFrom rulebookId =
+    either (error . ("rulebook fixture does not load: " <>) . show) id . rulebookOf rulebookId
 
-mkUsesImportDto :: Text -> Bool -> UsesDto
-mkUsesImportDto p transitive = UsesImportDto (GlobDto p) (Just transitive)
-
-mkExistsModuleDto :: Text -> ExistsDto
-mkExistsModuleDto = ExistsModuleDto . GlobDto
-
-{- | Fixtures here are written in the surface language, exactly as an author
-would write them, so they reach the compiler the way a real rulebook does.
--}
-compileRulebookDto :: RulebookDto RuleDto -> Either (NonEmpty CompileError) Rulebook
-compileRulebookDto = compileRulebook . desugarRulebook
-
-rulebookDto :: RulebookDto RuleDto
-rulebookDto =
-    RulebookDto
-        { id = "test-rulebook"
-        , rules = []
-        , name = "Test rulebook"
-        , description = "Rulebook used for testing"
-        }
-
-ruleDto :: RuleDto
-ruleDto =
-    RuleDto
-        { id = RuleId "test-rule"
-        , description = "test"
-        , target = GlobDto ""
-        , exclude = Nothing
-        , forbids = Nothing
-        , allows = Nothing
-        , allowsOnly = Nothing
-        , uses = Nothing
-        , exists = Nothing
-        , fix = ""
-        , example = Nothing
+-- | The module importing @dep@ directly, at the line 'Fixtures.Deslop.Module.mkModule' gave it.
+importedBy :: Module -> Text -> ViolationKind
+importedBy m dep =
+    DirectImport
+        { imported = moduleNameUnsafe dep
+        , edge = ImportEdge
+        , location = edgeTo m dep
         }
 
 testRulebook :: Rulebook
 testRulebook =
-    fromRight (error "testRulebook: invalid fixture") $
-        compileRulebookDto
-            rulebookDto
-                { rules =
-                    [ ruleDto
-                        { id = RuleId "no-forbids-import"
-                        , description = "Forbids modules must not be imported."
-                        , target = GlobDto "@/components/**"
-                        , forbids = Just [mkForbidsImportDto "@/forbids/**" False]
-                        , fix = "Remove the import"
-                        }
-                    ]
-                }
+    rulebookFrom
+        "test-rulebook"
+        [
+            [ "id: no-forbids-import"
+            , "description: 'Forbids modules must not be imported.'"
+            , "target: '@/components/**'"
+            , "forbids:"
+            , "  - import: '@/forbids/**'"
+            , "    transitive: false"
+            , "fix: 'Remove the import'"
+            ]
+        ]
 
 testTransitiveRulebook :: Rulebook
 testTransitiveRulebook =
-    fromRight (error "testTransitiveRulebook: invalid fixture") $
-        compileRulebookDto
-            rulebookDto
-                { rules =
-                    [ ruleDto
-                        { id = RuleId "no-forbids-import"
-                        , description = "Forbids modules must not be transitively imported."
-                        , target = GlobDto "@/components/**"
-                        , forbids = Just [mkForbidsImportDto "@/forbids/**" True]
-                        , fix = "Remove the import"
-                        }
-                    ]
-                }
+    rulebookFrom
+        "test-rulebook"
+        [
+            [ "id: no-forbids-import"
+            , "description: 'Forbids modules must not be transitively imported.'"
+            , "target: '@/components/**'"
+            , "forbids:"
+            , "  - import: '@/forbids/**'"
+            , "    transitive: true"
+            , "fix: 'Remove the import'"
+            ]
+        ]
 
 runTest :: Module -> IO [Problem]
 runTest m = do
@@ -136,41 +103,32 @@ runTransitiveTest = runTransitiveTestWith [testTransitiveRulebook]
 
 domainRulebook :: Rulebook
 domainRulebook =
-    fromRight (error "domainRulebook: invalid fixture") $
-        compileRulebookDto
-            rulebookDto
-                { id = "domain-rules"
-                , name = "Domain Rules"
-                , description = "Domain rulebook."
-                , rules =
-                    [ ruleDto
-                        { id = RuleId "no-react-in-domain"
-                        , description = "Domain layer must not depend on React."
-                        , target = GlobDto "@/domain/**"
-                        , forbids = Just [mkForbidsImportDto "react" True]
-                        , fix = "Move React dependencies out of the domain layer."
-                        }
-                    ]
-                }
+    rulebookFrom
+        "domain-rules"
+        [
+            [ "id: no-react-in-domain"
+            , "description: 'Domain layer must not depend on React.'"
+            , "target: '@/domain/**'"
+            , "forbids:"
+            , "  - import: 'react'"
+            , "    transitive: true"
+            , "fix: 'Move React dependencies out of the domain layer.'"
+            ]
+        ]
 
 existsRulebook :: Rulebook
 existsRulebook =
-    fromRight (error "existsRulebook: invalid fixture") $
-        compileRulebookDto
-            rulebookDto
-                { id = "exists-rules"
-                , name = "Exists Rules"
-                , description = "Exists rulebook."
-                , rules =
-                    [ ruleDto
-                        { id = RuleId "requires-spec"
-                        , description = "Every ViewModel must have a spec file."
-                        , target = GlobDto "@/features/**/use{{FileName}}ViewModel"
-                        , exists = Just [mkExistsModuleDto "{{TARGET_DIR}}/use{{FileName}}ViewModel.spec"]
-                        , fix = "Create the spec file."
-                        }
-                    ]
-                }
+    rulebookFrom
+        "exists-rules"
+        [
+            [ "id: requires-spec"
+            , "description: 'Every ViewModel must have a spec file.'"
+            , "target: '@/features/**/use{{FileName}}ViewModel'"
+            , "exists:"
+            , "  - module: '{{TARGET_DIR}}/use{{FileName}}ViewModel.spec'"
+            , "fix: 'Create the spec file.'"
+            ]
+        ]
 
 runExistsTest :: [Rulebook] -> [Module] -> Module -> IO (Either DeslopError [Problem])
 runExistsTest rulebooks allModules m =
@@ -185,22 +143,18 @@ runExistsTest rulebooks allModules m =
 
 usesRulebook :: Rulebook
 usesRulebook =
-    fromRight (error "usesRulebook: invalid fixture") $
-        compileRulebookDto
-            rulebookDto
-                { id = "uses-rules"
-                , name = "Uses Rules"
-                , description = "Uses rulebook"
-                , rules =
-                    [ ruleDto
-                        { id = RuleId "container-wires-state-event"
-                        , description = "Containers must wire their StateEvent."
-                        , target = GlobDto "@/features/**/{{FileName}}Container"
-                        , uses = Just [mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" False]
-                        , fix = "Import the StateEvent."
-                        }
-                    ]
-                }
+    rulebookFrom
+        "uses-rules"
+        [
+            [ "id: container-wires-state-event"
+            , "description: 'Containers must wire their StateEvent.'"
+            , "target: '@/features/**/{{FileName}}Container'"
+            , "uses:"
+            , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
+            , "    transitive: false"
+            , "fix: 'Import the StateEvent.'"
+            ]
+        ]
 
 runUsesTest :: [Module] -> Module -> IO (Either DeslopError [Problem])
 runUsesTest allModules m =
@@ -223,79 +177,88 @@ that produced it without any of the others joining in.
 -}
 multiVarRulebook :: Rulebook
 multiVarRulebook =
-    fromRight (error "multiVarRulebook: invalid fixture") $
-        compileRulebookDto
-            rulebookDto
-                { id = "multi-var-rules"
-                , name = "Multi Variable Rules"
-                , description = "Rules that bind more than one variable."
-                , rules =
-                    [ ruleDto
-                        { id = RuleId "view-keeps-out-of-another-internal"
-                        , description = "A View may not reach an internal module of its own provider and service."
-                        , target = GlobDto "@/direct/{{provider-name}}/{{service-type}}/{{FileName}}View"
-                        , forbids = Just [mkForbidsImportDto "@/internal/{{provider-name}}/{{ServiceType}}{{FileName}}Secret" False]
-                        , fix = "Do not import that internal module."
-                        }
-                    , ruleDto
-                        { id = RuleId "view-uses-its-own-service"
-                        , description = "A View must import the service named by all three of its variables."
-                        , target = GlobDto "@/uses/{{provider-name}}/{{service-type}}/{{FileName}}View"
-                        , uses = Just [mkUsesImportDto "@/services/{{provider-name}}/{{service-type}}-{{file-name}}" False]
-                        , fix = "Import your own provider's service."
-                        }
-                    , ruleDto
-                        { id = RuleId "view-reaches-its-service-eventually"
-                        , description = "A View must reach its own service, directly or through an intermediary."
-                        , target = GlobDto "@/reaches/{{provider-name}}/{{service-type}}/{{FileName}}View"
-                        , uses = Just [mkUsesImportDto "@/services/{{provider-name}}/{{service-type}}-{{file-name}}" True]
-                        , fix = "Reach your own provider's service."
-                        }
-                    , ruleDto
-                        { id = RuleId "view-never-reaches-another-internal"
-                        , description = "A View must not reach an internal module, at any depth."
-                        , target = GlobDto "@/deep/{{provider-name}}/{{service-type}}/{{FileName}}View"
-                        , forbids = Just [mkForbidsImportDto "@/internal/{{provider-name}}/{{ServiceType}}/**" True]
-                        , fix = "Break the chain into that internal folder."
-                        }
-                    , ruleDto
-                        { id = RuleId "view-has-a-spec-named-by-all-three"
-                        , description = "A View's spec is named by its provider, its service type and its own name."
-                        , target = GlobDto "@/exists/{{provider-name}}/{{service-type}}/{{FileName}}View"
-                        , exists = Just [mkExistsModuleDto "@/specs/{{provider-name}}/{{ServiceType}}{{FileName}}View.spec"]
-                        , fix = "Add the spec."
-                        }
-                    , ruleDto
-                        { id = RuleId "widget-has-a-config"
-                        , description = "A Widget's config is its own name in kebab-case."
-                        , target = GlobDto "@/widgets/{{FileName}}Widget"
-                        , exists = Just [mkExistsModuleDto "@/config/{{file-name}}"]
-                        , fix = "Add the config."
-                        }
-                    , ruleDto
-                        { id = RuleId "provider-view-has-a-config"
-                        , description = "A View named after its folder has a config under that name."
-                        , target = GlobDto "@/pair/{{provider-name}}/{{ProviderName}}View"
-                        , exists = Just [mkExistsModuleDto "@/config/{{provider-name}}"]
-                        , fix = "Add the config."
-                        }
-                    , ruleDto
-                        { id = RuleId "use-case-has-a-view-model"
-                        , description = "A use case is driven by a ViewModel named after it."
-                        , target = GlobDto "@/app/{{use-case-name}}/{{UseCaseName}}UseCase"
-                        , exists = Just [mkExistsModuleDto "{{TARGET_DIR}}/use{{UseCaseName}}ViewModel"]
-                        , fix = "Add the ViewModel."
-                        }
-                    , ruleDto
-                        { id = RuleId "view-imports-only-its-own-service"
-                        , description = "A View may import services, but only the one all three variables name."
-                        , target = GlobDto "@/allows/{{provider-name}}/{{service-type}}/{{FileName}}View"
-                        , forbids = Just [mkForbidsImportDto "@/services/**" False]
-                        , allows = Just [mkAllowsImportDto "@/services/{{provider-name}}/{{service-type}}-{{file-name}}"]
-                        , fix = "Import only your own provider's service."
-                        }
-                    ]
-                }
+    rulebookFrom
+        "multi-var-rules"
+        [
+            [ "id: view-keeps-out-of-another-internal"
+            , "description: 'A View may not reach an internal module of its own provider and service.'"
+            , "target: '@/direct/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "forbids:"
+            , "  - import: '@/internal/{{provider-name}}/{{ServiceType}}{{FileName}}Secret'"
+            , "    transitive: false"
+            , "fix: 'Do not import that internal module.'"
+            ]
+        ,
+            [ "id: view-uses-its-own-service"
+            , "description: 'A View must import the service named by all three of its variables.'"
+            , "target: '@/uses/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "uses:"
+            , "  - import: '@/services/{{provider-name}}/{{service-type}}-{{file-name}}'"
+            , "    transitive: false"
+            , "fix: 'Import your own provider''s service.'"
+            ]
+        ,
+            [ "id: view-reaches-its-service-eventually"
+            , "description: 'A View must reach its own service, directly or through an intermediary.'"
+            , "target: '@/reaches/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "uses:"
+            , "  - import: '@/services/{{provider-name}}/{{service-type}}-{{file-name}}'"
+            , "    transitive: true"
+            , "fix: 'Reach your own provider''s service.'"
+            ]
+        ,
+            [ "id: view-never-reaches-another-internal"
+            , "description: 'A View must not reach an internal module, at any depth.'"
+            , "target: '@/deep/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "forbids:"
+            , "  - import: '@/internal/{{provider-name}}/{{ServiceType}}/**'"
+            , "    transitive: true"
+            , "fix: 'Break the chain into that internal folder.'"
+            ]
+        ,
+            [ "id: view-has-a-spec-named-by-all-three"
+            , "description: 'A View''s spec is named by its provider, its service type and its own name.'"
+            , "target: '@/exists/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "exists:"
+            , "  - module: '@/specs/{{provider-name}}/{{ServiceType}}{{FileName}}View.spec'"
+            , "fix: 'Add the spec.'"
+            ]
+        ,
+            [ "id: widget-has-a-config"
+            , "description: 'A Widget''s config is its own name in kebab-case.'"
+            , "target: '@/widgets/{{FileName}}Widget'"
+            , "exists:"
+            , "  - module: '@/config/{{file-name}}'"
+            , "fix: 'Add the config.'"
+            ]
+        ,
+            [ "id: provider-view-has-a-config"
+            , "description: 'A View named after its folder has a config under that name.'"
+            , "target: '@/pair/{{provider-name}}/{{ProviderName}}View'"
+            , "exists:"
+            , "  - module: '@/config/{{provider-name}}'"
+            , "fix: 'Add the config.'"
+            ]
+        ,
+            [ "id: use-case-has-a-view-model"
+            , "description: 'A use case is driven by a ViewModel named after it.'"
+            , "target: '@/app/{{use-case-name}}/{{UseCaseName}}UseCase'"
+            , "exists:"
+            , "  - module: '{{TARGET_DIR}}/use{{UseCaseName}}ViewModel'"
+            , "fix: 'Add the ViewModel.'"
+            ]
+        ,
+            [ "id: view-imports-only-its-own-service"
+            , "description: 'A View may import services, but only the one all three variables name.'"
+            , "target: '@/allows/{{provider-name}}/{{service-type}}/{{FileName}}View'"
+            , "forbids:"
+            , "  - import: '@/services/**'"
+            , "    transitive: false"
+            , "allows:"
+            , "  - import: '@/services/{{provider-name}}/{{service-type}}-{{file-name}}'"
+            , "fix: 'Import only your own provider''s service.'"
+            ]
+        ]
 
 runMultiVarTest :: [Module] -> Module -> IO [Problem]
 runMultiVarTest = runTransitiveTestWith [multiVarRulebook]
@@ -310,22 +273,18 @@ validated at load, so a name nothing captured has to survive being reported.
 -}
 proseRulebook :: Rulebook
 proseRulebook =
-    fromRight (error "proseRulebook: invalid fixture") $
-        compileRulebookDto
-            rulebookDto
-                { id = "prose-rules"
-                , name = "Prose Rules"
-                , description = "Rules whose prose carries variables."
-                , rules =
-                    [ ruleDto
-                        { id = RuleId "container-wires-state-event"
-                        , description = "{{FileName}}Container must wire {{FileName}}StateEvent."
-                        , target = GlobDto "@/features/**/{{FileName}}Container"
-                        , uses = Just [mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" False]
-                        , fix = "Import {{FileName}}StateEvent from {{TARGET_DIR}}, or move it to {{TARGET_DIR}}/{{file-name}}. Not {{provider-name}}."
-                        }
-                    ]
-                }
+    rulebookFrom
+        "prose-rules"
+        [
+            [ "id: container-wires-state-event"
+            , "description: '{{FileName}}Container must wire {{FileName}}StateEvent.'"
+            , "target: '@/features/**/{{FileName}}Container'"
+            , "uses:"
+            , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
+            , "    transitive: false"
+            , "fix: 'Import {{FileName}}StateEvent from {{TARGET_DIR}}, or move it to {{TARGET_DIR}}/{{file-name}}. Not {{provider-name}}.'"
+            ]
+        ]
 
 runProseTest :: Module -> IO [Problem]
 runProseTest m = runTransitiveTestWith [proseRulebook] [m] m
@@ -343,19 +302,19 @@ proseSpec = describe "variables in a rule's prose" $ do
     it "substitutes the captured variables into the fix" $
         fixesOf
             <$> violation
-                `shouldReturn` [ "Import PaymentStateEvent from @/features/checkout, "
-                                    <> "or move it to @/features/checkout/payment. Not {{provider-name}}."
-                               ]
+            `shouldReturn` [ "Import PaymentStateEvent from @/features/checkout, "
+                                <> "or move it to @/features/checkout/payment. Not {{provider-name}}."
+                           ]
 
     it "substitutes the captured variables into the prose" $
         prosesOf
             <$> violation
-                `shouldReturn` ["PaymentContainer must wire PaymentStateEvent."]
+            `shouldReturn` ["PaymentContainer must wire PaymentStateEvent."]
 
     it "substitutes the captured variables into what the rule requires" $
         kindsOf
             <$> violation
-                `shouldReturn` [MissingUse {requiredImport = "@/features/checkout/PaymentStateEvent", transitive = False}]
+            `shouldReturn` [MissingUse {requiredImport = "@/features/checkout/PaymentStateEvent", transitive = False}]
 
 prosesOf :: [Problem] -> [Text]
 prosesOf = mapMaybe proseOf
@@ -546,15 +505,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
             let m = mkModule "@/components/Button" ["@/forbids/module"]
             problems <- runTest m
             problems
-                `shouldBe` [ RuleViolation
-                                { rulebook = RulebookId "test-rulebook"
-                                , rule = RuleId "no-forbids-import"
-                                , badModule = moduleNameUnsafe "@/components/Button"
-                                , modulePath = rp "@/components/Button.ts"
-                                , prose = "Forbids modules must not be imported."
-                                , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/forbids/module", location = edgeTo m "@/forbids/module"}
-                                , fix = "Remove the import"
-                                }
+                `shouldBe` [ violationOf noForbidsImport "@/components/Button" (importedBy m "@/forbids/module")
                            ]
 
     describe "transitive import violations" $ do
@@ -569,15 +520,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 forbids = mkModule "@/forbids/store" []
             problems <- runTransitiveTest [button, forbids] button
             problems
-                `shouldBe` [ RuleViolation
-                                { rulebook = RulebookId "test-rulebook"
-                                , rule = RuleId "no-forbids-import"
-                                , badModule = moduleNameUnsafe "@/components/Button"
-                                , modulePath = rp "@/components/Button.ts"
-                                , prose = "Forbids modules must not be transitively imported."
-                                , kind = TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/forbids/store"], firstImport = Just (edgeTo button "@/forbids/store"), alsoReached = []}
-                                , fix = "Remove the import"
-                                }
+                `shouldBe` [ violationOf noForbidsImportTransitively "@/components/Button" (TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/forbids/store"], firstImport = Just (edgeTo button "@/forbids/store"), alsoReached = []})
                            ]
 
         it "multi-hop transitive violation" $ do
@@ -586,15 +529,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 forbids = mkModule "@/forbids/store" []
             problems <- runTransitiveTest [button, util, forbids] button
             problems
-                `shouldBe` [ RuleViolation
-                                { rulebook = RulebookId "test-rulebook"
-                                , rule = RuleId "no-forbids-import"
-                                , badModule = moduleNameUnsafe "@/components/Button"
-                                , modulePath = rp "@/components/Button.ts"
-                                , prose = "Forbids modules must not be transitively imported."
-                                , kind = TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/util", moduleNameUnsafe "@/forbids/store"], firstImport = Just (edgeTo button "@/lib/util"), alsoReached = []}
-                                , fix = "Remove the import"
-                                }
+                `shouldBe` [ violationOf noForbidsImportTransitively "@/components/Button" (TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/util", moduleNameUnsafe "@/forbids/store"], firstImport = Just (edgeTo button "@/lib/util"), alsoReached = []})
                            ]
 
         -- Two forbidden modules behind two different imports are two separate
@@ -608,24 +543,8 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 forbidsB = mkModule "@/forbids/storeB" []
             problems <- runTransitiveTest [button, util, helpers, forbidsA, forbidsB] button
             problems
-                `shouldBe` [ RuleViolation
-                                { rulebook = RulebookId "test-rulebook"
-                                , rule = RuleId "no-forbids-import"
-                                , badModule = moduleNameUnsafe "@/components/Button"
-                                , modulePath = rp "@/components/Button.ts"
-                                , prose = "Forbids modules must not be transitively imported."
-                                , kind = TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/helpers", moduleNameUnsafe "@/forbids/storeB"], firstImport = Just (edgeTo button "@/lib/helpers"), alsoReached = []}
-                                , fix = "Remove the import"
-                                }
-                           , RuleViolation
-                                { rulebook = RulebookId "test-rulebook"
-                                , rule = RuleId "no-forbids-import"
-                                , badModule = moduleNameUnsafe "@/components/Button"
-                                , modulePath = rp "@/components/Button.ts"
-                                , prose = "Forbids modules must not be transitively imported."
-                                , kind = TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/util", moduleNameUnsafe "@/forbids/storeA"], firstImport = Just (edgeTo button "@/lib/util"), alsoReached = []}
-                                , fix = "Remove the import"
-                                }
+                `shouldBe` [ violationOf noForbidsImportTransitively "@/components/Button" (TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/helpers", moduleNameUnsafe "@/forbids/storeB"], firstImport = Just (edgeTo button "@/lib/helpers"), alsoReached = []})
+                           , violationOf noForbidsImportTransitively "@/components/Button" (TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/util", moduleNameUnsafe "@/forbids/storeA"], firstImport = Just (edgeTo button "@/lib/util"), alsoReached = []})
                            ]
 
         it "domain module must not transitively import react" $ do
@@ -635,15 +554,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 react = mkModule "react" []
             problems <- runTransitiveTestWith [domainRulebook] [useCase, repo, http, react] useCase
             problems
-                `shouldBe` [ RuleViolation
-                                { rulebook = RulebookId "domain-rules"
-                                , rule = RuleId "no-react-in-domain"
-                                , badModule = moduleNameUnsafe "@/domain/LoginUseCase"
-                                , modulePath = rp "@/domain/LoginUseCase.ts"
-                                , prose = "Domain layer must not depend on React."
-                                , kind = TransitiveImport {chain = moduleNameUnsafe "@/domain/LoginUseCase" :| [moduleNameUnsafe "@/domain/UserRepository", moduleNameUnsafe "@/infrastructure/HttpClient", moduleNameUnsafe "react"], firstImport = Just (edgeTo useCase "@/domain/UserRepository"), alsoReached = []}
-                                , fix = "Move React dependencies out of the domain layer."
-                                }
+                `shouldBe` [ violationOf noReactInDomain "@/domain/LoginUseCase" (TransitiveImport {chain = moduleNameUnsafe "@/domain/LoginUseCase" :| [moduleNameUnsafe "@/domain/UserRepository", moduleNameUnsafe "@/infrastructure/HttpClient", moduleNameUnsafe "react"], firstImport = Just (edgeTo useCase "@/domain/UserRepository"), alsoReached = []})
                            ]
 
     describe "exists enforcement" $ do
@@ -658,15 +569,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
             result <- runExistsTest [existsRulebook] [viewModel] viewModel
             result
                 `shouldBe` Right
-                    [ RuleViolation
-                        { rulebook = RulebookId "exists-rules"
-                        , rule = RuleId "requires-spec"
-                        , badModule = moduleNameUnsafe "@/features/home/useHomeViewModel"
-                        , modulePath = rp "@/features/home/useHomeViewModel.ts"
-                        , prose = "Every ViewModel must have a spec file."
-                        , kind = MissingModule {requiredModule = moduleNameUnsafe "@/features/home/useHomeViewModel.spec"}
-                        , fix = "Create the spec file."
-                        }
+                    [ violationOf requiresSpec "@/features/home/useHomeViewModel" (MissingModule {requiredModule = moduleNameUnsafe "@/features/home/useHomeViewModel.spec"})
                     ]
 
         it "does not report a violation for a module that does not match the target" $ do
@@ -679,24 +582,22 @@ spec = describe "Deslop.Rule.Enforcer" $ do
         can never be handed one, and the rule never reaches a run at all. -}
         it "never reaches enforcement, because a wildcard exists pattern does not compile" $ do
             let wildcardRulebook =
-                    compileRulebookDto
-                        rulebookDto
-                            { id = "bad-rules"
-                            , name = "Bad Rules"
-                            , description = "bad rules"
-                            , rules =
-                                [ ruleDto
-                                    { id = RuleId "wildcard-exists"
-                                    , description = "wildcard exists"
-                                    , target = GlobDto "@/features/**/*"
-                                    , exists = Just [mkExistsModuleDto "{{TARGET_DIR}}/**/*.spec"]
-                                    , fix = "Fix it."
-                                    }
-                                ]
-                            }
+                    rulebookOf
+                        "bad-rules"
+                        [
+                            [ "id: wildcard-exists"
+                            , "description: 'wildcard exists'"
+                            , "target: '@/features/**/*'"
+                            , "exists:"
+                            , "  - module: '{{TARGET_DIR}}/**/*.spec'"
+                            , "fix: 'Fix it.'"
+                            ]
+                        ]
 
-            fmap (fmap (.field)) (leftToMaybe wildcardRulebook)
-                `shouldBe` Just (one ExistsField)
+            wildcardRulebook `shouldSatisfy` \case
+                Left (UncompilablePatterns errors) -> fmap (.field) errors == one ExistsField
+                Right _ -> False
+                Left (UnreadableYaml _) -> False
 
     describe "uses enforcement" $ do
         it "no violation when module imports a matching module" $ do
@@ -709,15 +610,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
             result <- runUsesTest [container] container
             result
                 `shouldBe` Right
-                    [ RuleViolation
-                        { rulebook = RulebookId "uses-rules"
-                        , rule = RuleId "container-wires-state-event"
-                        , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
-                        , modulePath = rp "@/features/home/HomeContainer.ts"
-                        , prose = "Containers must wire their StateEvent."
-                        , kind = MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = False}
-                        , fix = "Import the StateEvent."
-                        }
+                    [ violationOf containerWiresStateEvent "@/features/home/HomeContainer" (MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = False})
                     ]
 
         it "reports a violation when module has no imports at all" $ do
@@ -725,15 +618,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
             result <- runUsesTest [container] container
             result
                 `shouldBe` Right
-                    [ RuleViolation
-                        { rulebook = RulebookId "uses-rules"
-                        , rule = RuleId "container-wires-state-event"
-                        , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
-                        , modulePath = rp "@/features/home/HomeContainer.ts"
-                        , prose = "Containers must wire their StateEvent."
-                        , kind = MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = False}
-                        , fix = "Import the StateEvent."
-                        }
+                    [ violationOf containerWiresStateEvent "@/features/home/HomeContainer" (MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = False})
                     ]
 
         it "no violation for a module that does not match the target" $ do
@@ -743,90 +628,60 @@ spec = describe "Deslop.Rule.Enforcer" $ do
 
         it "reports one violation per unmatched uses pattern" $ do
             let multiUsesRulebook =
-                    fromRight (error "multiUsesRulebook: invalid fixture") $
-                        compileRulebookDto
-                            rulebookDto
-                                { id = "uses-rules"
-                                , name = "Uses Rules"
-                                , description = "uses rulebok"
-                                , rules =
-                                    [ ruleDto
-                                        { id = RuleId "container-wires-all"
-                                        , description = "Containers must wire all their dependencies."
-                                        , target = GlobDto "@/features/**/{{FileName}}Container"
-                                        , uses =
-                                            Just
-                                                [ mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" False
-                                                , mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}View" False
-                                                ]
-                                        , fix = "Wire the Container."
-                                        }
-                                    ]
-                                }
+                    rulebookFrom
+                        "uses-rules"
+                        [
+                            [ "id: container-wires-all"
+                            , "description: 'Containers must wire all their dependencies.'"
+                            , "target: '@/features/**/{{FileName}}Container'"
+                            , "uses:"
+                            , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
+                            , "    transitive: false"
+                            , "  - import: '{{TARGET_DIR}}/{{FileName}}View'"
+                            , "    transitive: false"
+                            , "fix: 'Wire the Container.'"
+                            ]
+                        ]
                 container = mkModule "@/features/home/HomeContainer" []
             result <- runExistsTest [multiUsesRulebook] [container] container
             result
                 `shouldBe` Right
-                    [ RuleViolation
-                        { rulebook = RulebookId "uses-rules"
-                        , rule = RuleId "container-wires-all"
-                        , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
-                        , modulePath = rp "@/features/home/HomeContainer.ts"
-                        , prose = "Containers must wire all their dependencies."
-                        , kind = MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = False}
-                        , fix = "Wire the Container."
-                        }
-                    , RuleViolation
-                        { rulebook = RulebookId "uses-rules"
-                        , rule = RuleId "container-wires-all"
-                        , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
-                        , modulePath = rp "@/features/home/HomeContainer.ts"
-                        , prose = "Containers must wire all their dependencies."
-                        , kind = MissingUse {requiredImport = "@/features/home/HomeView", transitive = False}
-                        , fix = "Wire the Container."
-                        }
+                    [ violationOf containerWiresAll "@/features/home/HomeContainer" (MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = False})
+                    , violationOf containerWiresAll "@/features/home/HomeContainer" (MissingUse {requiredImport = "@/features/home/HomeView", transitive = False})
                     ]
 
         it "wildcard uses pattern matches any qualifying import" $ do
             let wildcardUsesRulebook =
-                    fromRight (error "wildcardUsesRulebook: invalid fixture") $
-                        compileRulebookDto
-                            rulebookDto
-                                { id = "uses-rules"
-                                , name = "Uses Rules"
-                                , description = "uses rules"
-                                , rules =
-                                    [ ruleDto
-                                        { id = RuleId "page-uses-container"
-                                        , description = "page uses container"
-                                        , target = GlobDto "@/app/**/page"
-                                        , uses = Just [mkUsesImportDto "@/features/**/*Container" False]
-                                        , fix = "Import a Container."
-                                        }
-                                    ]
-                                }
+                    rulebookFrom
+                        "uses-rules"
+                        [
+                            [ "id: page-uses-container"
+                            , "description: 'page uses container'"
+                            , "target: '@/app/**/page'"
+                            , "uses:"
+                            , "  - import: '@/features/**/*Container'"
+                            , "    transitive: false"
+                            , "fix: 'Import a Container.'"
+                            ]
+                        ]
                 page = mkModule "@/app/home/page" ["@/features/home/HomeContainer"]
             result <- runExistsTest [wildcardUsesRulebook] [page] page
             result `shouldBe` Right []
 
     describe "transitive uses enforcement" $ do
         let usesTransitiveRulebook =
-                fromRight (error "usesTransitiveRulebook: invalid fixture") $
-                    compileRulebookDto
-                        rulebookDto
-                            { id = "uses-rules"
-                            , name = "Uses Rules"
-                            , description = "uses rb"
-                            , rules =
-                                [ ruleDto
-                                    { id = RuleId "container-wires-state-event-transitively"
-                                    , description = "Containers must transitively wire their StateEvent."
-                                    , target = GlobDto "@/features/**/{{FileName}}Container"
-                                    , uses = Just [mkUsesImportDto "{{TARGET_DIR}}/{{FileName}}StateEvent" True]
-                                    , fix = "Import the StateEvent."
-                                    }
-                                ]
-                            }
+                rulebookFrom
+                    "uses-rules"
+                    [
+                        [ "id: container-wires-state-event-transitively"
+                        , "description: 'Containers must transitively wire their StateEvent.'"
+                        , "target: '@/features/**/{{FileName}}Container'"
+                        , "uses:"
+                        , "  - import: '{{TARGET_DIR}}/{{FileName}}StateEvent'"
+                        , "    transitive: true"
+                        , "fix: 'Import the StateEvent.'"
+                        ]
+                    ]
             runUsesTransitiveTest allModules m =
                 fmap (either (error . show) id)
                     . runEff
@@ -855,30 +710,14 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 view = mkModule "@/features/home/HomeView" []
             problems <- runUsesTransitiveTest [container, view] container
             problems
-                `shouldBe` [ RuleViolation
-                                { rulebook = RulebookId "uses-rules"
-                                , rule = RuleId "container-wires-state-event-transitively"
-                                , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
-                                , modulePath = rp "@/features/home/HomeContainer.ts"
-                                , prose = "Containers must transitively wire their StateEvent."
-                                , kind = MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = True}
-                                , fix = "Import the StateEvent."
-                                }
+                `shouldBe` [ violationOf containerWiresStateEventTransitively "@/features/home/HomeContainer" (MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = True})
                            ]
 
         it "reports a violation when module has no imports at all" $ do
             let container = mkModule "@/features/home/HomeContainer" []
             problems <- runUsesTransitiveTest [container] container
             problems
-                `shouldBe` [ RuleViolation
-                                { rulebook = RulebookId "uses-rules"
-                                , rule = RuleId "container-wires-state-event-transitively"
-                                , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
-                                , modulePath = rp "@/features/home/HomeContainer.ts"
-                                , prose = "Containers must transitively wire their StateEvent."
-                                , kind = MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = True}
-                                , fix = "Import the StateEvent."
-                                }
+                `shouldBe` [ violationOf containerWiresStateEventTransitively "@/features/home/HomeContainer" (MissingUse {requiredImport = "@/features/home/HomeStateEvent", transitive = True})
                            ]
 
         it "no violation for a module that does not match the target" $ do
@@ -888,22 +727,18 @@ spec = describe "Deslop.Rule.Enforcer" $ do
 
         it "wildcard transitive uses pattern matches a reachable module" $ do
             let wildcardTransitiveRulebook =
-                    fromRight (error "wildcardTransitiveRulebook: invalid fixture") $
-                        compileRulebookDto
-                            rulebookDto
-                                { id = "uses-rules"
-                                , name = "Uses Rules"
-                                , description = "uses"
-                                , rules =
-                                    [ ruleDto
-                                        { id = RuleId "domain-must-use-logger"
-                                        , description = "domain must use logger"
-                                        , target = GlobDto "@/domain/**"
-                                        , uses = Just [mkUsesImportDto "@/infrastructure/**/*Logger" True]
-                                        , fix = "Ensure a logger is used."
-                                        }
-                                    ]
-                                }
+                    rulebookFrom
+                        "uses-rules"
+                        [
+                            [ "id: domain-must-use-logger"
+                            , "description: 'domain must use logger'"
+                            , "target: '@/domain/**'"
+                            , "uses:"
+                            , "  - import: '@/infrastructure/**/*Logger'"
+                            , "    transitive: true"
+                            , "fix: 'Ensure a logger is used.'"
+                            ]
+                        ]
                 runWildcardTest allModules m =
                     fmap (either (error . show) id)
                         . runEff
@@ -923,50 +758,51 @@ spec = describe "Deslop.Rule.Enforcer" $ do
     describe "allows override" $ do
         describe "direct forbids with allows" $ do
             let directAllowsRulebook =
-                    fromRight (error "directAllowsRulebook: invalid fixture") $
-                        compileRulebookDto
-                            rulebookDto
-                                { rules =
-                                    [ ruleDto
-                                        { id = RuleId "no-forbidden-imports"
-                                        , description = "Forbidden imports not allowed."
-                                        , target = GlobDto "@/components/**"
-                                        , forbids = Just [mkForbidsImportDto "@/forbids/**" False]
-                                        , allows = Just [mkAllowsImportDto "@/allowed/**"]
-                                        , fix = "Remove the import."
-                                        }
-                                    ]
-                                }
+                    rulebookFrom
+                        "test-rulebook"
+                        [
+                            [ "id: no-forbidden-imports"
+                            , "description: 'Forbidden imports not allowed.'"
+                            , "target: '@/components/**'"
+                            , "forbids:"
+                            , "  - import: '@/forbids/**'"
+                            , "    transitive: false"
+                            , "allows:"
+                            , "  - import: '@/allowed/**'"
+                            , "fix: 'Remove the import.'"
+                            ]
+                        ]
                 sharedOnlyRulebook =
-                    fromRight (error "sharedOnlyRulebook: invalid fixture") $
-                        compileRulebookDto
-                            rulebookDto
-                                { rules =
-                                    [ ruleDto
-                                        { id = RuleId "shared-only"
-                                        , description = "Only shared imports allowed."
-                                        , target = GlobDto "@/components/**"
-                                        , forbids = Just [mkForbidsImportDto "**" False]
-                                        , allows = Just [mkAllowsImportDto "@/shared/**"]
-                                        , fix = "Use shared modules only."
-                                        }
-                                    ]
-                                }
+                    rulebookFrom
+                        "test-rulebook"
+                        [
+                            [ "id: shared-only"
+                            , "description: 'Only shared imports allowed.'"
+                            , "target: '@/components/**'"
+                            , "forbids:"
+                            , "  - import: '**'"
+                            , "    transitive: false"
+                            , "allows:"
+                            , "  - import: '@/shared/**'"
+                            , "fix: 'Use shared modules only.'"
+                            ]
+                        ]
                 domainPurityRulebook =
-                    fromRight (error "domainPurityRulebook: invalid fixture") $
-                        compileRulebookDto
-                            rulebookDto
-                                { rules =
-                                    [ ruleDto
-                                        { id = RuleId "domain-purity"
-                                        , description = "Domain modules may only import from domain or shared layers."
-                                        , target = GlobDto "@/domain/**"
-                                        , forbids = Just [mkForbidsImportDto "**" False]
-                                        , allows = Just (map mkAllowsImportDto ["@/domain/**", "@/shared/**"])
-                                        , fix = "Move the dependency to the correct layer."
-                                        }
-                                    ]
-                                }
+                    rulebookFrom
+                        "test-rulebook"
+                        [
+                            [ "id: domain-purity"
+                            , "description: 'Domain modules may only import from domain or shared layers.'"
+                            , "target: '@/domain/**'"
+                            , "forbids:"
+                            , "  - import: '**'"
+                            , "    transitive: false"
+                            , "allows:"
+                            , "  - import: '@/domain/**'"
+                            , "  - import: '@/shared/**'"
+                            , "fix: 'Move the dependency to the correct layer.'"
+                            ]
+                        ]
 
             it "no violation when import matches allows pattern" $ do
                 let m = mkModule "@/components/Button" ["@/allowed/utils"]
@@ -977,15 +813,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 let m = mkModule "@/components/Button" ["@/forbids/store"]
                 problems <- runTransitiveTestWith [directAllowsRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "no-forbidden-imports"
-                                    , badModule = moduleNameUnsafe "@/components/Button"
-                                    , modulePath = rp "@/components/Button.ts"
-                                    , prose = "Forbidden imports not allowed."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/forbids/store", location = edgeTo m "@/forbids/store"}
-                                    , fix = "Remove the import."
-                                    }
+                    `shouldBe` [ violationOf noForbiddenImports "@/components/Button" (importedBy m "@/forbids/store")
                                ]
 
             it "no violation when forbids all (**) but import matches allows (shared module exception)" $ do
@@ -997,15 +825,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 let m = mkModule "@/components/Button" ["react"]
                 problems <- runTransitiveTestWith [sharedOnlyRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "shared-only"
-                                    , badModule = moduleNameUnsafe "@/components/Button"
-                                    , modulePath = rp "@/components/Button.ts"
-                                    , prose = "Only shared imports allowed."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "react", location = edgeTo m "react"}
-                                    , fix = "Use shared modules only."
-                                    }
+                    `shouldBe` [ violationOf sharedOnly "@/components/Button" (importedBy m "react")
                                ]
 
             it "no violation: domain purity - same-domain import allowed" $ do
@@ -1027,78 +847,55 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 let m = mkModule "@/domain/LoginUseCase" ["@/infrastructure/HttpClient"]
                 problems <- runTransitiveTestWith [domainPurityRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "domain-purity"
-                                    , badModule = moduleNameUnsafe "@/domain/LoginUseCase"
-                                    , modulePath = rp "@/domain/LoginUseCase.ts"
-                                    , prose = "Domain modules may only import from domain or shared layers."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/infrastructure/HttpClient", location = edgeTo m "@/infrastructure/HttpClient"}
-                                    , fix = "Move the dependency to the correct layer."
-                                    }
+                    `shouldBe` [ violationOf domainPurity "@/domain/LoginUseCase" (importedBy m "@/infrastructure/HttpClient")
                                ]
 
             it "violation: domain purity - external library import blocked" $ do
                 let m = mkModule "@/domain/LoginUseCase" ["react"]
                 problems <- runTransitiveTestWith [domainPurityRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "domain-purity"
-                                    , badModule = moduleNameUnsafe "@/domain/LoginUseCase"
-                                    , modulePath = rp "@/domain/LoginUseCase.ts"
-                                    , prose = "Domain modules may only import from domain or shared layers."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "react", location = edgeTo m "react"}
-                                    , fix = "Move the dependency to the correct layer."
-                                    }
+                    `shouldBe` [ violationOf domainPurity "@/domain/LoginUseCase" (importedBy m "react")
                                ]
 
             it "violation: domain purity - deeply nested domain module imports infrastructure layer" $ do
                 let m = mkModule "@/domain/user/login/LoginUseCase" ["@/infrastructure/db/UserDbRepository"]
                 problems <- runTransitiveTestWith [domainPurityRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "domain-purity"
-                                    , badModule = moduleNameUnsafe "@/domain/user/login/LoginUseCase"
-                                    , modulePath = rp "@/domain/user/login/LoginUseCase.ts"
-                                    , prose = "Domain modules may only import from domain or shared layers."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/infrastructure/db/UserDbRepository", location = edgeTo m "@/infrastructure/db/UserDbRepository"}
-                                    , fix = "Move the dependency to the correct layer."
-                                    }
+                    `shouldBe` [ violationOf domainPurity "@/domain/user/login/LoginUseCase" (importedBy m "@/infrastructure/db/UserDbRepository")
                                ]
 
         describe "transitive forbids with allows" $ do
             let storeAllowsRulebook =
-                    fromRight (error "storeAllowsRulebook: invalid fixture") $
-                        compileRulebookDto
-                            rulebookDto
-                                { rules =
-                                    [ ruleDto
-                                        { id = RuleId "no-transitive-store"
-                                        , description = "Components must not transitively import store modules."
-                                        , target = GlobDto "@/components/**"
-                                        , forbids = Just [mkForbidsImportDto "@/store/**" True]
-                                        , allows = Just [mkAllowsImportDto "@/store/ui-store"]
-                                        , fix = "Remove the transitive store import."
-                                        }
-                                    ]
-                                }
+                    rulebookFrom
+                        "test-rulebook"
+                        [
+                            [ "id: no-transitive-store"
+                            , "description: 'Components must not transitively import store modules.'"
+                            , "target: '@/components/**'"
+                            , "forbids:"
+                            , "  - import: '@/store/**'"
+                            , "    transitive: true"
+                            , "allows:"
+                            , "  - import: '@/store/ui-store'"
+                            , "fix: 'Remove the transitive store import.'"
+                            ]
+                        ]
                 domainPurityTransitiveRulebook =
-                    fromRight (error "domainPurityTransitiveRulebook: invalid fixture") $
-                        compileRulebookDto
-                            rulebookDto
-                                { rules =
-                                    [ ruleDto
-                                        { id = RuleId "domain-purity-transitive"
-                                        , description = "Domain must not transitively reach non-domain/shared modules."
-                                        , target = GlobDto "@/domain/**"
-                                        , forbids = Just [mkForbidsImportDto "**" True]
-                                        , allows = Just (map mkAllowsImportDto ["@/domain/**", "@/shared/**"])
-                                        , fix = "Keep domain pure."
-                                        }
-                                    ]
-                                }
+                    rulebookFrom
+                        "test-rulebook"
+                        [
+                            [ "id: domain-purity-transitive"
+                            , "description: 'Domain must not transitively reach non-domain/shared modules.'"
+                            , "target: '@/domain/**'"
+                            , "forbids:"
+                            , "  - import: '**'"
+                            , "    transitive: true"
+                            , "allows:"
+                            , "  - import: '@/domain/**'"
+                            , "  - import: '@/shared/**'"
+                            , "fix: 'Keep domain pure.'"
+                            ]
+                        ]
 
             it "no violation when transitive import matches allows pattern" $ do
                 let button = mkModule "@/components/Button" ["@/lib/hooks"]
@@ -1113,15 +910,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     appStore = mkModule "@/store/app-store" []
                 problems <- runTransitiveTestWith [storeAllowsRulebook] [button, hooks, appStore] button
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "no-transitive-store"
-                                    , badModule = moduleNameUnsafe "@/components/Button"
-                                    , modulePath = rp "@/components/Button.ts"
-                                    , prose = "Components must not transitively import store modules."
-                                    , kind = TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/hooks", moduleNameUnsafe "@/store/app-store"], firstImport = Just (edgeTo button "@/lib/hooks"), alsoReached = []}
-                                    , fix = "Remove the transitive store import."
-                                    }
+                    `shouldBe` [ violationOf noTransitiveStore "@/components/Button" (TransitiveImport {chain = moduleNameUnsafe "@/components/Button" :| [moduleNameUnsafe "@/lib/hooks", moduleNameUnsafe "@/store/app-store"], firstImport = Just (edgeTo button "@/lib/hooks"), alsoReached = []})
                                ]
 
             it "no violation: domain purity transitive - multi-hop chain through domain and shared only" $ do
@@ -1137,15 +926,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                     http = mkModule "@/infrastructure/HttpClient" []
                 problems <- runTransitiveTestWith [domainPurityTransitiveRulebook] [useCase, service, http] useCase
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "domain-purity-transitive"
-                                    , badModule = moduleNameUnsafe "@/domain/LoginUseCase"
-                                    , modulePath = rp "@/domain/LoginUseCase.ts"
-                                    , prose = "Domain must not transitively reach non-domain/shared modules."
-                                    , kind = TransitiveImport {chain = moduleNameUnsafe "@/domain/LoginUseCase" :| [moduleNameUnsafe "@/domain/AuthService", moduleNameUnsafe "@/infrastructure/HttpClient"], firstImport = Just (edgeTo useCase "@/domain/AuthService"), alsoReached = []}
-                                    , fix = "Keep domain pure."
-                                    }
+                    `shouldBe` [ violationOf domainPurityTransitive "@/domain/LoginUseCase" (TransitiveImport {chain = moduleNameUnsafe "@/domain/LoginUseCase" :| [moduleNameUnsafe "@/domain/AuthService", moduleNameUnsafe "@/infrastructure/HttpClient"], firstImport = Just (edgeTo useCase "@/domain/AuthService"), alsoReached = []})
                                ]
 
         describe "cross-feature isolation" $ do
@@ -1155,36 +936,37 @@ spec = describe "Deslop.Rule.Enforcer" $ do
             -- This enforces directory-level isolation: a module may only import from its
             -- own directory (and any subdirectories, since ** spans segments).
             let dirIsolationRulebook =
-                    fromRight (error "dirIsolationRulebook: invalid fixture") $
-                        compileRulebookDto
-                            rulebookDto
-                                { rules =
-                                    [ ruleDto
-                                        { id = RuleId "dir-isolation"
-                                        , description = "Feature modules may only import from their own directory."
-                                        , target = GlobDto "@/features/**"
-                                        , forbids = Just [mkForbidsImportDto "**" False]
-                                        , allows = Just [mkAllowsImportDto "{{TARGET_DIR}}/**"]
-                                        , fix = "Keep imports within the same directory or extract to shared."
-                                        }
-                                    ]
-                                }
+                    rulebookFrom
+                        "test-rulebook"
+                        [
+                            [ "id: dir-isolation"
+                            , "description: 'Feature modules may only import from their own directory.'"
+                            , "target: '@/features/**'"
+                            , "forbids:"
+                            , "  - import: '**'"
+                            , "    transitive: false"
+                            , "allows:"
+                            , "  - import: '{{TARGET_DIR}}/**'"
+                            , "fix: 'Keep imports within the same directory or extract to shared.'"
+                            ]
+                        ]
                 -- Relaxed variant: also permits @/shared/** imports
                 dirIsolationWithSharedRulebook =
-                    fromRight (error "dirIsolationWithSharedRulebook: invalid fixture") $
-                        compileRulebookDto
-                            rulebookDto
-                                { rules =
-                                    [ ruleDto
-                                        { id = RuleId "dir-isolation-shared"
-                                        , description = "Feature modules may only import from their own directory or shared."
-                                        , target = GlobDto "@/features/**"
-                                        , forbids = Just [mkForbidsImportDto "**" False]
-                                        , allows = Just (map mkAllowsImportDto ["{{TARGET_DIR}}/**", "@/shared/**"])
-                                        , fix = "Keep imports within the same directory or use shared modules."
-                                        }
-                                    ]
-                                }
+                    rulebookFrom
+                        "test-rulebook"
+                        [
+                            [ "id: dir-isolation-shared"
+                            , "description: 'Feature modules may only import from their own directory or shared.'"
+                            , "target: '@/features/**'"
+                            , "forbids:"
+                            , "  - import: '**'"
+                            , "    transitive: false"
+                            , "allows:"
+                            , "  - import: '{{TARGET_DIR}}/**'"
+                            , "  - import: '@/shared/**'"
+                            , "fix: 'Keep imports within the same directory or use shared modules.'"
+                            ]
+                        ]
 
             it "no violation: top-level feature module imports sibling in same directory" $ do
                 let m = mkModule "@/features/home/HomeContainer" ["@/features/home/HomeService"]
@@ -1202,30 +984,14 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 let m = mkModule "@/features/home/HomeContainer" ["@/features/auth/AuthService"]
                 problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "dir-isolation"
-                                    , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
-                                    , modulePath = rp "@/features/home/HomeContainer.ts"
-                                    , prose = "Feature modules may only import from their own directory."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/auth/AuthService", location = edgeTo m "@/features/auth/AuthService"}
-                                    , fix = "Keep imports within the same directory or extract to shared."
-                                    }
+                    `shouldBe` [ violationOf dirIsolation "@/features/home/HomeContainer" (importedBy m "@/features/auth/AuthService")
                                ]
 
             it "violation: top-level feature module imports external library" $ do
                 let m = mkModule "@/features/home/HomeContainer" ["react"]
                 problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "dir-isolation"
-                                    , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
-                                    , modulePath = rp "@/features/home/HomeContainer.ts"
-                                    , prose = "Feature modules may only import from their own directory."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "react", location = edgeTo m "react"}
-                                    , fix = "Keep imports within the same directory or extract to shared."
-                                    }
+                    `shouldBe` [ violationOf dirIsolation "@/features/home/HomeContainer" (importedBy m "react")
                                ]
 
             it "no violation: nested module imports from same nested directory" $ do
@@ -1239,15 +1005,7 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 let m = mkModule "@/features/home/data/HomeRepository" ["@/features/home/HomeService"]
                 problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "dir-isolation"
-                                    , badModule = moduleNameUnsafe "@/features/home/data/HomeRepository"
-                                    , modulePath = rp "@/features/home/data/HomeRepository.ts"
-                                    , prose = "Feature modules may only import from their own directory."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/home/HomeService", location = edgeTo m "@/features/home/HomeService"}
-                                    , fix = "Keep imports within the same directory or extract to shared."
-                                    }
+                    `shouldBe` [ violationOf dirIsolation "@/features/home/data/HomeRepository" (importedBy m "@/features/home/HomeService")
                                ]
 
             it "violation (edge case): nested module cannot import from sibling directory within same feature" $ do
@@ -1255,30 +1013,14 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 let m = mkModule "@/features/home/data/HomeRepository" ["@/features/home/ui/HomeButton"]
                 problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "dir-isolation"
-                                    , badModule = moduleNameUnsafe "@/features/home/data/HomeRepository"
-                                    , modulePath = rp "@/features/home/data/HomeRepository.ts"
-                                    , prose = "Feature modules may only import from their own directory."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/home/ui/HomeButton", location = edgeTo m "@/features/home/ui/HomeButton"}
-                                    , fix = "Keep imports within the same directory or extract to shared."
-                                    }
+                    `shouldBe` [ violationOf dirIsolation "@/features/home/data/HomeRepository" (importedBy m "@/features/home/ui/HomeButton")
                                ]
 
             it "violation: nested module imports from a completely different feature" $ do
                 let m = mkModule "@/features/home/data/HomeRepository" ["@/features/auth/data/AuthRepository"]
                 problems <- runTransitiveTestWith [dirIsolationRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "dir-isolation"
-                                    , badModule = moduleNameUnsafe "@/features/home/data/HomeRepository"
-                                    , modulePath = rp "@/features/home/data/HomeRepository.ts"
-                                    , prose = "Feature modules may only import from their own directory."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/auth/data/AuthRepository", location = edgeTo m "@/features/auth/data/AuthRepository"}
-                                    , fix = "Keep imports within the same directory or extract to shared."
-                                    }
+                    `shouldBe` [ violationOf dirIsolation "@/features/home/data/HomeRepository" (importedBy m "@/features/auth/data/AuthRepository")
                                ]
 
             it "no violation: relaxed rule - top-level module imports from shared" $ do
@@ -1295,30 +1037,14 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 let m = mkModule "@/features/home/HomeContainer" ["@/features/auth/AuthService"]
                 problems <- runTransitiveTestWith [dirIsolationWithSharedRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "dir-isolation-shared"
-                                    , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
-                                    , modulePath = rp "@/features/home/HomeContainer.ts"
-                                    , prose = "Feature modules may only import from their own directory or shared."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/auth/AuthService", location = edgeTo m "@/features/auth/AuthService"}
-                                    , fix = "Keep imports within the same directory or use shared modules."
-                                    }
+                    `shouldBe` [ violationOf dirIsolationShared "@/features/home/HomeContainer" (importedBy m "@/features/auth/AuthService")
                                ]
 
             it "violation: relaxed rule - external library still blocked" $ do
                 let m = mkModule "@/features/home/HomeContainer" ["react"]
                 problems <- runTransitiveTestWith [dirIsolationWithSharedRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "dir-isolation-shared"
-                                    , badModule = moduleNameUnsafe "@/features/home/HomeContainer"
-                                    , modulePath = rp "@/features/home/HomeContainer.ts"
-                                    , prose = "Feature modules may only import from their own directory or shared."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "react", location = edgeTo m "react"}
-                                    , fix = "Keep imports within the same directory or use shared modules."
-                                    }
+                    `shouldBe` [ violationOf dirIsolationShared "@/features/home/HomeContainer" (importedBy m "react")
                                ]
 
             it "violation: relaxed rule - nested module's parent-dir import still blocked" $ do
@@ -1327,13 +1053,135 @@ spec = describe "Deslop.Rule.Enforcer" $ do
                 let m = mkModule "@/features/home/data/HomeRepository" ["@/features/home/HomeService"]
                 problems <- runTransitiveTestWith [dirIsolationWithSharedRulebook] [m] m
                 problems
-                    `shouldBe` [ RuleViolation
-                                    { rulebook = RulebookId "test-rulebook"
-                                    , rule = RuleId "dir-isolation-shared"
-                                    , badModule = moduleNameUnsafe "@/features/home/data/HomeRepository"
-                                    , modulePath = rp "@/features/home/data/HomeRepository.ts"
-                                    , prose = "Feature modules may only import from their own directory or shared."
-                                    , kind = DirectImport {edge = ImportEdge, imported = moduleNameUnsafe "@/features/home/HomeService", location = edgeTo m "@/features/home/HomeService"}
-                                    , fix = "Keep imports within the same directory or use shared modules."
-                                    }
+                    `shouldBe` [ violationOf dirIsolationShared "@/features/home/data/HomeRepository" (importedBy m "@/features/home/HomeService")
                                ]
+
+--------------------------------------------------------------------------------
+-- The Rules the violations above are reported against
+--------------------------------------------------------------------------------
+
+noForbidsImport :: BrokenRule
+noForbidsImport =
+    BrokenRule
+        { rulebookId = RulebookId "test-rulebook"
+        , ruleId = RuleId "no-forbids-import"
+        , ruleProse = "Forbids modules must not be imported."
+        , ruleFix = "Remove the import"
+        }
+
+noForbidsImportTransitively :: BrokenRule
+noForbidsImportTransitively =
+    BrokenRule
+        { rulebookId = RulebookId "test-rulebook"
+        , ruleId = RuleId "no-forbids-import"
+        , ruleProse = "Forbids modules must not be transitively imported."
+        , ruleFix = "Remove the import"
+        }
+
+noReactInDomain :: BrokenRule
+noReactInDomain =
+    BrokenRule
+        { rulebookId = RulebookId "domain-rules"
+        , ruleId = RuleId "no-react-in-domain"
+        , ruleProse = "Domain layer must not depend on React."
+        , ruleFix = "Move React dependencies out of the domain layer."
+        }
+
+requiresSpec :: BrokenRule
+requiresSpec =
+    BrokenRule
+        { rulebookId = RulebookId "exists-rules"
+        , ruleId = RuleId "requires-spec"
+        , ruleProse = "Every ViewModel must have a spec file."
+        , ruleFix = "Create the spec file."
+        }
+
+containerWiresStateEvent :: BrokenRule
+containerWiresStateEvent =
+    BrokenRule
+        { rulebookId = RulebookId "uses-rules"
+        , ruleId = RuleId "container-wires-state-event"
+        , ruleProse = "Containers must wire their StateEvent."
+        , ruleFix = "Import the StateEvent."
+        }
+
+containerWiresAll :: BrokenRule
+containerWiresAll =
+    BrokenRule
+        { rulebookId = RulebookId "uses-rules"
+        , ruleId = RuleId "container-wires-all"
+        , ruleProse = "Containers must wire all their dependencies."
+        , ruleFix = "Wire the Container."
+        }
+
+containerWiresStateEventTransitively :: BrokenRule
+containerWiresStateEventTransitively =
+    BrokenRule
+        { rulebookId = RulebookId "uses-rules"
+        , ruleId = RuleId "container-wires-state-event-transitively"
+        , ruleProse = "Containers must transitively wire their StateEvent."
+        , ruleFix = "Import the StateEvent."
+        }
+
+noForbiddenImports :: BrokenRule
+noForbiddenImports =
+    BrokenRule
+        { rulebookId = RulebookId "test-rulebook"
+        , ruleId = RuleId "no-forbidden-imports"
+        , ruleProse = "Forbidden imports not allowed."
+        , ruleFix = "Remove the import."
+        }
+
+sharedOnly :: BrokenRule
+sharedOnly =
+    BrokenRule
+        { rulebookId = RulebookId "test-rulebook"
+        , ruleId = RuleId "shared-only"
+        , ruleProse = "Only shared imports allowed."
+        , ruleFix = "Use shared modules only."
+        }
+
+domainPurity :: BrokenRule
+domainPurity =
+    BrokenRule
+        { rulebookId = RulebookId "test-rulebook"
+        , ruleId = RuleId "domain-purity"
+        , ruleProse = "Domain modules may only import from domain or shared layers."
+        , ruleFix = "Move the dependency to the correct layer."
+        }
+
+noTransitiveStore :: BrokenRule
+noTransitiveStore =
+    BrokenRule
+        { rulebookId = RulebookId "test-rulebook"
+        , ruleId = RuleId "no-transitive-store"
+        , ruleProse = "Components must not transitively import store modules."
+        , ruleFix = "Remove the transitive store import."
+        }
+
+domainPurityTransitive :: BrokenRule
+domainPurityTransitive =
+    BrokenRule
+        { rulebookId = RulebookId "test-rulebook"
+        , ruleId = RuleId "domain-purity-transitive"
+        , ruleProse = "Domain must not transitively reach non-domain/shared modules."
+        , ruleFix = "Keep domain pure."
+        }
+
+dirIsolation :: BrokenRule
+dirIsolation =
+    BrokenRule
+        { rulebookId = RulebookId "test-rulebook"
+        , ruleId = RuleId "dir-isolation"
+        , ruleProse = "Feature modules may only import from their own directory."
+        , ruleFix = "Keep imports within the same directory or extract to shared."
+        }
+
+dirIsolationShared :: BrokenRule
+dirIsolationShared =
+    BrokenRule
+        { rulebookId = RulebookId "test-rulebook"
+        , ruleId = RuleId "dir-isolation-shared"
+        , ruleProse = "Feature modules may only import from their own directory or shared."
+        , ruleFix = "Keep imports within the same directory or use shared modules."
+        }

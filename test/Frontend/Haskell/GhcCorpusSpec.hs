@@ -1,7 +1,7 @@
 {- | The differential test: Deslop must find the same dependencies between a
 project's Haskell files that GHC does.
 
-The answers in @fixtures\/ghc-corpus.json@ are the real compiler's, taken by
+The answers in @fixtures\/haskell\/ghc-corpus.json@ are the real compiler's, taken by
 @just update-ghc-corpus@ with @ghc -M@ and committed - so this runs against an
 oracle without needing @ghc@ on the machine. See
 @docs\/adr\/0022-haskell-dependencies-are-judged-against-ghc.md@.
@@ -17,9 +17,10 @@ import Data.Text qualified as T
 import Deslop.Module (DependencyEdge (..), EdgeTarget (..), Module (..), ModuleId (..))
 import FileSystem.Path (decodeOsPath, portablePath)
 import Fixtures.Frontend.Haskell.Project (Lowered (..), lowerFiles)
+import Fixtures.OnDisk (ghcCorpus)
 import Renderable qualified
 import Test.Hspec
-import TestUtils (fixturesPath, requireRight)
+import TestUtils (requireRight)
 
 -- | One case, exactly as authored and recorded in the corpus file.
 data GhcCase = GhcCase
@@ -64,5 +65,5 @@ dependenciesOf c = do
 
 loadCorpus :: IO Corpus
 loadCorpus = do
-    decoded <- eitherDecodeFileStrict' (toString (decodeOsPath fixturesPath) <> "/ghc-corpus.json")
+    decoded <- eitherDecodeFileStrict' . toString . decodeOsPath $ ghcCorpus
     requireRight ("reading the ghc corpus: " <>) decoded

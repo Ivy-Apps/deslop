@@ -8,21 +8,16 @@ module Doubles.CLI (
 
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
-import Effectful.Dispatch.Dynamic (reinterpret)
-import Effectful.State.Static.Local qualified as State
+import Effectful.Dispatch.Dynamic (interpret)
 import Effects.CLI (CLI (..), LogStyle)
 
-data MockCLI = MockCLI
-    { mockReadLines :: [Text]
-    , logsRef :: Maybe (IORef TestLogs)
+-- | Where, if anywhere, the messages a run logs are collected.
+newtype MockCLI = MockCLI
+    { logsRef :: Maybe (IORef TestLogs)
     }
 
 defaultMockCLI :: MockCLI
-defaultMockCLI =
-    MockCLI
-        { mockReadLines = []
-        , logsRef = Nothing
-        }
+defaultMockCLI = MockCLI {logsRef = Nothing}
 
 -- | Every message the run logged, in the order it was logged.
 newtype TestLogs = TestLogs
@@ -30,16 +25,12 @@ newtype TestLogs = TestLogs
     }
     deriving (Show, Eq)
 
+{- | Nothing Deslop runs reads from the terminal, so a 'ReadLine' is a test
+that has wandered somewhere it should not.
+-}
 runMockCLI :: (IOE :> es) => MockCLI -> Eff (CLI : es) a -> Eff es a
-runMockCLI mock = reinterpret (State.evalState mock.mockReadLines) $ \_ -> \case
-    ReadLine -> do
-        remaining <- State.get @[Text]
-        case remaining of
-            [] ->
-                error "runMockCLI: no more mocked readLine values were provided"
-            (x : xs) -> do
-                State.put @[Text] xs
-                pure x
+runMockCLI mock = interpret $ \_ -> \case
+    ReadLine -> error "runMockCLI: nothing under test reads a line"
     Log style msg -> case mock.logsRef of
         Nothing -> pure ()
         Just ref ->

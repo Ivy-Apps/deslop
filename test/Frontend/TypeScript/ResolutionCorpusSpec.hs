@@ -1,7 +1,7 @@
 {- | The differential test: Deslop must resolve a specifier to the same file
 TypeScript does.
 
-The answers in @fixtures\/resolution-corpus.json@ are the real compiler's, taken
+The answers in @fixtures\/typescript\/resolution-corpus.json@ are the real compiler's, taken
 by @just update-resolution-corpus@ and committed - so this runs against an
 oracle without needing @tsc@, or even node, on the machine. See
 @docs\/adr\/0018-typescript-resolution-is-judged-against-tsc.md@.
@@ -19,11 +19,12 @@ import Doubles.FileSystem (mockFileSystem, runMockRoFileSystem)
 import Effectful (runEff)
 import Effectful.Reader.Static (runReader)
 import FileSystem.Path (AbsPath, ProjectRoot (..), absPathUnsafe, decodeOsPath, encodeOsPath, portablePath, relativePathTo)
+import Fixtures.OnDisk (resolutionCorpus)
 import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.Config.Loader (loadTsConfig)
 import Frontend.TypeScript.ModuleResolver (resolve)
 import Test.Hspec
-import TestUtils (fixturesPath, requireRight)
+import TestUtils (requireRight)
 
 -- | One case, exactly as authored and recorded in the corpus file.
 data ResolutionCase = ResolutionCase
@@ -99,6 +100,5 @@ pathIn path = absPathUnsafe . encodeOsPath $ "/corpus/" <> path
 
 loadCorpus :: IO Corpus
 loadCorpus = do
-    let path = fixturesPath
-    decoded <- eitherDecodeFileStrict' (toString (decodeOsPath path) <> "/resolution-corpus.json")
+    decoded <- eitherDecodeFileStrict' . toString . decodeOsPath $ resolutionCorpus
     requireRight ("reading the resolution corpus: " <>) decoded

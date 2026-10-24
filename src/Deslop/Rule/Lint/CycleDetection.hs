@@ -32,14 +32,14 @@ importCycle (ModuleCycle loop) =
     -- a module that imports itself is its own next hop
     nextHop = fromMaybe start . listToMaybe . NE.tail $ loop
 
-    {- | Where the loop is entered from. Taken from the edge itself, so the
-    line is the statement's own rather than the module's first.
-
-    The edge is found by the identity of what it resolved to, not by the text
-    it was written with: the same module can be named several ways. A cycle is
-    built only from parsed modules, so the edge is always there; the fallback
-    names the target rather than inventing a line for it.
-    -}
+    -- \| Where the loop is entered from. Taken from the edge itself, so the
+    --    line is the statement's own rather than the module's first.
+    --
+    --    The edge is found by the identity of what it resolved to, not by the text
+    --    it was written with: the same module can be named several ways. A cycle is
+    --    built only from parsed modules, so the edge is always there; the fallback
+    --    names the target rather than inventing a line for it.
+    --
     enteringImport :: Module -> Module -> Location
     enteringImport importer target =
         maybe (whole importer target) (strip . (.location))

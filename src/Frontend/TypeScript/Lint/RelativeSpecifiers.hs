@@ -19,7 +19,6 @@ import Effectful (Eff, type (:>))
 import Effectful.Reader.Static (Reader, ask)
 import Effects.FileSystem (RoFileSystem)
 import FileSystem.Path (ProjectRelativePath, ProjectRoot, relativePathTo)
-import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.CST (
     TsNode (..),
     TsProgram (cst, path),
@@ -27,6 +26,7 @@ import Frontend.TypeScript.CST (
     specifierOf,
     withSpecifier,
  )
+import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.ModuleResolver (isRelativeSpecifier, reverseResolveImport)
 import Renderable (Renderable (render))
 
