@@ -10,6 +10,9 @@ layering and the import direction stand, but a language frontend now lives
 under `Frontend/<Lang>/` rather than at the top level, and `Deslop.hs` no longer
 knows any language by name.
 
+Haskell, the second language, is
+[ADR 21](0021-haskell-is-read-as-one-cabal-package.md).
+
 ## Context
 
 TypeScript was Deslop's only language, and `Deslop.hs` drove it by hand: load
@@ -175,8 +178,10 @@ text are language-neutral.
   language's own name as an alias so that patterns written against it still
   match. Aliases need not be unique; names of `External` modules never build a
   Problem id, so they need not be either.
-  - Haskell: every executable's `Main` is canonically `exe/<component>/Main`,
-    aliased `Main`.
+  - Haskell: every module is canonically qualified by its component -
+    `lib/deslop/Deslop/Module`, and every executable's `Main` is
+    `exe/<component>/Main` - aliased by its bare name
+    ([ADR 21](0021-haskell-is-read-as-one-cabal-package.md)).
   - Nix: `lib.nix` and `lib/default.nix` are both reached as `./lib`-shaped
     paths, so `lib/default.nix` is canonically `lib/default`, aliased `lib`.
   - Python: `foo.py` beside `foo/__init__.py` is two files and one importable
@@ -250,8 +255,9 @@ mints `Unresolved` lands it:
 
 ## Consequences
 
-- `Deslop/**` imports nothing under `Frontend/**`, checkable with
-  `grep -rn "^import Frontend" src/Deslop/`.
+- `Deslop/**` imports nothing under `Frontend/**`. Since ADR 21 that is the
+  Rule `core-is-language-agnostic` in `deslop/rules/layering.yaml`, which
+  `just deslop-self` checks.
 - `doWork` keeps its signature; `Command` moved to `Deslop.Command` and is
   re-exported from `Params`.
 - Output changed in four places, all intended: a `TypeScript project detected.`

@@ -101,6 +101,17 @@
             '';
           };
 
+          # Re-records the ghc -M corpus. node is carried here for the same
+          # reason as above; ghc itself is the `ci` shell's own, so the answers
+          # are those of the compiler the project builds with.
+          aiUpdateGhcCorpusRunner = pkgs.writeShellApplication {
+            name = "ai-update-ghc-corpus";
+            runtimeInputs = [ pkgs.nix pkgs.nodejs ];
+            text = ''
+              nix develop ".#ci" --no-warn-dirty --quiet -c just update-ghc-corpus
+            '';
+          };
+
           # The ghcid daemon behind `nix run .#quick-typecheck`, and the tool
           # `just stop-ghcid` uses to retire every session on the machine.
           ghcidTools = import ./nix/ghcid.nix { inherit pkgs; };
@@ -122,6 +133,10 @@
             update-resolution-corpus = {
               type = "app";
               program = "${aiUpdateResolutionCorpusRunner}/bin/ai-update-resolution-corpus";
+            };
+            update-ghc-corpus = {
+              type = "app";
+              program = "${aiUpdateGhcCorpusRunner}/bin/ai-update-ghc-corpus";
             };
           };
 

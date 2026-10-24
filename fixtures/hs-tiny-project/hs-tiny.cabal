@@ -1,0 +1,44 @@
+cabal-version: 3.0
+name:          hs-tiny
+version:       0.1.0
+
+common shared
+  default-language: GHC2021
+  build-depends:    base
+
+library
+  import:          shared
+  hs-source-dirs:  src
+  exposed-modules:
+    Tiny.Core
+    Tiny.Legacy
+    Tiny.Log
+    Tiny.Types
+    Tiny.Ui
+    Tiny.Wrong
+
+  build-depends:   text
+
+executable hs-tiny
+  import:         shared
+  main-is:        Main.hs
+  hs-source-dirs: app
+  build-depends:  hs-tiny
+
+executable hs-tiny-tool
+  import:         shared
+  main-is:        Main.hs
+  hs-source-dirs: tool
+  build-depends:  hs-tiny
+
+test-suite hs-tiny-test
+  import:             shared
+  type:               exitcode-stdio-1.0
+  main-is:            Spec.hs
+  hs-source-dirs:     test
+  other-modules:      Tiny.CoreSpec
+  build-depends:
+    , hs-tiny
+    , hspec
+
+  build-tool-depends: hspec-discover:hspec-discover

@@ -7,7 +7,10 @@ Date: 2026-08-23
 Accepted. Partly superseded by
 [ADR 20](0020-languages-plug-in-through-a-staged-compiler-frontend.md): a
 language frontend now lives under `Frontend/<Lang>/` and plugs in through
-`Deslop.Frontend`, so `Deslop.hs` no longer names a language.
+`Deslop.Frontend`, so `Deslop.hs` no longer names a language. Since
+[ADR 21](0021-haskell-is-read-as-one-cabal-package.md) the layering is no
+longer a convention checked by hand: `deslop/rules/layering.yaml` states it as
+Rules, and Deslop checks itself with them in CI.
 
 ## Context
 

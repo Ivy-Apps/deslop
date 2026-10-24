@@ -1,0 +1,481 @@
+{
+  "about": [
+    "What GHC itself says each module depends on. The `ghc` field is recorded by",
+    "`just update-ghc-corpus`, which runs `ghc -M` over the case, and is never",
+    "edited by hand: it is the compiler's answer, and it is what",
+    "Frontend.Haskell.GhcCorpusSpec judges Deslop's Haskell frontend against.",
+    "Everything else is authored. `files` maps each file under the case root to",
+    "its literal contents; every case is one library whose only source directory",
+    "is `src`. `ghc` lists every dependency between two files of the case, as",
+    "`[importer, imported]`, each spelled from the case root.",
+    "A `knownGap` names what Deslop does not yet read the way GHC does; the spec",
+    "asserts those still differ, so closing one turns its test red."
+  ],
+  "cases": [
+    {
+      "name": "a plain import",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport B\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a hierarchical module",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport Deep.Er.Mod\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/Deep/Er/Mod.hs"
+        ]
+      ]
+    },
+    {
+      "name": "qualified before the name, aliased",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport qualified B as X\nimport C hiding (c)\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ],
+        [
+          "src/A.hs",
+          "src/C.hs"
+        ]
+      ]
+    },
+    {
+      "name": "qualified after the name",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "{-# LANGUAGE ImportQualifiedPost #-}\nmodule A where\nimport B qualified as X\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "an import split across lines, with an import list",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport\n  qualified\n    B\n  as X\n  ( b\n  , (<>)\n  , T (..)\n  )\nimport C\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ],
+        [
+          "src/A.hs",
+          "src/C.hs"
+        ]
+      ]
+    },
+    {
+      "name": "imports in comments are no imports",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\n-- import C\n{- import C {- nested -} import Deep.Er.Mod -}\nimport B\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a Haddock comment and pragmas ahead of the header",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "{-# LANGUAGE OverloadedStrings #-}\n-- | The docs.\n{-# OPTIONS_GHC -Wall #-}\nmodule A where\nimport B\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "an import after the first declaration is not read",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport B\nx :: Int\nx = 1\nimport C\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "an import named in a string is no import",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport B\ns = \"import C\"\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "an import named in a string with a gap is no import",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport B\ns = \"a\\\n    \\import C\"\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a backslash ending a line inside a string",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport B\ns = \"\\\nimport C\"\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "an operator made of dashes is not a comment",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport B ((-->))\nimport C\n(-->) :: a -> a\n(-->) = id\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ],
+        [
+          "src/A.hs",
+          "src/C.hs"
+        ]
+      ]
+    },
+    {
+      "name": "an export list across lines, with a where inside parentheses",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A\n  ( module B\n  , (<>)\n  ) where\n\nimport B\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a module re-exporting itself and an alias",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A (module A, module X) where\nimport B as X\nimport C\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ],
+        [
+          "src/A.hs",
+          "src/C.hs"
+        ]
+      ]
+    },
+    {
+      "name": "imports indented to the layout column",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\n    import B\n    import C\n      (c)\n    x = 1\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ],
+        [
+          "src/A.hs",
+          "src/C.hs"
+        ]
+      ]
+    },
+    {
+      "name": "imports indented with a tab",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\n\timport B\n\timport C\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ],
+        [
+          "src/A.hs",
+          "src/C.hs"
+        ]
+      ]
+    },
+    {
+      "name": "an explicitly braced module",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where {\nimport B\n; import C\n; x = 1 }\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ],
+        [
+          "src/A.hs",
+          "src/C.hs"
+        ]
+      ]
+    },
+    {
+      "name": "imports separated by semicolons on one line",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport B; import C\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ],
+        [
+          "src/A.hs",
+          "src/C.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a file without a header is Main",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/Main.hs": "import B\n\nmain :: IO ()\nmain = pure ()\n"
+      },
+      "ghc": [
+        [
+          "src/Main.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a byte-order mark ahead of the header",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "﻿module A where\nimport B\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a #! line ahead of the imports",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/Main.hs": "#!/usr/bin/env runghc\nimport B\nmain = pure ()\n"
+      },
+      "ghc": [
+        [
+          "src/Main.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a source import reaches the module, not its boot file",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport {-# SOURCE #-} B\n",
+        "src/B.hs-boot": "module B where\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a safe import",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "{-# LANGUAGE Trustworthy #-}\nmodule A where\nimport safe B\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a package import of another package is external",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "{-# LANGUAGE PackageImports #-}\nmodule A where\nimport \"base\" Data.List\nimport B\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a package import of this package's own modules",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "{-# LANGUAGE PackageImports #-}\nmodule A where\nimport \"this\" B\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "a module from a package is external",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport Data.Maybe (fromMaybe)\nimport qualified Data.List as L\nimport B\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ]
+      ]
+    },
+    {
+      "name": "an import list with explicit namespaces",
+      "files": {
+        "src/B.hs": "module B where\n",
+        "src/C.hs": "module C where\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "{-# LANGUAGE ExplicitNamespaces, PatternSynonyms #-}\nmodule A where\nimport B (type (++), pattern P)\nimport C\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ],
+        [
+          "src/A.hs",
+          "src/C.hs"
+        ]
+      ]
+    },
+    {
+      "name": "an import chain across modules",
+      "files": {
+        "src/B.hs": "module B where\nimport C\n",
+        "src/C.hs": "module C where\nimport Deep.Er.Mod\n",
+        "src/Deep/Er/Mod.hs": "module Deep.Er.Mod where\n",
+        "src/A.hs": "module A where\nimport B\n"
+      },
+      "ghc": [
+        [
+          "src/A.hs",
+          "src/B.hs"
+        ],
+        [
+          "src/B.hs",
+          "src/C.hs"
+        ],
+        [
+          "src/C.hs",
+          "src/Deep/Er/Mod.hs"
+        ]
+      ]
+    }
+  ]
+}

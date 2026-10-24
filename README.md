@@ -7,7 +7,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/Ivy-Apps/deslop?style=social)](https://github.com/Ivy-Apps/deslop)
 [![Quality](https://github.com/Ivy-Apps/deslop/actions/workflows/quality.yaml/badge.svg?branch=main)](https://github.com/Ivy-Apps/deslop/actions/workflows/quality.yaml)
 
-**Static import-graph analyzer for TypeScript. You write architecture rules in YAML; Deslop checks them on every run.**
+**Static import-graph analyzer for TypeScript and Haskell. You write architecture rules in YAML; Deslop checks them on every run.**
 
 You define your architecture once — what modules may import, what they must import, and what companion files must exist (unit tests, Storybook stories). When a rule breaks, Deslop reports exactly what broke and how to fix it, in plain language that both your team and your AI agents can act on.
 
@@ -113,9 +113,21 @@ A module answers to every name that resolves to it, and a rule matching any one 
 > [!TIP]
 > Make sure your project has a `@/` path alias configured in `tsconfig.json` so Deslop can resolve all modules.
 
+### Haskell projects
+
+A directory with a `*.cabal` file at its root is read as a Haskell project (a `tsconfig.json` beside it wins: TypeScript is tried first). Deslop reads that single package with Cabal's own parser. It resolves `common` stanzas and takes every `if` branch at once. Two `.cabal` files at the root are an error, and a `cabal.project` may only name that same package.
+
+- **Module names** are slash-spelled. Every module's canonical name is qualified by its component, `<kind>/<component>/<Name>`, with kinds `lib`, `exe`, `test` and `bench`. Examples: `lib/my-app/Data/Store`, `test/my-app-test/Data/StoreSpec`, `exe/my-app/Main`. Canonical names therefore never clash, and reports and baseline ids show them. The bare GHC name (`Data/Store`, `Main`) is kept as an alias, and a rule may match either form. `lib/*/**` targets only the library; `Data/**` matches whichever component compiles it.
+- **Imports resolve** to the modules the importing component compiles (every file in its source directories), then to the project libraries its `build-depends` names. Everything else is external, slash-spelled the same way: `import Data.Text` reaches `Data/Text`.
+- **`module X` in an export list** re-exports the unqualified imports named `X`, by alias or by name.
+- **hspec-discover drivers** (`{-# OPTIONS_GHC -F -pgmF hspec-discover #-}` in the file) import every `*Spec.hs` below their directory.
+- **Not read:** files behind CPP or another `-F -pgmF` preprocessor (hspec-discover too, when a component's `ghc-options` asks for it) stay modules without imports, with a warning. `.hs-boot` and `.lhs` files are not read, and a `{-# SOURCE #-}` import is a plain import.
+
+See [ADR 21](docs/adr/0021-haskell-is-read-as-one-cabal-package.md) for the details.
+
 ### Built-in Checks
 
-Three checks are always on and need no rulebook:
+Three checks are always on and need no rulebook (the two relative-specifier checks are TypeScript's):
 
 | Rule | What it catches | Auto-fixed by `deslop fix` |
 |------|-----------------|----------------------------|

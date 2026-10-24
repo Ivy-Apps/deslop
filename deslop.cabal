@@ -88,6 +88,19 @@ library
     FileSystem.Iterator
     FileSystem.Path
     Frontend
+    Frontend.Haskell
+    Frontend.Haskell.Cabal
+    Frontend.Haskell.CST
+    Frontend.Haskell.HspecDiscover
+    Frontend.Haskell.Ignore
+    Frontend.Haskell.Iterator
+    Frontend.Haskell.Lexer
+    Frontend.Haskell.Module
+    Frontend.Haskell.ModuleName
+    Frontend.Haskell.Parser
+    Frontend.Haskell.Preprocessor
+    Frontend.Haskell.Tokens
+    Frontend.Haskell.Unit
     Frontend.TypeScript
     Frontend.TypeScript.Config
     Frontend.TypeScript.Config.Dto
@@ -118,6 +131,7 @@ library
     , attoparsec
     , attoparsec-aeson
     , bytestring
+    , Cabal-syntax
     , containers
     , directory             >=1.3.8.0
     , effectful
@@ -185,7 +199,25 @@ test-suite deslop-test
     Fixtures.Deslop.Module
     Fixtures.Deslop.Problem.Baseline
     Fixtures.Deslop.Rule.Book.Dto
+    Fixtures.Frontend.Haskell.CST
+    Fixtures.Frontend.Haskell.Project
     Fixtures.Frontend.TypeScript.Config
+    Frontend.Haskell.CabalSpec
+    Frontend.Haskell.CSTSpec
+    Frontend.Haskell.GhcCorpusSpec
+    Frontend.Haskell.HspecDiscoverSpec
+    Frontend.Haskell.IgnoreSpec
+    Frontend.Haskell.IteratorSpec
+    Frontend.Haskell.LexerSpec
+    Frontend.Haskell.ModuleNameSpec
+    Frontend.Haskell.ModulePropSpec
+    Frontend.Haskell.ModuleSpec
+    Frontend.Haskell.ParserPropSpec
+    Frontend.Haskell.ParserSpec
+    Frontend.Haskell.PreprocessorSpec
+    Frontend.Haskell.TokensSpec
+    Frontend.Haskell.UnitSpec
+    Frontend.HaskellSpec
     Frontend.TypeScript.Config.DtoSpec
     Frontend.TypeScript.Config.LoaderSpec
     Frontend.TypeScript.ConfigSpec
@@ -203,6 +235,7 @@ test-suite deslop-test
     Frontend.TypeScript.ResolutionCorpusSpec
     Frontend.TypeScriptSpec
     FrontendSpec
+    Generators.Frontend.Haskell.Source
     Generators.Frontend.TypeScript.CST
     Generators.Frontend.TypeScript.Project
     Git.IgnoreSpec

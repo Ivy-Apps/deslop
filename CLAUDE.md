@@ -111,6 +111,19 @@ with `.golden`, **a failing corpus test is not a reason to run this**: a diff
 here is a claim about what the compiler does. See
 [ADR 18](docs/adr/0018-typescript-resolution-is-judged-against-tsc.md).
 
+### Updating the ghc corpus
+
+```bash
+nix run .#update-ghc-corpus
+```
+
+Re-records what GHC says each case in `fixtures/ghc-corpus.json` depends on,
+by running `ghc -M` over a temp copy of each case. Only the `ghc` field is
+written. `Frontend.Haskell.GhcCorpusSpec` judges the Haskell frontend against
+it; the same rule applies as above: a failing corpus test is not a reason to
+run this. See
+[ADR 22](docs/adr/0022-haskell-dependencies-are-judged-against-ghc.md).
+
 ### Test fixtures
 
 `fixtures/ts-gitignore-project/` contains real `.gitignore` files, which
@@ -138,8 +151,7 @@ Deslop.hs          orchestration - detects the language, then runs the core
 Where new code goes:
 
 - **`Deslop/`** - anything true of every language. It must not import a
-  language; `grep -rn "^import Frontend" src/Deslop/` returning nothing is the
-  check. It holds nothing machine-specific either: paths crossing the seam are
+  language. It holds nothing machine-specific either: paths crossing the seam are
   `ProjectRelativePath`, and `ModuleId` is opaque and never rendered. The
   `CompilerFrontend` class is `Deslop.Frontend`; the driver that owns the
   Command, the Baseline, fix write-back and concurrency is
@@ -162,6 +174,12 @@ Where new code goes:
   nothing from the domain.
 - One module per pipeline stage, named for its subject. No `Types.hs`-style
   catch-alls.
+- The layering is checked, not trusted: `deslop/rules/layering.yaml` states
+  it as Rules (ADR 21), and `just deslop-self` - part of `just check` and of CI
+  - runs the Deslop just built over this repository. A violation that is a
+  real gap, such as a library module without a spec, goes in
+  `deslop/baseline.yaml` with `cabal run deslop -- baseline .`; a layering
+  violation is fixed, or the Rule is.
 - A built-in Rule lives with what it reads: `Deslop.Rule.Lint.*` reads only the
   `ModuleGraph`, `Frontend.TypeScript.Lint.*` touches TypeScript.
 
@@ -176,7 +194,8 @@ Tests mirror `src/`:
   `TestUtils` holds only domain-free plumbing.
 - `Doubles.Frontend` is a fake line-based language for testing what every
   frontend shares - the driver and the registry - without TypeScript.
-- `fixtures/` (repo root) holds the sample TypeScript projects. It cannot live
+- `fixtures/` (repo root) holds the sample TypeScript (`ts-*`) and Haskell
+  (`hs-*`) projects. It cannot live
   under `test/` - it would collide with `test/Fixtures/` on macOS.
 
 ## Coding Conventions

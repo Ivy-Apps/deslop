@@ -51,3 +51,6 @@ jobs:
 
       - name: 🏖️ Integration
         run: nix develop .#ci --accept-flake-config -c just integration
+
+      - name: ✨ Own Deslop rules (dogfood)
+        run: nix develop .#ci --accept-flake-config -c just deslop-self

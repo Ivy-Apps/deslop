@@ -1,0 +1,7 @@
+cabal-version: 3.0
+name:          a
+version:       0.1.0
+
+library
+  exposed-modules: A
+  build-depends:   base
