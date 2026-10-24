@@ -11,6 +11,7 @@ module Fixtures.OnDisk (
     Language (..),
     languageDir,
     projectIn,
+    inCopyOf,
 
     -- * TypeScript
     typescriptFiles,
@@ -30,6 +31,8 @@ module Fixtures.OnDisk (
 
 import FileSystem.Path (encodeOsPathString)
 import System.OsPath (OsPath, osp, (</>))
+import TestUtils (copyDir)
+import UnliftIO.Temporary (withSystemTempDirectory)
 
 {- | A language the fixtures hold whole projects in. Its fixtures sit under
 @fixtures/\<dir\>/@, and the goldens of its projects under @.golden/\<dir\>/@.
@@ -49,6 +52,16 @@ holding the language's project config (@tsconfig.json@, a @.cabal@ file, a
 -}
 projectIn :: Language -> String -> OsPath
 projectIn language = ((fixturesOf language </> [osp|projects|]) </>) . encodeOsPathString
+
+{- | Runs against a copy of one of the language's whole projects, in a fresh
+temporary directory the action may rewrite.
+-}
+inCopyOf :: Language -> String -> (OsPath -> IO a) -> IO a
+inCopyOf language project act =
+    withSystemTempDirectory "deslop-test" $ \tmpFp -> do
+        let tmpDir = encodeOsPathString tmpFp
+        copyDir (projectIn language project) tmpDir
+        act tmpDir
 
 -- | Single @.ts@ source files, read on their own.
 typescriptFiles :: OsPath
