@@ -26,7 +26,7 @@ import Frontend.TypeScript.Iterator (getTsFiles)
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
 import System.Directory (removeFile)
-import System.OsPath (OsPath, (</>))
+import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (defaultGolden)
 import TestUtils (copyDir, fixturesPath, mkAbsolute, requireJust, snapshot)
@@ -60,7 +60,12 @@ spec = describe "E2E.Project" $ do
     itChecks "ts-not-utf8-project"
 
     itFailsToLoadRulebook "ts-invalid-rulebook-project"
-    itFailsToLoadTsConfig "ts-broken-extends-project"
+    itFailsToLoadConfig "tsconfig-error-" "ts-broken-extends-project"
+
+    itChecks "hs-tiny-project"
+    itBaselines "hs-tiny-project"
+    itFailsToLoadConfig "cabal-error-" "hs-multi-package-project"
+    itChecksItself
 
     itFindsNoLanguage
     itFindsNoLanguageInMissingPath
@@ -212,10 +217,10 @@ spec = describe "E2E.Project" $ do
         pure . defaultGolden ("rulebook-error-" <> project) . T.unpack $
             renderTranscript logs <> renderResult res
 
-    -- A tsconfig Deslop cannot resolve - here an `extends` naming a file that
-    -- is not there - must abort the run before any file is checked, naming the
-    -- missing file and the chain that reached it.
-    itFailsToLoadTsConfig project = it ("refuses to run " <> project) $ do
+    -- A project configuration Deslop cannot use must abort the run before any
+    -- file is checked, naming the file at fault: a tsconfig whose `extends`
+    -- names a file that is not there, a cabal.project of several packages.
+    itFailsToLoadConfig goldenPrefix project = it ("refuses to run " <> project) $ do
         -- Given
         let projectPath = fixturesPath </> encodeOsPathString project
         filesRef <- newIORef Nothing
@@ -239,7 +244,7 @@ spec = describe "E2E.Project" $ do
         written <- readIORef filesRef
         written `shouldBe` Nothing
         logs <- readIORef logsRef
-        pure . defaultGolden ("tsconfig-error-" <> project) . T.unpack $
+        pure . defaultGolden (goldenPrefix <> project) . T.unpack $
             renderTranscript logs <> renderResult res
 
     -- A directory no frontend recognises cannot be checked at all; saying so
@@ -262,7 +267,7 @@ spec = describe "E2E.Project" $ do
                     $ doWork params {command = CheckC}
 
             -- Then
-            res `shouldBe` Left (NoFrontendDetected (ProjectRoot params.projectPath) ["TypeScript (tsconfig.json)"])
+            res `shouldBe` Left (NoFrontendDetected (ProjectRoot params.projectPath) ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"])
             logs <- readIORef logsRef
             -- The title and the warning every run without Rulebooks gives, but
             -- no claim to have detected a language.
@@ -286,7 +291,7 @@ spec = describe "E2E.Project" $ do
                     $ doWork params {command = CheckC}
 
             -- Then
-            res `shouldBe` Left (NoFrontendDetected (ProjectRoot params.projectPath) ["TypeScript (tsconfig.json)"])
+            res `shouldBe` Left (NoFrontendDetected (ProjectRoot params.projectPath) ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"])
 
     -- Detecting the language must not reorder what a broken project hears
     -- first: its Rulebooks are read before any language is required.
@@ -313,6 +318,30 @@ spec = describe "E2E.Project" $ do
                 res `shouldSatisfy` \case
                     Left (RulebookError _) -> True
                     _ -> False
+
+    -- Deslop's own layering (deslop/rules/), judged by its own Haskell
+    -- frontend. Asserted clean rather than goldened: a golden would change
+    -- with every module the repository gains.
+    itChecksItself = it "checks its own repository clean" $ do
+        -- Given
+        defParams <- defaultParams [osp|.|]
+        filesRef <- newIORef Nothing
+        logsRef <- newIORef (TestLogs [])
+
+        -- When
+        res <-
+            runEff
+                . runMockWrFileSystem filesRef
+                . runRoFileSystemIO
+                . runErrorNoCallStack @DeslopError
+                . runMockCLI defaultMockCLI {logsRef = Just logsRef}
+                . runReportProblem
+                . runConcurrent
+                $ doWork defParams {command = CheckC}
+
+        -- Then
+        logs <- readIORef logsRef
+        (renderTranscript logs, fmap (.verdict) res) `shouldSatisfy` ((== Right Clean) . snd)
 
     itChecks project = it ("checks " <> project) $ do
         -- Given

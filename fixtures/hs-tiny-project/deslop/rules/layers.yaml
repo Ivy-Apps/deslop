@@ -1,0 +1,46 @@
+id: layers
+name: Tiny's layers
+description: A pure core, a UI over it, and executables that only drive the UI.
+rules:
+  - id: core-is-pure
+    description: The core neither prints nor knows the UI, even transitively.
+    target: "lib/*/Tiny/Core"
+    forbids:
+      - import: "Tiny/Ui"
+        transitive: true
+      - import: "System/IO/**"
+        transitive: true
+    fix: Return values from the core and let Tiny.Ui print them.
+
+  - id: only-the-ui-prints
+    description: The UI is the one library module that reaches the terminal.
+    target: "lib/*/**"
+    exclude:
+      - "Tiny/Ui"
+    forbids:
+      - import: "System/IO/**"
+      - import: "Data/Text/IO"
+    fix: Print through Tiny.Ui.
+
+  - id: executables-drive-the-ui
+    description: An executable's Main goes through the UI, never the core.
+    target: "exe/*/Main"
+    forbids:
+      - import: "Tiny/Core"
+      - import: "Data/Text/IO"
+    fix: Call Tiny.Ui instead.
+
+  - id: library-modules-have-specs
+    description: Every library module has a spec in the test suite.
+    target: "lib/hs-tiny/Tiny/{{ModuleName}}"
+    exists:
+      - module: "test/hs-tiny-test/Tiny/{{ModuleName}}Spec"
+    fix: Add test/Tiny/{{ModuleName}}Spec.hs.
+
+  - id: tests-stay-off-the-terminal
+    description: Nothing the test suite runs reaches the terminal, even through a spec.
+    target: "test/*/Main"
+    forbids:
+      - import: "System/IO/**"
+        transitive: true
+    fix: Keep printing out of what the specs exercise.

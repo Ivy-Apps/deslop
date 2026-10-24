@@ -1,0 +1,5 @@
+[Title] 🚀 Checking project: hs-multi-package-project
+[Plain] Haskell project detected.
+[Warning] WARNING: No architecture rules loaded. Deslop is only running its built-in checks.
+Define your own rules in deslop/rules/*.yaml - see https://deslop.dev
+[exit] cabal.project names packages other than the one at the root (lib/). Deslop reads a single Haskell package; run it on each package's directory instead.

@@ -1,7 +1,7 @@
 module FrontendSpec (spec) where
 
 import Deslop.Frontend (CompilerFrontend (..), SomeFrontend (..), Supported (..), detectFirst)
-import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
+import Doubles.FileSystem (MockRoFileSystem (..), mockDirs, mockFiles, runMockRoFileSystem)
 import Doubles.Frontend (LinesFrontend)
 import Effectful (runEff)
 import FileSystem.Path (ProjectRoot (..))
@@ -43,11 +43,16 @@ spec = describe "Frontend" $ do
 
             fmap labelOf detected `shouldBe` Nothing
 
-        it "tries TypeScript first" $
-            fmap (\(Supported proxy) -> lookingFor proxy) supported `shouldBe` ["TypeScript (tsconfig.json)"]
+        it "detects Haskell when one .cabal file is at the root" $ do
+            detected <- runEff . runMockRoFileSystem (mockDirs [(ap "/project", [ap "/project/p.cabal"])]) {mockFileExists = pure . (== ap "/project/p.cabal")} $ detectFrontend projectRoot
+
+            fmap labelOf detected `shouldBe` Just "Haskell"
+
+        it "tries TypeScript first, then Haskell" $
+            fmap (\(Supported proxy) -> lookingFor proxy) supported `shouldBe` ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"]
 
         it "names what every language looks for" $
-            lookedFor `shouldBe` ["TypeScript (tsconfig.json)"]
+            lookedFor `shouldBe` ["TypeScript (tsconfig.json)", "Haskell (*.cabal)"]
 
     describe "a polyglot project" $ do
         it "is read as the first language that recognises it" $ do

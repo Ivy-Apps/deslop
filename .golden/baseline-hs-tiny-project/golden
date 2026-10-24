@@ -1,0 +1,18 @@
+[Title] 🚀 Baselining project: hs-tiny-project
+[Plain] Haskell project detected.
+[Plain] 📚 Loaded 1 rulebook, 5 rules
+[Warning] WARNING: src/Tiny/Legacy.hs is preprocessed by CPP (line 1), so its imports were not read.
+[Warning] WARNING: src/Tiny/Wrong.hs declares module Tiny.Right, but GHC looks it up by its path as Tiny.Wrong; Deslop names it Tiny/Wrong.
+[Success] ✅ Success: Baseline generated with 10 problems.
+[summary] Baselined 10 modules enforcing 6 rules
+
+>>> baseline.yaml
+- layers#core-is-pure#Tiny/Core
+- layers#executables-drive-the-ui#exe/hs-tiny-tool/Main
+- layers#library-modules-have-specs#Tiny/Legacy
+- layers#library-modules-have-specs#Tiny/Log
+- layers#library-modules-have-specs#Tiny/Types
+- layers#library-modules-have-specs#Tiny/Ui
+- layers#library-modules-have-specs#Tiny/Wrong
+- layers#only-the-ui-prints#Tiny/Log
+- layers#tests-stay-off-the-terminal#test/hs-tiny-test/Main
