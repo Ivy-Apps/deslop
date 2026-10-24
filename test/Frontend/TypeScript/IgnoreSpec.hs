@@ -54,7 +54,7 @@ spec = describe "Frontend.TypeScript.Ignore" $ do
                     | dir == nodeModules = error "walked into node_modules"
                     | otherwise = pure [nodeModules]
                 fs =
-                    (mockDirs [(root, [nodeModules])])
+                    (mockDirs [(root, [nodeModules]), (nodeModules, [inProject "node_modules/.gitignore"])])
                         { mockListDirectory = listing
                         }
 

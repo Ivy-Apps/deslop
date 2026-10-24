@@ -3,10 +3,11 @@ module FrontendSpec (spec) where
 import Deslop.Frontend (CompilerFrontend (..), SomeFrontend (..), Supported (..), detectFirst)
 import Doubles.FileSystem (mockFiles, runReadOnly)
 import Doubles.Frontend (LinesFrontend)
-import Fixtures.FileSystem.Path (projectRoot)
+import FileSystem.Path (AbsPath (..))
+import Fixtures.FileSystem.Path (inProject, projectRoot)
 import Frontend (detectFrontend, supported)
 import Frontend.TypeScript (TsFrontend)
-import System.OsPath (OsPath, osp)
+import System.OsPath (OsPath)
 import Test.Hspec
 
 -- | Which language, by label, a project holding exactly these files is read as.
@@ -18,18 +19,18 @@ labelOf :: SomeFrontend -> Text
 labelOf (SomeFrontend fe) = label fe
 
 bothMarkers :: [OsPath]
-bothMarkers = [[osp|/project/tsconfig.json|], [osp|/project/lines.project|]]
+bothMarkers = [(inProject "tsconfig.json").osPath, (inProject "lines.project").osPath]
 
 spec :: Spec
 spec = describe "Frontend" $ do
     describe "the registry" $ do
         it "detects nothing in a project no language recognises" $ do
-            detected <- runReadOnly (mockFiles [[osp|/project/package.json|]]) $ detectFrontend projectRoot
+            detected <- runReadOnly (mockFiles [(inProject "package.json").osPath]) $ detectFrontend projectRoot
 
             fmap labelOf detected `shouldBe` Nothing
 
         it "detects nothing for a tsconfig.json that is not at the root" $ do
-            detected <- runReadOnly (mockFiles [[osp|/project/app/tsconfig.json|]]) $ detectFrontend projectRoot
+            detected <- runReadOnly (mockFiles [(inProject "app/tsconfig.json").osPath]) $ detectFrontend projectRoot
 
             fmap labelOf detected `shouldBe` Nothing
 
@@ -44,7 +45,7 @@ spec = describe "Frontend" $ do
                 `shouldReturn` Just "Lines"
 
         it "falls through to a later language when an earlier one does not match" $
-            detectedIn [Supported (Proxy @TsFrontend), Supported (Proxy @LinesFrontend)] [[osp|/project/lines.project|]]
+            detectedIn [Supported (Proxy @TsFrontend), Supported (Proxy @LinesFrontend)] [(inProject "lines.project").osPath]
                 `shouldReturn` Just "Lines"
 
         it "detects nothing with no languages to try" $

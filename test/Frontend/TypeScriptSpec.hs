@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module Frontend.TypeScriptSpec (spec) where
 
 import Deslop.Frontend (CompilerFrontend (..))
@@ -17,7 +15,6 @@ import Hedgehog (forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 import Renderable qualified
-import System.OsPath (osp)
 import Test.Hspec
 import TestUtils (prop)
 
@@ -25,7 +22,7 @@ spec :: Spec
 spec = describe "Frontend.TypeScript" $ do
     describe "detection" $ do
         it "recognises a project with a tsconfig.json at its root" $
-            runReadOnly (mockFiles [[osp|/project/tsconfig.json|]]) (detect projectRoot)
+            runReadOnly (mockFiles [(inProject "tsconfig.json").osPath]) (detect projectRoot)
                 `shouldReturn` Just TsFrontend
 
         it "does not recognise a project without one" $
