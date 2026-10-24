@@ -55,7 +55,3 @@ spec = describe "UI" $ do
         it "names the directory searched and what every language looked for" $
             humanReadable (NoFrontendDetected (ProjectRoot (ap "/home/me/app")) ["TypeScript (tsconfig.json)", "Lines (lines.project)"])
                 `shouldBe` "No supported project found in /home/me/app. Looked for: TypeScript (tsconfig.json), Lines (lines.project)"
-
-        it "keeps what d2 said about a diagram it could not render" $
-            humanReadable (D2RenderFailed "err: failed to compile overview.d2")
-                `shouldBe` "d2 could not render the diagram:\nerr: failed to compile overview.d2"

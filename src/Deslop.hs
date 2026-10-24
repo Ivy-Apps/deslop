@@ -7,8 +7,8 @@ module Deslop (
 
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Deslop.CodeGraph (ModuleGraph, buildModuleGraph)
-import Deslop.Diagram (Diagram (..), diagramOf, toD2)
-import Deslop.Diagram.D2 qualified as D2
+import Deslop.Diagram (diagramOf)
+import Deslop.Diagram.Html (explorerPage)
 import Deslop.Error (DeslopError (..))
 import Deslop.Frontend (CompilerFrontend (..), SomeFrontend (..))
 import Deslop.Frontend.Pipeline (runFrontend)
@@ -27,7 +27,6 @@ import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Reader.Static (runReader)
 import Effects.CLI (CLI, LogStyle (..), cliLog, runCLI)
-import Effects.D2 (Availability (..), D2, Rendering (..), d2Availability, d2Render, runD2IO)
 import Effects.FileSystem (
     RoFileSystem,
     WrFileSystem,
@@ -46,7 +45,7 @@ import FileSystem.Path (
  )
 import Frontend (detectFrontend, lookedFor)
 import Params (Command (..), Params (..), ParamsDto (..), paramsFromDto)
-import System.OsPath (OsPath, osp, takeFileName, (</>))
+import System.OsPath (osp, takeFileName)
 import UI (divider, humanReadable, problemsFoundText, problemsLogText, summaryLine)
 import Utils (pluralise)
 
@@ -54,7 +53,6 @@ runDeslop :: ParamsDto -> IO ()
 runDeslop paramsDto =
     runEff
         . runFileSystemIO
-        . runD2IO
         . runCLI
         . runConcurrent
         . runReportProblem
@@ -83,13 +81,11 @@ doWork ::
     , IOE :> es
     , Concurrent :> es
     , ReportProblem :> es
-    , D2 :> es
     , Error DeslopError :> es
     ) =>
     Params ->
     Eff es RunReport
 doWork params = do
-    requireTools params.command
     mfe <- detectFrontend projectRoot
     logTitle params mfe
     baseline <- baselineForCmd params
@@ -134,19 +130,6 @@ baselineForCmd :: (RoFileSystem :> es) => Params -> Eff es Baseline
 baselineForCmd (Params BaselineC _) = pure mempty
 baselineForCmd (Params DiagramC _) = pure mempty
 baselineForCmd (Params _ projectPath) = loadBaseline projectPath
-
-{- | The external programs a command cannot run without, checked before it
-reads or writes anything.
--}
-requireTools :: (D2 :> es, Error DeslopError :> es) => Command -> Eff es ()
-requireTools = \case
-    DiagramC ->
-        d2Availability >>= \case
-            Installed -> pure ()
-            NotInstalled -> throwError D2NotFound
-    CheckC -> pure ()
-    FixC -> pure ()
-    BaselineC -> pure ()
 
 {- | The Rulebooks a command enforces. A diagram draws structure and judges
 none of it, so it does not read them - nor fail on a broken one.
@@ -235,37 +218,22 @@ enforcesRules BaselineC = True
 enforcesRules FixC = False
 enforcesRules DiagramC = False
 
-{- | Writes the diagram's D2 source to @deslop/diagram/overview.d2@ and has d2
-render it next to it, then says where to open it.
+{- | Writes the explorer page to @deslop/diagram/index.html@, then says where
+to open it.
 -}
 drawDiagram ::
-    (WrFileSystem :> es, D2 :> es, CLI :> es, Error DeslopError :> es) =>
+    (WrFileSystem :> es, CLI :> es) =>
     ProjectRoot ->
     [Module] ->
     Eff es ()
 drawDiagram projectRoot modules = do
     fsMkDirP dir
-    fsWriteFile source . encodeUtf8 . D2.render . toD2 $ diagram
-    d2Render source (inDir [osp|overview.svg|]) >>= \case
-        Rendered -> pure ()
-        RenderFailed msg -> throwError $ D2RenderFailed msg
+    fsWriteFile page . encodeUtf8 . explorerPage $ diagramOf modules
     cliLog Success $
-        "✅ Success: Diagram written to "
-            <> portablePath (relativePathTo projectRoot $ inDir entry)
+        "✅ Success: Diagram written to " <> portablePath (relativePathTo projectRoot page)
   where
-    diagram = diagramOf modules
     dir = withAbsBaseUnsafe projectRoot.path [osp|deslop/diagram|]
-    inDir = withAbsBaseUnsafe dir
-    source = inDir [osp|overview.d2|]
-    entry = svgEntry diagram
-
-{- | The SVG to open. d2 renders a diagram with layers as a directory named
-after the SVG, holding @index.svg@ and one SVG per layer.
--}
-svgEntry :: Diagram -> OsPath
-svgEntry d = case d.boards of
-    [] -> [osp|overview.svg|]
-    _boards -> [osp|overview|] </> [osp|index.svg|]
+    page = withAbsBaseUnsafe dir [osp|index.html|]
 
 {- | What the command covered. @fix@ enforces no Rulebook Rules, so it reports
 only the modules it went through.

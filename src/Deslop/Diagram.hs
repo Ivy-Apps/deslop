@@ -1,333 +1,346 @@
-{- | A picture of a project's structure: which folders depend on which, and
-how heavily.
+{- | A project's module graph, tagged with everything a reader needs to make
+sense of it, ready to be explored in a browser.
 
-The tree is collapsed to 'overviewDepth' folder levels below the directory every
-module shares, so the overview stays readable however deep the project nests.
-Each folder of the overview is drilled into on its own 'Board', where its files
-appear one by one and every other folder they touch stays one collapsed box.
+The graph itself is the project as the frontend saw it: every parsed module, the
+folders they sit in, the packages they reach for, and one 'Edge' per pair of
+modules and kind of dependency, counting how often it is written. A module the
+frontend resolved but never parsed has no place in it.
 
-Pure structure: no Problem, cycle or Rule is drawn. Only dependencies between
-modules the frontend parsed are; an npm package or an unscanned module has no
-place in the picture. Writing it out as D2 is 'toD2'.
+What makes it readable is computed here, so the browser only has to draw:
+
+* a 'layer' per module, from "Deslop.Diagram.Layering": entry points on top,
+  modules importing nothing of the project at the bottom;
+* 'implied' on every edge transitive reduction removes, so the default view
+  draws only the arrows that carry information;
+* 'hub' on a module so widely imported that its arrows would drown the rest;
+* the 'Role' of a module, and which specs test it.
+
+Pure structure, like the rest of the core: no Problem, cycle or Rule is drawn.
+Writing it out as the explorer page is "Deslop.Diagram.Html".
 -}
 module Deslop.Diagram (
     Diagram (..),
-    Graph (..),
-    Arrow (..),
-    Board (..),
-    BoardEnd (..),
-    BoardName (..),
-    Place (..),
-    Folder (..),
-    Spot (..),
-    Layout (..),
-    overviewDepth,
+    ModuleNode (..),
+    FolderNode (..),
+    Edge (..),
+    NodeId (..),
+    FolderPath (..),
+    Role (..),
     diagramOf,
-    layoutOf,
-    placeOf,
-    toD2,
+    hubShare,
+    hubMinImporters,
 ) where
 
-import Data.Char (isAlphaNum, isAscii)
+import Data.Aeson (ToJSON (..), Value, object, (.=))
+import Data.List (isSuffixOf)
 import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Deslop.Diagram.D2 (Document (..), Key, Statement (..), Value (..), keyword, name)
-import Deslop.Module (DependencyEdge (..), EdgeKind (..), EdgeTarget (..), Module (..), ModuleId)
+import Deslop.Diagram.Layering (impliedEdges, layers)
+import Deslop.Module (
+    DependencyEdge (..),
+    EdgeKind (..),
+    EdgeTarget (..),
+    Module (..),
+    ModuleName (..),
+    canonicalName,
+ )
 import FileSystem.Path (portablePath)
 
--- | How many folder levels below the common prefix the overview keeps apart.
-overviewDepth :: Int
-overviewDepth = 2
+{- | A module is a hub when more than this share of the project's other
+non-test modules import it.
+-}
+hubShare :: Rational
+hubShare = 2 / 5
+
+{- | Nor is it a hub with fewer importers than this, however small the project:
+in a five-module project, two importers are not "everywhere".
+-}
+hubMinImporters :: Int
+hubMinImporters = 3
 
 data Diagram = Diagram
-    { prefix :: [Text]
-    -- ^ The directory every module sits under, stripped from every label.
-    , overview :: Graph Place
-    , boards :: [Board]
-    -- ^ One per folder of the overview, in folder order.
+    { modules :: [ModuleNode]
+    , folders :: [FolderNode]
+    , externals :: [ModuleName]
+    -- ^ Every package a module depends on, by the name the frontend gave it.
+    , edges :: [Edge]
     }
     deriving stock (Show, Eq)
 
--- | What one board draws: its boxes, and how many dependencies each arrow stands for.
-data Graph n = Graph
-    { nodes :: Set n
-    , arrows :: Map (Arrow n) Int
+data ModuleNode = ModuleNode
+    { path :: Text
+    -- ^ Where the module is, spelled with @/@. Also what identifies it here.
+    , name :: ModuleName
+    , aliases :: [ModuleName]
+    , folder :: Maybe FolderPath
+    -- ^ None for a module directly in the project root.
+    , layer :: Int
+    {- ^ 0 at the top. A module's layer is always above, so smaller than,
+    that of everything it depends on outside its own cycle.
+    -}
+    , hub :: Bool
+    , role :: Role
+    , testedBy :: [Text]
+    -- ^ The paths of the specs named after it.
     }
     deriving stock (Show, Eq)
 
--- | Dependencies of one kind from one box to another.
-data Arrow n = Arrow
-    { from :: n
-    , to :: n
+data FolderNode = FolderNode
+    { path :: FolderPath
+    , parent :: Maybe FolderPath
+    -- ^ None for a folder directly in the project root.
+    }
+    deriving stock (Show, Eq)
+
+-- | A folder's segments, outermost first.
+newtype FolderPath = FolderPath (NonEmpty Text)
+    deriving stock (Show, Eq, Ord)
+
+-- | Whether a module is part of the product, or exists to test it.
+data Role = Source | Test
+    deriving stock (Show, Eq, Ord)
+
+-- | Every dependency of one kind from one module to another, however often written.
+data Edge = Edge
+    { source :: NodeId
+    , target :: NodeId
     , kind :: EdgeKind
+    , count :: Int
+    , implied :: Bool
+    -- ^ Removed by transitive reduction: the source reaches the target another way.
     }
-    deriving stock (Show, Eq, Ord, Functor)
-
--- | A folder of the overview, drilled into.
-data Board = Board
-    { folder :: Folder
-    , name :: BoardName
-    , graph :: Graph BoardEnd
-    }
-    deriving stock (Show, Eq)
-
--- | What a board draws a dependency between.
-data BoardEnd
-    = -- | A file of the board's own folder: its segments below that folder.
-      Local (NonEmpty Text)
-    | -- | Anything elsewhere, collapsed to its box on the overview.
-      Neighbour Place
     deriving stock (Show, Eq, Ord)
 
-{- | What D2 calls a board, and so what its SVG is called: ASCII, lowercase and
-unique within the diagram, because a folder's own name may be none of these.
--}
-newtype BoardName = BoardName Text
+-- | What an edge joins. Modules are told apart by path, packages by name.
+data NodeId
+    = ModuleAt Text
+    | Package ModuleName
     deriving stock (Show, Eq, Ord)
-
--- | A box on the overview.
-data Place
-    = InFolder Folder
-    | -- | A file directly in the common prefix, with no folder to collapse into.
-      AtRoot Text
-    deriving stock (Show, Eq, Ord)
-
-{- | A folder at overview granularity: its segments below the common prefix,
-never more than 'overviewDepth' of them.
--}
-newtype Folder = Folder (NonEmpty Text)
-    deriving stock (Show, Eq, Ord)
-
--- | Where one module sits once the tree is collapsed.
-data Spot
-    = -- | In a folder, and where within it: sub-folders, then the file.
-      FolderFile Folder (NonEmpty Text)
-    | RootFile Text
-    deriving stock (Show, Eq, Ord)
-
-data Layout = Layout
-    { prefix :: [Text]
-    , spots :: Map ModuleId Spot
-    }
-    deriving stock (Show, Eq)
 
 diagramOf :: [Module] -> Diagram
-diagramOf modules =
+diagramOf parsed =
     Diagram
-        { prefix = layout.prefix
-        , overview =
-            Graph
-                { nodes = Set.fromList $ placeOf <$> spots
-                , arrows = tally $ fmap placeOf <$> deps
+        { modules = moduleNode <$> located
+        , folders = folderNodes . mapMaybe (\(_, segs) -> folderOf segs) $ located
+        , externals = ordNub [n | (_, Package n, _) <- deps]
+        , edges = edgeOf <$> Map.toList (Map.fromListWith (+) [(d, 1 :: Int) | d <- deps])
+        }
+  where
+    located = sortOn snd $ mapMaybe (\m -> (m,) <$> segmentsOf m) parsed
+    pathOf = Map.fromList [(m.id, T.intercalate "/" $ NE.toList segs) | (m, segs) <- located]
+    roleOf = Map.fromList [(m.id, roleAt segs) | (m, segs) <- located]
+
+    deps =
+        [ (ModuleAt $ pathOf Map.! m.id, to, e.kind)
+        | (m, _) <- located
+        , e <- m.edges
+        , to <- maybeToList $ endOf e.target
+        , to /= ModuleAt (pathOf Map.! m.id)
+        ]
+    endOf (Resolved mid _) = ModuleAt <$> Map.lookup mid pathOf
+    endOf (External n) = Just $ Package n
+
+    graph = Map.fromListWith (<>) $ [(p, Set.empty) | p <- Map.elems pathOf] <> [(a, Set.singleton b) | (ModuleAt a, ModuleAt b, _) <- deps]
+    layerOf = layers graph
+    implied = impliedEdges graph
+    hubs = hubsOf graph (Set.fromList [pathOf Map.! mid | (mid, Test) <- Map.toList roleOf])
+    specs = specsOf [(pathOf Map.! m.id, segs, roleOf Map.! m.id) | (m, segs) <- located]
+
+    moduleNode (m, segs) =
+        let p = pathOf Map.! m.id
+         in ModuleNode
+                { path = p
+                , name = canonicalName m
+                , aliases = NE.tail m.names
+                , folder = folderOf segs
+                , layer = layerOf Map.! p
+                , hub = p `Set.member` hubs
+                , role = roleOf Map.! m.id
+                , testedBy = Map.findWithDefault [] p specs
                 }
-        , boards = boardOf spots deps <$> Map.toList (boardNames folders)
-        }
-  where
-    layout = layoutOf modules
-    spots = Map.elems layout.spots
-    deps = dependencies layout modules
-    folders = ordNub [f | FolderFile f _ <- spots]
 
-{- | Where every module sits, below the directory they all share. A module
-whose path names no file at all has nowhere to be drawn and is left out.
+    edgeOf ((from, to, k), n) =
+        Edge
+            { source = from
+            , target = to
+            , kind = k
+            , count = n
+            , implied = case (from, to) of
+                (ModuleAt a, ModuleAt b) -> (a, b) `Set.member` implied
+                _ -> False
+            }
+
+{- | A module's path, split on @/@. One whose path names no file at all has
+nowhere to be drawn.
 -}
-layoutOf :: [Module] -> Layout
-layoutOf modules =
-    Layout
-        { prefix = common
-        , spots = Map.fromList [(m.id, spotOf . below $ segs) | (m, segs) <- located]
-        }
-  where
-    located = mapMaybe (\m -> (m,) <$> pathSegments m) modules
-    common = commonPrefix $ NE.init . snd <$> located
-    -- The prefix is directories only, so the file itself always remains.
-    below segs = NE.prependList (drop (length common) $ NE.init segs) (NE.last segs :| [])
+segmentsOf :: Module -> Maybe (NonEmpty Text)
+segmentsOf = nonEmpty . filter (`notElem` ["", "."]) . T.splitOn "/" . portablePath . (.path)
 
-pathSegments :: Module -> Maybe (NonEmpty Text)
-pathSegments = nonEmpty . filter (`notElem` ["", "."]) . T.splitOn "/" . portablePath . (.path)
+folderOf :: NonEmpty Text -> Maybe FolderPath
+folderOf = fmap FolderPath . nonEmpty . NE.init
 
-commonPrefix :: [[Text]] -> [Text]
-commonPrefix [] = []
-commonPrefix (x : xs) = foldl' shared x xs
-  where
-    shared a b = fmap fst . takeWhile (uncurry (==)) $ zip a b
-
--- | A module's path below the prefix, collapsed to 'overviewDepth' folders.
-spotOf :: NonEmpty Text -> Spot
-spotOf segs = case nonEmpty folder of
-    Nothing -> RootFile file
-    Just f -> FolderFile (Folder f) (NE.prependList inner (file :| []))
-  where
-    (folder, inner) = splitAt overviewDepth $ NE.init segs
-    file = NE.last segs
-
-placeOf :: Spot -> Place
-placeOf (FolderFile f _) = InFolder f
-placeOf (RootFile file) = AtRoot file
-
-{- | Every dependency between two modules the frontend parsed, once per edge
-written. Packages, and modules resolved but never parsed, are skipped: there is
-nowhere to draw them.
--}
-dependencies :: Layout -> [Module] -> [Arrow Spot]
-dependencies layout modules =
-    [ Arrow {from = from, to = to, kind = e.kind}
-    | m <- modules
-    , Just from <- [spotFor m.id]
-    , e <- m.edges
-    , Resolved target _ <- [e.target]
-    , Just to <- [spotFor target]
+-- | Every folder holding a module, and every folder above one.
+folderNodes :: [FolderPath] -> [FolderNode]
+folderNodes leaves =
+    [ FolderNode {path = f, parent = FolderPath <$> nonEmpty (NE.init segs)}
+    | f@(FolderPath segs) <- Set.toList . Set.fromList $ concatMap ancestry leaves
     ]
   where
-    spotFor mid = Map.lookup mid layout.spots
+    ancestry (FolderPath segs) = mapMaybe (fmap FolderPath . nonEmpty) . drop 1 . inits $ NE.toList segs
 
--- | How many dependencies each arrow stands for. A box depending on itself draws nothing.
-tally :: (Ord n) => [Arrow n] -> Map (Arrow n) Int
-tally = Map.fromListWith (+) . fmap (,1) . filter (\a -> a.from /= a.to)
-
-boardOf :: [Spot] -> [Arrow Spot] -> (Folder, BoardName) -> Board
-boardOf spots deps (f, boardName) =
-    Board
-        { folder = f
-        , name = boardName
-        , graph =
-            Graph
-                { nodes = Set.fromList $ locals <> concatMap (\a -> [a.from, a.to]) (Map.keys arrows)
-                , arrows = arrows
-                }
-        }
+{- | The modules more than 'hubShare' of the other source modules import, and
+at least 'hubMinImporters' of them. A test is never a hub: hiding tests already
+hides it.
+-}
+hubsOf :: (Ord k) => Map k (Set k) -> Set k -> Set k
+hubsOf graph tests = Map.keysSet . Map.filterWithKey isHub $ importers
   where
-    locals = [Local inner | FolderFile g inner <- spots, g == f]
-    arrows = tally . filter touchesBoard $ fmap (endIn f) <$> deps
-    touchesBoard a = isLocal a.from || isLocal a.to
+    sources = Map.keysSet graph `Set.difference` tests
+    importers =
+        Map.fromListWith (<>) [(b, Set.singleton a) | (a, bs) <- Map.toList graph, a `Set.member` sources, b <- Set.toList bs, b /= a]
+    others = Set.size sources - 1
+    isHub b as =
+        b `Set.member` sources
+            && Set.size as >= hubMinImporters
+            && toRational (Set.size as) > hubShare * toRational others
 
-endIn :: Folder -> Spot -> BoardEnd
-endIn f (FolderFile g inner) | g == f = Local inner
-endIn _ spot = Neighbour $ placeOf spot
+{- | Whether a path is a test's, judged by where it sits and what it is called,
+the same way in every language:
 
-isLocal :: BoardEnd -> Bool
-isLocal (Local _) = True
-isLocal (Neighbour _) = False
+* under a top-level @test@, @tests@, @spec@ or @specs@ folder, or any
+  @__tests__@ folder (Haskell, Jest);
+* or named @*Spec@, @*.test.*@ or @*.spec.*@ (hspec, Jest, Vitest).
+-}
+roleAt :: NonEmpty Text -> Role
+roleAt segs
+    | NE.head segs `elem` ["test", "tests", "spec", "specs"] && length segs > 1 = Test
+    | "__tests__" `elem` NE.init segs = Test
+    | isJust . testSuffix . stem $ NE.last segs = Test
+    | otherwise = Source
 
--- | A name per folder, in folder order. @index@ is D2's own, for the overview.
-boardNames :: [Folder] -> Map Folder BoardName
-boardNames = fst . foldl' assign (Map.empty, Set.singleton "index") . sort
+{- | Which specs test each source module: a spec tests the module whose path,
+without its extension, ends in the spec's own path once its test folder and
+its @Spec@ (or @PropSpec@, @.test@, @.spec@) suffix are dropped. So
+@test\/Deslop\/DiagramSpec.hs@ tests @src\/Deslop\/Diagram.hs@, and
+@src\/a\/b.test.ts@ tests @src\/a\/b.ts@. When several modules match, the one
+nearest the root does.
+-}
+specsOf :: [(Text, NonEmpty Text, Role)] -> Map Text [Text]
+specsOf entries = Map.fromListWith (flip (<>)) [(subject, [spec]) | (spec, subject) <- matches]
   where
-    assign (names, taken) f =
-        let n = fresh taken $ slug f
-         in (Map.insert f (BoardName n) names, Set.insert n taken)
-    fresh taken s =
-        fromMaybe s . find (`Set.notMember` taken) $ s : [s <> "-" <> show i | i <- [2 :: Int ..]]
+    sources = [(p, stemmed segs) | (p, segs, Source) <- entries]
+    matches =
+        [ (spec, p)
+        | (spec, segs, Test) <- entries
+        , Just key <- [subjectKey segs]
+        , let candidates = [(length s, p') | (p', s) <- sources, key `isSuffixOf` s]
+        , Just (_, p) <- [viaNonEmpty head $ sort candidates]
+        ]
 
-slug :: Folder -> Text
-slug (Folder segs) = case T.intercalate "-" . filter (not . T.null) . T.split (not . safe) . T.toLower . T.intercalate "/" . NE.toList $ segs of
-    "" -> "folder"
-    s -> s
+    stemmed segs = NE.init segs <> [stem $ NE.last segs]
+
+    -- A helper under test/ that is named after nothing tests nothing.
+    subjectKey segs = (\file -> folders segs <> [file]) <$> testSuffix (stem $ NE.last segs)
+    folders = filter (/= "__tests__") . dropTestRoot . NE.init
+
+    dropTestRoot = \case
+        (top : rest) | top `elem` ["test", "tests", "spec", "specs"] -> rest
+        other -> other
+
+-- | A file's name without its extension.
+stem :: Text -> Text
+stem file = case T.breakOnEnd "." file of
+    (before, _) | T.length before > 1 -> T.dropEnd 1 before
+    _ -> file
+
+-- | The subject's name, when a file is named as a test of it.
+testSuffix :: Text -> Maybe Text
+testSuffix name = viaNonEmpty head $ mapMaybe (\s -> T.stripSuffix s name >>= nonBlank) ["PropSpec", "Spec", ".test", ".spec"]
   where
-    safe c = isAscii c && isAlphaNum c
+    nonBlank t = if T.null t then Nothing else Just t
 
 --------------------------------------------------------------------------------
--- D2
+-- JSON
 --------------------------------------------------------------------------------
 
--- | The diagram as one D2 document: the overview, and every board as a layer of it.
-toD2 :: Diagram -> Document
-toD2 d =
-    Document $
-        [config, direction]
-            <> graphStatements placeKey (placeShape FromRoot) d.overview
-            <> [Block (kw "layers") (boardBlock <$> d.boards) | not (null d.boards)]
+{- | The graph as the explorer page reads it, versioned by @schema@ so a page
+can refuse data it does not understand.
+-}
+instance ToJSON Diagram where
+    toJSON d =
+        object
+            [ "schema" .= ("deslop-graph/1" :: Text)
+            , "nodes" .= (fmap folderJson d.folders <> fmap moduleJson d.modules <> fmap externalJson d.externals)
+            , "edges" .= fmap edgeJson d.edges
+            ]
+
+moduleJson :: ModuleNode -> Value
+moduleJson m =
+    object
+        [ "id" .= m.path
+        , "kind" .= ("module" :: Text)
+        , "name" .= m.name.text
+        , "aliases" .= fmap (.text) m.aliases
+        , "path" .= m.path
+        , "parent" .= fmap folderId m.folder
+        , "layer" .= m.layer
+        , "tags" .= tags [("hub", m.hub), ("test", m.role == Test)]
+        , "testedBy" .= m.testedBy
+        ]
+
+folderJson :: FolderNode -> Value
+folderJson f =
+    object
+        [ "id" .= folderId f.path
+        , "kind" .= ("folder" :: Text)
+        , "label" .= folderLabel f.path
+        , "path" .= folderText f.path
+        , "parent" .= fmap folderId f.parent
+        ]
+
+externalJson :: ModuleName -> Value
+externalJson n =
+    object
+        [ "id" .= nodeId (Package n)
+        , "kind" .= ("external" :: Text)
+        , "name" .= n.text
+        , "tags" .= ["external" :: Text]
+        ]
+
+edgeJson :: Edge -> Value
+edgeJson e =
+    object
+        [ "source" .= nodeId e.source
+        , "target" .= nodeId e.target
+        , "kind" .= kindText e.kind
+        , "count" .= e.count
+        , "tags" .= tags [("implied", e.implied), ("external", isPackage e.target)]
+        ]
   where
-    links = Map.fromList [(b.folder, b.name) | b <- d.boards]
+    isPackage (Package _) = True
+    isPackage (ModuleAt _) = False
 
-    config =
-        Block
-            (kw "vars")
-            [ Block
-                (kw "d2-config")
-                [ Field (kw "layout-engine") (Bare "elk")
-                , Field (kw "theme-id") (Bare "0")
-                , Field (kw "dark-theme-id") (Bare "200")
-                ]
-            ]
+kindText :: EdgeKind -> Text
+kindText ImportEdge = "import"
+kindText ReExportEdge = "reexport"
 
-    placeShape vantage p = case p of
-        InFolder f ->
-            [ Field (kw "shape") (Bare "package")
-            , Field (kw "label") (Str $ folderLabel f)
-            , Field (kw "tooltip") (Str $ fullPath (folderSegments f))
-            ]
-                <> [Field (kw "link") (linkFrom vantage b) | Just b <- [Map.lookup f links]]
-        AtRoot file -> [Field (kw "tooltip") (Str $ fullPath [file])]
+tags :: [(Text, Bool)] -> [Text]
+tags = fmap fst . filter snd
 
-    -- A layer does not inherit it, so every board states it again.
-    direction = Field (kw "direction") (Bare "right")
+{- | Ids never collide across kinds: a module's is its path, a folder's ends in
+@/@, and a package's starts with @external:@, which no relative path does.
+-}
+nodeId :: NodeId -> Text
+nodeId (ModuleAt p) = p
+nodeId (Package n) = "external:" <> n.text
 
-    boardBlock b =
-        Block (name $ boardText b.name :| []) $
-            [ direction
-            , Block
-                (name $ "← overview" :| [])
-                [Field (kw "near") (Bare "top-left"), Field (kw "link") (Bare "_")]
-            , Block
-                (name $ folderLabel b.folder :| [])
-                [ Field (kw "label") (Str $ folderLabel b.folder)
-                , Field (kw "tooltip") (Str . fullPath $ folderSegments b.folder)
-                ]
-            ]
-                <> graphStatements (endKey b.folder) (endShape b.folder) b.graph
+folderId :: FolderPath -> Text
+folderId = (<> "/") . folderText
 
-    endShape f = \case
-        Local inner -> [Field (kw "tooltip") (Str . fullPath $ folderSegments f <> NE.toList inner)]
-        Neighbour p -> placeShape FromBoard p
+folderText :: FolderPath -> Text
+folderText (FolderPath segs) = T.intercalate "/" $ NE.toList segs
 
-    fullPath segs = T.intercalate "/" $ d.prefix <> segs
-
--- | Every node, then every arrow, each in its set's order.
-graphStatements :: (n -> Key) -> (n -> [Statement]) -> Graph n -> [Statement]
-graphStatements keyOf shapeOf g =
-    [Block (keyOf n) (shapeOf n) | n <- Set.toList g.nodes]
-        <> [Connection (keyOf a.from) (keyOf a.to) (arrowStyle a.kind count) | (a, count) <- Map.toList g.arrows]
-
-arrowStyle :: EdgeKind -> Int -> [Statement]
-arrowStyle k count =
-    [ Field (kw "label") (Str $ show count)
-    , Field (keyword $ "style" :| ["stroke-width"]) (Bare . show $ strokeWidth count)
-    ]
-        <> case k of
-            ImportEdge -> []
-            ReExportEdge -> [Field (keyword $ "style" :| ["stroke-dash"]) (Bare "3")]
-
--- | 1 for a single dependency, one more per doubling, never past 6.
-strokeWidth :: Int -> Int
-strokeWidth count = min 6 . (+ 1) . length . takeWhile (<= count) $ iterate (* 2) 2
-
--- | Where a link is followed from: D2 resolves a board path relative to the board holding it.
-data Vantage = FromRoot | FromBoard
-
-linkFrom :: Vantage -> BoardName -> Value
-linkFrom FromRoot b = Bare $ "layers." <> boardText b
-linkFrom FromBoard b = Bare $ "_.layers." <> boardText b
-
-boardText :: BoardName -> Text
-boardText (BoardName t) = t
-
-placeKey :: Place -> Key
-placeKey (InFolder f) = name $ folderLabel f :| []
-placeKey (AtRoot file) = name $ file :| []
-
--- | A board's own files sit inside a box for its folder, nested by sub-folder.
-endKey :: Folder -> BoardEnd -> Key
-endKey f (Local inner) = name $ NE.cons (folderLabel f) inner
-endKey _ (Neighbour p) = placeKey p
-
-folderLabel :: Folder -> Text
-folderLabel = T.intercalate "/" . folderSegments
-
-folderSegments :: Folder -> [Text]
-folderSegments (Folder segs) = NE.toList segs
-
-kw :: Text -> Key
-kw = keyword . (:| [])
+folderLabel :: FolderPath -> Text
+folderLabel (FolderPath segs) = NE.last segs

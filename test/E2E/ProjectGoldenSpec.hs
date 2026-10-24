@@ -6,7 +6,6 @@ import Deslop (doWork)
 import Deslop.Error (DeslopError (..))
 import Deslop.RunReport (RunReport (..), Verdict (..))
 import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, renderTranscript, runMockCLI)
-import Doubles.D2 (FakeD2 (..), runFakeD2)
 import Doubles.FileSystem (runMockWrFileSystem)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
@@ -16,8 +15,8 @@ import Effects.FileSystem (runFileSystemIO, runRoFileSystemIO)
 import Effects.ReportProblem (runReportProblem)
 import FileSystem.Path (
     AbsPath (osPath),
-    ProjectRoot (..),
     ProjectRelativePath (osPath),
+    ProjectRoot (..),
     decodeOsPath,
     encodeOsPathString,
     relativePathTo,
@@ -27,7 +26,6 @@ import Frontend.TypeScript.Iterator (getTsFiles)
 import Git.Ignore (loadGitIgnore)
 import Params (Command (..), Params (..))
 import System.Directory (removeFile)
-import System.Directory.OsPath qualified as SDO
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
@@ -89,8 +87,6 @@ spec = describe "E2E.Project" $ do
     itIterates "ts-gitignore-project"
 
     itDiagrams "ixartz-next-js-boilerplate"
-    itDiagrams "melzar-nextjs-clean-architecture"
-    itRefusesToDiagramWithoutD2 "ts-project-1"
 
     itFixes
         "ts-barrel-project"
@@ -213,7 +209,6 @@ spec = describe "E2E.Project" $ do
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
                 . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                . runFakeD2 D2Missing
                 . runReportProblem
                 . runConcurrent
                 $ doWork params
@@ -244,7 +239,6 @@ spec = describe "E2E.Project" $ do
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
                 . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                . runFakeD2 D2Missing
                 . runReportProblem
                 . runConcurrent
                 $ doWork params
@@ -272,7 +266,6 @@ spec = describe "E2E.Project" $ do
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
                     . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                    . runFakeD2 D2Missing
                     . runReportProblem
                     . runConcurrent
                     $ doWork params {command = CheckC}
@@ -297,7 +290,6 @@ spec = describe "E2E.Project" $ do
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
                     . runMockCLI defaultMockCLI
-                    . runFakeD2 D2Missing
                     . runReportProblem
                     . runConcurrent
                     $ doWork params {command = CheckC}
@@ -322,7 +314,6 @@ spec = describe "E2E.Project" $ do
                         . runFileSystemIO
                         . runErrorNoCallStack @DeslopError
                         . runMockCLI defaultMockCLI
-                        . runFakeD2 D2Missing
                         . runReportProblem
                         . runConcurrent
                         $ doWork params {command = CheckC}
@@ -348,7 +339,6 @@ spec = describe "E2E.Project" $ do
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
                 . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                . runFakeD2 D2Missing
                 . runReportProblem
                 . runConcurrent
                 $ doWork defParams {command = CheckC}
@@ -357,14 +347,13 @@ spec = describe "E2E.Project" $ do
         logs <- readIORef logsRef
         (renderTranscript logs, fmap (.verdict) res) `shouldSatisfy` ((== Right Clean) . snd)
 
-    -- The diagram a fixture commits under deslop/diagram is the one this run
-    -- writes, so the example a reader opens cannot drift from what the
-    -- command produces. d2 itself is faked: rendering is its job, not ours.
+    -- The page carries the graph inline, so a page holding the project's
+    -- modules is a page that can show them. How it draws them is the
+    -- browser's business, not this suite's.
     itDiagrams project = it ("diagrams " <> project) $ do
         withSystemTempDirectory "deslop-test" $ \tmpFp -> do
             -- Given: named after the fixture, which the transcript's title quotes
             let tmpDir = encodeOsPathString tmpFp </> encodeOsPathString project
-            let committed = fixturesPath </> encodeOsPathString project </> diagramSource
             copyDir (fixturesPath </> encodeOsPathString project) tmpDir
             params <- defaultParams tmpDir
             logsRef <- newIORef (TestLogs [])
@@ -375,48 +364,18 @@ spec = describe "E2E.Project" $ do
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
                     . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                    . runFakeD2 D2Installed
                     . runReportProblem
                     . runConcurrent
                     $ doWork params {command = DiagramC}
 
             -- Then
             fmap (.verdict) res `shouldBe` Right Clean
-            written <- SFO.readFile' $ tmpDir </> diagramSource
-            expected <- SFO.readFile' committed
-            written `shouldBe` expected
+            page <- decodeUtf8 <$> SFO.readFile' (tmpDir </> [osp|deslop/diagram/index.html|])
+            page `shouldSatisfy` T.isInfixOf "\"schema\":\"deslop-graph/1\""
+            page `shouldSatisfy` T.isInfixOf "\"id\":\"src/app/[locale]/layout.tsx\""
             logs <- readIORef logsRef
             pure . defaultGolden ("diagram-" <> project) . T.unpack $
                 renderTranscript logs <> renderResult res
-
-    -- Without d2 there is no diagram, and nothing half-written either: the
-    -- run stops before it has read the project.
-    itRefusesToDiagramWithoutD2 project = it ("refuses to diagram " <> project <> " without d2") $ do
-        withSystemTempDirectory "deslop-test" $ \tmpFp -> do
-            -- Given
-            let tmpDir = encodeOsPathString tmpFp
-            copyDir (fixturesPath </> encodeOsPathString project) tmpDir
-            params <- defaultParams tmpDir
-            logsRef <- newIORef (TestLogs [])
-
-            -- When
-            res <-
-                runEff
-                    . runFileSystemIO
-                    . runErrorNoCallStack @DeslopError
-                    . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                    . runFakeD2 D2Missing
-                    . runReportProblem
-                    . runConcurrent
-                    $ doWork params {command = DiagramC}
-
-            -- Then
-            first humanReadable res `shouldBe` Left "d2 not found on PATH. Install it: https://d2lang.com/tour/install"
-            SDO.doesDirectoryExist (tmpDir </> [osp|deslop/diagram|]) `shouldReturn` False
-            logs <- readIORef logsRef
-            logs.transcript `shouldBe` []
-
-    diagramSource = [osp|deslop/diagram/overview.d2|]
 
     itChecks project = it ("checks " <> project) $ do
         -- Given
@@ -433,7 +392,6 @@ spec = describe "E2E.Project" $ do
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
                 . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                . runFakeD2 D2Missing
                 . runReportProblem
                 . runConcurrent
                 $ doWork params
@@ -460,7 +418,6 @@ spec = describe "E2E.Project" $ do
                 . runRoFileSystemIO
                 . runErrorNoCallStack @DeslopError
                 . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                . runFakeD2 D2Missing
                 . runReportProblem
                 . runConcurrent
                 $ doWork params
@@ -493,7 +450,6 @@ spec = describe "E2E.Project" $ do
                     . runFileSystemIO
                     . runErrorNoCallStack @DeslopError
                     . runMockCLI defaultMockCLI {logsRef = Just logsRef}
-                    . runFakeD2 D2Missing
                     . runReportProblem
                     . runConcurrent
                     $ doWork params

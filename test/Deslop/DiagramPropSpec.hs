@@ -1,30 +1,20 @@
-{- | What the diagram must preserve of the project whatever its shape: every
-dependency it draws is accounted for, and nothing points at a box that is not
-there.
+{- | What the diagram must hold of any project: nothing points at a node that
+is not there, and the arrows it hides as implied are only ever ones between
+the project's own modules.
 -}
 module Deslop.DiagramPropSpec (spec) where
 
-import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Deslop.Diagram (
-    Arrow (..),
-    Board (..),
-    Diagram (..),
-    Graph (..),
-    Layout (..),
-    diagramOf,
-    layoutOf,
-    placeOf,
- )
+import Deslop.Diagram (Diagram (..), Edge (..), ModuleNode (..), NodeId (..), diagramOf)
 import Deslop.Module (
-    DependencyEdge (..),
     EdgeKind (..),
     EdgeTarget (..),
     Module (..),
     moduleIdUnsafe,
     moduleNameUnsafe,
  )
+import Deslop.Module qualified as M
 import Fixtures.Deslop.Module (mkEdge, mkModuleAt)
 import Hedgehog (Gen, forAll, (===))
 import Hedgehog qualified as H
@@ -35,44 +25,23 @@ import TestUtils (prop)
 
 spec :: Spec
 spec = describe "Deslop.Diagram properties" $ do
-    prop "the overview's counts add up to every dependency crossing between its boxes" $ do
+    prop "every edge joins two nodes of the diagram" $ do
+        modules <- forAll genProject
+
+        let d = diagramOf modules
+            nodeIds = Set.fromList $ fmap (ModuleAt . (.path)) d.modules <> fmap Package d.externals
+
+        H.assert $ all (\e -> e.source `Set.member` nodeIds && e.target `Set.member` nodeIds) d.edges
+
+    prop "an implied edge only ever joins two of the project's modules" $ do
         modules <- forAll genProject
 
         let d = diagramOf modules
 
-        sum (Map.elems d.overview.arrows) === length (crossingEdges modules)
-
-    prop "every arrow of the overview joins two of its boxes" $ do
-        modules <- forAll genProject
-
-        let g = (diagramOf modules).overview
-
-        H.assert $ all (joins g) (Map.keys g.arrows)
-
-    prop "every arrow of a board joins two of its boxes" $ do
-        modules <- forAll genProject
-
-        let boards = (diagramOf modules).boards
-
-        H.assert $ all (\b -> all (joins b.graph) (Map.keys b.graph.arrows)) boards
+        [e | e <- d.edges, e.implied, isPackage e.target] === []
   where
-    joins g a = a.from `Set.member` g.nodes && a.to `Set.member` g.nodes
-
-{- | Every edge between two parsed modules whose places on the overview differ,
-judged edge by edge rather than by the diagram's own tally.
--}
-crossingEdges :: [Module] -> [DependencyEdge]
-crossingEdges modules =
-    [ e
-    | m <- modules
-    , e <- m.edges
-    , Resolved target _ <- [e.target]
-    , Just from <- [placeFor m.id]
-    , Just to <- [placeFor target]
-    , from /= to
-    ]
-  where
-    placeFor mid = placeOf <$> Map.lookup mid (layoutOf modules).spots
+    isPackage (Package _) = True
+    isPackage (ModuleAt _) = False
 
 {- | Modules at distinct paths of mixed depth, depending on one another, on
 packages, and on modules nobody parsed - through imports and re-exports alike.
@@ -84,13 +53,13 @@ genProject = do
     traverse (genModule pathList) pathList
   where
     genPath = do
-        dirs <- Gen.list (Range.linear 0 4) $ Gen.element ["src", "app", "lib", "[id]", "ui", "a.b"]
-        file <- Gen.element ["index.ts", "page.tsx", "util.ts", "x.stories.tsx"]
+        dirs <- Gen.list (Range.linear 0 3) $ Gen.element ["src", "test", "ui", "a.b"]
+        file <- Gen.element ["index.ts", "Page.hs", "util.test.ts", "UtilSpec.hs"]
         pure . T.intercalate "/" $ dirs <> [file]
 
     genModule pathList path = do
         targets <- Gen.list (Range.linear 0 6) $ genTarget pathList
-        pure (mkModuleAt path path []) {edges = zipWith (edgeTo path) [1 ..] targets}
+        pure (mkModuleAt path path []) {M.edges = zipWith (edgeTo path) [1 ..] targets}
 
     genTarget pathList =
         (,)
@@ -99,10 +68,8 @@ genProject = do
                 , (1, pure . External $ moduleNameUnsafe "react")
                 , (1, pure $ internal "unscanned/x.ts")
                 ]
-            <*> genKind
+            <*> Gen.element [ImportEdge, ReExportEdge]
 
     internal p = Resolved (moduleIdUnsafe p) (moduleNameUnsafe p :| [])
-
-    genKind = Gen.element [ImportEdge, ReExportEdge]
 
     edgeTo path line (target, k) = mkEdge path line "dep" target k

@@ -76,9 +76,6 @@ humanReadable (NoFrontendDetected root lookedFor) =
         <> decodeOsPath root.path.osPath
         <> ". Looked for: "
         <> T.intercalate ", " lookedFor
-humanReadable D2NotFound =
-    "d2 not found on PATH. Install it: https://d2lang.com/tour/install"
-humanReadable (D2RenderFailed msg) = "d2 could not render the diagram:\n" <> msg
 humanReadable (RulebookError msg) = msg
 humanReadable (InvalidRuleConfig msg) =
     "Invalid rule configuration: " <> msg

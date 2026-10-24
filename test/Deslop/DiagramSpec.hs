@@ -1,23 +1,16 @@
 module Deslop.DiagramSpec (spec) where
 
-import Data.Map.Strict qualified as Map
-import Data.Set qualified as Set
+import Data.Aeson (Value, decode, encode, object, (.=))
 import Deslop.Diagram (
-    Arrow (..),
-    Board (..),
-    BoardEnd (..),
-    BoardName (..),
     Diagram (..),
-    Folder (..),
-    Graph (..),
-    Layout (..),
-    Place (..),
-    Spot (..),
+    Edge (..),
+    FolderNode (..),
+    FolderPath (..),
+    ModuleNode (..),
+    NodeId (..),
+    Role (..),
     diagramOf,
-    layoutOf,
-    toD2,
  )
-import Deslop.Diagram.D2 qualified as D2
 import Deslop.Module (
     EdgeKind (..),
     EdgeTarget (..),
@@ -25,190 +18,152 @@ import Deslop.Module (
     moduleIdUnsafe,
     moduleNameUnsafe,
  )
+import Deslop.Module qualified as M
 import Fixtures.Deslop.Module (mkEdge, mkModuleAt)
 import Test.Hspec
 
 spec :: Spec
 spec = describe "Deslop.Diagram" $ do
-    describe "layoutOf" $ do
-        it "collapses every module to its folder two levels below the shared prefix" $ do
-            let modules =
-                    [ at "src/domain/user/entities/User.ts" []
-                    , at "src/domain/user/a.ts" []
-                    , at "src/app/page.tsx" []
-                    , at "src/main.ts" []
-                    ]
-
-            let layout = layoutOf modules
-
-            layout.prefix `shouldBe` ["src"]
-            Map.elems layout.spots
-                `shouldMatchList` [ FolderFile (folder ["domain", "user"]) ("entities" :| ["User.ts"])
-                                  , FolderFile (folder ["domain", "user"]) ("a.ts" :| [])
-                                  , FolderFile (folder ["app"]) ("page.tsx" :| [])
-                                  , RootFile "main.ts"
-                                  ]
-
-        it "strips nothing when a module sits at the project root" $ do
-            let modules = [at "next.config.ts" [], at "src/app/page.tsx" []]
-
-            (layoutOf modules).prefix `shouldBe` []
-
     describe "diagramOf" $ do
-        it "counts dependencies per pair of folders and kind, and drops those within one folder" $ do
-            let modules =
-                    [ at "src/app/page.tsx" ["src/domain/user/a.ts", "src/domain/user/b.ts"]
-                    , reExporting "src/app/index.ts" "src/domain/user/a.ts"
-                    , at "src/domain/user/a.ts" ["src/domain/user/b.ts"]
-                    , at "src/domain/user/b.ts" []
-                    ]
+        it "layers modules from the entry point down to what imports nothing" $ do
+            let d = diagramOf [at "app/Main.hs" ["src/App.hs"], at "src/App.hs" ["src/Util.hs"], at "src/Util.hs" []]
 
-            let d = diagramOf modules
+            layerOf d <$> ["app/Main.hs", "src/App.hs", "src/Util.hs"] `shouldBe` [Just 0, Just 1, Just 2]
 
-            d.overview.arrows
-                `shouldBe` Map.fromList
-                    [ (Arrow (InFolder app) (InFolder user) ImportEdge, 2)
-                    , (Arrow (InFolder app) (InFolder user) ReExportEdge, 1)
-                    ]
+        it "marks the arrow a longer path already implies" $ do
+            let d = diagramOf [at "Main.hs" ["App.hs", "Util.hs"], at "App.hs" ["Util.hs"], at "Util.hs" []]
 
-        it "draws nothing for an npm package or a module nobody parsed" $ do
-            let modules =
-                    [ withEdge (at "src/app/page.tsx" ["src/unscanned/x.ts"]) (External $ moduleNameUnsafe "react")
-                    , at "src/lib/util.ts" []
-                    ]
+            [(e.source, e.target) | e <- d.edges, e.implied] `shouldBe` [(ModuleAt "Main.hs", ModuleAt "Util.hs")]
 
-            let d = diagramOf modules
+        it "counts every time a module depends on another, per kind" $ do
+            let m =
+                    (at "a.ts" [])
+                        { M.edges =
+                            [ mkEdge "a.ts" 1 "./b" (internal "b.ts") ImportEdge
+                            , mkEdge "a.ts" 2 "./b" (internal "b.ts") ImportEdge
+                            , mkEdge "a.ts" 3 "./b" (internal "b.ts") ReExportEdge
+                            ]
+                        }
 
-            d.overview.arrows `shouldBe` Map.empty
-            d.overview.nodes `shouldBe` Set.fromList [InFolder $ folder ["app"], InFolder $ folder ["lib"]]
+            let d = diagramOf [m, at "b.ts" []]
 
-        it "drills into a folder with its files apart and every other folder collapsed" $ do
-            let modules =
-                    [ at "src/app/page.tsx" ["src/domain/user/a.ts", "src/domain/user/sub/b.ts"]
-                    , at "src/domain/user/a.ts" ["src/domain/user/sub/b.ts", "src/lib/util.ts"]
-                    , at "src/domain/user/sub/b.ts" []
-                    , at "src/lib/util.ts" []
-                    ]
+            [(e.kind, e.count) | e <- d.edges] `shouldBe` [(ImportEdge, 2), (ReExportEdge, 1)]
 
-            let userBoard = find ((== user) . (.folder)) (diagramOf modules).boards
-
-            fmap (.graph.arrows) userBoard
-                `shouldBe` Just
-                    ( Map.fromList
-                        [ (Arrow (Local $ "a.ts" :| []) (Local $ "sub" :| ["b.ts"]) ImportEdge, 1)
-                        , (Arrow (Local $ "a.ts" :| []) (Neighbour . InFolder $ folder ["lib"]) ImportEdge, 1)
-                        , (Arrow (Neighbour $ InFolder app) (Local $ "a.ts" :| []) ImportEdge, 1)
-                        , (Arrow (Neighbour $ InFolder app) (Local $ "sub" :| ["b.ts"]) ImportEdge, 1)
+        it "folds a module most of the project imports into a hub, but no test" $ do
+            let d =
+                    diagramOf
+                        [ at "src/A.hs" ["src/Path.hs"]
+                        , at "src/B.hs" ["src/Path.hs"]
+                        , at "src/C.hs" ["src/Path.hs"]
+                        , at "src/D.hs" []
+                        , at "src/Path.hs" []
+                        , at "test/PathSpec.hs" ["src/Path.hs", "test/Helpers.hs"]
+                        , at "test/Helpers.hs" []
                         ]
+
+            [m.path | m <- d.modules, m.hub] `shouldBe` ["src/Path.hs"]
+
+        it "does not call a module a hub with fewer than three importers" $ do
+            let d = diagramOf [at "A.hs" ["Util.hs"], at "B.hs" ["Util.hs"], at "Util.hs" []]
+
+            [m.path | m <- d.modules, m.hub] `shouldBe` []
+
+        it "tells tests from source by their folder or their name" $ do
+            let d =
+                    diagramOf
+                        [ at "src/a/b.ts" []
+                        , at "src/a/b.test.ts" []
+                        , at "src/a/__tests__/c.ts" []
+                        , at "test/Doubles/CLI.hs" []
+                        , at "testing/Tools.hs" []
+                        ]
+
+            [(m.path, m.role) | m <- d.modules]
+                `shouldBe` [ ("src/a/__tests__/c.ts", Test)
+                           , ("src/a/b.test.ts", Test)
+                           , ("src/a/b.ts", Source)
+                           , ("test/Doubles/CLI.hs", Test)
+                           , ("testing/Tools.hs", Source)
+                           ]
+
+        it "links a module to the specs named after it" $ do
+            let d =
+                    diagramOf
+                        [ at "src/Deslop/Diagram.hs" []
+                        , at "src/Other/Diagram.hs" []
+                        , at "src/Deslop.hs" []
+                        , at "test/Deslop/DiagramSpec.hs" []
+                        , at "test/Deslop/DiagramPropSpec.hs" []
+                        , at "test/DeslopSpec.hs" []
+                        , at "test/Doubles/CLI.hs" []
+                        ]
+
+            [(m.path, m.testedBy) | m <- d.modules, m.role == Source]
+                `shouldBe` [ ("src/Deslop/Diagram.hs", ["test/Deslop/DiagramPropSpec.hs", "test/Deslop/DiagramSpec.hs"])
+                           , ("src/Deslop.hs", ["test/DeslopSpec.hs"])
+                           , ("src/Other/Diagram.hs", [])
+                           ]
+
+        it "names every folder above a module, each under its parent" $ do
+            let d = diagramOf [at "src/ui/Button.tsx" [], at "main.ts" []]
+
+            d.folders
+                `shouldBe` [ FolderNode {path = FolderPath ("src" :| []), parent = Nothing}
+                           , FolderNode {path = FolderPath ("src" :| ["ui"]), parent = Just (FolderPath ("src" :| []))}
+                           ]
+
+    describe "JSON" $ do
+        it "writes nodes and edges in the deslop-graph/1 schema" $ do
+            let m = (at "src/a.ts" []) {M.edges = [mkEdge "src/a.ts" 1 "react" (External $ moduleNameUnsafe "react") ImportEdge]}
+
+            decode (encode $ diagramOf [m])
+                `shouldBe` Just
+                    ( object
+                        [ "schema" .= ("deslop-graph/1" :: Text)
+                        , "nodes"
+                            .= [ object
+                                    [ "id" .= ("src/" :: Text)
+                                    , "kind" .= ("folder" :: Text)
+                                    , "label" .= ("src" :: Text)
+                                    , "path" .= ("src" :: Text)
+                                    , "parent" .= (Nothing :: Maybe Text)
+                                    ]
+                               , object
+                                    [ "id" .= ("src/a.ts" :: Text)
+                                    , "kind" .= ("module" :: Text)
+                                    , "name" .= ("src/a.ts" :: Text)
+                                    , "aliases" .= ([] :: [Text])
+                                    , "path" .= ("src/a.ts" :: Text)
+                                    , "parent" .= ("src/" :: Text)
+                                    , "layer" .= (0 :: Int)
+                                    , "tags" .= ([] :: [Text])
+                                    , "testedBy" .= ([] :: [Text])
+                                    ]
+                               , object
+                                    [ "id" .= ("external:react" :: Text)
+                                    , "kind" .= ("external" :: Text)
+                                    , "name" .= ("react" :: Text)
+                                    , "tags" .= ["external" :: Text]
+                                    ]
+                               ]
+                        , "edges"
+                            .= [ object
+                                    [ "source" .= ("src/a.ts" :: Text)
+                                    , "target" .= ("external:react" :: Text)
+                                    , "kind" .= ("import" :: Text)
+                                    , "count" .= (1 :: Int)
+                                    , "tags" .= ["external" :: Text]
+                                    ]
+                               ]
+                        ] ::
+                        Value
                     )
-
-        it "names every board for its folder in a form D2 can file it under" $ do
-            let modules = [at "src/app/[locale]/page.tsx" [], at "src/Domain/User/a.ts" []]
-
-            let names = (.name) <$> (diagramOf modules).boards
-
-            names `shouldBe` [BoardName "domain-user", BoardName "app-locale"]
-
-    describe "toD2" $
-        it "writes the overview and a layer per folder, linked both ways" $ do
-            let modules = [at "src/a/x.ts" ["src/b/y.ts"], at "src/b/y.ts" []]
-
-            let d2 = D2.render . toD2 . diagramOf $ modules
-
-            d2
-                `shouldBe` unlines
-                    [ "vars: {"
-                    , "  d2-config: {"
-                    , "    layout-engine: elk"
-                    , "    theme-id: 0"
-                    , "    dark-theme-id: 200"
-                    , "  }"
-                    , "}"
-                    , "direction: right"
-                    , "\"a\": {"
-                    , "  shape: package"
-                    , "  label: \"a\""
-                    , "  tooltip: \"src/a\""
-                    , "  link: layers.a"
-                    , "}"
-                    , "\"b\": {"
-                    , "  shape: package"
-                    , "  label: \"b\""
-                    , "  tooltip: \"src/b\""
-                    , "  link: layers.b"
-                    , "}"
-                    , "\"a\" -> \"b\": {"
-                    , "  label: \"1\""
-                    , "  style.stroke-width: 1"
-                    , "}"
-                    , "layers: {"
-                    , "  \"a\": {"
-                    , "    direction: right"
-                    , "    \"← overview\": {"
-                    , "      near: top-left"
-                    , "      link: _"
-                    , "    }"
-                    , "    \"a\": {"
-                    , "      label: \"a\""
-                    , "      tooltip: \"src/a\""
-                    , "    }"
-                    , "    \"a\".\"x.ts\": {"
-                    , "      tooltip: \"src/a/x.ts\""
-                    , "    }"
-                    , "    \"b\": {"
-                    , "      shape: package"
-                    , "      label: \"b\""
-                    , "      tooltip: \"src/b\""
-                    , "      link: _.layers.b"
-                    , "    }"
-                    , "    \"a\".\"x.ts\" -> \"b\": {"
-                    , "      label: \"1\""
-                    , "      style.stroke-width: 1"
-                    , "    }"
-                    , "  }"
-                    , "  \"b\": {"
-                    , "    direction: right"
-                    , "    \"← overview\": {"
-                    , "      near: top-left"
-                    , "      link: _"
-                    , "    }"
-                    , "    \"b\": {"
-                    , "      label: \"b\""
-                    , "      tooltip: \"src/b\""
-                    , "    }"
-                    , "    \"b\".\"y.ts\": {"
-                    , "      tooltip: \"src/b/y.ts\""
-                    , "    }"
-                    , "    \"a\": {"
-                    , "      shape: package"
-                    , "      label: \"a\""
-                    , "      tooltip: \"src/a\""
-                    , "      link: _.layers.a"
-                    , "    }"
-                    , "    \"a\" -> \"b\".\"y.ts\": {"
-                    , "      label: \"1\""
-                    , "      style.stroke-width: 1"
-                    , "    }"
-                    , "  }"
-                    , "}"
-                    ]
   where
-    app = folder ["app"]
-    user = folder ["domain", "user"]
+    layerOf d p = viaNonEmpty head [m.layer | m <- d.modules, m.path == p]
 
--- | A module identified by its own path, importing the modules at these paths.
+-- | A module at a path, named and identified by it, importing modules by their paths.
 at :: Text -> [Text] -> Module
 at path = mkModuleAt path path
 
--- | A module at this path, re-exporting the module at another.
-reExporting :: Text -> Text -> Module
-reExporting path dep = (at path []) {edges = [mkEdge path 1 dep (internal dep) ReExportEdge]}
-
-withEdge :: Module -> EdgeTarget -> Module
-withEdge m target = m {edges = m.edges <> [mkEdge "x" 1 "x" target ImportEdge]}
-
 internal :: Text -> EdgeTarget
 internal p = Resolved (moduleIdUnsafe p) (moduleNameUnsafe p :| [])
-
-folder :: [Text] -> Folder
-folder = maybe (error "folder: no segments") Folder . nonEmpty
