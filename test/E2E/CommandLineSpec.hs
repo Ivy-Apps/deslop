@@ -5,6 +5,11 @@ The in-process goldens of "E2E.ProjectGoldenSpec" pin what a run says. These
 pin only what they cannot: the exit code 'deslop' returns, the reason it gives
 when it fails (logged as an 'Error', which is what goes to stderr), and what
 the command line prints before any run starts.
+
+They stop at the 'ExitCode' and the 'LogStyle'. The thin step from there to
+the process, the 'exitWith' in 'runDeslop' and 'runCLI' picking a stream per
+style, is deliberately not run, so the suite never needs the executable built
+(GH #249).
 -}
 module E2E.CommandLineSpec (spec) where
 
