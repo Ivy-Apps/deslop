@@ -45,18 +45,37 @@ paramsFromDto dto = do
             , command = dto.command
             }
 
--- | One subcommand per 'Command', each with what only it is asked.
+{- | One subcommand per 'Command', each with what only it is asked. A word that
+names none is refused with the commands there are.
+-}
 pParams :: Parser ParamsDto
-pParams =
-    hsubparser $
-        commandFor "check" "Report the problems in the project" (pure CheckC)
-            <> commandFor "fix" "Repair the auto-fixable problems" (pure FixC)
-            <> commandFor "baseline" "Accept the current problems into deslop/baseline.yaml" (pure BaselineC)
-            <> commandFor "explore" "Write an interactive module graph to deslop/diagram/index.html" (ExploreC <$> pExploration)
+pParams = hsubparser (foldMap commandFor commands) <|> unknownCommand
 
-commandFor :: String -> String -> Parser Command -> Mod CommandFields ParamsDto
-commandFor name description pCommand =
-    command name . info (flip ParamsDto <$> pProjectPath <*> pCommand) $ progDesc description
+data CommandSpec = CommandSpec
+    { name :: String
+    , description :: String
+    , parser :: Parser Command
+    }
+
+commands :: NonEmpty CommandSpec
+commands =
+    CommandSpec "check" "Report the problems in the project" (pure CheckC)
+        :| [ CommandSpec "fix" "Repair the auto-fixable problems" (pure FixC)
+           , CommandSpec "baseline" "Accept the current problems into deslop/baseline.yaml" (pure BaselineC)
+           , CommandSpec "explore" "Write an interactive module graph to deslop/diagram/index.html" (ExploreC <$> pExploration)
+           ]
+
+commandFor :: CommandSpec -> Mod CommandFields ParamsDto
+commandFor spec =
+    command spec.name . info (flip ParamsDto <$> pProjectPath <*> spec.parser) $ progDesc spec.description
+
+-- | Consumes the word no subcommand matched, only to name it in the refusal. Hidden from the help.
+unknownCommand :: Parser ParamsDto
+unknownCommand = argument (eitherReader refuse) (metavar "COMMAND" <> internal)
+  where
+    refuse word = Left $ "Unknown command '" <> word <> "'. Expected: " <> expected
+    expected = intercalate ", " (init names) <> ", or " <> last names
+    names = (.name) <$> commands
 
 pProjectPath :: Parser OsPath
 pProjectPath =

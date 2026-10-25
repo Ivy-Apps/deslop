@@ -4,13 +4,14 @@
 const fc = require("fast-check");
 
 // A raw graph holding `modules` and `externals`, with every folder their paths imply, and `edges`.
-function graphOf({ modules = [], externals = [], edges = [], sourceBase = null, pullRequest = null }) {
+function graphOf({ modules = [], externals = [], edges = [], sourceBase = null, pullRequest = null, diffBase = "origin/main" }) {
   return {
     schema: "deslop-graph/1",
     nodes: foldersOf(modules.map((m) => m.path)).concat(modules, externals),
     edges,
     sourceBase,
     pullRequest,
+    diffBase,
     repoPrefix: null,
     hub: { share: 0.4, minimum: 3 }
   };

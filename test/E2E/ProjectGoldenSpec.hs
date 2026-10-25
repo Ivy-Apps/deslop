@@ -465,7 +465,7 @@ itAsksNoPullRequestWithoutChanges :: Spec
 itAsksNoPullRequestWithoutChanges = it "explores without asking for a pull request when nothing changed" $ do
     run <-
         runDeslopIn
-            onGitHub {changes = Map.singleton (GitRef "main") mempty, pullRequest = error "asked for a pull request"}
+            onGitHub {changes = Map.singleton (GitRef "origin/main") mempty, pullRequest = error "asked for a pull request"}
             InMemory
             explore
             (projectIn TypeScript "ts-project-1")
@@ -491,7 +491,7 @@ itAsksGitNothing command = it ("asks git nothing to " <> show command) $ do
 onGitHub :: Repository
 onGitHub =
     Repository
-        { changes = Map.singleton (GitRef "main") (Set.fromList [rp "src/app/[locale]/layout.tsx", rp "README.md", rp "src/index.ts"])
+        { changes = Map.singleton (GitRef "origin/main") (Set.fromList [rp "src/app/[locale]/layout.tsx", rp "README.md", rp "src/index.ts"])
         , sourceLinks =
             Just
                 SourceLinks

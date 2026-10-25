@@ -12,7 +12,8 @@ module Effects.Git (
     GitRef (..),
     NoDiff (..),
     NoPullRequest (..),
-    gitChangedFiles,
+    Diff (..),
+    gitDiff,
     gitPullRequest,
     gitSourceLinks,
     runGitIO,
@@ -22,8 +23,8 @@ import Data.Set qualified as Set
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
-import FileSystem.Path (AbsPath (..), ProjectRelativePath, ProjectRoot (..), decodeOsPath, encodeOsPath, relativePathTo, withAbsBaseUnsafe)
-import Git.SourceLink (Branch (..), Checkout (..), GitRef (..), PullRequest, Revision (..), SourceLinks, pullRequestFromGh, sourceLinksOf)
+import FileSystem.Path (AbsPath (..), ProjectRoot (..), decodeOsPath, encodeOsPath, relativePathTo, withAbsBaseUnsafe)
+import Git.SourceLink (Branch (..), Checkout (..), Diff (..), GitRef (..), PullRequest, Revision (..), SourceLinks, pullRequestFromGh, sourceLinksOf)
 import System.Directory (findExecutable)
 import System.Environment (getEnvironment)
 import System.Exit (ExitCode (..))
@@ -53,7 +54,7 @@ data NoPullRequest
     deriving stock (Show, Eq)
 
 data Git :: Effect where
-    ChangedFiles :: ProjectRoot -> GitRef -> Git m (Either NoDiff (Set ProjectRelativePath))
+    DiffOf :: ProjectRoot -> GitRef -> Git m (Either NoDiff Diff)
     SourceLinksOf :: ProjectRoot -> Git m (Maybe SourceLinks)
     PullRequestOf :: ProjectRoot -> Branch -> Git m (Either NoPullRequest PullRequest)
 
@@ -61,11 +62,11 @@ type instance DispatchOf Git = 'Dynamic
 
 {- | The project's files that differ from where its branch left the base:
 committed since @git merge-base <base> HEAD@, staged, unstaged or untracked.
-The base is @origin\/<ref>@ when the remote has it, else @<ref>@. Only files
-inside the project count, spelled from its root.
+The base is @origin\/<ref>@ when the remote has it, else @<ref>@, and the
+'Diff' names which. Only files inside the project count, spelled from its root.
 -}
-gitChangedFiles :: (Git :> es) => ProjectRoot -> GitRef -> Eff es (Either NoDiff (Set ProjectRelativePath))
-gitChangedFiles root = send . ChangedFiles root
+gitDiff :: (Git :> es) => ProjectRoot -> GitRef -> Eff es (Either NoDiff Diff)
+gitDiff root = send . DiffOf root
 
 {- | Where the project's files can be read on the web: its @origin@ on GitHub
 or GitLab, at the branch checked out, or the commit when none is. None outside
@@ -83,7 +84,7 @@ gitPullRequest root = send . PullRequestOf root
 
 runGitIO :: (IOE :> es) => Eff (Git : es) a -> Eff es a
 runGitIO = interpret $ \_ -> \case
-    ChangedFiles root ref -> liftIO $ changedFilesIO root ref
+    DiffOf root ref -> liftIO $ diffIO root ref
     SourceLinksOf root -> liftIO $ sourceLinksIO root
     PullRequestOf root branch -> liftIO $ pullRequestIO root branch
 
@@ -115,28 +116,29 @@ sourceLinksIO root = do
         Succeeded out -> Just out
         _ -> Nothing
 
-changedFilesIO :: ProjectRoot -> GitRef -> IO (Either NoDiff (Set ProjectRelativePath))
-changedFilesIO root ref =
+diffIO :: ProjectRoot -> GitRef -> IO (Either NoDiff Diff)
+diffIO root ref =
     git ["rev-parse", "--is-inside-work-tree"] >>= \case
         CouldNotRun -> pure (Left GitMissing)
         Failed -> pure (Left NotARepository)
         Succeeded _ -> do
-            mergeBase <- firstSuccess [git ["merge-base", "--end-of-options", base, "HEAD"] | base <- ["origin/" <> ref.text, ref.text]]
+            mergeBase <- firstMergeBase [GitRef ("origin/" <> ref.text), ref]
             case mergeBase of
                 Nothing -> pure (Left (UnknownBase ref))
-                Just commit -> do
+                Just (base, commit) -> do
                     committed <- git ["diff", "--name-only", "--relative", "-z", T.strip commit]
                     untracked <- git ["ls-files", "--others", "--exclude-standard", "-z"]
-                    pure . Right . Set.fromList . fmap inProject $ foldMap paths [committed, untracked]
+                    pure . Right . Diff base . Set.fromList . fmap inProject $ foldMap paths [committed, untracked]
   where
     git = gitIn root
 
-    firstSuccess = \case
+    -- The first base git knows, with the commit the branch left it at.
+    firstMergeBase = \case
         [] -> pure Nothing
-        run : rest ->
-            run >>= \case
-                Succeeded out -> pure (Just out)
-                _ -> firstSuccess rest
+        base : rest ->
+            git ["merge-base", "--end-of-options", base.text, "HEAD"] >>= \case
+                Succeeded commit -> pure $ Just (base, commit)
+                _ -> firstMergeBase rest
 
     paths = \case
         Succeeded out -> filter (not . T.null) (T.splitOn "\0" out)

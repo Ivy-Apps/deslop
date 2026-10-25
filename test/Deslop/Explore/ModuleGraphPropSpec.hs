@@ -27,7 +27,7 @@ spec = describe "Deslop.Explore.ModuleGraph properties" $ do
     prop "every edge joins two nodes of the diagram" $ do
         modules <- forAll genProject
 
-        let d = diagramOf Nothing Nothing mempty modules
+        let d = diagramOf Nothing Nothing Nothing modules
             nodeIds = Set.fromList $ fmap (ModuleAt . (.path)) d.modules <> fmap Package d.externals
 
         H.assert $ all (\e -> e.source `Set.member` nodeIds && e.target `Set.member` nodeIds) d.edges
@@ -35,7 +35,7 @@ spec = describe "Deslop.Explore.ModuleGraph properties" $ do
     prop "an implied edge only ever joins two of the project's modules" $ do
         modules <- forAll genProject
 
-        let d = diagramOf Nothing Nothing mempty modules
+        let d = diagramOf Nothing Nothing Nothing modules
 
         [e | e <- d.edges, e.implied, isPackage e.target] === []
   where

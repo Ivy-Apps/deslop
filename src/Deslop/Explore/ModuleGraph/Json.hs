@@ -23,7 +23,7 @@ import Deslop.Explore.ModuleGraph (
  )
 import Deslop.Module (EdgeKind (..), ModuleName (..), ModuleRole (..))
 import FileSystem.Path (portablePath)
-import Git.SourceLink (DiffAnchors (..), Forge (..), PullRequest (..), SourceBase (..), SourceLinks (..))
+import Git.SourceLink (DiffAnchors (..), Forge (..), GitRef (..), PullRequest (..), SourceBase (..), SourceLinks (..))
 
 graphJson :: Diagram -> Value
 graphJson d =
@@ -33,6 +33,7 @@ graphJson d =
         , "edges" .= fmap edgeJson d.edges
         , "sourceBase" .= fmap (.source.url) d.sourceLinks
         , "pullRequest" .= fmap (.url) d.pullRequest
+        , "diffBase" .= fmap (.text) d.diffBase
         , "repoPrefix" .= (diffAnchors . (.forge) =<< d.sourceLinks)
         , "hub" .= object ["share" .= (fromRational hubShare :: Double), "minimum" .= hubMinImporters]
         ]

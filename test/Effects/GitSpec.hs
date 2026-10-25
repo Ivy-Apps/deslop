@@ -2,7 +2,7 @@ module Effects.GitSpec (spec) where
 
 import Data.Set qualified as Set
 import Effectful (runEff)
-import Effects.Git (GitRef (..), NoDiff (..), gitChangedFiles, gitSourceLinks, runGitIO)
+import Effects.Git (Diff (..), GitRef (..), NoDiff (..), gitDiff, gitSourceLinks, runGitIO)
 import FileSystem.Path (ProjectRoot (..))
 import Git.SourceLink (Branch (..), DiffAnchors (..), Forge (..), Revision (..), SourceBase (..), SourceLinks (..))
 import System.Directory (createDirectoryIfMissing)
@@ -37,9 +37,9 @@ spec = describe "Effects.Git" $ do
             changed <- changedIn (dir <> "/app") "main"
 
             -- Then
-            changed `shouldBe` Right (Set.fromList [rp "a.ts", rp "b.ts", rp "new.ts"])
+            changed `shouldBe` Right (Diff (GitRef "main") $ Set.fromList [rp "a.ts", rp "b.ts", rp "new.ts"])
 
-    it "measures from origin's copy of the base when the remote has one" $
+    it "measures from, and names, origin's copy of the base when the remote has one" $
         withRepo $ \dir -> do
             -- Given: origin/main has moved past the local main, and taken a.ts with it
             write dir "a.ts" "a"
@@ -55,7 +55,7 @@ spec = describe "Effects.Git" $ do
             changed <- changedIn dir "main"
 
             -- Then
-            changed `shouldBe` Right (Set.fromList [rp "b.ts"])
+            changed `shouldBe` Right (Diff (GitRef "origin/main") $ Set.fromList [rp "b.ts"])
 
     it "has no diff against a base nobody has" $
         withRepo $ \dir -> do
@@ -84,7 +84,7 @@ spec = describe "Effects.Git" $ do
             changed <- withEnv [("GIT_DIR", elsewhere <> "/.git"), ("GIT_WORK_TREE", elsewhere)] $ changedIn dir "main"
 
             -- Then
-            changed `shouldBe` Right (Set.fromList [rp "b.ts"])
+            changed `shouldBe` Right (Diff (GitRef "main") $ Set.fromList [rp "b.ts"])
 
     it "has no diff outside a git repository" $
         withSystemTempDirectory "deslop-git" $ \dir ->
@@ -145,7 +145,7 @@ spec = describe "Effects.Git" $ do
   where
     sourceBaseIn dir = fmap (.source.url) <$> sourceLinksIn dir
     sourceLinksIn dir = runEff . runGitIO $ gitSourceLinks (ProjectRoot . ap $ toText dir)
-    changedIn dir ref = runEff . runGitIO $ gitChangedFiles (ProjectRoot . ap $ toText dir) (GitRef ref)
+    changedIn dir ref = runEff . runGitIO $ gitDiff (ProjectRoot . ap $ toText dir) (GitRef ref)
 
 -- | A repository on GitHub with its project in @app/@, on the branch @feature/x@.
 appOnGitHubBranch :: FilePath -> IO ()

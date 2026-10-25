@@ -161,7 +161,7 @@ spec = describe "E2E.CommandLine" $ do
             (exitCode, err) <- answer ["lint"]
 
             exitCode `shouldBe` ExitFailure 1
-            err `shouldSatisfy` T.isPrefixOf "Invalid argument `lint'\n"
+            err `shouldSatisfy` T.isPrefixOf "Unknown command 'lint'. Expected: check, fix, baseline, or explore\n"
 
         it "shows the help, failing, when given nothing to do" $ do
             (exitCode, err) <- answer []

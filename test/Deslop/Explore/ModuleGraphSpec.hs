@@ -16,6 +16,7 @@ import Deslop.Module (
  )
 import Deslop.Module qualified as M
 import Fixtures.Deslop.Module (mkBenchAt, mkEdge, mkPathModule, mkTestAt, mkTestOf, resolvedTo)
+import Git.SourceLink (Diff (..), GitRef (..))
 import Test.Hspec
 import TestUtils (rp)
 
@@ -23,12 +24,12 @@ spec :: Spec
 spec = describe "Deslop.Explore.ModuleGraph" $ do
     describe "diagramOf" $ do
         it "layers modules from the entry point down to what imports nothing" $ do
-            let d = diagramOf Nothing Nothing mempty [mkPathModule "app/Main.hs" ["src/App.hs"], mkPathModule "src/App.hs" ["src/Util.hs"], mkPathModule "src/Util.hs" []]
+            let d = diagramOf Nothing Nothing Nothing [mkPathModule "app/Main.hs" ["src/App.hs"], mkPathModule "src/App.hs" ["src/Util.hs"], mkPathModule "src/Util.hs" []]
 
             layerOf d <$> ["app/Main.hs", "src/App.hs", "src/Util.hs"] `shouldBe` [Just 0, Just 1, Just 2]
 
         it "marks the arrow a longer path already implies" $ do
-            let d = diagramOf Nothing Nothing mempty [mkPathModule "Main.hs" ["App.hs", "Util.hs"], mkPathModule "App.hs" ["Util.hs"], mkPathModule "Util.hs" []]
+            let d = diagramOf Nothing Nothing Nothing [mkPathModule "Main.hs" ["App.hs", "Util.hs"], mkPathModule "App.hs" ["Util.hs"], mkPathModule "Util.hs" []]
 
             [(e.source, e.target) | e <- d.edges, e.implied] `shouldBe` [(ModuleAt (rp "Main.hs"), ModuleAt (rp "Util.hs"))]
 
@@ -42,7 +43,7 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
                             ]
                         }
 
-            let d = diagramOf Nothing Nothing mempty [m, mkPathModule "b.ts" []]
+            let d = diagramOf Nothing Nothing Nothing [m, mkPathModule "b.ts" []]
 
             [(e.kind, e.count) | e <- d.edges] `shouldBe` [(ImportEdge, 2), (ReExportEdge, 1)]
 
@@ -51,7 +52,7 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
                     diagramOf
                         Nothing
                         Nothing
-                        mempty
+                        Nothing
                         [ mkPathModule "src/A.hs" ["src/Path.hs"]
                         , mkPathModule "src/B.hs" ["src/Path.hs"]
                         , mkPathModule "src/C.hs" ["src/Path.hs"]
@@ -64,7 +65,7 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
             [m.path | m <- d.modules, m.hub] `shouldBe` [rp "src/Path.hs"]
 
         it "does not call a module a hub with fewer than three importers" $ do
-            let d = diagramOf Nothing Nothing mempty [mkPathModule "A.hs" ["Util.hs"], mkPathModule "B.hs" ["Util.hs"], mkPathModule "Util.hs" []]
+            let d = diagramOf Nothing Nothing Nothing [mkPathModule "A.hs" ["Util.hs"], mkPathModule "B.hs" ["Util.hs"], mkPathModule "Util.hs" []]
 
             [m.path | m <- d.modules, m.hub] `shouldBe` []
 
@@ -73,7 +74,7 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
                     diagramOf
                         Nothing
                         Nothing
-                        mempty
+                        Nothing
                         [ mkPathModule "src/A.hs" ["src/Path.hs"]
                         , mkPathModule "src/B.hs" []
                         , mkPathModule "src/Path.hs" []
@@ -86,13 +87,13 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
             [m.path | m <- d.modules, m.hub] `shouldBe` []
 
         it "keeps the role each module's frontend gave it" $ do
-            let d = diagramOf Nothing Nothing mempty [mkPathModule "src/a.ts" [], mkTestAt "src/a.check.ts" [], mkBenchAt "perf/a.ts" []]
+            let d = diagramOf Nothing Nothing Nothing [mkPathModule "src/a.ts" [], mkTestAt "src/a.check.ts" [], mkBenchAt "perf/a.ts" []]
 
             [(m.path, m.role) | m <- d.modules]
                 `shouldBe` [(rp "perf/a.ts", Benchmark), (rp "src/a.check.ts", Test Nothing), (rp "src/a.ts", Source)]
 
         it "marks the modules whose files changed" $ do
-            let d = diagramOf Nothing Nothing (Set.fromList [rp "src/b.ts", rp "README.md"]) [mkPathModule "src/a.ts" [], mkPathModule "src/b.ts" []]
+            let d = diagramOf Nothing Nothing (Just . Diff (GitRef "origin/main") $ Set.fromList [rp "src/b.ts", rp "README.md"]) [mkPathModule "src/a.ts" [], mkPathModule "src/b.ts" []]
 
             [(m.path, m.changed) | m <- d.modules] `shouldBe` [(rp "src/a.ts", False), (rp "src/b.ts", True)]
 
@@ -101,7 +102,7 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
                     diagramOf
                         Nothing
                         Nothing
-                        mempty
+                        Nothing
                         [ mkPathModule "src/Deslop/Diagram.hs" []
                         , mkPathModule "src/Other/Diagram.hs" []
                         , mkTestOf "test/Deslop/DiagramSpec.hs" "src/Deslop/Diagram.hs"
@@ -115,12 +116,12 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
                            ]
 
         it "lists no test whose subject is not drawn" $ do
-            let d = diagramOf Nothing Nothing mempty [mkPathModule "src/a.ts" [], mkTestOf "src/b.test.ts" "src/b.ts"]
+            let d = diagramOf Nothing Nothing Nothing [mkPathModule "src/a.ts" [], mkTestOf "src/b.test.ts" "src/b.ts"]
 
             [(m.path, m.testedBy) | m <- d.modules] `shouldBe` [(rp "src/a.ts", []), (rp "src/b.test.ts", [])]
 
         it "names every folder above a module, each under its parent" $ do
-            let d = diagramOf Nothing Nothing mempty [mkPathModule "src/ui/Button.tsx" [], mkPathModule "main.ts" []]
+            let d = diagramOf Nothing Nothing Nothing [mkPathModule "src/ui/Button.tsx" [], mkPathModule "main.ts" []]
 
             d.folders
                 `shouldBe` [ FolderNode {path = FolderPath ("src" :| []), parent = Nothing}

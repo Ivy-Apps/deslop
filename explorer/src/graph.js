@@ -24,7 +24,7 @@ var DeslopGraph = (function () {
   function index(raw) {
     var g = {
       nodes: {}, children: {}, outgoing: {}, incoming: {},
-      all: raw.nodes, edges: raw.edges, hub: raw.hub, repoPrefix: raw.repoPrefix,
+      all: raw.nodes, edges: raw.edges, hub: raw.hub, repoPrefix: raw.repoPrefix, diffBase: raw.diffBase,
       sourceBase: httpsOnly(raw.sourceBase), pullRequest: httpsOnly(raw.pullRequest)
     };
     raw.nodes.forEach(function (n) {

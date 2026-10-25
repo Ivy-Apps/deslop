@@ -8,6 +8,7 @@ to, through what @gh@ says. Pure: asking git and gh is "Effects.Git"'s business.
 module Git.SourceLink (
     Branch (..),
     Checkout (..),
+    Diff (..),
     DiffAnchors (..),
     Forge (..),
     GitRef (..),
@@ -24,11 +25,21 @@ import Data.Aeson.Types (parseMaybe)
 import Data.ByteString qualified as BS
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Data.Text qualified as T
+import FileSystem.Path (ProjectRelativePath)
 import Numeric (showHex)
 
 -- | What git accepts as a revision: a branch, a tag, a commit.
 newtype GitRef = GitRef {text :: Text}
     deriving stock (Show, Eq, Ord)
+
+{- | What a branch changed: the files that differ from where it left 'base',
+the ref the diff was taken from.
+-}
+data Diff = Diff
+    { base :: GitRef
+    , files :: Set ProjectRelativePath
+    }
+    deriving stock (Show, Eq)
 
 -- | A branch, by its short name: @feature/x@.
 newtype Branch = Branch {name :: Text}

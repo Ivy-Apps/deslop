@@ -36,7 +36,7 @@ import Effects.FileSystem (
     fsWriteFile,
     runFileSystemIO,
  )
-import Effects.Git (Git, GitRef (..), NoDiff (..), NoPullRequest (..), gitChangedFiles, gitPullRequest, gitSourceLinks, runGitIO)
+import Effects.Git (Diff (..), Git, GitRef (..), NoDiff (..), NoPullRequest (..), gitDiff, gitPullRequest, gitSourceLinks, runGitIO)
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import FileSystem.Path (
     AbsPath (osPath),
@@ -251,14 +251,14 @@ writeExplorer ::
     [Module] ->
     Eff es ()
 writeExplorer projectRoot exploration modules = do
-    changed <-
-        gitChangedFiles projectRoot exploration.diffBase >>= \case
-            Right files -> pure files
-            Left reason -> mempty <$ cliLog Plain ("No diff to show: " <> noDiffText reason)
+    diff <-
+        gitDiff projectRoot exploration.diffBase >>= \case
+            Right diff -> pure $ Just diff
+            Left reason -> Nothing <$ cliLog Plain ("No diff to show: " <> noDiffText reason)
     sourceLinks <- gitSourceLinks projectRoot
-    pullRequest <- pullRequestFor projectRoot changed sourceLinks
+    pullRequest <- pullRequestFor projectRoot (foldMap (.files) diff) sourceLinks
     fsMkDirP dir
-    fsWriteFile page . encodeUtf8 . explorerPage $ diagramOf sourceLinks pullRequest changed modules
+    fsWriteFile page . encodeUtf8 . explorerPage $ diagramOf sourceLinks pullRequest diff modules
     cliLog Success $
         "✅ Success: Explorer written to " <> portablePath (relativePathTo projectRoot page)
     openExplorer exploration.opening page

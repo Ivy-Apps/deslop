@@ -48,7 +48,7 @@ import Deslop.Module (
     canonicalName,
  )
 import FileSystem.Path (ProjectRelativePath, portableSegments)
-import Git.SourceLink (PullRequest (..), SourceLinks (..))
+import Git.SourceLink (Diff (..), GitRef, PullRequest (..), SourceLinks (..))
 
 {- | A module is a hub when more than this share of the project's other
 source modules import it.
@@ -72,6 +72,8 @@ data Diagram = Diagram
     -- ^ None when the project is not on a forge we can link to.
     , pullRequest :: Maybe PullRequest
     -- ^ Where the changed files' diff is read. None without one, or when it could not be found.
+    , diffBase :: Maybe GitRef
+    -- ^ The ref the changes are counted from. None when no diff could be taken.
     }
     deriving stock (Show, Eq)
 
@@ -124,10 +126,10 @@ data NodeId
     deriving stock (Show, Eq, Ord)
 
 {- | The diagram of these modules, given where their files and their diff can
-be read and the files changed since the diff base.
+be read and what the branch changed, when a diff could be taken.
 -}
-diagramOf :: Maybe SourceLinks -> Maybe PullRequest -> Set ProjectRelativePath -> [Module] -> Diagram
-diagramOf sourceLinks pullRequest changedFiles parsed =
+diagramOf :: Maybe SourceLinks -> Maybe PullRequest -> Maybe Diff -> [Module] -> Diagram
+diagramOf sourceLinks pullRequest diff parsed =
     Diagram
         { modules = moduleNode <$> located
         , folders = folderNodes . mapMaybe (\(_, segs) -> folderOf segs) $ located
@@ -135,6 +137,7 @@ diagramOf sourceLinks pullRequest changedFiles parsed =
         , edges = edgeOf <$> Map.toList (Map.fromListWith (+) [(d, 1 :: Int) | d <- deps])
         , sourceLinks
         , pullRequest
+        , diffBase = (.base) <$> diff
         }
   where
     located = sortOn snd $ mapMaybe (\m -> (m,) <$> portableSegments m.path) parsed
@@ -170,7 +173,7 @@ diagramOf sourceLinks pullRequest changedFiles parsed =
             , hub = m.path `Set.member` hubs
             , role = m.role
             , testedBy = Map.findWithDefault [] m.id testsOf
-            , changed = m.path `Set.member` changedFiles
+            , changed = any (Set.member m.path . (.files)) diff
             }
 
     edgeOf ((from, to, k), n) =

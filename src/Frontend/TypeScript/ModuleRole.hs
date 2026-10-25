@@ -24,11 +24,11 @@ test tests takes the whole program: see 'withSubjects'.
 moduleRole :: ProjectRelativePath -> ModuleRole
 moduleRole path = foldMap claim [(Benchmark, ["bench"], ["bench", "benchmark", "benchmarks"]), (Test Nothing, testInfixes, testFolders)]
   where
-    segments = T.splitOn "/" (portablePath path)
-    folders = fromMaybe [] (viaNonEmpty init segments)
+    segments = portableSegments path
+    folders = maybe [] NE.init segments
     -- Every dot-separated part of the file name but the first and the last:
     -- @b.test.ts@ has @test@, @b.ts@ has none.
-    infixes = maybe [] (drop 1 . fromMaybe [] . viaNonEmpty init . T.splitOn ".") (viaNonEmpty last segments)
+    infixes = maybe [] (drop 1 . fromMaybe [] . viaNonEmpty init . T.splitOn "." . NE.last) segments
     claim (role, names, dirs)
         | any (`elem` names) infixes || any (`elem` dirs) folders = role
         | otherwise = Source

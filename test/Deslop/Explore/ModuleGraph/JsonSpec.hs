@@ -12,7 +12,7 @@ import Deslop.Module (
 import Deslop.Module qualified as M
 import Fixtures.Deslop.Explore.ModuleGraph.Json (moduleField, moduleTags, textField)
 import Fixtures.Deslop.Module (mkBenchAt, mkEdge, mkPathModule, mkTestAt, mkTestOf)
-import Git.SourceLink (Branch (..), DiffAnchors (..), Forge (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..))
+import Git.SourceLink (Branch (..), Diff (..), DiffAnchors (..), Forge (..), GitRef (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..))
 import Test.Hspec
 import TestUtils (rp)
 
@@ -20,19 +20,19 @@ spec :: Spec
 spec = describe "Deslop.Explore.ModuleGraph.Json" $ do
     describe "graphJson" $ do
         it "tags a module by its role and whether it changed" $ do
-            let d = diagramOf Nothing Nothing (Set.fromList [rp "t.ts", rp "b.ts"]) [mkTestAt "t.ts" [], mkBenchAt "b.ts" [], mkPathModule "s.ts" []]
+            let d = diagramOf Nothing Nothing (Just . Diff (GitRef "origin/main") $ Set.fromList [rp "t.ts", rp "b.ts"]) [mkTestAt "t.ts" [], mkBenchAt "b.ts" [], mkPathModule "s.ts" []]
 
             moduleTags (graphJson d) `shouldBe` Just [("b.ts", ["bench", "changed"]), ("s.ts", []), ("t.ts", ["test", "changed"])]
 
         it "lists a module's tests by their paths" $ do
-            let d = diagramOf Nothing Nothing mempty [mkPathModule "src/a.ts" [], mkTestOf "src/a.test.ts" "src/a.ts"]
+            let d = diagramOf Nothing Nothing Nothing [mkPathModule "src/a.ts" [], mkTestOf "src/a.test.ts" "src/a.ts"]
 
             moduleField @[Text] "testedBy" (graphJson d) `shouldBe` Just [("src/a.test.ts", []), ("src/a.ts", ["src/a.test.ts"])]
 
         it "writes nodes and edges in the deslop-graph/1 schema" $ do
             let m = (mkPathModule "src/a.ts" []) {M.edges = [mkEdge "src/a.ts" 1 "react" (External $ moduleNameUnsafe "react") ImportEdge]}
 
-            graphJson (diagramOf Nothing Nothing mempty [m])
+            graphJson (diagramOf Nothing Nothing Nothing [m])
                 `shouldBe` object
                     [ "schema" .= ("deslop-graph/1" :: Text)
                     , "nodes"
@@ -72,14 +72,20 @@ spec = describe "Deslop.Explore.ModuleGraph.Json" $ do
                            ]
                     , "sourceBase" .= (Nothing :: Maybe Text)
                     , "pullRequest" .= (Nothing :: Maybe Text)
+                    , "diffBase" .= (Nothing :: Maybe Text)
                     , "repoPrefix" .= (Nothing :: Maybe Text)
                     , "hub" .= object ["share" .= (0.4 :: Double), "minimum" .= (3 :: Int)]
                     ]
 
+        it "carries the ref the changes are counted from" $ do
+            let diff = Diff {base = GitRef "origin/develop", files = Set.fromList [rp "a.ts"]}
+
+            textField "diffBase" (graphJson $ diagramOf Nothing Nothing (Just diff) [mkPathModule "a.ts" []]) `shouldBe` Just (Just "origin/develop")
+
         it "carries where the project's files can be read on the web" $ do
             let links = SourceLinks {source = SourceBase "https://gitlab.com/o/r/-/blob/main/", revision = OnBranch (Branch "main"), forge = GitLab}
 
-            textField "sourceBase" (graphJson $ diagramOf (Just links) Nothing mempty [mkPathModule "a.ts" []]) `shouldBe` Just (Just "https://gitlab.com/o/r/-/blob/main/")
+            textField "sourceBase" (graphJson $ diagramOf (Just links) Nothing Nothing [mkPathModule "a.ts" []]) `shouldBe` Just (Just "https://gitlab.com/o/r/-/blob/main/")
 
         it "carries the pull request the diff is read in, and the project's folder in the repository" $ do
             let links =
@@ -88,7 +94,7 @@ spec = describe "Deslop.Explore.ModuleGraph.Json" $ do
                         , revision = OnBranch (Branch "x")
                         , forge = GitHub DiffAnchors {repoPrefix = "app/"}
                         }
-                graph = graphJson $ diagramOf (Just links) (Just $ PullRequest "https://github.com/o/r/pull/7") mempty [mkPathModule "a.ts" []]
+                graph = graphJson $ diagramOf (Just links) (Just $ PullRequest "https://github.com/o/r/pull/7") Nothing [mkPathModule "a.ts" []]
 
             (textField "pullRequest" graph, textField "repoPrefix" graph)
                 `shouldBe` (Just (Just "https://github.com/o/r/pull/7"), Just (Just "app/"))

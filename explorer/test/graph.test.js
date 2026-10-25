@@ -56,6 +56,12 @@ test("index drops a source link that is not https", () => {
   assert.equal(g.pullRequest, "https://github.com/o/r/pull/1");
 });
 
+test("index keeps the ref the changes are counted from", () => {
+  const g = DeslopGraph.index(graphOf({ diffBase: "origin/develop" }));
+
+  assert.equal(g.diffBase, "origin/develop");
+});
+
 test("ancestors lists a module's folders outermost first", () => {
   const g = DeslopGraph.index(graphOf({ modules: [moduleAt("src/Deslop/Graph.hs")] }));
 

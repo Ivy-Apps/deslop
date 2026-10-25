@@ -51,7 +51,7 @@ spec = describe "Params" $ do
         fmap fst (parseOutput ["explore", "--diff-base", "-x"]) `shouldSatisfy` isJust
 
     it "refuses an unknown command above the help" $ do
-        parseOutput ["lint"] `shouldBe` Just ("Invalid argument `lint'\n\n" <> helpText, ExitFailure 1)
+        parseOutput ["lint"] `shouldBe` Just ("Unknown command 'lint'. Expected: check, fix, baseline, or explore\n\n" <> helpText, ExitFailure 1)
         fmap snd (parseOutput ["run"]) `shouldBe` Just (ExitFailure 1)
 
     it "shows the help, failing, when given no arguments" $ do

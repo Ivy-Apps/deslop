@@ -311,7 +311,7 @@
   // One shared popover explains whichever info icon opened it: on hover or focus where there is a mouse, on tap elsewhere.
   var hubShare = Math.round(graph.hub.share * 100) + "%";
   var explanations = {
-    diff: "Dims every module this branch didn't change, so the changes stand out. Changes are counted since the branch forked from main, plus uncommitted files.",
+    diff: "Dims every module this branch didn't change, so the changes stand out. Changes are counted since the branch forked from " + graph.diffBase + ", plus uncommitted files.",
     tests: "Shows test modules (specs, *.test.*, test suites). Hidden by default to keep the picture about the code itself.",
     benches: "Shows benchmark modules. Hidden by default.",
     hubs: "Shows hubs: modules imported by more than " + hubShare + " of the others (at least " + graph.hub.minimum + "). They're hidden by default because their arrows would cover the picture.",

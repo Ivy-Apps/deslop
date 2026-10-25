@@ -13,14 +13,14 @@ spec :: Spec
 spec = describe "Deslop.Explore.Html" $ do
     describe "explorerPage" $ do
         it "carries the graph inline, with no marker left" $ do
-            let diagram = diagramOf Nothing Nothing mempty [mkModuleAt "src/a.ts" "src/a.ts" []]
+            let diagram = diagramOf Nothing Nothing Nothing [mkModuleAt "src/a.ts" "src/a.ts" []]
                 page = explorerPage diagram
 
             graphIn page `shouldBe` Just (graphJson diagram)
             forM_ universe $ \slot -> page `shouldSatisfy` (not . T.isInfixOf (marker slot))
 
         it "carries every script inline, as it is on disk, in load order" $ do
-            let page = explorerPage $ diagramOf Nothing Nothing mempty []
+            let page = explorerPage $ diagramOf Nothing Nothing Nothing []
                 inOrder =
                     ["vendor/cytoscape.min.js", "vendor/elk.bundled.js", "vendor/cytoscape-elk.js"]
                         <> fmap ("src/" <>) ["graph.js", "colour.js", "view.js", "sha256.js", "search.js", "explorer.js"]
@@ -33,20 +33,20 @@ spec = describe "Deslop.Explore.Html" $ do
             offsets `shouldSatisfy` (\os -> and $ zipWith (<) os (drop 1 os))
 
         it "fetches nothing, so it opens from disk" $ do
-            let page = explorerPage $ diagramOf Nothing Nothing mempty []
+            let page = explorerPage $ diagramOf Nothing Nothing Nothing []
 
             page `shouldSatisfy` (not . T.isInfixOf "<script src")
             page `shouldSatisfy` (not . T.isInfixOf "<link")
 
         it "keeps a module's name from closing the script that holds the graph" $ do
-            let diagram = diagramOf Nothing Nothing mempty [mkModuleAt "src/x.ts" "</script><b>" []]
+            let diagram = diagramOf Nothing Nothing Nothing [mkModuleAt "src/x.ts" "</script><b>" []]
                 page = explorerPage diagram
 
             graphIn page `shouldBe` Just (graphJson diagram)
             page `shouldSatisfy` (not . T.isInfixOf "</script><b>")
 
         it "carries each library's licence notice, id and source" $ do
-            let page = explorerPage $ diagramOf Nothing Nothing mempty []
+            let page = explorerPage $ diagramOf Nothing Nothing Nothing []
 
             forM_
                 [ -- cytoscape.min.js carries its own MIT notice.
