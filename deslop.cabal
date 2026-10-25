@@ -69,6 +69,7 @@ library
     Deslop.Explore.Html.Template
     Deslop.Explore.Layering
     Deslop.Explore.ModuleGraph
+    Deslop.Explore.ModuleGraph.Json
     Deslop.Frontend
     Deslop.Frontend.Finding
     Deslop.Frontend.Pipeline
@@ -200,6 +201,7 @@ test-suite deslop-test
     Deslop.Explore.HtmlSpec
     Deslop.Explore.LayeringPropSpec
     Deslop.Explore.LayeringSpec
+    Deslop.Explore.ModuleGraph.JsonSpec
     Deslop.Explore.ModuleGraphPropSpec
     Deslop.Explore.ModuleGraphSpec
     Deslop.Frontend.FindingSpec
@@ -232,6 +234,8 @@ test-suite deslop-test
     FileSystem.EmbedSpec
     FileSystem.IteratorSpec
     FileSystem.PathSpec
+    Fixtures.Deslop.Explore.Html
+    Fixtures.Deslop.Explore.ModuleGraph.Json
     Fixtures.Deslop.Frontend
     Fixtures.Deslop.Frontend.Pipeline
     Fixtures.Deslop.GlobPlus

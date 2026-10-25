@@ -6,7 +6,7 @@ disk, offline, with nothing beside it.
 Everything it needs is inlined - the page and its script from
 @explorer\/src\/explorer.html@, the vendored cytoscape and ELK libraries
 (versions and licenses in @explorer\/vendor\/README.md@), and the 'Diagram' as
-JSON - because a browser refuses a page opened from @file:\/\/@ any fetch of a
+JSON from "Deslop.Explore.ModuleGraph.Json" - because a browser refuses a page opened from @file:\/\/@ any fetch of a
 file next to it.
 
 Every page it writes redistributes those libraries, so each carries the notice
@@ -18,13 +18,14 @@ import Data.Aeson (encode)
 import Data.Text qualified as T
 import Deslop.Explore.Html.Template (Slot (..), Template, fillTemplate, parseTemplate)
 import Deslop.Explore.ModuleGraph (Diagram)
+import Deslop.Explore.ModuleGraph.Json (graphJson)
 import FileSystem.Embed (embedParsed, embedText)
 
 explorerPage :: Diagram -> Text
 explorerPage d = fillTemplate content template
   where
     content = \case
-        Graph -> scriptSafe . decodeUtf8 $ encode d
+        Graph -> scriptSafe . decodeUtf8 . encode $ graphJson d
         Libraries -> mconcat libraries
 
 template :: Template

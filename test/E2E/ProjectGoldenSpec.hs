@@ -27,6 +27,8 @@ import FileSystem.Path (
     relativePathTo,
     withAbsBaseUnsafe,
  )
+import Fixtures.Deslop.Explore.Html (graphIn)
+import Fixtures.Deslop.Explore.ModuleGraph.Json (moduleTags, textField)
 import Fixtures.OnDisk (Language (..), inCopyOf, languageDir, projectIn)
 import Frontend.TypeScript (TsFrontend (..))
 import Git.Ignore (loadGitIgnore)
@@ -425,10 +427,11 @@ itExplores project = it ("explores " <> project) $ do
     fmap (.verdict) run.result `shouldBe` Right Clean
     Map.keys run.written `shouldBe` [pagePath]
     page <- decodeUtf8 <$> requireJust "Expected deslop/diagram/index.html to be written" (Map.lookup pagePath run.written)
-    page `shouldSatisfy` T.isInfixOf "\"schema\":\"deslop-graph/1\""
-    page `shouldSatisfy` T.isInfixOf "\"path\":\"src/app/[locale]/layout.tsx\",\"tags\":[\"changed\"]"
-    page `shouldSatisfy` T.isInfixOf "\"sourceBase\":\"https://github.com/o/r/blob/main/\""
-    page `shouldSatisfy` T.isInfixOf "\"pullRequest\":\"https://github.com/o/r/pull/7\""
+    graph <- requireJust "Expected the page to carry the graph" (graphIn page)
+    textField "schema" graph `shouldBe` Just (Just "deslop-graph/1")
+    (find ((== "src/app/[locale]/layout.tsx") . fst) =<< moduleTags graph) `shouldBe` Just ("src/app/[locale]/layout.tsx", ["changed"])
+    textField "sourceBase" graph `shouldBe` Just (Just "https://github.com/o/r/blob/main/")
+    textField "pullRequest" graph `shouldBe` Just (Just "https://github.com/o/r/pull/7")
     pure . projectGolden TypeScript "explore" project . T.unpack . renderRun $ run
 
 -- | Without its pull request, the explorer is still written, says why once, and links to none.
@@ -438,7 +441,7 @@ itExploresWithoutPullRequest reason = it ("explores without a pull request when 
 
     fmap (.verdict) run.result `shouldBe` Right Clean
     T.count "No pull request to link" (renderRun run) `shouldBe` 1
-    pages run `shouldSatisfy` all (T.isInfixOf "\"pullRequest\":null")
+    pullRequestsOf run `shouldBe` [Nothing]
 
 -- | A detached @HEAD@ has no branch to ask a pull request of, so none is asked for.
 itExploresDetachedWithoutAskingForPullRequest :: Spec
@@ -453,7 +456,7 @@ itExploresDetachedWithoutAskingForPullRequest = it "explores a detached checkout
 
     fmap (.verdict) run.result `shouldBe` Right Clean
     renderRun run `shouldSatisfy` T.isInfixOf "No pull request to link: no branch is checked out."
-    pages run `shouldSatisfy` all (T.isInfixOf "\"pullRequest\":null")
+    pullRequestsOf run `shouldBe` [Nothing]
 
 -- | A pull request is a network call away, so an explorer with no diff never asks for one.
 itAsksNoPullRequestWithoutChanges :: Spec
@@ -466,7 +469,7 @@ itAsksNoPullRequestWithoutChanges = it "explores without asking for a pull reque
             (projectIn TypeScript "ts-project-1")
 
     fmap (.verdict) run.result `shouldBe` Right Clean
-    pages run `shouldSatisfy` all (T.isInfixOf "\"pullRequest\":null")
+    pullRequestsOf run `shouldBe` [Nothing]
 
 -- | Only explore asks git and gh anything: the other commands stay as fast as they were.
 itAsksGitNothing :: Command -> Spec
@@ -504,6 +507,10 @@ explore = ExploreC Exploration {diffBase = GitRef "main"}
 -- | The text of every page a run wrote.
 pages :: Run -> [Text]
 pages = fmap decodeUtf8 . Map.elems . (.written)
+
+-- | The pull request each page written links to, if it carries a graph.
+pullRequestsOf :: Run -> [Maybe Text]
+pullRequestsOf = mapMaybe (textField "pullRequest" <=< graphIn) . pages
 
 {- | Deslop's own layering (deslop/rules/), judged by its own Haskell frontend.
 Asserted clean rather than goldened: a golden would change with every module

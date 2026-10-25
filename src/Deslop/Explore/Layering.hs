@@ -58,7 +58,8 @@ layers :: (Ord k) => Graph k -> Map k Int
 layers g = (\c -> deepest - heights Map.! c) <$> componentOf
   where
     (componentOf, dag) = condense g
-    heights = height <$> dag
+    -- Lazy, so each component's height is computed once, from those below it.
+    heights = LMap.map height dag
     height = foldr (max . (+ 1) . (heights LMap.!)) 0
     deepest = foldr max 0 heights
 

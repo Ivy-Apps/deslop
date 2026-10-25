@@ -4,6 +4,8 @@ import Data.Text qualified as T
 import Deslop.Explore.Html (explorerPage)
 import Deslop.Explore.Html.Template (marker)
 import Deslop.Explore.ModuleGraph (diagramOf)
+import Deslop.Explore.ModuleGraph.Json (graphJson)
+import Fixtures.Deslop.Explore.Html (graphIn)
 import Fixtures.Deslop.Module (mkModuleAt)
 import Test.Hspec
 
@@ -11,9 +13,10 @@ spec :: Spec
 spec = describe "Deslop.Explore.Html" $ do
     describe "explorerPage" $ do
         it "carries the graph inline, with no marker left" $ do
-            let page = explorerPage $ diagramOf Nothing Nothing mempty [mkModuleAt "src/a.ts" "src/a.ts" []]
+            let diagram = diagramOf Nothing Nothing mempty [mkModuleAt "src/a.ts" "src/a.ts" []]
+                page = explorerPage diagram
 
-            page `shouldSatisfy` T.isInfixOf "\"schema\":\"deslop-graph/1\""
+            graphIn page `shouldBe` Just (graphJson diagram)
             forM_ universe $ \slot -> page `shouldSatisfy` (not . T.isInfixOf (marker slot))
 
         it "carries every vendored library inline, as it is on disk" $ do
@@ -30,9 +33,10 @@ spec = describe "Deslop.Explore.Html" $ do
             page `shouldSatisfy` (not . T.isInfixOf "<link")
 
         it "keeps a module's name from closing the script that holds the graph" $ do
-            let page = explorerPage $ diagramOf Nothing Nothing mempty [mkModuleAt "src/x.ts" "</script><b>" []]
+            let diagram = diagramOf Nothing Nothing mempty [mkModuleAt "src/x.ts" "</script><b>" []]
+                page = explorerPage diagram
 
-            page `shouldSatisfy` T.isInfixOf "\\u003c/script>\\u003cb>"
+            graphIn page `shouldBe` Just (graphJson diagram)
             page `shouldSatisfy` (not . T.isInfixOf "</script><b>")
 
         it "carries each library's licence notice, id and source" $ do

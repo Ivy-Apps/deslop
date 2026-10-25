@@ -204,17 +204,29 @@ data Module = Module
 
 {- | Why a module exists: to ship, to test what ships, or to measure it. Only
 the frontend can tell - a path in TypeScript, an import or a cabal component in
-Haskell - so it decides while lowering.
+Haskell - so it decides while lowering, and so it names what a test tests: the
+module a reader opens it beside, when its name says which one that is.
 
-Ordered by how strongly a signal claims the module, so evidence combines with
-'<>': a Haskell file importing @Test.Tasty.Bench@ matches a test framework and
-a benchmark one, and is a 'Benchmark'.
+Evidence combines with '<>', the stronger claim winning: a Haskell file
+importing @Test.Tasty.Bench@ matches a test framework and a benchmark one, and
+is a 'Benchmark'.
 -}
-data ModuleRole = Source | Test | Benchmark
-    deriving stock (Show, Eq, Ord, Enum, Bounded)
+data ModuleRole
+    = Source
+    | -- | The source module it is named after, when there is one.
+      Test (Maybe ModuleId)
+    | Benchmark
+    deriving stock (Show, Eq)
 
+{- | A 'Benchmark' claim beats a 'Test' one, which beats 'Source'. Of two
+'Test' claims, the first that names a subject names it.
+-}
 instance Semigroup ModuleRole where
-    (<>) = max
+    Benchmark <> _ = Benchmark
+    _ <> Benchmark = Benchmark
+    Test a <> Test b = Test (a <|> b)
+    Test a <> Source = Test a
+    Source <> other = other
 
 instance Monoid ModuleRole where
     mempty = Source

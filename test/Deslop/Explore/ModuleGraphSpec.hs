@@ -1,7 +1,5 @@
 module Deslop.Explore.ModuleGraphSpec (spec) where
 
-import Data.Aeson (Key, Value, decode, encode, object, withObject, (.:), (.=))
-import Data.Aeson.Types (parseMaybe)
 import Data.Set qualified as Set
 import Deslop.Explore.ModuleGraph (
     Diagram (..),
@@ -22,7 +20,6 @@ import Deslop.Module (
  )
 import Deslop.Module qualified as M
 import Fixtures.Deslop.Module (mkEdge, mkModuleAt)
-import Git.SourceLink (Branch (..), DiffAnchors (..), Forge (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..))
 import Test.Hspec
 import TestUtils (rp)
 
@@ -37,7 +34,7 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
         it "marks the arrow a longer path already implies" $ do
             let d = diagramOf Nothing Nothing mempty [at "Main.hs" ["App.hs", "Util.hs"], at "App.hs" ["Util.hs"], at "Util.hs" []]
 
-            [(e.source, e.target) | e <- d.edges, e.implied] `shouldBe` [(ModuleAt "Main.hs", ModuleAt "Util.hs")]
+            [(e.source, e.target) | e <- d.edges, e.implied] `shouldBe` [(ModuleAt (rp "Main.hs"), ModuleAt (rp "Util.hs"))]
 
         it "counts every time a module depends on another, per kind" $ do
             let m =
@@ -68,7 +65,7 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
                         , testAt "test/Helpers.hs" []
                         ]
 
-            [m.path | m <- d.modules, m.hub] `shouldBe` ["src/Path.hs"]
+            [m.path | m <- d.modules, m.hub] `shouldBe` [rp "src/Path.hs"]
 
         it "does not call a module a hub with fewer than three importers" $ do
             let d = diagramOf Nothing Nothing mempty [at "A.hs" ["Util.hs"], at "B.hs" ["Util.hs"], at "Util.hs" []]
@@ -96,14 +93,14 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
             let d = diagramOf Nothing Nothing mempty [at "src/a.ts" [], testAt "src/a.check.ts" [], benchAt "perf/a.ts" []]
 
             [(m.path, m.role) | m <- d.modules]
-                `shouldBe` [("perf/a.ts", Benchmark), ("src/a.check.ts", Test), ("src/a.ts", Source)]
+                `shouldBe` [(rp "perf/a.ts", Benchmark), (rp "src/a.check.ts", Test Nothing), (rp "src/a.ts", Source)]
 
         it "marks the modules whose files changed" $ do
             let d = diagramOf Nothing Nothing (Set.fromList [rp "src/b.ts", rp "README.md"]) [at "src/a.ts" [], at "src/b.ts" []]
 
-            [(m.path, m.changed) | m <- d.modules] `shouldBe` [("src/a.ts", False), ("src/b.ts", True)]
+            [(m.path, m.changed) | m <- d.modules] `shouldBe` [(rp "src/a.ts", False), (rp "src/b.ts", True)]
 
-        it "links a module to the specs named after it" $ do
+        it "lists as a module's tests those its frontend named it the subject of" $ do
             let d =
                     diagramOf
                         Nothing
@@ -111,18 +108,20 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
                         mempty
                         [ at "src/Deslop/Diagram.hs" []
                         , at "src/Other/Diagram.hs" []
-                        , at "src/Deslop.hs" []
-                        , testAt "test/Deslop/DiagramSpec.hs" []
-                        , testAt "test/Deslop/DiagramPropSpec.hs" []
-                        , testAt "test/DeslopSpec.hs" []
+                        , testOf "test/Deslop/DiagramSpec.hs" "src/Deslop/Diagram.hs"
+                        , testOf "test/Deslop/DiagramPropSpec.hs" "src/Deslop/Diagram.hs"
                         , testAt "test/Doubles/CLI.hs" []
                         ]
 
-            [(m.path, m.testedBy) | m <- d.modules, m.role == Source]
-                `shouldBe` [ ("src/Deslop/Diagram.hs", ["test/Deslop/DiagramPropSpec.hs", "test/Deslop/DiagramSpec.hs"])
-                           , ("src/Deslop.hs", ["test/DeslopSpec.hs"])
-                           , ("src/Other/Diagram.hs", [])
+            [(m.path, m.testedBy) | m <- d.modules, Source <- [m.role]]
+                `shouldBe` [ (rp "src/Deslop/Diagram.hs", [rp "test/Deslop/DiagramPropSpec.hs", rp "test/Deslop/DiagramSpec.hs"])
+                           , (rp "src/Other/Diagram.hs", [])
                            ]
+
+        it "lists no test whose subject is not drawn" $ do
+            let d = diagramOf Nothing Nothing mempty [at "src/a.ts" [], testOf "src/b.test.ts" "src/b.ts"]
+
+            [(m.path, m.testedBy) | m <- d.modules] `shouldBe` [(rp "src/a.ts", []), (rp "src/b.test.ts", [])]
 
         it "names every folder above a module, each under its parent" $ do
             let d = diagramOf Nothing Nothing mempty [at "src/ui/Button.tsx" [], at "main.ts" []]
@@ -131,100 +130,19 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
                 `shouldBe` [ FolderNode {path = FolderPath ("src" :| []), parent = Nothing}
                            , FolderNode {path = FolderPath ("src" :| ["ui"]), parent = Just (FolderPath ("src" :| []))}
                            ]
-
-    describe "JSON" $ do
-        it "tags a module by its role and whether it changed" $ do
-            let d = diagramOf Nothing Nothing (Set.fromList [rp "t.ts", rp "b.ts"]) [testAt "t.ts" [], benchAt "b.ts" [], at "s.ts" []]
-
-            moduleTags d `shouldBe` Just [("b.ts", ["bench", "changed"]), ("s.ts", []), ("t.ts", ["test", "changed"])]
-
-        it "writes nodes and edges in the deslop-graph/1 schema" $ do
-            let m = (at "src/a.ts" []) {M.edges = [mkEdge "src/a.ts" 1 "react" (External $ moduleNameUnsafe "react") ImportEdge]}
-
-            decode (encode $ diagramOf Nothing Nothing mempty [m])
-                `shouldBe` Just
-                    ( object
-                        [ "schema" .= ("deslop-graph/1" :: Text)
-                        , "nodes"
-                            .= [ object
-                                    [ "id" .= ("src/" :: Text)
-                                    , "kind" .= ("folder" :: Text)
-                                    , "label" .= ("src" :: Text)
-                                    , "path" .= ("src" :: Text)
-                                    , "parent" .= (Nothing :: Maybe Text)
-                                    ]
-                               , object
-                                    [ "id" .= ("src/a.ts" :: Text)
-                                    , "kind" .= ("module" :: Text)
-                                    , "name" .= ("src/a.ts" :: Text)
-                                    , "aliases" .= ([] :: [Text])
-                                    , "path" .= ("src/a.ts" :: Text)
-                                    , "parent" .= ("src/" :: Text)
-                                    , "layer" .= (0 :: Int)
-                                    , "tags" .= ([] :: [Text])
-                                    , "testedBy" .= ([] :: [Text])
-                                    ]
-                               , object
-                                    [ "id" .= ("external:react" :: Text)
-                                    , "kind" .= ("external" :: Text)
-                                    , "name" .= ("react" :: Text)
-                                    , "tags" .= ["external" :: Text]
-                                    ]
-                               ]
-                        , "edges"
-                            .= [ object
-                                    [ "source" .= ("src/a.ts" :: Text)
-                                    , "target" .= ("external:react" :: Text)
-                                    , "kind" .= ("import" :: Text)
-                                    , "count" .= (1 :: Int)
-                                    , "tags" .= ["external" :: Text]
-                                    ]
-                               ]
-                        , "sourceBase" .= (Nothing :: Maybe Text)
-                        , "pullRequest" .= (Nothing :: Maybe Text)
-                        , "repoPrefix" .= (Nothing :: Maybe Text)
-                        ] ::
-                        Value
-                    )
-
-        it "carries where the project's files can be read on the web" $ do
-            let links = SourceLinks {source = SourceBase "https://gitlab.com/o/r/-/blob/main/", revision = OnBranch (Branch "main"), forge = GitLab}
-
-            fieldIn "sourceBase" (diagramOf (Just links) Nothing mempty [at "a.ts" []]) `shouldBe` Just (Just "https://gitlab.com/o/r/-/blob/main/")
-
-        it "carries the pull request the diff is read in, and the project's folder in the repository" $ do
-            let links =
-                    SourceLinks
-                        { source = SourceBase "https://github.com/o/r/blob/x/app/"
-                        , revision = OnBranch (Branch "x")
-                        , forge = GitHub DiffAnchors {repoPrefix = "app/"}
-                        }
-                diagram = diagramOf (Just links) (Just $ PullRequest "https://github.com/o/r/pull/7") mempty [at "a.ts" []]
-
-            (fieldIn "pullRequest" diagram, fieldIn "repoPrefix" diagram)
-                `shouldBe` (Just (Just "https://github.com/o/r/pull/7"), Just (Just "app/"))
   where
-    layerOf d p = viaNonEmpty head [m.layer | m <- d.modules, m.path == p]
+    layerOf d p = viaNonEmpty head [m.layer | m <- d.modules, m.path == rp p]
 
 -- | A module at a path, named and identified by it, importing modules by their paths.
 at :: Text -> [Text] -> Module
 at path = mkModuleAt path path
 
--- | A top-level text field of the graph, as the page reads it.
-fieldIn :: Key -> Diagram -> Maybe (Maybe Text)
-fieldIn key = parseMaybe (withObject "graph" (.: key)) <=< decode . encode
-
--- | Each module's id and tags, as the page reads them.
-moduleTags :: Diagram -> Maybe [(Text, [Text])]
-moduleTags = parseMaybe (withObject "graph" $ \o -> catMaybes <$> (traverse node =<< o .: "nodes")) <=< decode . encode
-  where
-    node = withObject "node" $ \n ->
-        n .: "kind" >>= \case
-            ("module" :: Text) -> Just <$> ((,) <$> n .: "id" <*> n .: "tags")
-            _ -> pure Nothing
-
 testAt :: Text -> [Text] -> Module
-testAt path deps = (at path deps) {M.role = Test}
+testAt path deps = (at path deps) {M.role = Test Nothing}
+
+-- | A test its frontend named the module at this path the subject of.
+testOf :: Text -> Text -> Module
+testOf path subject = (at path []) {M.role = Test (Just $ moduleIdUnsafe subject)}
 
 benchAt :: Text -> [Text] -> Module
 benchAt path deps = (at path deps) {M.role = Benchmark}
