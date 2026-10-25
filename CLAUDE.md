@@ -38,8 +38,8 @@ against ~25s for `nix run .#test -- <filter>`. The whole suite runs
 interpreted, ~48s, so filter while iterating.
 
 **Neither is a quality gate.** The session is interpreted, so it does not run
-`hlint`, does not link, and does not compile with `-O2`. Use them to converge
-quickly, then finish with `just check`.
+`hlint`, does not link, and does not compile with `-O2`: step 2 of the ladder
+is the gate.
 
 Notes:
 

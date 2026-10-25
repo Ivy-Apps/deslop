@@ -25,8 +25,7 @@ let
       done
     '';
   };
-in
-{
+
   state = tool.worktreeState + ''
     LOGF="$STATE/log"
     STAMP="$STATE/started"
@@ -38,7 +37,7 @@ in
   # Defines `typecheck`, which prints the verdict and returns 0 when the
   # project typechecks, prints the GHC errors and returns 1 when it does not,
   # and exits 2 with the reason on stderr when there is no usable verdict.
-  body = ''
+  client = ''
     typecheck() {
       ensure_daemon
 
@@ -246,4 +245,13 @@ in
       fi
     }
   '';
+in
+{
+  # A tool whose `body` can call `typecheck`, `report` and `print_capped`, and
+  # read the worktree's daemon state plus any `extraState` it is handed.
+  mkClient = { name, extraState ? "", body }: tool.mkTool {
+    inherit name;
+    state = state + extraState;
+    body = client + body;
+  };
 }

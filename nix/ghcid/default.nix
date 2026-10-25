@@ -27,6 +27,7 @@
 #   session.nix    - what the daemon loads and runs, and every tuning constant
 #   tool.nix       - how a tool is built, and the state every tool shares
 #   daemon.nix     - starting the daemon and waiting for a verdict
+#   test-hook.nix  - the daemon's side of a test run: request files and hook
 #   quick-test.nix - asking the daemon for a test run
 #
 # Exposes:
@@ -42,15 +43,14 @@ let
   tool = import ./tool.nix { inherit pkgs session; };
   daemon = import ./daemon.nix { inherit lib session tool; };
 
-  quickTypecheck = tool.mkTool {
+  quickTypecheck = daemon.mkClient {
     name = "ai-quick-typecheck";
-    inherit (daemon) state;
-    body = daemon.body + ''
+    body = ''
       typecheck
     '';
   };
 
-  quickTest = import ./quick-test.nix { inherit session tool daemon; };
+  quickTest = import ./quick-test.nix { inherit session daemon; };
 
   # Machine-wide on purpose: the point of reaching for this is to get every
   # session off the machine, not to reason about which worktree owns what. It

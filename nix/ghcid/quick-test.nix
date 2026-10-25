@@ -2,23 +2,16 @@
 # `--match <filter>` selects, inside the warm quick-typecheck session, so an
 # edit costs a reload rather than a recompile and relink. The request
 # protocol is in test-hook.nix.
-{ session, tool, daemon }:
+{ session, daemon }:
 
 let
-  inherit (session.testHook) files;
-
   # Every failure in full and no passes, so a green run is one summary line.
   hspecArgs = [ "--no-color" "--format=failed-examples" ];
 in
-tool.mkTool {
+daemon.mkClient {
   name = "ai-quick-test";
-  state = daemon.state + ''
-    TEST_REQUEST="$STATE/${files.request}"
-    TEST_TRIGGER="$STATE/${files.trigger}"
-    TEST_REPORT="$STATE/${files.report}"
-    TEST_RESULT="$STATE/${files.result}"
-  '';
-  body = daemon.body + ''
+  extraState = session.testHook.state;
+  body = ''
     # Exits 0 when the selected tests pass, 1 when they fail or the code does
     # not typecheck, and 2 when no answer could be had.
     main() {

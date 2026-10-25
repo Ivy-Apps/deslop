@@ -247,17 +247,14 @@ against ~8s compiled.
 It shares the daemon rather than starting a second one, because a session
 holds ~850MB and agents run several worktrees at once. ghcid takes no commands
 once running, so a run is requested through files in the daemon's state
-directory: `quick-test` writes the hspec arguments and touches a file ghcid
-`--reload`s on, and ghcid's `--test` hook, which runs after every successful
-load, runs the suite when arguments are waiting. The protocol is in
-`nix/ghcid/test-hook.nix`.
+directory and served by ghcid's `--test` hook, which runs after every
+successful load. The protocol is in `nix/ghcid/test-hook.nix`.
 
 Two constraints of GHC 9.10's multi-unit GHCi shape the hook. It evaluates
 expressions in the first unit only, so the test suite is now listed first;
 listed after the library, hspec and `Main.spec` are out of scope. And it
 refuses `:script`, `:module` and `:main`, so the hook is one Haskell expression
-with every name fully qualified. hspec has no output-file flag, so the hook
-points stdout at a report file and restores it with `bracket`.
+with every name fully qualified.
 
 `cabal.project` compiles with `-j4`, which halved a cold `cabal build` (86s to
 53s) and a cold `cabal test` (225s to 127s). The session overrides it with

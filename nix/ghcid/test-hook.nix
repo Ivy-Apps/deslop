@@ -56,6 +56,14 @@ in
 {
   inherit stateVariable files;
 
+  # The request files as quick-test sees them, under the daemon's `$STATE`.
+  state = ''
+    TEST_REQUEST="$STATE/${files.request}"
+    TEST_TRIGGER="$STATE/${files.trigger}"
+    TEST_REPORT="$STATE/${files.report}"
+    TEST_RESULT="$STATE/${files.result}"
+  '';
+
   ghcidFlags = [
     "--test '${expression}'"
     ''--reload "$STATE/${files.trigger}"''
