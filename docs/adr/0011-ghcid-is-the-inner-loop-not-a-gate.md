@@ -44,8 +44,8 @@ the common path, and fifteen times faster when the answer is already known.
 
 `nix run .#quick-typecheck` is the inner loop. It answers exactly one question,
 "does the project typecheck", and it is never sufficient on its own.
-`nix run .#build`, `nix run .#test` and `nix run .#lint` remain the gates, and
-`CLAUDE.md` says so at the point where the command is introduced.
+`just check` remains the gate, and `CLAUDE.md` says so at the point where the
+command is introduced.
 
 The implementation lives in `nix/ghcid/`, not `flake.nix`, which it would
 otherwise more than double in length. It is small programs composed in Nix
@@ -63,7 +63,7 @@ back, not wanting to reason about which worktree owns which session.
 
 Concurrent callers are made safe by an atomic `mkdir` lock around the spawn.
 Without it, several terminals asking at once each observe no daemon and each
-start one, and a session costs ~700MB. Losing the race is not an error: the
+start one, and a session costs ~1GB. Losing the race is not an error: the
 winner is starting the daemon the loser is about to wait for. Verified with
 five simultaneous cold invocations, which produce exactly one session.
 
@@ -80,14 +80,14 @@ The session is started lazily by the first `check`, not warmed on shell entry.
 Warming from the `default` shell's `shellHook` was implemented and reverted:
 direnv waits on the hook's process group, so every `cd` into the project hung
 behind a `callCabal2nix` IFD evaluation and a 70-module repl load, with no way
-to detach that survives `direnv export`. Paying ~15s on the first `check` of a
+to detach that survives `direnv export`. Paying ~17s on the first `check` of a
 session is the cheaper trade.
 
 The session loads every component agents work on:
 
 ```
-cabal repl --enable-multi-repl lib:deslop deslop:exe:deslop \
-           deslop:test:deslop-test
+cabal repl --enable-multi-repl --jobs=1 \
+           deslop:test:deslop-test lib:deslop deslop:exe:deslop
 ```
 
 It loaded the benchmark too until 2026-10-21. That was dropped because agents
@@ -122,7 +122,7 @@ against the daemon's start stamp and respawns instead of reloading.
 
 ### Why stopping walks the process tree
 
-ghcid owns a `cabal repl`, which owns a `ghc --interactive` holding ~700MB. That
+ghcid owns a `cabal repl`, which owns a `ghc --interactive` holding ~1GB. That
 GHC process is invoked through an `@response-file`, so its command line contains
 nothing identifying: not the worktree, not the project, not even the component.
 `pkill`ing ghcid alone leaves it orphaned and permanently unfindable, and each
@@ -220,9 +220,9 @@ which is the only cleanup on offer and is deliberately all that is.
 
 - Agents get a typecheck verdict in about a second instead of about eight,
   and `nix run .#build | grep error` becomes unnecessary for that question.
-- A live session holds roughly 700MB resident, per worktree. A watchdog stops
+- A live session holds roughly 1GB resident, per worktree. A watchdog stops
   the daemon after 30 minutes idle, because nothing else reliably would.
-- The first `nix run .#quick-typecheck` of a session costs ~15s to load the
+- The first `nix run .#quick-typecheck` of a session costs ~17s to load the
   repl. Nothing warms it in the background any more; see the Decision above.
 - `quick-typecheck` reports only what `ghci` can see. It is interpreted, so
   there is no `-O2`, no link errors, no test results and no `hlint`. It does
@@ -245,7 +245,7 @@ after a one-line edit, and ~48s for the whole suite, which runs interpreted
 against ~8s compiled.
 
 It shares the daemon rather than starting a second one, because a session
-holds ~850MB and agents run several worktrees at once. ghcid takes no commands
+holds ~1GB and agents run several worktrees at once. ghcid takes no commands
 once running, so a run is requested through files in the daemon's state
 directory and served by ghcid's `--test` hook, which runs after every
 successful load. The protocol is in `nix/ghcid/test-hook.nix`.
@@ -256,7 +256,15 @@ listed after the library, hspec and `Main.spec` are out of scope. And it
 refuses `:script`, `:module` and `:main`, so the hook is one Haskell expression
 with every name fully qualified.
 
-`cabal.project` compiles with `-j4`, which halved a cold `cabal build` (86s to
-53s) and a cold `cabal test` (225s to 127s). The session overrides it with
-`--repl-options=-j1`: loading in parallel left it holding 1.17GB instead of
-0.83GB for its whole life, to save seconds once.
+`just build` and `just test` compile with `-j4`, which halved a cold
+`cabal build` (86s to 53s) and a cold `cabal test` (225s to 127s). The session
+loads serially instead: in parallel it held 0.81GB loaded and 1.03GB after a
+filtered quick-test, against 0.67GB and 0.96GB, for its whole life, to save
+seconds once. Two things hand it `-j`, and both are closed. A multi-repl passes
+GHC cabal's own job count, every core under `jobs: $ncpus`, which
+`--repl-options=-j1` cannot override, so the session runs `cabal repl
+--jobs=1`. And a package's `ghc-options` land in every unit file after
+`--repl-options`, so `-j4` is passed on the Justfile's command line rather than
+set in `cabal.project`. Cabal leaves both out of its change detection, so the
+session, `just build` and `just test` reuse one dist-newstyle, and a build after
+the session still compiles with `-j4`.

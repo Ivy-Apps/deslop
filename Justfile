@@ -1,3 +1,11 @@
+# Compile modules in parallel: GHC builds one at a time otherwise. Bounded at
+# four rather than every core, so a many-core machine does not multiply the
+# memory one build needs. Passed here, not set in cabal.project, so it stays out
+# of the ghcid session's unit files (see nix/ghcid/session.nix). Cabal leaves
+# `-j` out of its change detection, so a build with it and one without reuse
+# each other's dist-newstyle. The Nix build passes its own -j.
+parallel := "--ghc-options=-j4"
+
 # By default, list all available commands
 default:
     @just --list
@@ -35,7 +43,7 @@ lint-actions:
 
 # Compile the library and the executable
 build:
-    cabal build all
+    cabal build all {{parallel}}
 
 # Compile the benchmark. CI runs this; the dev shells do not carry the
 # benchmark's dependencies, so it needs `cabal update` first.
@@ -44,7 +52,7 @@ build-bench:
 
 # Run the test suite
 test:
-    cabal test all
+    cabal test all {{parallel}}
 
 # End-to-end run of the CLI against a freshly generated sandbox project
 integration:

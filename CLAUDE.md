@@ -28,12 +28,13 @@ costs a reload instead of a recompile and relink.
 `All good (<N> modules)` and exits 0, or the GHC errors verbatim and exits 1.
 There is no need to pipe it through `grep`. Roughly 0.5s when nothing broke and
 ~2s when something did. The first call after a break starts the session and
-takes ~20s; every call after that is fast, so just run it and keep going.
+takes ~17s; every call after that is fast, so just run it and keep going.
 
 `quick-test` typechecks the same way, then runs the hspec suite inside the
-session, filtered like `nix run .#test -- <filter>`. It prints only failures
-and the summary line, and exits 0 when they pass, 1 on a GHC error, a failing
-test or a filter that matches nothing. A filtered run takes ~3s after an edit,
+session, filtered like `nix run .#test -- <filter>`. After the typecheck's
+`All good (<N> modules)` it prints only failures and the summary line, and
+exits 0 when they pass, 1 on a GHC error, a failing test or a filter that
+matches nothing. A filtered run takes ~3s after an edit,
 against ~25s for `nix run .#test -- <filter>`. The whole suite runs
 interpreted, ~48s, so filter while iterating.
 
@@ -49,7 +50,7 @@ Notes:
 - Long output is truncated; the printed path holds the full text.
 - Exit code 2 means no usable verdict; the reason goes to stderr.
 - You should not normally need to stop the daemon: it retires itself after 30
-  minutes idle. To reclaim the ~850MB now, run `nix develop -c just stop-ghcid`
+  minutes idle. To reclaim the ~1GB now, run `nix develop -c just stop-ghcid`
   from the repo root. It stops every daemon on the machine, including ones other
   worktrees are still using, so do not run it as routine cleanup.
 
