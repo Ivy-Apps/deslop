@@ -38,12 +38,11 @@ spec = describe "Params" $ do
         parseParams ["explore", "--ci"]
             `shouldBe` Just (ParamsDto {command = ExploreC Exploration {diffBase = GitRef "main", opening = NeverOpen}, projectPath = [osp|.|]})
 
-    it "refuses --ci on any command but explore" $
-        forM_ ["check", "fix", "baseline"] $ \cmd ->
+    forM_ ["check", "fix", "baseline"] $ \cmd -> do
+        it ("refuses --ci on " <> cmd) $
             fmap snd (parseOutput [cmd, "--ci"]) `shouldBe` Just (ExitFailure 1)
 
-    it "refuses a diff base on any command but explore" $
-        forM_ ["check", "fix", "baseline"] $ \cmd ->
+        it ("refuses a diff base on " <> cmd) $
             fmap snd (parseOutput [cmd, "--diff-base", "develop"]) `shouldBe` Just (ExitFailure 1)
 
     it "refuses a diff base git would read as an option" $ do

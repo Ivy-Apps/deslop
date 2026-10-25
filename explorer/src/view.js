@@ -18,13 +18,15 @@ var DeslopView = (function () {
     return (show.tests || !has(n, "test")) && (show.benches || !has(n, "bench")) && (show.hubs || !has(n, "hub"));
   }
 
-  function changedModules(g) { return g.modules.filter(function (m) { return DeslopGraph.has(m, "changed"); }); }
+  // The changed modules the filters show.
+  function shownChanged(g, show) {
+    return g.modules.filter(function (m) { return DeslopGraph.has(m, "changed") && moduleShown(show, m); });
+  }
 
   // What a drawn node stands for has changed: the module itself, or a shown module inside the folder.
   function changedSet(g, show) {
     var set = {};
-    changedModules(g).forEach(function (m) {
-      if (!moduleShown(show, m)) return;
+    shownChanged(g, show).forEach(function (m) {
       set[m.id] = true;
       DeslopGraph.ancestors(g, m.id).forEach(function (f) { set[f] = true; });
     });
@@ -33,7 +35,7 @@ var DeslopView = (function () {
 
   // Opens every folder holding a shown changed module.
   function openChanged(g, view) {
-    return changedModules(g).filter(function (m) { return moduleShown(view.show, m); }).reduce(function (expanded, m) {
+    return shownChanged(g, view.show).reduce(function (expanded, m) {
       return opened(expanded, DeslopGraph.ancestors(g, m.id));
     }, view.expanded);
   }

@@ -37,7 +37,6 @@ module Deslop.Explore.ModuleGraph (
 import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
-import Data.Text qualified as T
 import Deslop.Explore.Layering (impliedEdges, layers)
 import Deslop.Module (
     DependencyEdge (..),
@@ -48,7 +47,7 @@ import Deslop.Module (
     ModuleRole (..),
     canonicalName,
  )
-import FileSystem.Path (ProjectRelativePath, portablePath)
+import FileSystem.Path (ProjectRelativePath, portableSegments)
 import Git.SourceLink (PullRequest (..), SourceLinks (..))
 
 {- | A module is a hub when more than this share of the project's other
@@ -138,7 +137,7 @@ diagramOf sourceLinks pullRequest changedFiles parsed =
         , pullRequest
         }
   where
-    located = sortOn snd $ mapMaybe (\m -> (m,) <$> segmentsOf m) parsed
+    located = sortOn snd $ mapMaybe (\m -> (m,) <$> portableSegments m.path) parsed
     pathOf = Map.fromList [(m.id, m.path) | (m, _) <- located]
 
     deps =
@@ -191,19 +190,13 @@ isSource = \case
     Test _ -> False
     Benchmark -> False
 
-{- | A module's path, split on @/@. One whose path names no file at all has
-nowhere to be drawn.
--}
-segmentsOf :: Module -> Maybe (NonEmpty Text)
-segmentsOf = nonEmpty . filter (`notElem` ["", "."]) . T.splitOn "/" . portablePath . (.path)
-
 folderOf :: NonEmpty Text -> Maybe FolderPath
 folderOf = fmap FolderPath . nonEmpty . NE.init
 
 -- | Every folder holding a module, and every folder above one.
 folderNodes :: [FolderPath] -> [FolderNode]
 folderNodes leaves =
-    [ FolderNode {path = f, parent = FolderPath <$> nonEmpty (NE.init segs)}
+    [ FolderNode {path = f, parent = folderOf segs}
     | f@(FolderPath segs) <- Set.toList . Set.fromList $ concatMap ancestry leaves
     ]
   where

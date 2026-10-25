@@ -2,8 +2,13 @@
 module Fixtures.Deslop.Module (
     mkModule,
     mkModuleAt,
+    mkPathModule,
+    mkTestAt,
+    mkTestOf,
+    mkBenchAt,
     mkImportEdge,
     mkEdge,
+    resolvedTo,
     withUnresolved,
     edgeTo,
 ) where
@@ -14,7 +19,7 @@ import Deslop.Module (
     EdgeTarget (Resolved, Unresolved),
     Location (..),
     Module (..),
-    ModuleRole (Source),
+    ModuleRole (..),
     Specifier (..),
     moduleIdUnsafe,
     moduleNameUnsafe,
@@ -43,12 +48,31 @@ mkModuleAt path name deps =
         , role = Source
         }
 
+-- | A module at a path, named and identified by it, importing modules by their paths.
+mkPathModule :: Text -> [Text] -> Module
+mkPathModule path = mkModuleAt path path
+
+-- | As 'mkPathModule', for a test its frontend named no subject of.
+mkTestAt :: Text -> [Text] -> Module
+mkTestAt path deps = (mkPathModule path deps) {role = Test Nothing}
+
+-- | A test its frontend named the module at this path the subject of.
+mkTestOf :: Text -> Text -> Module
+mkTestOf path subject = (mkPathModule path []) {role = Test (Just $ moduleIdUnsafe subject)}
+
+-- | As 'mkPathModule', for a benchmark.
+mkBenchAt :: Text -> [Text] -> Module
+mkBenchAt path deps = (mkPathModule path deps) {role = Benchmark}
+
 {- | An import edge resolving to a module of the same name, written at a given
 line of a given file.
 -}
 mkImportEdge :: Text -> Int -> Text -> DependencyEdge
-mkImportEdge file line dep =
-    mkEdge file line dep (Resolved (moduleIdUnsafe dep) (moduleNameUnsafe dep :| [])) ImportEdge
+mkImportEdge file line dep = mkEdge file line dep (resolvedTo dep) ImportEdge
+
+-- | A dependency resolved to the module of this name, which answers to no other.
+resolvedTo :: Text -> EdgeTarget
+resolvedTo name = Resolved (moduleIdUnsafe name) (moduleNameUnsafe name :| [])
 
 {- | As 'mkImportEdge', for a spec that cares what the edge resolved to and
 whether it imports or re-exports.

@@ -40,14 +40,7 @@ condense g = (componentOf, Map.fromListWith (<>) $ ownKeys <> crossing)
     sccs = flattenSCC <$> stronglyConnComp [(v, v, Set.toList ws) | (v, ws) <- Map.toList g]
     componentOf = Map.fromList [(v, Component i) | (i, vs) <- zip [0 ..] sccs, v <- vs]
     ownKeys = [(c, Set.empty) | c <- Map.elems componentOf]
-    crossing =
-        [ (cv, Set.singleton cw)
-        | (v, ws) <- Map.toList g
-        , let cv = componentOf Map.! v
-        , w <- Set.toList ws
-        , let cw = componentOf Map.! w
-        , cv /= cw
-        ]
+    crossing = [(cv, Set.singleton cw) | (_, (cv, cw)) <- crossingEdges componentOf g]
 
 {- | Every vertex's layer, 0 at the top. A vertex with no edge out of its own
 component sits on the bottom layer, and every other one exactly one layer above
@@ -68,18 +61,20 @@ whose target the source still reaches through some other edge. Every edge it
 returns is one of the graph's own; none lies inside a cycle.
 -}
 impliedEdges :: (Ord k) => Graph k -> Set (k, k)
-impliedEdges g =
-    Set.fromList
-        [ (v, w)
-        | (v, ws) <- Map.toList g
-        , let cv = componentOf Map.! v
-        , w <- Set.toList ws
-        , let cw = componentOf Map.! w
-        , cv /= cw
-        , redundant cv cw
-        ]
+impliedEdges g = Set.fromList [edge | (edge, (cv, cw)) <- crossingEdges componentOf g, redundant cv cw]
   where
     (componentOf, dag) = condense g
     -- Lazy, so each component's reach is computed once, from those below it.
     reach = LMap.map (\cs -> cs <> foldMap (reach LMap.!) cs) dag
     redundant cv cw = any (\via -> via /= cw && cw `Set.member` (reach LMap.! via)) $ dag Map.! cv
+
+-- | Every edge of the graph between two components, with the components it joins.
+crossingEdges :: (Ord k) => Map k Component -> Graph k -> [((k, k), (Component, Component))]
+crossingEdges componentOf g =
+    [ ((v, w), (cv, cw))
+    | (v, ws) <- Map.toList g
+    , let cv = componentOf Map.! v
+    , w <- Set.toList ws
+    , let cw = componentOf Map.! w
+    , cv /= cw
+    ]

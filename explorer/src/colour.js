@@ -19,9 +19,7 @@ var DeslopColour = (function () {
       if (split && a[0] === biggest && a[1]) return a[1];
       return a[0] || "";
     }
-    var groups = [];
-    g.modules.forEach(function (m) { var group = groupOf(m.id); if (groups.indexOf(group) < 0) groups.push(group); });
-    groups.sort();
+    var groups = DeslopGraph.unique(g.modules.map(function (m) { return groupOf(m.id); })).sort();
     return { groups: groups, groupOf: groupOf };
   }
 

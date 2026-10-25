@@ -93,11 +93,7 @@ spec = describe "Effects.Git" $ do
     describe "gitSourceLinks" $ do
         it "links a project in a subfolder to its folder on the branch checked out" $
             withRepo $ \dir -> do
-                -- Given
-                write dir "app/a.ts" "a"
-                commitAll dir "first"
-                git dir ["checkout", "-q", "-b", "feature/x"]
-                git dir ["remote", "add", "origin", "git@github.com:o/r.git"]
+                appOnGitHubBranch dir
 
                 -- When
                 base <- sourceBaseIn (dir <> "/app")
@@ -107,11 +103,7 @@ spec = describe "Effects.Git" $ do
 
         it "anchors the diff of a GitHub project at its folder in the repository" $
             withRepo $ \dir -> do
-                -- Given
-                write dir "app/a.ts" "a"
-                commitAll dir "first"
-                git dir ["checkout", "-q", "-b", "feature/x"]
-                git dir ["remote", "add", "origin", "git@github.com:o/r.git"]
+                appOnGitHubBranch dir
 
                 -- When
                 links <- sourceLinksIn (dir <> "/app")
@@ -154,6 +146,14 @@ spec = describe "Effects.Git" $ do
     sourceBaseIn dir = fmap (.source.url) <$> sourceLinksIn dir
     sourceLinksIn dir = runEff . runGitIO $ gitSourceLinks (ProjectRoot . ap $ toText dir)
     changedIn dir ref = runEff . runGitIO $ gitChangedFiles (ProjectRoot . ap $ toText dir) (GitRef ref)
+
+-- | A repository on GitHub with its project in @app/@, on the branch @feature/x@.
+appOnGitHubBranch :: FilePath -> IO ()
+appOnGitHubBranch dir = do
+    write dir "app/a.ts" "a"
+    commitAll dir "first"
+    git dir ["checkout", "-q", "-b", "feature/x"]
+    git dir ["remote", "add", "origin", "git@github.com:o/r.git"]
 
 withRepo :: (FilePath -> IO a) -> IO a
 withRepo act = withSystemTempDirectory "deslop-git" $ \dir -> do

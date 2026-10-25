@@ -11,11 +11,10 @@ import Deslop.Module (
     EdgeKind (..),
     EdgeTarget (..),
     Module (..),
-    moduleIdUnsafe,
     moduleNameUnsafe,
  )
 import Deslop.Module qualified as M
-import Fixtures.Deslop.Module (mkEdge, mkModuleAt)
+import Fixtures.Deslop.Module (mkEdge, mkPathModule, resolvedTo)
 import Hedgehog (Gen, forAll, (===))
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as Gen
@@ -59,17 +58,15 @@ genProject = do
 
     genModule pathList path = do
         targets <- Gen.list (Range.linear 0 6) $ genTarget pathList
-        pure (mkModuleAt path path []) {M.edges = zipWith (edgeTo path) [1 ..] targets}
+        pure (mkPathModule path []) {M.edges = zipWith (edgeTo path) [1 ..] targets}
 
     genTarget pathList =
         (,)
             <$> Gen.frequency
-                [ (6, internal <$> Gen.element pathList)
+                [ (6, resolvedTo <$> Gen.element pathList)
                 , (1, pure . External $ moduleNameUnsafe "react")
-                , (1, pure $ internal "unscanned/x.ts")
+                , (1, pure $ resolvedTo "unscanned/x.ts")
                 ]
             <*> Gen.element [ImportEdge, ReExportEdge]
-
-    internal p = Resolved (moduleIdUnsafe p) (moduleNameUnsafe p :| [])
 
     edgeTo path line (target, k) = mkEdge path line "dep" target k

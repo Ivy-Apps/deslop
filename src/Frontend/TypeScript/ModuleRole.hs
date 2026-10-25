@@ -15,7 +15,7 @@ import Data.List (isSuffixOf)
 import Data.List.NonEmpty qualified as NE
 import Data.Text qualified as T
 import Deslop.Module (Module (..), ModuleId, ModuleRole (..))
-import FileSystem.Path (ProjectRelativePath, portablePath)
+import FileSystem.Path (ProjectRelativePath, portablePath, portableSegments)
 
 {- | A file is a 'Benchmark' when its name or a folder above it says so, else a
 'Test' when its name or a folder above it says so, else 'Source'. Which file a
@@ -48,18 +48,14 @@ path once its test folder and its @.test@ or @.spec@ are dropped. So
 withSubjects :: [Module] -> [Module]
 withSubjects modules = named <$> modules
   where
-    sources = sortOn fst [((length s, portablePath m.path), (s, m.id)) | m <- modules, Source <- [m.role], Just s <- [stemmed <$> segmentsOf m.path]]
+    sources = sortOn fst [((length s, portablePath m.path), (s, m.id)) | m <- modules, Source <- [m.role], Just s <- [stemmed <$> portableSegments m.path]]
     named m = case m.role of
-        Test _ -> m {role = Test (subjectOf =<< subjectKey =<< segmentsOf m.path)}
+        Test _ -> m {role = Test (subjectOf =<< subjectKey =<< portableSegments m.path)}
         _ -> m
     subjectOf :: [Text] -> Maybe ModuleId
     subjectOf key = viaNonEmpty head [mid | (_, (s, mid)) <- sources, key `isSuffixOf` s]
 
     stemmed segs = NE.init segs <> [stem $ NE.last segs]
-
--- | A path, split on @/@.
-segmentsOf :: ProjectRelativePath -> Maybe (NonEmpty Text)
-segmentsOf = nonEmpty . filter (`notElem` ["", "."]) . T.splitOn "/" . portablePath
 
 {- | The path a test's subject ends in, when it is named as a test of one. A
 helper in a test folder that is named after nothing tests nothing.
