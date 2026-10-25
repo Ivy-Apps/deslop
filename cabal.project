@@ -1,2 +1,9 @@
 packages: .
 index-state: 2026-04-06T15:25:10Z
+
+-- Compile modules in parallel: GHC builds one at a time otherwise. Bounded at
+-- four rather than every core, so a many-core machine does not multiply the
+-- memory one build needs. The Nix build ignores this file and passes its own
+-- -j; the ghcid session overrides it (nix/ghcid/session.nix).
+package deslop
+  ghc-options: -j4
