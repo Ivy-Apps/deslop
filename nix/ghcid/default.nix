@@ -19,7 +19,7 @@
 #     instead of ~0.3s.
 #   * Everything is killed by process tree. The `ghc --interactive` that ghcid
 #     owns is invoked through an @response-file and carries nothing identifying,
-#     so a pattern kill orphans ~700MB that can never be found again.
+#     so a pattern kill orphans ~1GB that can never be found again.
 #   * quick-test runs inside the same session as quick-typecheck, through
 #     ghcid's `--test` hook, so a worktree holds one GHCi, not two.
 #
@@ -44,7 +44,7 @@ let
   daemon = import ./daemon.nix { inherit lib session tool; };
 
   quickTypecheck = daemon.mkClient {
-    name = "ai-quick-typecheck";
+    name = "quick-typecheck";
     body = ''
       typecheck
     '';

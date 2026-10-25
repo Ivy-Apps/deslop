@@ -1,7 +1,7 @@
 # The client side of the per-worktree ghcid daemon: start it if it is missing
 # or stale, wait for a verdict that describes what is on disk, and report it.
 # Every entry point (quick-typecheck, quick-test) goes through `typecheck`, so
-# they share one daemon per worktree rather than holding ~700MB each.
+# they share one daemon per worktree rather than holding ~1GB each.
 { lib, session, tool }:
 
 let
@@ -49,22 +49,22 @@ let
           # The reason is at the end of the log - a cabal solver failure, a
           # missing package index, a broken flake - so show it rather than
           # sending the agent off to read a file.
-          printf 'ghcid: the daemon exited. The end of %s:\n' "$LOGF" >&2
+          printf '%s: the ghcid daemon exited. The end of %s:\n' "$TOOL" "$LOGF" >&2
           # ghcid pads every screen it renders with blank lines; skip them.
           grep -v '^[[:space:]]*$' "$LOGF" | tail -n ${toString session.deathLogLines} >&2
           exit 2
           ;;
         3)
           printf '%s\n' \
-            "ghcid is not watching these, so they cannot be checked. A new" \
-            "module needs registering in deslop.cabal; a scratch file needs" \
-            "deleting." >&2
+            "$TOOL: ghcid is not watching these, so they cannot be checked." \
+            "A new module needs registering in deslop.cabal; a scratch file" \
+            "needs deleting." >&2
           stale_inputs >&2
           exit 2
           ;;
         *)
-          printf 'ghcid: no verdict within %ss; see %s\n' \
-            '${toString session.waitSeconds}' "$LOGF" >&2
+          printf '%s: no verdict within %ss; see %s\n' \
+            "$TOOL" '${toString session.waitSeconds}' "$LOGF" >&2
           exit 2
           ;;
       esac
@@ -98,7 +98,7 @@ let
     }
 
     # `mkdir` is the portable atomic mutex. Without it, two terminals asking
-    # at once each see no daemon and each spawn one, doubling ~700MB.
+    # at once each see no daemon and each spawn one, doubling ~1GB.
     acquire_lock() {
       if mkdir "$LOCK" 2>/dev/null; then
         printf '%s\n' "$$" > "$LOCK/owner"
@@ -247,11 +247,14 @@ let
   '';
 in
 {
-  # A tool whose `body` can call `typecheck`, `report` and `print_capped`, and
-  # read the worktree's daemon state plus any `extraState` it is handed.
+  # `ai-<name>`: a tool whose `body` can call `typecheck`, `report` and
+  # `print_capped`, and read the worktree's daemon state plus any `extraState`
+  # it is handed. `$TOOL` holds `name`, which prefixes every message it prints.
   mkClient = { name, extraState ? "", body }: tool.mkTool {
-    inherit name;
-    state = state + extraState;
+    name = "ai-${name}";
+    state = ''
+      TOOL=${name}
+    '' + state + extraState;
     body = client + body;
   };
 }

@@ -9,7 +9,7 @@ let
   hspecArgs = [ "--no-color" "--format=failed-examples" ];
 in
 daemon.mkClient {
-  name = "ai-quick-test";
+  name = "quick-test";
   extraState = session.testHook.state;
   body = ''
     # Exits 0 when the selected tests pass, 1 when they fail or the code does
