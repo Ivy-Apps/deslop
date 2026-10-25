@@ -1,9 +1,10 @@
 # The explorer's vendored libraries
 
 `deslop explore` writes one self-contained page: `../src/explorer.html` with the
-scripts below and the graph inlined into it at compile time
-(`src/Deslop/Explore/Html.hs`). Edit `../src/explorer.html` freely; the vendored
-scripts here are copied verbatim from their npm tarballs and never edited.
+scripts below, then the page's own scripts from `../src/`, and the graph inlined
+into it at compile time (`src/Deslop/Explore/Html.hs`). Edit `../src/` freely;
+the vendored scripts here are copied verbatim from their npm tarballs and never
+edited.
 
 | File | Package | Version | License |
 | --- | --- | --- | --- |

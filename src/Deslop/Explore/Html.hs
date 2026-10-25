@@ -3,8 +3,8 @@
 {- | The module graph explorer: one HTML page that works opened straight from
 disk, offline, with nothing beside it.
 
-Everything it needs is inlined - the page and its script from
-@explorer\/src\/explorer.html@, the vendored cytoscape and ELK libraries
+Everything it needs is inlined - the page from
+@explorer\/src\/explorer.html@ and its scripts beside it, the vendored cytoscape and ELK libraries
 (versions and licenses in @explorer\/vendor\/README.md@), and the 'Diagram' as
 JSON from "Deslop.Explore.ModuleGraph.Json" - because a browser refuses a page opened from @file:\/\/@ any fetch of a
 file next to it.
@@ -26,7 +26,7 @@ explorerPage d = fillTemplate content template
   where
     content = \case
         Graph -> scriptSafe . decodeUtf8 . encode $ graphJson d
-        Libraries -> mconcat libraries
+        Scripts -> mconcat (libraries <> pageScripts)
 
 template :: Template
 template = $$(embedParsed parseTemplate "explorer/src/explorer.html")
@@ -39,8 +39,24 @@ libraries =
     , htmlComment elkjsNotice <> script $$(embedText "explorer/vendor/elk.bundled.js")
     , htmlComment cytoscapeElkNotice <> script $$(embedText "explorer/vendor/cytoscape-elk.js")
     ]
-  where
-    script js = "<script>" <> js <> "</script>\n"
+
+{- | The page's own scripts, in load order, after the libraries. Each but the
+last defines one namespace and touches no DOM; @explorer.js@ wires them to the
+page.
+-}
+pageScripts :: [Text]
+pageScripts =
+    script
+        <$> [ $$(embedText "explorer/src/graph.js")
+            , $$(embedText "explorer/src/colour.js")
+            , $$(embedText "explorer/src/view.js")
+            , $$(embedText "explorer/src/sha256.js")
+            , $$(embedText "explorer/src/search.js")
+            , $$(embedText "explorer/src/explorer.js")
+            ]
+
+script :: Text -> Text
+script js = "<script>" <> js <> "</script>\n"
 
 {- | An HTML comment around any text: a @-->@ inside would end it early, so it
 is spaced apart. Outside a script, a @</script>@ in it is inert.

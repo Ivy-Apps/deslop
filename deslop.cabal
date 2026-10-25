@@ -9,6 +9,7 @@ build-type:      Simple
 extra-doc-files: README.md
 extra-source-files:
   explorer/src/*.html
+  explorer/src/*.js
   explorer/vendor/*.js
 
 flag static

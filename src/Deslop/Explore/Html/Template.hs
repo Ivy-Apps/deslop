@@ -5,7 +5,7 @@
 The template marks each place the written page fills in with that 'Slot''s
 marker. A template missing a marker, or carrying one twice, does not parse, so
 the splice embedding it fails the build instead of shipping a page without its
-graph or its libraries.
+graph or its scripts.
 
 Its own module because a splice can only run what another module defines.
 -}
@@ -22,8 +22,8 @@ import Language.Haskell.TH.Syntax (Lift)
 
 -- | A place in the page that is filled in when the page is written.
 data Slot
-    = -- | The vendored libraries' scripts, before the page's own script, which uses them.
-      Libraries
+    = -- | Every script the page runs, in load order: the vendored libraries, then the page's own, which use them.
+      Scripts
     | -- | The graph, inside its @application/json@ script element.
       Graph
     deriving stock (Show, Eq, Enum, Bounded, Lift)
@@ -31,7 +31,7 @@ data Slot
 -- | How the template spells a 'Slot'.
 marker :: Slot -> Text
 marker = \case
-    Libraries -> "<!-- deslop:libraries -->"
+    Scripts -> "<!-- deslop:scripts -->"
     Graph -> "/* deslop:graph */"
 
 -- | The template's text around its 'Slot's, each of them exactly once.

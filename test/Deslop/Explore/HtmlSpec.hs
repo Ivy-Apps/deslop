@@ -19,12 +19,18 @@ spec = describe "Deslop.Explore.Html" $ do
             graphIn page `shouldBe` Just (graphJson diagram)
             forM_ universe $ \slot -> page `shouldSatisfy` (not . T.isInfixOf (marker slot))
 
-        it "carries every vendored library inline, as it is on disk" $ do
+        it "carries every script inline, as it is on disk, in load order" $ do
             let page = explorerPage $ diagramOf Nothing Nothing mempty []
+                inOrder =
+                    ["vendor/cytoscape.min.js", "vendor/elk.bundled.js", "vendor/cytoscape-elk.js"]
+                        <> fmap ("src/" <>) ["graph.js", "colour.js", "view.js", "sha256.js", "search.js", "explorer.js"]
 
-            forM_ ["cytoscape.min.js", "elk.bundled.js", "cytoscape-elk.js"] $ \library -> do
-                onDisk <- decodeUtf8 <$> readFileBS ("explorer/vendor/" <> library)
-                page `shouldSatisfy` T.isInfixOf ("<script>" <> onDisk <> "</script>")
+            offsets <- forM inOrder $ \file -> do
+                onDisk <- decodeUtf8 <$> readFileBS ("explorer/" <> file)
+                let (preceding, at) = T.breakOn ("<script>" <> onDisk <> "</script>") page
+                at `shouldSatisfy` (not . T.null)
+                pure $ T.length preceding
+            offsets `shouldSatisfy` (\os -> and $ zipWith (<) os (drop 1 os))
 
         it "fetches nothing, so it opens from disk" $ do
             let page = explorerPage $ diagramOf Nothing Nothing mempty []
