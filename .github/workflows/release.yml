@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+# Every runs-on names an exact image rather than a *-latest label: a label that
+# moves under us turns a routine tag push into a broken release (v0.12.0's
+# macOS build died on an image update). Bump them on purpose, in a PR.
+#
 # The toolchain and flag set every build job shares, so bumping GHC or Cabal
 # is one edit instead of one per job. The `for PLATFORM in $PLATFORMS` loops
 # consume PLATFORMS as a word-split list, on purpose.
@@ -27,7 +31,7 @@ jobs:
   # reads `needs.verify-version.outputs.version` rather than re-deriving it.
   verify-version:
     name: Verify version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -82,7 +86,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             npm-platform: linux-x64
           - os: ubuntu-24.04-arm
             npm-platform: linux-arm64
@@ -173,7 +177,12 @@ jobs:
   build-macos:
     name: Build (darwin-arm64)
     needs: [verify-version]
-    runs-on: macos-latest
+    runs-on: macos-26
+    env:
+      # Pinned, so an image update cannot swap the clang, ld and SDK the
+      # release links with. Bump it with the runner label, to an Xcode the
+      # image lists as installed.
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@v7
 
@@ -189,8 +198,8 @@ jobs:
       # That symlink follows whichever CLT the image installed last; when it is
       # a preview whose .tbd stubs name architectures the active Xcode's ld
       # cannot parse (arm64e.x1), every link fails, a hello world included.
-      # Point those entries at the active Xcode's SDK, which its ld matches.
-      - name: Link against the active Xcode's SDK
+      # Point those entries at the pinned Xcode's SDK, which its ld matches.
+      - name: Link against the pinned Xcode's SDK
         run: |
           CLT_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
           XCODE_SDK=$(xcrun --sdk macosx --show-sdk-path)
@@ -241,7 +250,7 @@ jobs:
   build-windows:
     name: Build (win32-x64)
     needs: [verify-version]
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - uses: actions/checkout@v7
 
@@ -293,7 +302,7 @@ jobs:
     # verify-version is listed even though the build jobs already depend on it:
     # `needs` outputs are only readable from a direct dependency.
     needs: [verify-version, build-linux, build-macos, build-windows]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       # Trusted Publishing exchanges this for a registry token, and it is also
       # what lets `npm publish --provenance` sign the SLSA attestation.
@@ -472,7 +481,7 @@ jobs:
   github-release:
     name: GitHub Release
     needs: [verify-version, publish-npm]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     env:
