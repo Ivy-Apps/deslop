@@ -26,6 +26,7 @@ import Deslop.Module (
     Module (..),
     ModuleId,
     ModuleName (..),
+    ModuleRole (..),
     moduleIdUnsafe,
     moduleNameUnsafe,
     specifierUnsafe,
@@ -37,6 +38,7 @@ import Frontend.Haskell.CST (Header (..), HsProgram (..), HsSource (..), Import 
 import Frontend.Haskell.Cabal (Component (..), ComponentKind (..), HsConfig (..), OwnedAs (..), Owner (..), ownerOf, qualifier, sourceNamesOf)
 import Frontend.Haskell.HspecDiscover (DiscoveredSpec (..), discoveredSpecs)
 import Frontend.Haskell.ModuleName (HsModuleName, dotted, hsModuleName, mainModule, slashed)
+import Frontend.Haskell.ModuleRole (moduleRole, withSubject)
 import Frontend.Haskell.Preprocessor (Preprocessor (..), Request (..), RequestedBy (..), requestedInFile)
 import Frontend.Haskell.Unit (HsUnit (..), Opacity (..), unitPath)
 import Renderable (Renderable (render))
@@ -132,7 +134,19 @@ lowerNamed projectRoot cfg entries = (fmap moduleOf entries, notRead <> disagree
             , edges = case entry.unit of
                 Readable program -> edgesOf entry program
                 Opaque {} -> []
+            , role = withSubject (sourceNamedFrom entry) entry.bare (roleOf entry)
             }
+
+    roleOf entry = moduleRole ((.component.kind) <$> entry.owner) $ case entry.unit of
+        Readable program -> (.decl.moduleName) <$> program.source.imports
+        Opaque {} -> []
+    roles = Map.fromList [(entry.id, roleOf entry) | entry <- entries]
+    -- A source module this name reaches from the entry, as an import would.
+    sourceNamedFrom entry name = do
+        Owner c _ <- entry.owner
+        Resolved subject _ <- Map.lookup name (visibleTo c)
+        Source <- Map.lookup subject roles
+        pure subject
 
     edgesOf entry program =
         let file = relPath entry

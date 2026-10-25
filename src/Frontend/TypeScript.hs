@@ -27,6 +27,7 @@ import Frontend.TypeScript.Ignore (jsEcosystemIgnored)
 import Frontend.TypeScript.Iterator (getTsFiles)
 import Frontend.TypeScript.Lint.RelativeSpecifiers (noRelativeSpecifiers, relativeSpecifierRules)
 import Frontend.TypeScript.Module (parseModule)
+import Frontend.TypeScript.ModuleRole (withSubjects)
 import Frontend.TypeScript.Parser (TsFile (..), parseTs)
 import Renderable (Renderable)
 import Renderable qualified
@@ -88,7 +89,7 @@ instance CompilerFrontend TsFrontend where
     lower _ cfg units = do
         projectRoot <- ask @ProjectRoot
         ms <- runReader cfg . pooledMapConcurrentlyN poolSize parseModule $ programOf <$> units
-        pure (ms, [ImportsNotRead (relativePathTo projectRoot path) | NotUtf8 path _ <- units])
+        pure (withSubjects ms, [ImportsNotRead (relativePathTo projectRoot path) | NotUtf8 path _ <- units])
       where
         -- Still a module, named by its path; it is its imports nobody knows.
         programOf = \case

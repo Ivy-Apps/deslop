@@ -27,6 +27,11 @@ let
   # describe the code.
   cabalFiles = [ "deslop.cabal" "cabal.project" "cabal.project.freeze" ];
 
+  # Files Template Haskell splices compile in (FileSystem.Embed). GHC already
+  # recompiles a splice whose file changed; ghcid only has to reload when one
+  # does, since it watches nothing but the modules it loaded.
+  embeddedDirs = [ "explorer/src" "explorer/vendor" ];
+
   cacheNamespace = "deslop-ghcid";
 
   # The session loads serially: one that loaded in parallel holds the extra
@@ -51,10 +56,11 @@ let
     ]
     ++ testHook.ghcidFlags
     ++ map (f: "--restart ${f}") cabalFiles
+    ++ map (d: "--reload ${d}") embeddedDirs
   );
 in
 {
-  inherit cabalFiles cacheNamespace ghcidInvocation testHook;
+  inherit cabalFiles cacheNamespace embeddedDirs ghcidInvocation testHook;
 
   # Edits here change the dev shell the daemon was spawned inside, which no
   # amount of restarting from within that shell can pick up. Respawn instead.

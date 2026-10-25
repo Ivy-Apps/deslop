@@ -18,6 +18,7 @@ check:
     just lint-actions
     just build
     just test
+    just test-js
     just integration
     just deslop-self
 
@@ -54,6 +55,10 @@ build-bench:
 # Run the test suite
 test:
     cabal test all {{parallel}}
+
+# Run the explorer page's tests (node, with fast-check from the dev shell's NODE_PATH)
+test-js:
+    node --test 'explorer/test/*.test.js'
 
 # End-to-end run of the CLI against a freshly generated sandbox project
 integration:

@@ -36,6 +36,7 @@ module Deslop.Module (
     EdgeTarget (..),
     EdgeKind (..),
     DependencyEdge (..),
+    ModuleRole (..),
     Module (..),
     canonicalName,
 ) where
@@ -197,8 +198,38 @@ data Module = Module
     package.
     -}
     , edges :: [DependencyEdge]
+    , role :: ModuleRole
     }
     deriving stock (Show, Eq)
+
+{- | Why a module exists: to ship, to test what ships, or to measure it. Only
+the frontend can tell - a path in TypeScript, an import or a cabal component in
+Haskell - so it decides while lowering, and so it names what a test tests: the
+module a reader opens it beside, when its name says which one that is.
+
+Evidence combines with '<>', the stronger claim winning: a Haskell file
+importing @Test.Tasty.Bench@ matches a test framework and a benchmark one, and
+is a 'Benchmark'.
+-}
+data ModuleRole
+    = Source
+    | -- | The source module it is named after, when there is one.
+      Test (Maybe ModuleId)
+    | Benchmark
+    deriving stock (Show, Eq)
+
+{- | A 'Benchmark' claim beats a 'Test' one, which beats 'Source'. Of two
+'Test' claims, the first that names a subject names it.
+-}
+instance Semigroup ModuleRole where
+    Benchmark <> _ = Benchmark
+    _ <> Benchmark = Benchmark
+    Test a <> Test b = Test (a <|> b)
+    Test a <> Source = Test a
+    Source <> other = other
+
+instance Monoid ModuleRole where
+    mempty = Source
 
 {- | The name a report prints and a baseline id is built from. Fixed per module
 so that a Problem keeps the same id from run to run, and unique within the

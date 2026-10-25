@@ -16,8 +16,10 @@ import Effectful (Eff, runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Dispatch.Dynamic (interpret)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effects.CLI (CLI (..))
+import Effects.Browser (Attendance (..), Browser (..))
+import Effects.CLI (CLI (..), Stdout (..))
 import Effects.FileSystem (WrFileSystem (..), fsMkAbsolute, runRoFileSystemIO)
+import Effects.Git (runGitIO)
 import Effects.ReportProblem (runReportProblem)
 import Params (Params (..))
 
@@ -47,6 +49,8 @@ runCase params =
         . runSilentCLI
         . runReportProblem
         . runConcurrent
+        . runGitIO
+        . runUnattendedBrowser
         $ doWork params
 
 {- | Throws every write away.
@@ -74,3 +78,10 @@ runSilentCLI :: Eff (CLI : es) a -> Eff es a
 runSilentCLI = interpret $ \_ -> \case
     Log _style _msg -> pure ()
     ReadLine -> error "runSilentCLI: doWork must never read from stdin"
+    StdoutIs -> pure Redirected
+
+-- | Nobody sits at the benchmark: @explore@ writes its page and never opens it.
+runUnattendedBrowser :: Eff (Browser : es) a -> Eff es a
+runUnattendedBrowser = interpret $ \_ -> \case
+    AttendanceOf -> pure Unattended
+    Open _page -> error "runUnattendedBrowser: an unattended run must never open a page"

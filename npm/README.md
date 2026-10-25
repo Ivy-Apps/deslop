@@ -33,6 +33,7 @@ Write your rulebooks as YAML files in `deslop/rules/`, then run:
 | `deslop check <project>` | Report all rule violations |
 | `deslop fix <project>` | Auto-fix violations where possible |
 | `deslop baseline <project>` | Write `deslop/baseline.yaml` to silence current violations |
+| `deslop explore <project>` | Write an interactive module graph to `deslop/diagram/index.html`, and open it (`--ci` never opens it) |
 
 Recommended `package.json` scripts:
 
