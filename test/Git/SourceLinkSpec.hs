@@ -1,55 +1,60 @@
 module Git.SourceLinkSpec (spec) where
 
-import Git.SourceLink (Checkout (..), DiffAnchors (..), PullRequest (..), SourceBase (..), SourceLinks (..), pullRequestFromGh, sourceLinksOf)
+import Git.SourceLink (Branch (..), Checkout (..), DiffAnchors (..), Forge (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..), pullRequestFromGh, sourceLinksOf)
 import Test.Hspec
 
 spec :: Spec
 spec = describe "Git.SourceLink" $ do
     describe "sourceLinksOf" $ do
         it "links a GitHub https remote to the branch's blob view" $
-            linkOf "https://github.com/Ivy-Apps/deslop.git" "main" ""
+            linkOf "https://github.com/Ivy-Apps/deslop.git" (onBranch "main") ""
                 `shouldBe` Just "https://github.com/Ivy-Apps/deslop/blob/main/"
 
         it "reads the same repository from an scp-like SSH remote" $
-            linkOf "git@github.com:Ivy-Apps/deslop.git" "main" ""
+            linkOf "git@github.com:Ivy-Apps/deslop.git" (onBranch "main") ""
                 `shouldBe` Just "https://github.com/Ivy-Apps/deslop/blob/main/"
 
         it "reads the same repository from an ssh:// remote with a port" $
-            linkOf "ssh://git@github.com:22/Ivy-Apps/deslop" "main" ""
+            linkOf "ssh://git@github.com:22/Ivy-Apps/deslop" (onBranch "main") ""
                 `shouldBe` Just "https://github.com/Ivy-Apps/deslop/blob/main/"
 
         it "drops credentials and a trailing slash from an https remote" $
-            linkOf "https://user:token@github.com/Ivy-Apps/deslop/" "main" ""
+            linkOf "https://user:token@github.com/Ivy-Apps/deslop/" (onBranch "main") ""
                 `shouldBe` Just "https://github.com/Ivy-Apps/deslop/blob/main/"
 
         it "links a GitLab remote, groups included, to its -/blob view" $
-            linkOf "git@gitlab.com:group/sub/repo.git" "main" ""
+            linkOf "git@gitlab.com:group/sub/repo.git" (onBranch "main") ""
                 `shouldBe` Just "https://gitlab.com/group/sub/repo/-/blob/main/"
 
-        it "recognises a self-hosted forge by its host's name" $
-            linkOf "https://gitlab.example.com/team/repo" "main" ""
-                `shouldBe` Just "https://gitlab.example.com/team/repo/-/blob/main/"
+        it "recognises a forge's host whatever its case" $
+            linkOf "https://GitHub.com/o/r" (onBranch "main") ""
+                `shouldBe` Just "https://GitHub.com/o/r/blob/main/"
+
+        it "has no link on a host that only spells a forge's name" $ do
+            linkOf "https://notgithub.com/o/r" (onBranch "main") "" `shouldBe` Nothing
+            linkOf "https://github.com.evil.example/o/r" (onBranch "main") "" `shouldBe` Nothing
+            linkOf "https://gitlab.example.com/team/repo" (onBranch "main") "" `shouldBe` Nothing
 
         it "has no link on a host it does not know" $
-            linkOf "https://bitbucket.org/o/r.git" "main" "" `shouldBe` Nothing
+            linkOf "https://bitbucket.org/o/r.git" (onBranch "main") "" `shouldBe` Nothing
 
         it "has no link for a remote that is a local path" $
-            linkOf "/srv/git/repo.git" "main" "" `shouldBe` Nothing
+            linkOf "/srv/git/repo.git" (onBranch "main") "" `shouldBe` Nothing
 
         it "keeps the slashes of a branch and of the project's folder, encoding the rest" $
-            linkOf "https://github.com/o/r" "feature/d2 diagram" "fixtures/my app/"
+            linkOf "https://github.com/o/r" (onBranch "feature/d2 diagram") "fixtures/my app/"
                 `shouldBe` Just "https://github.com/o/r/blob/feature/d2%20diagram/fixtures/my%20app/"
 
         it "links a detached checkout to its commit" $
-            linkOf "https://github.com/o/r" "0123abcd" "sub/"
+            linkOf "https://github.com/o/r" (Detached "0123abcd") "sub/"
                 `shouldBe` Just "https://github.com/o/r/blob/0123abcd/sub/"
 
         it "anchors a GitHub file's diff at its path in the repository, keeping the project's folder raw" $
-            anchorsOf "https://github.com/Ivy-Apps/deslop.git" "feature/d2-diagram" "fixtures/my app/"
-                `shouldBe` Just DiffAnchors {repoPrefix = "fixtures/my app/"}
+            forgeOf "https://github.com/Ivy-Apps/deslop.git" (onBranch "feature/d2-diagram") "fixtures/my app/"
+                `shouldBe` Just (GitHub DiffAnchors {repoPrefix = "fixtures/my app/"})
 
         it "has no diff anchors on GitLab" $
-            anchorsOf "git@gitlab.com:group/repo.git" "feature/x" "" `shouldBe` Nothing
+            forgeOf "git@gitlab.com:group/repo.git" (onBranch "feature/x") "" `shouldBe` Just GitLab
 
     describe "pullRequestFromGh" $ do
         it "reads the url of what gh pr view prints" $
@@ -63,5 +68,6 @@ spec = describe "Git.SourceLink" $ do
             pullRequestFromGh "no pull requests found for branch \"main\"" `shouldBe` Nothing
   where
     linkOf origin revision prefix = (.source.url) <$> linksOf origin revision prefix
-    anchorsOf origin revision prefix = (.diff) =<< linksOf origin revision prefix
+    forgeOf origin revision prefix = (.forge) <$> linksOf origin revision prefix
     linksOf origin revision prefix = sourceLinksOf Checkout {originUrl = origin, revision, prefix}
+    onBranch = OnBranch . Branch

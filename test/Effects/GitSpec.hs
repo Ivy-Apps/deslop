@@ -2,15 +2,17 @@ module Effects.GitSpec (spec) where
 
 import Data.Set qualified as Set
 import Effectful (runEff)
-import Effects.Git (GitRef (..), NoDiff (..), NoPullRequest (..), gitChangedFiles, gitPullRequest, gitSourceLinks, runGitIO)
+import Effects.Git (GitRef (..), NoDiff (..), gitChangedFiles, gitSourceLinks, runGitIO)
 import FileSystem.Path (ProjectRoot (..))
-import Git.SourceLink (DiffAnchors (..), PullRequest (..), SourceBase (..), SourceLinks (..))
+import Git.SourceLink (Branch (..), DiffAnchors (..), Forge (..), Revision (..), SourceBase (..), SourceLinks (..))
 import System.Directory (createDirectoryIfMissing)
+import System.Environment (setEnv, unsetEnv)
 import System.Exit (ExitCode (..))
 import System.FilePath (takeDirectory)
 import System.Process (proc, readCreateProcessWithExitCode)
 import Test.Hspec
 import TestUtils (ap, rp)
+import UnliftIO.Exception (bracket)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
@@ -62,6 +64,28 @@ spec = describe "Effects.Git" $ do
 
             changedIn dir "no-such-branch" `shouldReturn` Left (UnknownBase (GitRef "no-such-branch"))
 
+    it "reads a ref spelled like an option as a ref, never as git's option" $
+        withRepo $ \dir -> do
+            write dir "a.ts" "a"
+            commitAll dir "first"
+
+            changedIn dir "--fork-point" `shouldReturn` Left (UnknownBase (GitRef "--fork-point"))
+
+    it "reads the project's repository, whatever GIT_DIR and GIT_WORK_TREE it was started with" $
+        withRepo $ \dir -> withRepo $ \elsewhere -> do
+            -- Given: a hook-like environment pointing at another repository
+            write dir "a.ts" "a"
+            commitAll dir "first"
+            write dir "b.ts" "b"
+            write elsewhere "c.ts" "c"
+            commitAll elsewhere "first"
+
+            -- When
+            changed <- withEnv [("GIT_DIR", elsewhere <> "/.git"), ("GIT_WORK_TREE", elsewhere)] $ changedIn dir "main"
+
+            -- Then
+            changed `shouldBe` Right (Set.fromList [rp "b.ts"])
+
     it "has no diff outside a git repository" $
         withSystemTempDirectory "deslop-git" $ \dir ->
             changedIn dir "main" `shouldReturn` Left NotARepository
@@ -93,7 +117,15 @@ spec = describe "Effects.Git" $ do
                 links <- sourceLinksIn (dir <> "/app")
 
                 -- Then
-                ((.diff) =<< links) `shouldBe` Just DiffAnchors {repoPrefix = "app/"}
+                (.forge) <$> links `shouldBe` Just (GitHub DiffAnchors {repoPrefix = "app/"})
+
+        it "reads the files at the branch checked out" $
+            withRepo $ \dir -> do
+                write dir "a.ts" "a"
+                commitAll dir "first"
+                git dir ["remote", "add", "origin", "git@github.com:o/r.git"]
+
+                fmap (.revision) <$> sourceLinksIn dir `shouldReturn` Just (OnBranch (Branch "main"))
 
         it "links a detached checkout to its commit" $
             withRepo $ \dir -> do
@@ -103,7 +135,10 @@ spec = describe "Effects.Git" $ do
                 git dir ["checkout", "-q", "--detach"]
                 sha <- toText . filter (/= '\n') <$> gitOutput dir ["rev-parse", "HEAD"]
 
-                sourceBaseIn dir `shouldReturn` Just ("https://gitlab.com/o/r/-/blob/" <> sha <> "/")
+                links <- sourceLinksIn dir
+
+                ((.source.url) <$> links, (.revision) <$> links)
+                    `shouldBe` (Just ("https://gitlab.com/o/r/-/blob/" <> sha <> "/"), Just (Detached sha))
 
         it "has no link without an origin" $
             withRepo $ \dir -> do
@@ -115,23 +150,9 @@ spec = describe "Effects.Git" $ do
         it "has no link outside a git repository" $
             withSystemTempDirectory "deslop-git" $ \dir ->
                 sourceBaseIn dir `shouldReturn` Nothing
-    describe "gitPullRequest" $ do
-        it "has none, without asking gh, when HEAD is detached" $
-            withRepo $ \dir -> do
-                write dir "a.ts" "a"
-                commitAll dir "first"
-                git dir ["remote", "add", "origin", "git@github.com:o/r.git"]
-                git dir ["checkout", "-q", "--detach"]
-
-                pullRequestIn dir `shouldReturn` Left NotOnABranch
-
-        it "has none outside a git repository" $
-            withSystemTempDirectory "deslop-git" $ \dir ->
-                pullRequestIn dir `shouldReturn` Left NotOnABranch
   where
     sourceBaseIn dir = fmap (.source.url) <$> sourceLinksIn dir
     sourceLinksIn dir = runEff . runGitIO $ gitSourceLinks (ProjectRoot . ap $ toText dir)
-    pullRequestIn dir = fmap (.url) <$> (runEff . runGitIO $ gitPullRequest (ProjectRoot . ap $ toText dir))
     changedIn dir ref = runEff . runGitIO $ gitChangedFiles (ProjectRoot . ap $ toText dir) (GitRef ref)
 
 withRepo :: (FilePath -> IO a) -> IO a
@@ -158,3 +179,10 @@ gitOutput dir args = do
     case code of
         ExitSuccess -> pure out
         ExitFailure _ -> out <$ expectationFailure ("git " <> show args <> " failed: " <> err)
+
+-- | Runs with these environment variables set, restoring what they were after.
+withEnv :: [(String, String)] -> IO a -> IO a
+withEnv vars act = bracket (traverse save vars) (traverse_ restore) (const act)
+  where
+    save (name, value) = (name,) <$> lookupEnv name <* setEnv name value
+    restore (name, saved) = maybe (unsetEnv name) (setEnv name) saved

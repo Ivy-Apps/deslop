@@ -1,12 +1,13 @@
 {- | Asking git about the checkout a project sits in.
 
-Three questions the diagram asks: which files of the project differ from where
+Three questions the explorer asks: which files of the project differ from where
 its branch started, for its Diff only view, where its files can be read on the
 web, for its links to them, and which pull request shows their diff. The
 interpreter runs the @git@ and @gh@ binaries in the project directory; a test
 hands "Doubles.Git" the answer instead.
 -}
 module Effects.Git (
+    Branch (..),
     Git (..),
     GitRef (..),
     NoDiff (..),
@@ -17,18 +18,19 @@ module Effects.Git (
     runGitIO,
 ) where
 
-import Control.Exception (IOException, try)
 import Data.Set qualified as Set
 import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import FileSystem.Path (AbsPath (..), ProjectRelativePath, ProjectRoot (..), decodeOsPath, encodeOsPath, relativePathTo, withAbsBaseUnsafe)
-import Git.SourceLink (Checkout (..), GitRef (..), PullRequest, SourceLinks, pullRequestFromGh, sourceLinksOf)
+import Git.SourceLink (Branch (..), Checkout (..), GitRef (..), PullRequest, Revision (..), SourceLinks, pullRequestFromGh, sourceLinksOf)
+import System.Directory (findExecutable)
+import System.Environment (getEnvironment)
 import System.Exit (ExitCode (..))
 import System.Process (CreateProcess (..), proc, readCreateProcessWithExitCode)
 import System.Timeout (timeout)
 
--- | Why there is no diff to show. Never fatal: the diagram is drawn without one.
+-- | Why there is no diff to show. Never fatal: the explorer is written without one.
 data NoDiff
     = -- | No @git@ binary on the PATH.
       GitMissing
@@ -38,9 +40,9 @@ data NoDiff
       UnknownBase GitRef
     deriving stock (Show, Eq)
 
--- | Why there is no pull request to link to. Never fatal: the diagram is drawn without one.
+-- | Why there is no pull request to link to. Never fatal: the explorer is written without one.
 data NoPullRequest
-    = -- | @HEAD@ is detached, or the project is in no git work tree.
+    = -- | @HEAD@ is detached: there is no branch to ask about.
       NotOnABranch
     | -- | No @gh@ binary on the PATH.
       GhMissing
@@ -53,7 +55,7 @@ data NoPullRequest
 data Git :: Effect where
     ChangedFiles :: ProjectRoot -> GitRef -> Git m (Either NoDiff (Set ProjectRelativePath))
     SourceLinksOf :: ProjectRoot -> Git m (Maybe SourceLinks)
-    PullRequestOf :: ProjectRoot -> Git m (Either NoPullRequest PullRequest)
+    PullRequestOf :: ProjectRoot -> Branch -> Git m (Either NoPullRequest PullRequest)
 
 type instance DispatchOf Git = 'Dynamic
 
@@ -73,45 +75,40 @@ a file's diff is found in a pull request.
 gitSourceLinks :: (Git :> es) => ProjectRoot -> Eff es (Maybe SourceLinks)
 gitSourceLinks = send . SourceLinksOf
 
-{- | The pull request of the branch checked out, as @gh@ finds it. A network
-call, so given up on after 'ghTimeout': only the diagram asks it.
+{- | The pull request of a branch, as @gh@ finds it. A network call, so given
+up on after 'ghTimeout': only the explorer asks it.
 -}
-gitPullRequest :: (Git :> es) => ProjectRoot -> Eff es (Either NoPullRequest PullRequest)
-gitPullRequest = send . PullRequestOf
+gitPullRequest :: (Git :> es) => ProjectRoot -> Branch -> Eff es (Either NoPullRequest PullRequest)
+gitPullRequest root = send . PullRequestOf root
 
 runGitIO :: (IOE :> es) => Eff (Git : es) a -> Eff es a
 runGitIO = interpret $ \_ -> \case
     ChangedFiles root ref -> liftIO $ changedFilesIO root ref
     SourceLinksOf root -> liftIO $ sourceLinksIO root
-    PullRequestOf root -> liftIO $ pullRequestIO root
+    PullRequestOf root branch -> liftIO $ pullRequestIO root branch
 
--- | How long @gh@ may take before the diagram is drawn without a pull request: 3s.
+-- | How long @gh@ may take before the explorer is written without a pull request: 3s.
 ghTimeout :: Int
 ghTimeout = 3000000
 
-pullRequestIO :: ProjectRoot -> IO (Either NoPullRequest PullRequest)
-pullRequestIO root =
-    gitIn root ["symbolic-ref", "--short", "-q", "HEAD"] >>= \case
-        Succeeded branch -> ghPullRequest (T.strip branch)
-        _ -> pure (Left NotOnABranch)
-  where
-    -- Killed on timeout: the process is cleaned up with the call it runs in.
-    ghPullRequest branch =
-        timeout ghTimeout (runIn "gh" root ["pr", "view", branch, "--json", "number,url"]) <&> \case
-            Nothing -> Left GhTimedOut
-            Just CouldNotRun -> Left GhMissing
-            Just Failed -> Left NoneFound
-            Just (Succeeded out) -> maybeToRight NoneFound . pullRequestFromGh $ encodeUtf8 out
+-- Killed on timeout: the process is cleaned up with the call it runs in.
+pullRequestIO :: ProjectRoot -> Branch -> IO (Either NoPullRequest PullRequest)
+pullRequestIO root branch =
+    timeout ghTimeout (runIn "gh" root ["pr", "view", branch.name, "--json", "number,url"]) <&> \case
+        Nothing -> Left GhTimedOut
+        Just CouldNotRun -> Left GhMissing
+        Just Failed -> Left NoneFound
+        Just (Succeeded out) -> maybeToRight NoneFound . pullRequestFromGh $ encodeUtf8 out
 
 sourceLinksIO :: ProjectRoot -> IO (Maybe SourceLinks)
 sourceLinksIO root = do
     origin <- git ["remote", "get-url", "origin"]
-    branch <- git ["symbolic-ref", "--short", "-q", "HEAD"]
-    revision <- case branch of
-        Succeeded _ -> pure branch
-        _ -> git ["rev-parse", "HEAD"]
+    revision <-
+        git ["symbolic-ref", "--short", "-q", "HEAD"] >>= \case
+            Succeeded branch -> pure . Just . OnBranch . Branch $ T.strip branch
+            _detached -> fmap (Detached . T.strip) . output <$> git ["rev-parse", "HEAD"]
     prefix <- git ["rev-parse", "--show-prefix"]
-    pure . (sourceLinksOf =<<) $ Checkout <$> output origin <*> (T.strip <$> output revision) <*> (T.strip <$> output prefix)
+    pure . (sourceLinksOf =<<) $ Checkout <$> output origin <*> revision <*> (T.strip <$> output prefix)
   where
     git = gitIn root
     output = \case
@@ -124,7 +121,7 @@ changedFilesIO root ref =
         CouldNotRun -> pure (Left GitMissing)
         Failed -> pure (Left NotARepository)
         Succeeded _ -> do
-            mergeBase <- firstSuccess [git ["merge-base", base, "HEAD"] | base <- ["origin/" <> ref.text, ref.text]]
+            mergeBase <- firstSuccess [git ["merge-base", "--end-of-options", base, "HEAD"] | base <- ["origin/" <> ref.text, ref.text]]
             case mergeBase of
                 Nothing -> pure (Left (UnknownBase ref))
                 Just commit -> do
@@ -151,14 +148,27 @@ changedFilesIO root ref =
 gitIn :: ProjectRoot -> [Text] -> IO Run
 gitIn = runIn "git"
 
--- | Runs a program in the project directory.
+{- | Runs a program in the project directory. It finds the repository from
+there, whatever @GIT_DIR@ or @GIT_WORK_TREE@ the caller was started with - as
+a git hook is.
+-}
 runIn :: FilePath -> ProjectRoot -> [Text] -> IO Run
-runIn program root args = do
-    result <- try @IOException $ readCreateProcessWithExitCode (proc program (toString <$> args)) {cwd = Just (toString . decodeOsPath $ root.path.osPath)} ""
-    pure $ case result of
-        Left _ -> CouldNotRun
-        Right (ExitSuccess, out, _) -> Succeeded (toText out)
-        Right (ExitFailure _, _, _) -> Failed
+runIn program root args =
+    findExecutable program >>= \case
+        Nothing -> pure CouldNotRun
+        Just executable -> do
+            env <- filter ((`notElem` repositoryOverrides) . fst) <$> getEnvironment
+            readCreateProcessWithExitCode
+                (proc executable (toString <$> args))
+                    { cwd = Just (toString . decodeOsPath $ root.path.osPath)
+                    , env = Just env
+                    }
+                ""
+                <&> \case
+                    (ExitSuccess, out, _) -> Succeeded (toText out)
+                    (ExitFailure _, _, _) -> Failed
+  where
+    repositoryOverrides = ["GIT_DIR", "GIT_WORK_TREE"]
 
 -- | How one invocation went.
 data Run = CouldNotRun | Failed | Succeeded Text

@@ -1,15 +1,18 @@
 {- | Where a project's files can be read on the web, from what git knows about
 its checkout.
 
-Only GitHub and GitLab are recognised, by their host's name; any other host has
-no link. Only GitHub's pull requests are linked to, through what @gh@ says.
-Pure: asking git and gh is "Effects.Git"'s business.
+Only GitHub and GitLab are recognised, by their exact host, @github.com@ and
+@gitlab.com@; any other host has no link. Only GitHub's pull requests are linked
+to, through what @gh@ says. Pure: asking git and gh is "Effects.Git"'s business.
 -}
 module Git.SourceLink (
+    Branch (..),
     Checkout (..),
     DiffAnchors (..),
+    Forge (..),
     GitRef (..),
     PullRequest (..),
+    Revision (..),
     SourceBase (..),
     SourceLinks (..),
     pullRequestFromGh,
@@ -27,12 +30,22 @@ import Numeric (showHex)
 newtype GitRef = GitRef {text :: Text}
     deriving stock (Show, Eq, Ord)
 
+-- | A branch, by its short name: @feature/x@.
+newtype Branch = Branch {name :: Text}
+    deriving stock (Show, Eq)
+
+-- | What is checked out.
+data Revision
+    = OnBranch Branch
+    | -- | @HEAD@ is detached at this commit.
+      Detached Text
+    deriving stock (Show, Eq)
+
 -- | What git says about the checkout a project sits in.
 data Checkout = Checkout
     { originUrl :: Text
     -- ^ The @origin@ remote, as configured: SSH, scp-like or https.
-    , revision :: Text
-    -- ^ The branch checked out, or the commit when @HEAD@ is detached.
+    , revision :: Revision
     , prefix :: Text
     -- ^ The project's folder inside the repository, ending in @/@; empty at its root.
     }
@@ -57,15 +70,21 @@ newtype DiffAnchors = DiffAnchors
 newtype PullRequest = PullRequest {url :: Text}
     deriving stock (Show, Eq)
 
+-- | The forge the project's @origin@ is on, with what only it can link to.
+data Forge
+    = -- | Its pull requests show a file's diff at an anchor.
+      GitHub DiffAnchors
+    | GitLab
+    deriving stock (Show, Eq)
+
 -- | Where a project's files, and their diff, can be read on the web.
 data SourceLinks = SourceLinks
     { source :: SourceBase
-    , diff :: Maybe DiffAnchors
-    -- ^ None on a forge whose pull requests we do not link to.
+    , revision :: Revision
+    -- ^ What the links read the files at.
+    , forge :: Forge
     }
     deriving stock (Show, Eq)
-
-data Forge = GitHub | GitLab
 
 -- | The links of a checkout, when its remote is on a forge we know.
 sourceLinksOf :: Checkout -> Maybe SourceLinks
@@ -79,13 +98,22 @@ sourceLinksOf checkout = do
                 SourceBase $
                     repoUrl
                         <> blobPath forge
-                        <> encodePath checkout.revision
+                        <> encodePath (revisionText checkout.revision)
                         <> "/"
                         <> encodePath checkout.prefix
-            , diff = case forge of
-                GitHub -> Just DiffAnchors {repoPrefix = checkout.prefix}
-                GitLab -> Nothing
+            , revision = checkout.revision
+            , forge = forge
             }
+  where
+    forgeOf host = case T.toLower host of
+        "github.com" -> Just . GitHub $ DiffAnchors {repoPrefix = checkout.prefix}
+        "gitlab.com" -> Just GitLab
+        _otherHost -> Nothing
+
+revisionText :: Revision -> Text
+revisionText = \case
+    OnBranch branch -> branch.name
+    Detached commit -> commit
 
 -- | The pull request in what @gh pr view --json url@ prints. None when it names no url.
 pullRequestFromGh :: ByteString -> Maybe PullRequest
@@ -93,16 +121,8 @@ pullRequestFromGh = parseMaybe (withObject "pull request" $ fmap PullRequest . (
 
 blobPath :: Forge -> Text
 blobPath = \case
-    GitHub -> "/blob/"
+    GitHub _ -> "/blob/"
     GitLab -> "/-/blob/"
-
-forgeOf :: Text -> Maybe Forge
-forgeOf host
-    | "github" `T.isInfixOf` lowered = Just GitHub
-    | "gitlab" `T.isInfixOf` lowered = Just GitLab
-    | otherwise = Nothing
-  where
-    lowered = T.toLower host
 
 {- | The host and the @owner/repo@ path of a remote, from any of
 @https://host/o/r.git@, @ssh://git\@host:22/o/r@ or @git\@host:o/r.git@.

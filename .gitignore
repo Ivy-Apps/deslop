@@ -61,3 +61,6 @@ report.html
 # Nix result
 result 
 .direnv
+
+# deslop explore output
+deslop/diagram/

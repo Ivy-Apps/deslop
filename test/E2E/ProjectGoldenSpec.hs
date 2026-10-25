@@ -30,8 +30,8 @@ import FileSystem.Path (
 import Fixtures.OnDisk (Language (..), inCopyOf, languageDir, projectIn)
 import Frontend.TypeScript (TsFrontend (..))
 import Git.Ignore (loadGitIgnore)
-import Git.SourceLink (DiffAnchors (..), PullRequest (..), SourceBase (..), SourceLinks (..))
-import Params (Command (..), Params (..))
+import Git.SourceLink (Branch (..), DiffAnchors (..), Forge (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..))
+import Params (Command (..), Exploration (..), Params (..))
 import Renderable qualified
 import System.Directory.OsPath (removeFile)
 import System.File.OsPath qualified as SFO
@@ -93,9 +93,10 @@ spec = describe "E2E.Project" $ do
 
     itIterates "ts-gitignore-project"
 
-    itDiagrams "ixartz-next-js-boilerplate"
-    itDiagramsWithoutPullRequest GhMissing
-    itDiagramsWithoutPullRequest NoneFound
+    itExplores "ixartz-next-js-boilerplate"
+    itExploresWithoutPullRequest GhMissing
+    itExploresWithoutPullRequest NoneFound
+    itExploresDetachedWithoutAskingForPullRequest
     itAsksNoPullRequestWithoutChanges
     itAsksGitNothing CheckC
     itAsksGitNothing FixC
@@ -223,7 +224,7 @@ runDeslopIn repo writes command projectPath = do
             . runReportProblem
             . runConcurrent
             . runGitInMemory repo
-            $ doWork Params {projectPath = absProjectPath, command, diffBase = GitRef "main"}
+            $ doWork Params {projectPath = absProjectPath, command}
     Run result <$> readIORef logsRef <*> readIORef writtenRef
   where
     fileSystem writtenRef = case writes of
@@ -412,14 +413,14 @@ itReportsRulebookBeforeLanguage project =
 is a page that can show them. How it draws them is the browser's business, not
 this suite's.
 -}
-itDiagrams :: String -> Spec
-itDiagrams project = it ("diagrams " <> project) $ do
+itExplores :: String -> Spec
+itExplores project = it ("explores " <> project) $ do
     let projectPath = projectIn TypeScript project
     absProjectPath <- mkAbsolute projectPath
     let pagePath = withAbsBaseUnsafe absProjectPath [osp|deslop/diagram/index.html|]
         repo = onGitHub {pullRequest = Right $ PullRequest "https://github.com/o/r/pull/7"}
 
-    run <- runDeslopIn repo InMemory DiagramC projectPath
+    run <- runDeslopIn repo InMemory explore projectPath
 
     fmap (.verdict) run.result `shouldBe` Right Clean
     Map.keys run.written `shouldBe` [pagePath]
@@ -428,31 +429,46 @@ itDiagrams project = it ("diagrams " <> project) $ do
     page `shouldSatisfy` T.isInfixOf "\"path\":\"src/app/[locale]/layout.tsx\",\"tags\":[\"changed\"]"
     page `shouldSatisfy` T.isInfixOf "\"sourceBase\":\"https://github.com/o/r/blob/main/\""
     page `shouldSatisfy` T.isInfixOf "\"pullRequest\":\"https://github.com/o/r/pull/7\""
-    pure . projectGolden TypeScript "diagram" project . T.unpack . renderRun $ run
+    pure . projectGolden TypeScript "explore" project . T.unpack . renderRun $ run
 
--- | Without its pull request, the diagram is still drawn, says why once, and links to none.
-itDiagramsWithoutPullRequest :: NoPullRequest -> Spec
-itDiagramsWithoutPullRequest reason = it ("diagrams without a pull request when " <> show reason) $ do
-    run <- runDeslopIn onGitHub {pullRequest = Left reason} InMemory DiagramC (projectIn TypeScript "ts-project-1")
+-- | Without its pull request, the explorer is still written, says why once, and links to none.
+itExploresWithoutPullRequest :: NoPullRequest -> Spec
+itExploresWithoutPullRequest reason = it ("explores without a pull request when " <> show reason) $ do
+    run <- runDeslopIn onGitHub {pullRequest = Left reason} InMemory explore (projectIn TypeScript "ts-project-1")
 
     fmap (.verdict) run.result `shouldBe` Right Clean
     T.count "No pull request to link" (renderRun run) `shouldBe` 1
     pages run `shouldSatisfy` all (T.isInfixOf "\"pullRequest\":null")
 
--- | A pull request is a network call away, so a diagram with no diff never asks for one.
+-- | A detached @HEAD@ has no branch to ask a pull request of, so none is asked for.
+itExploresDetachedWithoutAskingForPullRequest :: Spec
+itExploresDetachedWithoutAskingForPullRequest = it "explores a detached checkout without asking for a pull request" $ do
+    let detached = (\links -> links {revision = Detached "0123abcd"}) <$> onGitHub.sourceLinks
+    run <-
+        runDeslopIn
+            onGitHub {sourceLinks = detached, pullRequest = error "asked for a pull request"}
+            InMemory
+            explore
+            (projectIn TypeScript "ts-project-1")
+
+    fmap (.verdict) run.result `shouldBe` Right Clean
+    renderRun run `shouldSatisfy` T.isInfixOf "No pull request to link: no branch is checked out."
+    pages run `shouldSatisfy` all (T.isInfixOf "\"pullRequest\":null")
+
+-- | A pull request is a network call away, so an explorer with no diff never asks for one.
 itAsksNoPullRequestWithoutChanges :: Spec
-itAsksNoPullRequestWithoutChanges = it "diagrams without asking for a pull request when nothing changed" $ do
+itAsksNoPullRequestWithoutChanges = it "explores without asking for a pull request when nothing changed" $ do
     run <-
         runDeslopIn
             onGitHub {changes = Map.singleton (GitRef "main") mempty, pullRequest = error "asked for a pull request"}
             InMemory
-            DiagramC
+            explore
             (projectIn TypeScript "ts-project-1")
 
     fmap (.verdict) run.result `shouldBe` Right Clean
     pages run `shouldSatisfy` all (T.isInfixOf "\"pullRequest\":null")
 
--- | Only the diagram asks git and gh anything: the other commands stay as fast as they were.
+-- | Only explore asks git and gh anything: the other commands stay as fast as they were.
 itAsksGitNothing :: Command -> Spec
 itAsksGitNothing command = it ("asks git nothing to " <> show command) $ do
     let untouchable =
@@ -475,10 +491,15 @@ onGitHub =
             Just
                 SourceLinks
                     { source = SourceBase "https://github.com/o/r/blob/main/"
-                    , diff = Just DiffAnchors {repoPrefix = ""}
+                    , revision = OnBranch (Branch "main")
+                    , forge = GitHub DiffAnchors {repoPrefix = ""}
                     }
         , pullRequest = Left NoneFound
         }
+
+-- | Explore, marking what changed since @main@.
+explore :: Command
+explore = ExploreC Exploration {diffBase = GitRef "main"}
 
 -- | The text of every page a run wrote.
 pages :: Run -> [Text]

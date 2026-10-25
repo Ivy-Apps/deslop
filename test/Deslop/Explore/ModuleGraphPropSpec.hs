@@ -2,11 +2,11 @@
 is not there, and the arrows it hides as implied are only ever ones between
 the project's own modules.
 -}
-module Deslop.DiagramPropSpec (spec) where
+module Deslop.Explore.ModuleGraphPropSpec (spec) where
 
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Deslop.Diagram (Diagram (..), Edge (..), ModuleNode (..), NodeId (..), diagramOf)
+import Deslop.Explore.ModuleGraph (Diagram (..), Edge (..), ModuleNode (..), NodeId (..), diagramOf)
 import Deslop.Module (
     EdgeKind (..),
     EdgeTarget (..),
@@ -24,7 +24,7 @@ import Test.Hspec
 import TestUtils (prop)
 
 spec :: Spec
-spec = describe "Deslop.Diagram properties" $ do
+spec = describe "Deslop.Explore.ModuleGraph properties" $ do
     prop "every edge joins two nodes of the diagram" $ do
         modules <- forAll genProject
 

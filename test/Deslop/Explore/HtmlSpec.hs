@@ -1,21 +1,27 @@
-module Deslop.Diagram.HtmlSpec (spec) where
+module Deslop.Explore.HtmlSpec (spec) where
 
 import Data.Text qualified as T
-import Deslop.Diagram (diagramOf)
-import Deslop.Diagram.Html (explorerPage, graphMarker, librariesMarker)
+import Deslop.Explore.Html (explorerPage)
+import Deslop.Explore.Html.Template (marker)
+import Deslop.Explore.ModuleGraph (diagramOf)
 import Fixtures.Deslop.Module (mkModuleAt)
 import Test.Hspec
 
 spec :: Spec
-spec = describe "Deslop.Diagram.Html" $ do
+spec = describe "Deslop.Explore.Html" $ do
     describe "explorerPage" $ do
-        it "carries the graph and every script inline, with no marker left" $ do
+        it "carries the graph inline, with no marker left" $ do
             let page = explorerPage $ diagramOf Nothing Nothing mempty [mkModuleAt "src/a.ts" "src/a.ts" []]
 
             page `shouldSatisfy` T.isInfixOf "\"schema\":\"deslop-graph/1\""
-            page `shouldSatisfy` T.isInfixOf "cytoscape"
-            page `shouldSatisfy` (not . T.isInfixOf graphMarker)
-            page `shouldSatisfy` (not . T.isInfixOf librariesMarker)
+            forM_ universe $ \slot -> page `shouldSatisfy` (not . T.isInfixOf (marker slot))
+
+        it "carries every vendored library inline, as it is on disk" $ do
+            let page = explorerPage $ diagramOf Nothing Nothing mempty []
+
+            forM_ ["cytoscape.min.js", "elk.bundled.js", "cytoscape-elk.js"] $ \library -> do
+                onDisk <- decodeUtf8 <$> readFileBS ("explorer/vendor/" <> library)
+                page `shouldSatisfy` T.isInfixOf ("<script>" <> onDisk <> "</script>")
 
         it "fetches nothing, so it opens from disk" $ do
             let page = explorerPage $ diagramOf Nothing Nothing mempty []

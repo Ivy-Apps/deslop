@@ -23,8 +23,8 @@ spec = describe "UI" $ do
                 `shouldBe` "Scanned 412 modules"
 
         it "omits the rules a diagram never enforces" $
-            coverage (Diagrammed (ModuleCount 240))
-                `shouldBe` "Diagrammed 240 modules"
+            coverage (Explored (ModuleCount 240))
+                `shouldBe` "Explored 240 modules"
 
         it "singularises both counts" $
             coverage (Checked (ModuleCount 1) (RuleCount 1))

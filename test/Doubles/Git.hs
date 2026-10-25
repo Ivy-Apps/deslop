@@ -28,7 +28,7 @@ runGitInMemory :: Repository -> Eff (Git : es) a -> Eff es a
 runGitInMemory repo = interpret $ \_ -> \case
     ChangedFiles _ ref -> pure . maybeToRight (UnknownBase ref) $ Map.lookup ref repo.changes
     SourceLinksOf _ -> pure $! repo.sourceLinks
-    PullRequestOf _ -> pure $! repo.pullRequest
+    PullRequestOf _ _ -> pure $! repo.pullRequest
 
 -- | A repository whose @main@ is where the work tree stands, on no forge.
 noChanges :: Repository

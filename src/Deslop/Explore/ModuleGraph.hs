@@ -8,7 +8,7 @@ frontend resolved but never parsed has no place in it.
 
 What makes it readable is computed here, so the browser only has to draw:
 
-* a 'layer' per module, from "Deslop.Diagram.Layering": entry points on top,
+* a 'layer' per module, from "Deslop.Explore.Layering": entry points on top,
   modules importing nothing of the project at the bottom;
 * 'implied' on every edge transitive reduction removes, so the default view
   draws only the arrows that carry information;
@@ -18,9 +18,9 @@ What makes it readable is computed here, so the browser only has to draw:
 * the 'SourceBase' a module's path is appended to, to read it on the web.
 
 Pure structure, like the rest of the core: no Problem, cycle or Rule is drawn.
-Writing it out as the explorer page is "Deslop.Diagram.Html".
+Writing it out as the explorer page is "Deslop.Explore.Html".
 -}
-module Deslop.Diagram (
+module Deslop.Explore.ModuleGraph (
     Diagram (..),
     ModuleNode (..),
     FolderNode (..),
@@ -38,7 +38,7 @@ import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Deslop.Diagram.Layering (impliedEdges, layers)
+import Deslop.Explore.Layering (impliedEdges, layers)
 import Deslop.Module (
     DependencyEdge (..),
     EdgeKind (..),
@@ -49,7 +49,7 @@ import Deslop.Module (
     canonicalName,
  )
 import FileSystem.Path (ProjectRelativePath, portablePath)
-import Git.SourceLink (DiffAnchors (..), PullRequest (..), SourceBase (..), SourceLinks (..))
+import Git.SourceLink (DiffAnchors (..), Forge (..), PullRequest (..), SourceBase (..), SourceLinks (..))
 
 {- | A module is a hub when more than this share of the project's other
 source modules import it.
@@ -276,8 +276,14 @@ instance ToJSON Diagram where
             , "edges" .= fmap edgeJson d.edges
             , "sourceBase" .= fmap (.source.url) d.sourceLinks
             , "pullRequest" .= fmap (.url) d.pullRequest
-            , "repoPrefix" .= fmap (.repoPrefix) ((.diff) =<< d.sourceLinks)
+            , "repoPrefix" .= (diffAnchors . (.forge) =<< d.sourceLinks)
             ]
+
+-- | The project's folder in the repository, on the one forge whose diffs are linked to.
+diffAnchors :: Forge -> Maybe Text
+diffAnchors = \case
+    GitHub anchors -> Just anchors.repoPrefix
+    GitLab -> Nothing
 
 moduleJson :: ModuleNode -> Value
 moduleJson m =

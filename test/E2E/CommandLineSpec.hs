@@ -23,7 +23,6 @@ import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effects.CLI (LogStyle (..))
 import Effects.FileSystem (runFileSystemIO)
-import Effects.Git (GitRef (..))
 import Fixtures.OnDisk (Language (..), inCopyOf, projectIn)
 import Options.Applicative (ParserResult (Failure), execParserPure, renderFailure)
 import Params (ParamsDto (..), paramsParser, parserPrefs)
@@ -48,7 +47,7 @@ run command projectPath = do
             . runConcurrent
             . runGitInMemory noChanges
             . deslop
-            $ ParamsDto {command, projectPath, diffBase = GitRef "main"}
+            $ ParamsDto {command, projectPath}
     Ran exitCode <$> readIORef logsRef
 
 -- | The messages a run logged in the given style, in order.
@@ -103,13 +102,13 @@ spec = describe "E2E.CommandLine" $ do
             (exitCode, out) <- answer ["--help"]
 
             exitCode `shouldBe` ExitSuccess
-            out `shouldSatisfy` T.isPrefixOf "Deslop - A Haskell-powered code cleaner ✨\n\nUsage: deslop [-v|--version] COMMAND [PROJECT_DIR]"
+            out `shouldSatisfy` T.isPrefixOf "Deslop - A Haskell-powered code cleaner ✨\n\nUsage: deslop [-v|--version] COMMAND\n"
 
-        it "refuses an unknown command, naming the ones it knows" $ do
+        it "refuses an unknown command" $ do
             (exitCode, err) <- answer ["lint"]
 
             exitCode `shouldBe` ExitFailure 1
-            err `shouldSatisfy` T.isPrefixOf "Unknown command 'lint'. Expected: check, fix, baseline, or diagram\n"
+            err `shouldSatisfy` T.isPrefixOf "Invalid argument `lint'\n"
 
         it "shows the help, failing, when given nothing to do" $ do
             (exitCode, err) <- answer []

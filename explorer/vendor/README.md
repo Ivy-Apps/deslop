@@ -1,9 +1,9 @@
-# The diagram explorer's assets
+# The explorer's vendored libraries
 
-`deslop diagram` writes one self-contained page: `explorer.html` with the
+`deslop explore` writes one self-contained page: `../src/explorer.html` with the
 scripts below and the graph inlined into it at compile time
-(`src/Deslop/Diagram/Html.hs`). Edit `explorer.html` freely; the vendored
-scripts are copied verbatim from their npm tarballs and never edited.
+(`src/Deslop/Explore/Html.hs`). Edit `../src/explorer.html` freely; the vendored
+scripts here are copied verbatim from their npm tarballs and never edited.
 
 | File | Package | Version | License |
 | --- | --- | --- | --- |

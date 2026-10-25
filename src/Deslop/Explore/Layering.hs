@@ -11,7 +11,7 @@ into one 'Component' and what remains is acyclic:
 
 Polymorphic over the vertex, so it knows nothing of modules.
 -}
-module Deslop.Diagram.Layering (
+module Deslop.Explore.Layering (
     Graph,
     Component,
     condense,

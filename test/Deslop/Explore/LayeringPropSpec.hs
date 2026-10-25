@@ -2,11 +2,11 @@
 hiding the implied edges keeps every module reaching what it reached, and
 every arrow points down.
 -}
-module Deslop.Diagram.LayeringPropSpec (spec) where
+module Deslop.Explore.LayeringPropSpec (spec) where
 
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
-import Deslop.Diagram.Layering (Graph, condense, impliedEdges, layers)
+import Deslop.Explore.Layering (Graph, condense, impliedEdges, layers)
 import Hedgehog (Gen, forAll, (===))
 import Hedgehog qualified as H
 import Hedgehog.Gen qualified as Gen
@@ -15,7 +15,7 @@ import Test.Hspec
 import TestUtils (prop)
 
 spec :: Spec
-spec = describe "Deslop.Diagram.Layering properties" $ do
+spec = describe "Deslop.Explore.Layering properties" $ do
     prop "dropping the implied edges keeps everything each vertex reaches" $ do
         g <- forAll genGraph
 

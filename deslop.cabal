@@ -8,8 +8,8 @@ maintainer:      iliyan@ivy-apps.com
 build-type:      Simple
 extra-doc-files: README.md
 extra-source-files:
-  assets/diagram/*.html
-  assets/diagram/*.js
+  explorer/src/*.html
+  explorer/vendor/*.js
 
 flag static
   description:
@@ -64,10 +64,11 @@ library
     Deslop
     Deslop.CodeGraph
     Deslop.Command
-    Deslop.Diagram
-    Deslop.Diagram.Html
-    Deslop.Diagram.Layering
     Deslop.Error
+    Deslop.Explore.Html
+    Deslop.Explore.Html.Template
+    Deslop.Explore.Layering
+    Deslop.Explore.ModuleGraph
     Deslop.Frontend
     Deslop.Frontend.Finding
     Deslop.Frontend.Pipeline
@@ -195,11 +196,12 @@ test-suite deslop-test
     Paths_deslop
     Deslop.CodeGraphPropSpec
     Deslop.CodeGraphSpec
-    Deslop.Diagram.HtmlSpec
-    Deslop.Diagram.LayeringPropSpec
-    Deslop.Diagram.LayeringSpec
-    Deslop.DiagramPropSpec
-    Deslop.DiagramSpec
+    Deslop.Explore.Html.TemplateSpec
+    Deslop.Explore.HtmlSpec
+    Deslop.Explore.LayeringPropSpec
+    Deslop.Explore.LayeringSpec
+    Deslop.Explore.ModuleGraphPropSpec
+    Deslop.Explore.ModuleGraphSpec
     Deslop.Frontend.FindingSpec
     Deslop.Frontend.PipelinePropSpec
     Deslop.Frontend.PipelineSpec

@@ -1,9 +1,9 @@
-module Deslop.DiagramSpec (spec) where
+module Deslop.Explore.ModuleGraphSpec (spec) where
 
 import Data.Aeson (Key, Value, decode, encode, object, withObject, (.:), (.=))
 import Data.Aeson.Types (parseMaybe)
 import Data.Set qualified as Set
-import Deslop.Diagram (
+import Deslop.Explore.ModuleGraph (
     Diagram (..),
     Edge (..),
     FolderNode (..),
@@ -22,12 +22,12 @@ import Deslop.Module (
  )
 import Deslop.Module qualified as M
 import Fixtures.Deslop.Module (mkEdge, mkModuleAt)
-import Git.SourceLink (DiffAnchors (..), PullRequest (..), SourceBase (..), SourceLinks (..))
+import Git.SourceLink (Branch (..), DiffAnchors (..), Forge (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..))
 import Test.Hspec
 import TestUtils (rp)
 
 spec :: Spec
-spec = describe "Deslop.Diagram" $ do
+spec = describe "Deslop.Explore.ModuleGraph" $ do
     describe "diagramOf" $ do
         it "layers modules from the entry point down to what imports nothing" $ do
             let d = diagramOf Nothing Nothing mempty [at "app/Main.hs" ["src/App.hs"], at "src/App.hs" ["src/Util.hs"], at "src/Util.hs" []]
@@ -188,15 +188,16 @@ spec = describe "Deslop.Diagram" $ do
                     )
 
         it "carries where the project's files can be read on the web" $ do
-            let links = SourceLinks {source = SourceBase "https://github.com/o/r/blob/main/", diff = Nothing}
+            let links = SourceLinks {source = SourceBase "https://gitlab.com/o/r/-/blob/main/", revision = OnBranch (Branch "main"), forge = GitLab}
 
-            fieldIn "sourceBase" (diagramOf (Just links) Nothing mempty [at "a.ts" []]) `shouldBe` Just (Just "https://github.com/o/r/blob/main/")
+            fieldIn "sourceBase" (diagramOf (Just links) Nothing mempty [at "a.ts" []]) `shouldBe` Just (Just "https://gitlab.com/o/r/-/blob/main/")
 
         it "carries the pull request the diff is read in, and the project's folder in the repository" $ do
             let links =
                     SourceLinks
                         { source = SourceBase "https://github.com/o/r/blob/x/app/"
-                        , diff = Just DiffAnchors {repoPrefix = "app/"}
+                        , revision = OnBranch (Branch "x")
+                        , forge = GitHub DiffAnchors {repoPrefix = "app/"}
                         }
                 diagram = diagramOf (Just links) (Just $ PullRequest "https://github.com/o/r/pull/7") mempty [at "a.ts" []]
 

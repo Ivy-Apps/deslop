@@ -7,13 +7,14 @@ module Params (
     Params (..),
     ParamsDto (..),
     Command (..),
+    Exploration (..),
     paramsFromDto,
 )
 where
 
 import Data.Text qualified as T
 import Data.Version (showVersion)
-import Deslop.Command (Command (..))
+import Deslop.Command (Command (..), Exploration (..))
 import Effectful (Eff, (:>))
 import Effects.FileSystem (RoFileSystem, fsMkAbsolute)
 import Effects.Git (GitRef (..))
@@ -25,15 +26,12 @@ import System.OsPath (OsPath, osp)
 data Params = Params
     { command :: Command
     , projectPath :: AbsPath
-    , diffBase :: GitRef
-    -- ^ What @diagram@ marks changes against.
     }
     deriving (Show, Eq)
 
 data ParamsDto = ParamsDto
     { command :: Command
     , projectPath :: OsPath
-    , diffBase :: GitRef
     }
     deriving (Show, Eq)
 
@@ -44,39 +42,48 @@ paramsFromDto dto = do
         Params
             { projectPath = projPath
             , command = dto.command
-            , diffBase = dto.diffBase
             }
 
-readCommand :: String -> Either String Command
-readCommand "check" = Right CheckC
-readCommand "fix" = Right FixC
-readCommand "baseline" = Right BaselineC
-readCommand "diagram" = Right DiagramC
-readCommand s = Left $ "Unknown command '" <> s <> "'. Expected: check, fix, baseline, or diagram"
-
+-- | One subcommand per 'Command', each with what only it is asked.
 pParams :: Parser ParamsDto
 pParams =
-    ParamsDto
-        <$> argument
-            (eitherReader readCommand)
-            ( metavar "COMMAND"
-                <> help "Command to run: check, fix, baseline, or diagram"
-            )
-        <*> argument
-            (eitherReader (Right . encodeOsPath . T.pack))
-            ( metavar "PROJECT_DIR"
-                <> help "Path to the project"
-                <> value [osp|.|]
-                <> showDefault
-            )
-        <*> option
-            (GitRef . T.pack <$> str)
+    hsubparser $
+        commandFor "check" "Report the problems in the project" (pure CheckC)
+            <> commandFor "fix" "Repair the auto-fixable problems" (pure FixC)
+            <> commandFor "baseline" "Accept the current problems into deslop/baseline.yaml" (pure BaselineC)
+            <> commandFor "explore" "Write an interactive module graph to deslop/diagram/index.html" (ExploreC <$> pExploration)
+
+commandFor :: String -> String -> Parser Command -> Mod CommandFields ParamsDto
+commandFor name description pCommand =
+    command name . info (flip ParamsDto <$> pProjectPath <*> pCommand) $ progDesc description
+
+pProjectPath :: Parser OsPath
+pProjectPath =
+    argument
+        (eitherReader (Right . encodeOsPath . T.pack))
+        ( metavar "PROJECT_DIR"
+            <> help "Path to the project"
+            <> value [osp|.|]
+            <> showDefault
+        )
+
+pExploration :: Parser Exploration
+pExploration =
+    Exploration
+        <$> option
+            (eitherReader readGitRef)
             ( long "diff-base"
                 <> metavar "REF"
-                <> help "diagram: mark the modules changed since this branch left REF (origin/REF when the remote has it)"
+                <> help "Mark the modules changed since this branch left REF (origin/REF when the remote has it)"
                 <> value (GitRef "main")
                 <> showDefaultWith (toString . (.text))
             )
+
+-- | A ref git would read as an option is no ref: refused before it reaches git.
+readGitRef :: String -> Either String GitRef
+readGitRef = \case
+    ref@('-' : _) -> Left $ "A ref cannot start with '-': " <> ref
+    ref -> Right . GitRef $ toText ref
 
 versionOption :: Parser (a -> a)
 versionOption =
@@ -93,7 +100,7 @@ paramsParser =
         (helper <*> versionOption <*> pParams)
         ( fullDesc
             <> header "Deslop - A Haskell-powered code cleaner ✨"
-            <> progDesc "Removes slop from your project's architecture. Commands: check, fix, baseline, diagram."
+            <> progDesc "Removes slop from your project's architecture."
         )
 
 parserPrefs :: ParserPrefs

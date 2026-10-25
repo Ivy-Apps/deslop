@@ -1,12 +1,12 @@
-module Deslop.Diagram.LayeringSpec (spec) where
+module Deslop.Explore.LayeringSpec (spec) where
 
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
-import Deslop.Diagram.Layering (Graph, impliedEdges, layers)
+import Deslop.Explore.Layering (Graph, impliedEdges, layers)
 import Test.Hspec
 
 spec :: Spec
-spec = describe "Deslop.Diagram.Layering" $ do
+spec = describe "Deslop.Explore.Layering" $ do
     describe "layers" $ do
         it "puts the entry point on top and what imports nothing at the bottom" $
             layers (graph [("main", ["app", "util"]), ("app", ["domain"]), ("domain", ["util"])])

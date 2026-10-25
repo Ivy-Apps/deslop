@@ -109,7 +109,7 @@ deslopFile fe cfg command baseline src = do
         FixC -> writeBack src bytes . render fe $ repaired
         CheckC -> pure Untouched
         BaselineC -> pure Untouched
-        DiagramC -> pure Untouched
+        ExploreC _ -> pure Untouched
     pure (written, repaired)
 
 -- | Writes a repaired file, but only one whose bytes actually changed.
