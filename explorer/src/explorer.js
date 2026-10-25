@@ -233,12 +233,11 @@
     return link;
   }
   // A changed module's diff: a link into its pull request's files on GitHub, whose anchor for a file is the
-  // SHA-256 of its path in the repository. Without a pull request, the same label as a chip that links nowhere.
+  // SHA-256 of its path in the repository. Without a pull request, a small "Changed" badge that does not look tappable.
   function diffAction(path) {
-    var action = graph.pullRequest
-      ? el("a", { "class": "button", href: graph.pullRequest + "/files#diff-" + DeslopSha256.sha256(graph.repoPrefix + path),
-          target: "_blank", rel: "noopener noreferrer", title: "Open the diff in the pull request, in a new tab" })
-      : el("span", { "class": "chip", title: "Changed since the diff base" });
+    if (!graph.pullRequest) return el("span", { "class": "chip", title: "Changed since the diff base" }, "Changed");
+    var action = el("a", { "class": "button", href: graph.pullRequest + "/files#diff-" + DeslopSha256.sha256(graph.repoPrefix + path),
+      target: "_blank", rel: "noopener noreferrer", title: "Open the diff in the pull request, in a new tab" });
     action.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
       '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5V15a3 3 0 0 0 3 3h6.5"/><path d="M18 15.5V9a3 3 0 0 0-3-3H8.5"/></svg>';
     action.appendChild(document.createTextNode("Diff"));

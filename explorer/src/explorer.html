@@ -88,8 +88,8 @@
   /* The sheet's actions are smaller than the bar's buttons, so the module name keeps the room. */
   #sheet .actions > * { min-height: 34px; height: 34px; font-size: 13px; }
   #sheet .actions a.button { padding: 0 10px; }
-  /* A changed module's diff with no pull request to open it in: a badge in the Diff button's place, not a control. */
-  #sheet .actions .chip { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 22px;
+  /* A changed module's diff with no pull request to open it in: a small badge in the Diff button's place, not a control. */
+  #sheet .actions .chip { display: inline-flex; align-items: center; align-self: center; min-height: 0; height: 22px; font-size: 12px; padding: 0 8px; border-radius: 11px;
     border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--fg); cursor: default; }
   #sheet .row { padding-left: 0; }
   @media (max-width: 600px) { #sheet { max-height: 34vh; } }
