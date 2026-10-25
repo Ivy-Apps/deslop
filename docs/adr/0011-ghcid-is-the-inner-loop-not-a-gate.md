@@ -256,8 +256,9 @@ listed after the library, hspec and `Main.spec` are out of scope. And it
 refuses `:script`, `:module` and `:main`, so the hook is one Haskell expression
 with every name fully qualified.
 
-`just build` and `just test` compile with `-j4`, which halved a cold
-`cabal build` (86s to 53s) and a cold `cabal test` (225s to 127s). The session
+`just build`, `just test` and the `nix run .#build` and `nix run .#test` apps
+compile with `-j4`, which halved a cold `cabal build` (86s to 53s) and a cold
+`cabal test` (225s to 127s). The session
 loads serially instead: in parallel it held 0.81GB loaded and 1.03GB after a
 filtered quick-test, against 0.67GB and 0.96GB, for its whole life, to save
 seconds once. Two things hand it `-j`, and both are closed. A multi-repl passes

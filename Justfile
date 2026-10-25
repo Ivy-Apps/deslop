@@ -3,7 +3,8 @@
 # memory one build needs. Passed here, not set in cabal.project, so it stays out
 # of the ghcid session's unit files (see nix/ghcid/session.nix). Cabal leaves
 # `-j` out of its change detection, so a build with it and one without reuse
-# each other's dist-newstyle. The Nix build passes its own -j.
+# each other's dist-newstyle. The Nix build passes its own -j. flake.nix repeats
+# this for `nix run .#build` and `nix run .#test`; keep the two in step.
 parallel := "--ghc-options=-j4"
 
 # By default, list all available commands

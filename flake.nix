@@ -44,17 +44,21 @@
           sysLibs = [ pkgs.zlib pkgs.xz ];
 
           # Convenience runners that delegate to the appropriate dev shell.
+          # They compile with the Justfile's `parallel` -j4, for the same
+          # reasons; keep the two in step.
+          parallel = "--ghc-options=-j4";
+
           aiTestRunner = pkgs.writeShellApplication {
             name = "ai-test";
             runtimeInputs = [ pkgs.nix ];
             text = ''
               if [ "$#" -eq 0 ]; then
                 nix develop ".#ci" --no-warn-dirty --quiet -c \
-                  cabal test -v0 --test-show-details=direct \
+                  cabal test ${parallel} -v0 --test-show-details=direct \
                   --test-options="--no-color"
               else
                 nix develop ".#ci" --no-warn-dirty --quiet -c \
-                  cabal test -v0 --test-show-details=direct \
+                  cabal test ${parallel} -v0 --test-show-details=direct \
                   "--test-options=--no-color --match $*"
               fi
             '';
@@ -64,7 +68,7 @@
             name = "ai-build";
             runtimeInputs = [ pkgs.nix ];
             text = ''
-              nix develop ".#ci" --no-warn-dirty --quiet -c cabal build
+              nix develop ".#ci" --no-warn-dirty --quiet -c cabal build ${parallel}
             '';
           };
 

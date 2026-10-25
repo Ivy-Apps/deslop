@@ -56,9 +56,9 @@ let
           ;;
         3)
           printf '%s\n' \
-            "$TOOL: ghcid is not watching these, so they cannot be checked." \
-            "A new module needs registering in deslop.cabal; a scratch file" \
-            "needs deleting." >&2
+            "$TOOL: ghcid is not watching these, so they cannot be" \
+            "checked. A new module needs registering in deslop.cabal; a scratch" \
+            "file needs deleting." >&2
           stale_inputs >&2
           exit 2
           ;;
