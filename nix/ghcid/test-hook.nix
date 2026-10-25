@@ -5,10 +5,11 @@
 # ghcid takes no commands once it is running, so a request goes through files.
 # ghcid reloads whenever `trigger` is touched, and after every successful load
 # runs `expression` through its `--test` hook. The expression does nothing
-# unless `request` holds hspec arguments, one per line. When it does, it
-# empties `request`, runs the suite with those arguments and its stdout pointed
-# at `report`, and writes `<examples run> <failures>` to `result` - or, if the
-# run was cut short, `aborted:` and why.
+# unless `request` holds a request id and then hspec arguments, one per line.
+# When it does, it empties `request`, runs the suite with those arguments and
+# its stdout pointed at `report`, and writes `<id> <examples run> <failures>`
+# to `result` - or, if the run was cut short, `<id> aborted:` and why. The id
+# is what keeps a run that a newer request interrupted from answering it.
 #
 # GHC 9.10's multi-unit GHCi refuses `:script`, `:module` and `:main`, so the
 # hook is one expression. It sees no Prelude, so every name in it, operators
@@ -33,9 +34,10 @@ let
   expression = lib.concatStringsSep " " [
     ''do { dir <- System.Environment.getEnv "${stateVariable}"''
     # Read in full before the request is emptied: `readFile` is lazy.
-    ''; args <- Data.List.lines Data.Functor.<$> System.IO.readFile ${path files.request}''
-    ''; _ <- Control.Exception.evaluate (Data.List.length args)''
-    ''; Control.Monad.unless (Data.List.null args) Data.Function.$ do''
+    ''; request <- Data.List.lines Data.Functor.<$> System.IO.readFile ${path files.request}''
+    ''; _ <- Control.Exception.evaluate (Data.List.length request)''
+    ''; case request of { [] -> Control.Monad.return ()''
+    ''; (rid : args) -> do''
     ''{ System.IO.writeFile ${path files.request} ""''
     # hspec has no flag for an output file, so the run points stdout at the
     # report, and `bracket` hands it back to ghcid however the run ends.
@@ -46,11 +48,11 @@ let
     ''(\ghcid -> System.IO.hFlush System.IO.stdout Control.Monad.>> GHC.IO.Handle.hDuplicateTo ghcid System.IO.stdout)''
     ''(\_ -> System.Environment.withArgs args''
     ''(Test.Hspec.Runner.hspecWithResult Test.Hspec.Runner.defaultConfig Main.spec))))''
-    ''; System.IO.writeFile ${path files.result} (Data.Either.either''
+    ''; System.IO.writeFile ${path files.result} (rid Data.List.++ " " Data.List.++ Data.Either.either''
     ''(\e -> "aborted: " Data.List.++ Control.Exception.displayException (e :: Control.Exception.SomeException))''
     ''(\summary -> Data.List.unwords (Data.List.map Text.Show.show''
     ''[Test.Hspec.Runner.summaryExamples summary, Test.Hspec.Runner.summaryFailures summary]))''
-    ''outcome) } }''
+    ''outcome) } } }''
   ];
 in
 {

@@ -22,8 +22,10 @@ daemon.mkClient {
     }
 
     request_run() {
+      REQUEST_ID="$$-$RANDOM-$(date +%s)"
       rm -f "$TEST_REPORT" "$TEST_RESULT"
       {
+        printf '%s\n' "$REQUEST_ID"
         printf '%s\n' ${toString hspecArgs}
         # One pattern however many words, as under `nix run .#test`.
         if [ "$#" -gt 0 ]; then printf '%s\n' --match "$*"; fi
@@ -31,12 +33,13 @@ daemon.mkClient {
       touch "$TEST_TRIGGER"
     }
 
-    # Ends when the hook has written a result, or when it never will.
+    # Ends when the hook has answered this request, or when it never will. A
+    # result for another id is a run this request cut short, so wait past it.
     await_run() {
       deadline=$(( $(date +%s) + ${toString session.testSeconds} ))
-      while [ ! -s "$TEST_RESULT" ]; do
+      until own_result; do
         if ! daemon_alive; then
-          printf 'quick-test: the daemon exited mid-run; see %s\n' "$LOGF" >&2
+          printf '%s: the daemon exited mid-run; see %s\n' "$TOOL" "$LOGF" >&2
           exit 2
         fi
         # An edit landed between the typecheck and the run, and broke it.
@@ -45,24 +48,30 @@ daemon.mkClient {
           exit 1
         fi
         if [ "$(date +%s)" -ge "$deadline" ]; then
-          printf 'quick-test: no result within %ss; see %s\n' \
-            '${toString session.testSeconds}' "$LOGF" >&2
+          printf '%s: no result within %ss; see %s\n' \
+            "$TOOL" '${toString session.testSeconds}' "$LOGF" >&2
           exit 2
         fi
         sleep ${session.pollSeconds}
       done
     }
 
+    own_result() {
+      [ -s "$TEST_RESULT" ] \
+        && [ "$(cut -d ' ' -f 1 "$TEST_RESULT" | head -n 1)" = "$REQUEST_ID" ]
+    }
+
     report_run() {
       result=$(cat "$TEST_RESULT")
+      result=''${result#"$REQUEST_ID "}
       case "$result" in
         aborted:*)
-          printf 'quick-test: the run %s; see %s\n' "$result" "$LOGF" >&2
+          printf '%s: the run %s; see %s\n' "$TOOL" "$result" "$LOGF" >&2
           exit 2
           ;;
         # A filter that selects nothing must not pass vacuously.
         "0 "*)
-          printf 'quick-test: no test matches "%s"\n' "$*" >&2
+          printf '%s: no test matches "%s"\n' "$TOOL" "$*" >&2
           exit 1
           ;;
         *" 0") print_capped "$TEST_REPORT" ;;
