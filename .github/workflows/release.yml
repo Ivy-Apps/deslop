@@ -183,6 +183,26 @@ jobs:
           ghc-version: ${{ env.GHC_VERSION }}
           cabal-version: ${{ env.CABAL_VERSION }}
 
+      # GHC's global package db names the Command Line Tools SDK as a library
+      # and include dir of rts and ghci (where its libffi was found), so every
+      # link passes -L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib.
+      # That symlink follows whichever CLT the image installed last; when it is
+      # a preview whose .tbd stubs name architectures the active Xcode's ld
+      # cannot parse (arm64e.x1), every link fails, a hello world included.
+      # Point those entries at the active Xcode's SDK, which its ld matches.
+      - name: Link against the active Xcode's SDK
+        run: |
+          CLT_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+          XCODE_SDK=$(xcrun --sdk macosx --show-sdk-path)
+          PKG_DB="$(ghc --print-libdir)/package.conf.d"
+          echo "Replacing $CLT_SDK with $XCODE_SDK in $PKG_DB"
+          grep -l "$CLT_SDK" "$PKG_DB"/*.conf | xargs -r sed -i '' "s|$CLT_SDK|$XCODE_SDK|g"
+          ghc-pkg recache --global
+          if ghc-pkg dump --global | grep -q "$CLT_SDK"; then
+            echo "::error::GHC's package db still names $CLT_SDK"
+            exit 1
+          fi
+
       - name: Cache cabal store
         uses: actions/cache@v6
         with:
