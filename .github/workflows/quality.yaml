@@ -60,28 +60,10 @@ jobs:
         with:
           use-flakehub: false
 
-      # Realises the `ci` dev shell and fetches the Hackage index that
-      # `cabal.project`'s pinned index-state requires. Every later step reuses
-      # both, so this is where the one-off setup cost is visible. It also asks
-      # cabal where its store is rather than assuming: on the runner it is the
-      # XDG ~/.local/state/cabal/store, but only because ~/.cabal is absent.
-      - name: ❄️ Toolchain
-        id: toolchain
-        run: |
-          nix develop .#ci --accept-flake-config -c cabal update
-          echo "store-dir=$(nix develop .#ci --accept-flake-config -c cabal path --store-dir)" >> "$GITHUB_OUTPUT"
-
-      # The Hackage packages the Nix shell does not provide, compiled once and
-      # reused until the toolchain or a dependency pin changes. A miss restores
-      # the newest store for this runner, so a pin bump rebuilds only what it
-      # changed. The Hackage index is not cached: at over 1GB it restores no
-      # faster than `cabal update` downloads it.
-      - name: 📦 Cabal store
-        uses: actions/cache@v6
+      - name: ❄️ Toolchain and cabal store
+        uses: ./.github/actions/cabal-store
         with:
-          path: ${{ steps.toolchain.outputs.store-dir }}
-          key: cabal-store-build-test-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'cabal.project', 'cabal.project.freeze', 'deslop.cabal') }}
-          restore-keys: cabal-store-build-test-${{ runner.os }}-${{ runner.arch }}-
+          name: build-test
 
       - name: 🏗️ Build
         run: nix develop .#ci --accept-flake-config -c just build
@@ -126,19 +108,10 @@ jobs:
         with:
           use-flakehub: false
 
-      # As in build-test: the shell, the Hackage index and the store's path.
-      - name: ❄️ Toolchain
-        id: toolchain
-        run: |
-          nix develop .#ci --accept-flake-config -c cabal update
-          echo "store-dir=$(nix develop .#ci --accept-flake-config -c cabal path --store-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: 📦 Cabal store
-        uses: actions/cache@v6
+      - name: ❄️ Toolchain and cabal store
+        uses: ./.github/actions/cabal-store
         with:
-          path: ${{ steps.toolchain.outputs.store-dir }}
-          key: cabal-store-bench-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'cabal.project', 'cabal.project.freeze', 'deslop.cabal') }}
-          restore-keys: cabal-store-bench-${{ runner.os }}-${{ runner.arch }}-
+          name: bench
 
       - name: ⏱️ Build benchmark
         run: nix develop .#ci --accept-flake-config -c just build-bench
