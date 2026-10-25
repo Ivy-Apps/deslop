@@ -4,7 +4,7 @@ import Data.Text qualified as T
 import Data.Version (showVersion)
 import Effects.Git (GitRef (..))
 import Options.Applicative
-import Params (Command (..), Exploration (..), ParamsDto (..), paramsParser, parserPrefs)
+import Params (Command (..), Exploration (..), Opening (..), ParamsDto (..), paramsParser, parserPrefs)
 import Paths_deslop (version)
 import System.Exit (ExitCode (..))
 import System.OsPath (osp)
@@ -34,6 +34,14 @@ spec = describe "Params" $ do
         parseParams ["explore", "--diff-base", "develop"]
             `shouldBe` Just (ParamsDto {command = exploreFrom "develop", projectPath = [osp|.|]})
 
+    it "parses explore's --ci as never opening the page" $
+        parseParams ["explore", "--ci"]
+            `shouldBe` Just (ParamsDto {command = ExploreC Exploration {diffBase = GitRef "main", opening = NeverOpen}, projectPath = [osp|.|]})
+
+    it "refuses --ci on any command but explore" $
+        forM_ ["check", "fix", "baseline"] $ \cmd ->
+            fmap snd (parseOutput [cmd, "--ci"]) `shouldBe` Just (ExitFailure 1)
+
     it "refuses a diff base on any command but explore" $
         forM_ ["check", "fix", "baseline"] $ \cmd ->
             fmap snd (parseOutput [cmd, "--diff-base", "develop"]) `shouldBe` Just (ExitFailure 1)
@@ -60,7 +68,7 @@ spec = describe "Params" $ do
         parseOutput ["--version"] `shouldBe` Just ("Deslop Version " <> showVersion version, ExitSuccess)
         parseOutput ["-v"] `shouldBe` Just ("Deslop Version " <> showVersion version, ExitSuccess)
   where
-    exploreFrom = ExploreC . Exploration . GitRef
+    exploreFrom ref = ExploreC Exploration {diffBase = GitRef ref, opening = OpenWhenAttended}
 
 parseParams :: [String] -> Maybe ParamsDto
 parseParams = getParseResult . execParserPure parserPrefs paramsParser
@@ -96,7 +104,7 @@ helpText =
 exploreHelpText :: String
 exploreHelpText =
     toString . T.intercalate "\n" $
-        [ "Usage: deslop explore [PROJECT_DIR] [--diff-base REF]"
+        [ "Usage: deslop explore [PROJECT_DIR] [--diff-base REF] [--ci]"
         , ""
         , "  Write an interactive module graph to deslop/diagram/index.html"
         , ""
@@ -104,6 +112,7 @@ exploreHelpText =
         , "  PROJECT_DIR              Path to the project (default: \".\")"
         , "  --diff-base REF          Mark the modules changed since this branch left REF"
         , "                           (origin/REF when the remote has it) (default: main)"
+        , "  --ci                     Never open the page in a browser, even on a terminal"
         , "  -h,--help                Show this help text"
         , ""
         , "Global options:"

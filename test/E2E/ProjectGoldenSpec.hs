@@ -8,6 +8,7 @@ import Deslop (doWork)
 import Deslop.Error (DeslopError (..))
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.RunReport (RunReport (..), Verdict (..))
+import Doubles.Browser (runBrowserInMemory, unattended)
 import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, renderTranscript, runMockCLI)
 import Doubles.FileSystem (runWritesInMemory)
 import Doubles.Git (Repository (..), noChanges, runGitInMemory)
@@ -33,7 +34,7 @@ import Fixtures.OnDisk (Language (..), inCopyOf, languageDir, projectIn)
 import Frontend.TypeScript (TsFrontend (..))
 import Git.Ignore (loadGitIgnore)
 import Git.SourceLink (Branch (..), DiffAnchors (..), Forge (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..))
-import Params (Command (..), Exploration (..), Params (..))
+import Params (Command (..), Exploration (..), Opening (..), Params (..))
 import Renderable qualified
 import System.Directory.OsPath (removeFile)
 import System.File.OsPath qualified as SFO
@@ -226,6 +227,7 @@ runDeslopIn repo writes command projectPath = do
             . runReportProblem
             . runConcurrent
             . runGitInMemory repo
+            . runBrowserInMemory unattended
             $ doWork Params {projectPath = absProjectPath, command}
     Run result <$> readIORef logsRef <*> readIORef writtenRef
   where
@@ -502,7 +504,7 @@ onGitHub =
 
 -- | Explore, marking what changed since @main@.
 explore :: Command
-explore = ExploreC Exploration {diffBase = GitRef "main"}
+explore = ExploreC Exploration {diffBase = GitRef "main", opening = OpenWhenAttended}
 
 -- | The text of every page a run wrote.
 pages :: Run -> [Text]

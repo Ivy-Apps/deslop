@@ -90,6 +90,7 @@ library
     Deslop.Rule.Enforcer
     Deslop.Rule.Lint.CycleDetection
     Deslop.RunReport
+    Effects.Browser
     Effects.CLI
     Effects.Concurrency
     Effects.FileSystem
@@ -222,6 +223,7 @@ test-suite deslop-test
     Deslop.Rule.Book.LoaderSpec
     Deslop.Rule.EnforcerSpec
     Deslop.Rule.Lint.CycleDetectionSpec
+    Doubles.Browser
     Doubles.CLI
     Doubles.FileSystem
     Doubles.Git
@@ -229,6 +231,7 @@ test-suite deslop-test
     E2E.CommandLineSpec
     E2E.FileSpec
     E2E.ProjectGoldenSpec
+    Effects.BrowserSpec
     Effects.FileSystemSpec
     Effects.GitSpec
     Effects.ReportProblemSpec

@@ -27,6 +27,7 @@ import Effectful (Eff, IOE, runEff, type (:>))
 import Effectful.Concurrent (Concurrent, runConcurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Reader.Static (runReader)
+import Effects.Browser (Attendance (..), Browser, LaunchFailure (..), browserAttendance, browserOpen, runBrowserIO)
 import Effects.CLI (CLI, LogStyle (..), cliLog, runCLI)
 import Effects.FileSystem (
     RoFileSystem,
@@ -48,7 +49,7 @@ import FileSystem.Path (
  )
 import Frontend (detectFrontend, lookedFor)
 import Git.SourceLink (Forge (..), PullRequest, Revision (..), SourceLinks (..))
-import Params (Command (..), Exploration (..), Params (..), ParamsDto (..), paramsFromDto)
+import Params (Command (..), Exploration (..), Opening (..), Params (..), ParamsDto (..), paramsFromDto)
 import System.Exit (ExitCode (..))
 import System.OsPath (osp, takeFileName)
 import UI (divider, humanReadable, problemsFoundText, problemsLogText, summaryLine)
@@ -59,7 +60,7 @@ exiting as it says.
 -}
 runDeslop :: ParamsDto -> IO ()
 runDeslop =
-    exitWith <=< runEff . runFileSystemIO . runCLI . runConcurrent . runGitIO . deslop
+    exitWith <=< runEff . runFileSystemIO . runCLI . runConcurrent . runGitIO . runBrowserIO . deslop
 
 {- | One whole run of a command, from the command line's parameters to the exit
 code a CI job gates on: non-zero, with the reason logged as an 'Error', when the
@@ -72,6 +73,7 @@ deslop ::
     , IOE :> es
     , Concurrent :> es
     , Git :> es
+    , Browser :> es
     ) =>
     ParamsDto ->
     Eff es ExitCode
@@ -102,6 +104,7 @@ doWork ::
     , ReportProblem :> es
     , Error DeslopError :> es
     , Git :> es
+    , Browser :> es
     ) =>
     Params ->
     Eff es RunReport
@@ -115,7 +118,7 @@ doWork params = do
     (summary, modules) <- deslopProject params fe rulebooks baseline
     case params.command of
         ExploreC exploration -> do
-            writeExplorer projectRoot exploration.diffBase modules
+            writeExplorer projectRoot exploration modules
             pure RunReport {summary = summary, verdict = Clean}
         FixC -> do
             ps <- compactProblems . applyBaseline baseline <$> getProblems
@@ -238,18 +241,18 @@ enforcesRules BaselineC = True
 enforcesRules FixC = False
 enforcesRules (ExploreC _) = False
 
-{- | Writes the explorer page to @deslop/diagram/index.html@, then says where
-to open it.
+{- | Writes the explorer page to @deslop/diagram/index.html@, says where it
+is, then opens it as the Exploration asks.
 -}
 writeExplorer ::
-    (WrFileSystem :> es, CLI :> es, Git :> es) =>
+    (WrFileSystem :> es, CLI :> es, Git :> es, Browser :> es) =>
     ProjectRoot ->
-    GitRef ->
+    Exploration ->
     [Module] ->
     Eff es ()
-writeExplorer projectRoot diffBase modules = do
+writeExplorer projectRoot exploration modules = do
     changed <-
-        gitChangedFiles projectRoot diffBase >>= \case
+        gitChangedFiles projectRoot exploration.diffBase >>= \case
             Right files -> pure files
             Left reason -> mempty <$ cliLog Plain ("No diff to show: " <> noDiffText reason)
     sourceLinks <- gitSourceLinks projectRoot
@@ -258,9 +261,26 @@ writeExplorer projectRoot diffBase modules = do
     fsWriteFile page . encodeUtf8 . explorerPage $ diagramOf sourceLinks pullRequest changed modules
     cliLog Success $
         "✅ Success: Explorer written to " <> portablePath (relativePathTo projectRoot page)
+    openExplorer exploration.opening page
   where
     dir = withAbsBaseUnsafe projectRoot.path [osp|deslop/diagram|]
     page = withAbsBaseUnsafe dir [osp|index.html|]
+
+{- | Opens the written page in the default browser, when asked to and a person
+is there to see it. A browser that will not open is a note: the page is
+written all the same.
+-}
+openExplorer :: (CLI :> es, Browser :> es) => Opening -> AbsPath -> Eff es ()
+openExplorer NeverOpen _ = pure ()
+openExplorer OpenWhenAttended page =
+    browserAttendance >>= \case
+        Unattended -> pure ()
+        Attended -> browserOpen page >>= either (cliLog Warning . ("Could not open the explorer in a browser: " <>) . launchFailureText) pure
+
+launchFailureText :: LaunchFailure -> Text
+launchFailureText = \case
+    LauncherMissing launcher -> launcher <> " is not installed."
+    LauncherFailed launcher code -> launcher <> " exited with " <> show code <> "."
 
 {- | The pull request the changed files' diff is opened in. Asked of @gh@, over
 the network, only when there is a changed file and a pull request to anchor its

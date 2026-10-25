@@ -65,3 +65,15 @@ jobs:
 
       - name: ✨ Own Deslop rules (dogfood)
         run: nix develop .#ci --accept-flake-config -c just deslop-self
+
+      # CI-only: the explorer of this repository, as the binary just built
+      # draws it, for a reviewer to download and open.
+      - name: 🗺️ Explorer
+        run: nix develop .#ci --accept-flake-config -c cabal run -v0 deslop -- explore . --ci
+
+      - name: 📦 Upload explorer
+        uses: actions/upload-artifact@v7
+        with:
+          name: explorer
+          path: deslop/diagram/index.html
+          if-no-files-found: error

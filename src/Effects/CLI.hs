@@ -8,8 +8,10 @@ the time they arrive here; all this adds is a colour and a stream.
 module Effects.CLI (
     CLI (..),
     LogStyle (..),
+    Stdout (..),
     cliLog,
     cliReadLine,
+    cliStdout,
     runCLI,
 ) where
 
@@ -18,7 +20,7 @@ import Data.Text.IO qualified as TIO
 import Effectful
 import Effectful.Dispatch.Dynamic
 import System.Console.ANSI
-import System.IO (hPutStr)
+import System.IO (hIsTerminalDevice, hPutStr)
 
 -- | How a message is rendered: its colour and which stream it goes to.
 data LogStyle
@@ -36,9 +38,14 @@ data LogStyle
       Plain
     deriving stock (Show, Eq)
 
+-- | Where the run's standard output goes.
+data Stdout = ToTerminal | Redirected
+    deriving stock (Show, Eq)
+
 data CLI :: Effect where
     Log :: LogStyle -> Text -> CLI m ()
     ReadLine :: CLI m Text
+    StdoutIs :: CLI m Stdout
 
 type instance DispatchOf CLI = 'Dynamic
 
@@ -47,6 +54,10 @@ cliLog style = send . Log style
 
 cliReadLine :: (CLI :> es) => Eff es Text
 cliReadLine = send ReadLine
+
+-- | Whether standard output is a terminal a person may be reading.
+cliStdout :: (CLI :> es) => Eff es Stdout
+cliStdout = send StdoutIs
 
 runCLI :: (IOE :> es) => Eff (CLI : es) a -> Eff es a
 runCLI = interpret $ \_ -> \case
@@ -57,6 +68,7 @@ runCLI = interpret $ \_ -> \case
     Log Change msg -> liftIO . cyanBold $ msg
     Log Plain msg -> liftIO . plainOut $ msg
     ReadLine -> liftIO getLine
+    StdoutIs -> liftIO $ hIsTerminalDevice stdout <&> bool Redirected ToTerminal
 
 --------------------------------------------------------------------------------
 -- Colour primitives

@@ -16,13 +16,17 @@ module E2E.CommandLineSpec (spec) where
 import Data.Text qualified as T
 import Data.Version (showVersion)
 import Deslop (deslop)
-import Deslop.Command (Command (..))
+import Deslop.Command (Command (..), Exploration (..), Opening (..))
+import Doubles.Browser (Desktop (..), runBrowserInMemory, unattended)
 import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, runMockCLI)
 import Doubles.Git (noChanges, runGitInMemory)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
+import Effects.Browser (Attendance (..), LaunchFailure (..))
 import Effects.CLI (LogStyle (..))
 import Effects.FileSystem (runFileSystemIO)
+import Effects.Git (GitRef (..))
+import FileSystem.Path (AbsPath, decodeOsPath, withAbsBaseUnsafe)
 import Fixtures.OnDisk (Language (..), inCopyOf, projectIn)
 import Options.Applicative (ParserResult (Failure), execParserPure, renderFailure)
 import Params (ParamsDto (..), paramsParser, parserPrefs)
@@ -30,6 +34,7 @@ import Paths_deslop (version)
 import System.Exit (ExitCode (..))
 import System.OsPath (OsPath, osp)
 import Test.Hspec
+import TestUtils (ap)
 
 -- | How a run ended, and every message it logged.
 data Ran = Ran
@@ -38,7 +43,11 @@ data Ran = Ran
     }
 
 run :: Command -> OsPath -> IO Ran
-run command projectPath = do
+run = runAt unattended
+
+-- | As 'run', at the desktop.
+runAt :: Desktop -> Command -> OsPath -> IO Ran
+runAt desktop command projectPath = do
     logsRef <- newIORef (TestLogs [])
     exitCode <-
         runEff
@@ -46,6 +55,7 @@ run command projectPath = do
             . runMockCLI defaultMockCLI {logsRef = Just logsRef}
             . runConcurrent
             . runGitInMemory noChanges
+            . runBrowserInMemory desktop
             . deslop
             $ ParamsDto {command, projectPath}
     Ran exitCode <$> readIORef logsRef
@@ -53,6 +63,21 @@ run command projectPath = do
 -- | The messages a run logged in the given style, in order.
 loggedAs :: LogStyle -> Ran -> [Text]
 loggedAs style ran = [msg | (s, msg) <- ran.logs.transcript, s == style]
+
+{- | Explores the project at a desktop whose browser answers the launch, and
+returns the pages it was asked to open.
+-}
+exploreAt :: Attendance -> Either LaunchFailure () -> Opening -> OsPath -> IO ([AbsPath], Ran)
+exploreAt attendance launch opening projectPath = do
+    openedRef <- newIORef []
+    ran <- runAt Desktop {attendance, launch, openedRef = Just openedRef} explore projectPath
+    (,ran) <$> readIORef openedRef
+  where
+    explore = ExploreC Exploration {diffBase = GitRef "main", opening}
+
+-- | Where explore writes the page of the project at the path.
+page :: OsPath -> AbsPath
+page projectPath = withAbsBaseUnsafe (ap . decodeOsPath $ projectPath) [osp|deslop/diagram/index.html|]
 
 {- | What the command line answers for arguments it does not turn into a run:
 the text it prints and the exit code. The text goes to stdout when the code
@@ -93,6 +118,34 @@ spec = describe "E2E.CommandLine" $ do
 
             ran.exitCode `shouldBe` ExitFailure 1
             loggedAs Error ran `shouldSatisfy` any (T.isPrefixOf "❌ Error: Could not load 4 rulebooks.")
+
+    describe "explore" $ do
+        it "opens the written page in the browser when a person is there" $
+            inCopyOf TypeScript "ts-cycles-project" $ \tmp -> do
+                (opened, ran) <- exploreAt Attended (Right ()) OpenWhenAttended tmp
+
+                ran.exitCode `shouldBe` ExitSuccess
+                opened `shouldBe` [page tmp]
+
+        it "never opens the page when nobody is there" $
+            inCopyOf TypeScript "ts-cycles-project" $ \tmp -> do
+                (opened, ran) <- exploreAt Unattended (Right ()) OpenWhenAttended tmp
+
+                (ran.exitCode, opened) `shouldBe` (ExitSuccess, [])
+
+        it "never opens the page with --ci, even when a person is there" $
+            inCopyOf TypeScript "ts-cycles-project" $ \tmp -> do
+                (opened, ran) <- exploreAt Attended (Right ()) NeverOpen tmp
+
+                (ran.exitCode, opened) `shouldBe` (ExitSuccess, [])
+
+        it "notes a browser that would not open, and exits zero" $
+            inCopyOf TypeScript "ts-cycles-project" $ \tmp -> do
+                (_, ran) <- exploreAt Attended (Left $ LauncherMissing "xdg-open") OpenWhenAttended tmp
+
+                ran.exitCode `shouldBe` ExitSuccess
+                loggedAs Warning ran `shouldBe` ["Could not open the explorer in a browser: xdg-open is not installed."]
+                loggedAs Error ran `shouldBe` []
 
     describe "the command line" $ do
         it "prints the version" $

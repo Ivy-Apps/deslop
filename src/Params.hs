@@ -8,13 +8,14 @@ module Params (
     ParamsDto (..),
     Command (..),
     Exploration (..),
+    Opening (..),
     paramsFromDto,
 )
 where
 
 import Data.Text qualified as T
 import Data.Version (showVersion)
-import Deslop.Command (Command (..), Exploration (..))
+import Deslop.Command (Command (..), Exploration (..), Opening (..))
 import Effectful (Eff, (:>))
 import Effects.FileSystem (RoFileSystem, fsMkAbsolute)
 import Effects.Git (GitRef (..))
@@ -78,6 +79,7 @@ pExploration =
                 <> value (GitRef "main")
                 <> showDefaultWith (toString . (.text))
             )
+        <*> flag OpenWhenAttended NeverOpen (long "ci" <> help "Never open the page in a browser, even on a terminal")
 
 -- | A ref git would read as an option is no ref: refused before it reaches git.
 readGitRef :: String -> Either String GitRef
