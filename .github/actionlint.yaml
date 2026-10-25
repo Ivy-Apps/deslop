@@ -1,0 +1,7 @@
+self-hosted-runner:
+  # GitHub-hosted labels newer than actionlint's built-in list. Not
+  # self-hosted: this is actionlint's only way to accept an unknown label.
+  # windows-2025-vs2026 is the image windows-latest resolved to when
+  # release.yml pinned it.
+  labels:
+    - windows-2025-vs2026
