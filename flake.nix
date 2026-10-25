@@ -43,6 +43,20 @@
 
           sysLibs = [ pkgs.zlib pkgs.xz ];
 
+          # Behind `just test-js`: node runs the explorer page's tests, which
+          # require fast-check from NODE_PATH. node_modules is built from the
+          # committed explorer/package-lock.json, every tarball pinned by its
+          # integrity hash, so the tests need no network. Only the two JSON
+          # files are read, so an edit to the page does not rebuild it.
+          explorerTests = {
+            packages = [ pkgs.nodejs ];
+            nodePath = "${pkgs.importNpmLock.buildNodeModules {
+              nodejs = pkgs.nodejs;
+              package = pkgs.lib.importJSON ./explorer/package.json;
+              packageLock = pkgs.lib.importJSON ./explorer/package-lock.json;
+            }}/node_modules";
+          };
+
           # Convenience runners that delegate to the appropriate dev shell.
           # They compile with the Justfile's `parallel` -j4, for the same
           # reasons; keep the two in step.
@@ -189,9 +203,10 @@
                 # The Git.Ignore property tests use `git check-ignore` as an
                 # oracle, so the test suite needs a git binary on PATH.
                 pkgs.git
-              ];
+              ] ++ explorerTests.packages;
 
               buildInputs = sysLibs;
+              NODE_PATH = explorerTests.nodePath;
             };
 
             default = hpkgs.shellFor {
@@ -224,9 +239,10 @@
                 ghcidTools.quickTypecheck
                 ghcidTools.quickTest
                 ghcidTools.stop
-              ];
+              ] ++ explorerTests.packages;
 
               buildInputs = sysLibs;
+              NODE_PATH = explorerTests.nodePath;
 
               shellHook = ''
                 export PATH=$(echo $PATH | tr ':' '\n' | grep -v "ghcup" | tr '\n' ':')

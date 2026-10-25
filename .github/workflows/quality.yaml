@@ -57,6 +57,9 @@ jobs:
       - name: 🧪 Test
         run: nix develop .#ci --accept-flake-config -c just test
 
+      - name: 🧪 Explorer tests
+        run: nix develop .#ci --accept-flake-config -c just test-js
+
       - name: 🏖️ Integration
         run: nix develop .#ci --accept-flake-config -c just integration
 
