@@ -67,6 +67,8 @@ Then write your first rulebook in `deslop/rules/` — see [Writing Rules](#writi
 
 `deslop explore` marks the modules changed since the branch left `main` (`origin/main` when the remote has it), committed or not, for its "Diff only" view. `--diff-base <ref>` measures from another branch instead.
 
+It prints where it wrote the page and, on a terminal outside CI (no `CI` variable), opens it in your default browser. `--ci` never opens it. `deslop/diagram/` is one self-contained static folder: add it to your `.gitignore`, open it from disk, or host it anywhere.
+
 ### CI with GitHub Actions
 
 <details>
@@ -96,6 +98,51 @@ jobs:
       - run: npm ci
 
       - run: npm run deslop
+```
+</details>
+
+<details>
+<summary>Example: the explorer as a Vercel preview on each pull request</summary>
+
+An example to adapt, not something Deslop runs for you. It needs a Vercel
+project (`vercel link` once, locally) and three repository secrets:
+`VERCEL_TOKEN`, plus `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` from the
+`.vercel/project.json` that `vercel link` writes.
+
+```yaml
+name: Explorer preview
+
+on:
+  pull_request:
+
+jobs:
+  explorer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # The whole history, so the explorer can mark what this PR changed.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      # Assumes Deslop is in devDependencies
+      - run: npm ci
+
+      - run: npx deslop explore . --ci --diff-base ${{ github.base_ref }}
+
+      # A preview deployment (no --prod) of the static folder, linked from the job summary
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          url=$(npx vercel@latest deploy deslop/diagram --yes --token "$VERCEL_TOKEN")
+          echo "Explorer: $url" >> "$GITHUB_STEP_SUMMARY"
 ```
 </details>
 

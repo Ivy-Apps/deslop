@@ -51,9 +51,13 @@ Keep this file out of `rules/`: Deslop reads every file there as a Rulebook.
 ## The explorer
 
 `deslop explore .` writes Deslop's own module graph to `diagram/index.html`:
-one self-contained page that works offline, opened in a browser. It is
-generated, so git ignores it; write it with:
+one self-contained page that works offline. It is generated, so git ignores
+it. Write it, and on a terminal open it in your browser, with (`--ci` only
+writes it):
 
 ```bash
 "$(nix develop .#ci -c cabal list-bin deslop)" explore .
 ```
+
+CI writes it the same way, with `--ci`, and uploads it as the `explorer`
+artifact of each Quality run.
