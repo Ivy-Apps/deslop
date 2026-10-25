@@ -1,3 +1,12 @@
+# Compile modules in parallel: GHC builds one at a time otherwise. Bounded at
+# four rather than every core, so a many-core machine does not multiply the
+# memory one build needs. Passed here, not set in cabal.project, so it stays out
+# of the ghcid session's unit files (see nix/ghcid/session.nix). Cabal leaves
+# `-j` out of its change detection, so a build with it and one without reuse
+# each other's dist-newstyle. The Nix build passes its own -j. flake.nix repeats
+# this for `nix run .#build` and `nix run .#test`; keep the two in step.
+parallel := "--ghc-options=-j4"
+
 # By default, list all available commands
 default:
     @just --list
@@ -35,7 +44,7 @@ lint-actions:
 
 # Compile the library and the executable
 build:
-    cabal build all
+    cabal build all {{parallel}}
 
 # Compile the benchmark. CI runs this; the dev shells do not carry the
 # benchmark's dependencies, so it needs `cabal update` first.
@@ -44,7 +53,7 @@ build-bench:
 
 # Run the test suite
 test:
-    cabal test all
+    cabal test all {{parallel}}
 
 # End-to-end run of the CLI against a freshly generated sandbox project
 integration:
@@ -109,6 +118,11 @@ update-benchmark:
 # Does the project typecheck? Fast inner loop, NOT a quality gate: see `check`
 @quick-typecheck:
     ai-quick-typecheck
+
+# Do the tests pass? Optionally filtered: `just quick-test Lexer`. Fast inner
+# loop in the quick-typecheck session, NOT a quality gate: see `check`
+@quick-test *filter:
+    ai-quick-test {{filter}}
 
 # Stop every background ghcid daemon behind `just quick-typecheck`
 @stop-ghcid:
