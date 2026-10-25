@@ -110,6 +110,11 @@ update-benchmark:
 @quick-typecheck:
     ai-quick-typecheck
 
+# Do the tests pass? Optionally filtered: `just quick-test Lexer`. Fast inner
+# loop in the quick-typecheck session, NOT a quality gate: see `check`
+@quick-test *filter:
+    ai-quick-test {{filter}}
+
 # Stop every background ghcid daemon behind `just quick-typecheck`
 @stop-ghcid:
     deslop-ghcid-stop

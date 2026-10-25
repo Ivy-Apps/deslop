@@ -125,9 +125,10 @@
             '';
           };
 
-          # The ghcid daemon behind `nix run .#quick-typecheck`, and the tool
-          # `just stop-ghcid` uses to retire every session on the machine.
-          ghcidTools = import ./nix/ghcid.nix { inherit pkgs; };
+          # The ghcid daemon behind `nix run .#quick-typecheck` and
+          # `nix run .#quick-test`, and the tool `just stop-ghcid` uses to
+          # retire every session on the machine.
+          ghcidTools = import ./nix/ghcid { inherit pkgs; };
 
         in
         {
@@ -138,6 +139,10 @@
             quick-typecheck = {
               type = "app";
               program = "${ghcidTools.quickTypecheck}/bin/ai-quick-typecheck";
+            };
+            quick-test = {
+              type = "app";
+              program = "${ghcidTools.quickTest}/bin/ai-quick-test";
             };
             update-golden = {
               type = "app";
@@ -207,11 +212,13 @@
                 # ghcid by store path and does not need it here. Kept out of the
                 # `ci` shell so CI never realises this closure.
                 pkgs.ghcid
-                # Behind `just quick-typecheck` and `just stop-ghcid`. The app
-                # under `nix run .#quick-typecheck` is the same program; having
-                # it here lets the recipe call it directly, as every other
-                # recipe calls its tool, and skips a flake evaluation per check.
+                # Behind `just quick-typecheck`, `just quick-test` and
+                # `just stop-ghcid`. The apps under `nix run` are the same
+                # programs; having them here lets the recipes call them
+                # directly, as every other recipe calls its tool, and skips a
+                # flake evaluation per check.
                 ghcidTools.quickTypecheck
+                ghcidTools.quickTest
                 ghcidTools.stop
               ];
 

@@ -47,10 +47,11 @@ the common path, and fifteen times faster when the answer is already known.
 `nix run .#build`, `nix run .#test` and `nix run .#lint` remain the gates, and
 `CLAUDE.md` says so at the point where the command is introduced.
 
-The implementation lives in `nix/ghcid.nix`, not `flake.nix`, which it would
-otherwise more than double in length. It is three small programs composed in
-Nix rather than one script with a subcommand dispatcher: `ai-quick-typecheck`,
-`deslop-ghcid-stop` and the internal `deslop-ghcid-watchdog`. What the session
+The implementation lives in `nix/ghcid/`, not `flake.nix`, which it would
+otherwise more than double in length. It is small programs composed in Nix
+rather than one script with a subcommand dispatcher: `ai-quick-typecheck`,
+`ai-quick-test` (see the addendum below), `deslop-ghcid-stop` and the internal
+`deslop-ghcid-watchdog`. What the session
 covers, which files force a restart, and every timing constant are Nix values,
 so the shell is left with control flow and nothing else. Each program is handed
 only the state it actually uses; `deslop-ghcid-stop` is machine-wide and so
@@ -232,3 +233,33 @@ which is the only cleanup on offer and is deliberately all that is.
   and the repository stays clean, at the cost of the state being less obvious to
   find than a directory sitting in the project root.
 - CI is untouched. The `ci` shell gains nothing and no workflow calls the app.
+
+## Addendum (2026-10-25): quick-test runs in the same session
+
+Agents' `nix run .#test -- <filter>` was measured at a median 24s per call, for
+a filtered suite that runs in 0.02s: the rest is cabal recompiling and
+relinking after an edit. `nix run .#quick-test [-- <filter>]` runs the hspec
+suite inside the quick-typecheck session instead, so it costs a reload.
+Measured on a 4-core Linux box: ~3s for `quick-test -- Lexer` (153 examples)
+after a one-line edit, and ~48s for the whole suite, which runs interpreted
+against ~8s compiled.
+
+It shares the daemon rather than starting a second one, because a session
+holds ~850MB and agents run several worktrees at once. ghcid takes no commands
+once running, so a run is requested through files in the daemon's state
+directory: `quick-test` writes the hspec arguments and touches a file ghcid
+`--reload`s on, and ghcid's `--test` hook, which runs after every successful
+load, runs the suite when arguments are waiting. The protocol is in
+`nix/ghcid/test-hook.nix`.
+
+Two constraints of GHC 9.10's multi-unit GHCi shape the hook. It evaluates
+expressions in the first unit only, so the test suite is now listed first;
+listed after the library, hspec and `Main.spec` are out of scope. And it
+refuses `:script`, `:module` and `:main`, so the hook is one Haskell expression
+with every name fully qualified. hspec has no output-file flag, so the hook
+points stdout at a report file and restores it with `bracket`.
+
+`cabal.project` compiles with `-j4`, which halved a cold `cabal build` (86s to
+53s) and a cold `cabal test` (225s to 127s). The session overrides it with
+`--repl-options=-j1`: loading in parallel left it holding 1.17GB instead of
+0.83GB for its whole life, to save seconds once.

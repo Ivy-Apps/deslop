@@ -4,39 +4,52 @@
 
 All cabal/GHC commands must run inside the Nix dev shell using our `nix run` commands.
 
-### Fast feedback
+### The check ladder
 
-While iterating on code, use this instead of a full build:
+1. While iterating: `nix run .#quick-typecheck`, then
+   `nix run .#quick-test [-- <filter>]` once it is green.
+2. Once, before handing back: `nix develop .#ci -c just check`. It already runs
+   the build, the tests and hlint, so never run `nix run .#build`, `.#test` or
+   `.#lint` before it.
+3. After an edit that touches no code (docs only), run nothing.
+
+### Fast feedback
 
 ```bash
 nix run .#quick-typecheck
+nix run .#quick-test -- Lexer    # or no filter for the whole suite
 ```
 
-It answers exactly one question, "does the project typecheck", by keeping a warm
-`ghcid` session over the library, the executable and the tests (not the
-benchmark, which only CI compiles). It prints either `All good (<N> modules)`
-and exits 0, or the GHC errors verbatim and exits 1. There is no need to pipe it
-through `grep`.
+Both keep one warm `ghcid` session per worktree over the library, the
+executable and the tests (not the benchmark, which only CI compiles), so an edit
+costs a reload instead of a recompile and relink.
 
-Roughly 0.5s when nothing broke and ~2s when something did, against ~8s for
-`nix run .#build`. The first call after a break starts the session and takes
-~15s; every call after that is fast, so just run it and keep going.
+`quick-typecheck` answers "does the project typecheck". It prints either
+`All good (<N> modules)` and exits 0, or the GHC errors verbatim and exits 1.
+There is no need to pipe it through `grep`. Roughly 0.5s when nothing broke and
+~2s when something did. The first call after a break starts the session and
+takes ~20s; every call after that is fast, so just run it and keep going.
 
-**This is not a quality gate.** The session is interpreted, so it does not run
-tests, does not run `hlint`, does not link, and does not compile with `-O2`. Use
-it to converge quickly, then finish with the real checks below. **You are not
-done until `nix run .#build`, `nix run .#test` and `nix run .#lint` pass.**
+`quick-test` typechecks the same way, then runs the hspec suite inside the
+session, filtered like `nix run .#test -- <filter>`. It prints only failures
+and the summary line, and exits 0 when they pass, 1 on a GHC error, a failing
+test or a filter that matches nothing. A filtered run takes ~3s after an edit,
+against ~25s for `nix run .#test -- <filter>`. The whole suite runs
+interpreted, ~48s, so filter while iterating.
+
+**Neither is a quality gate.** The session is interpreted, so it does not run
+`hlint`, does not link, and does not compile with `-O2`. Use them to converge
+quickly, then finish with `just check`.
 
 Notes:
 
 - Editing `deslop.cabal` restarts the session, so that check costs ~8s.
 - A new module is invisible to the session until it is registered in
   `deslop.cabal`. Until then the check refuses to report and names the file.
-- Long error output is truncated; the printed path holds the full text.
-- Exit codes: 0 typechecks, 1 GHC errors, 2 no usable verdict (the reason goes
-  to stderr).
+- Long output is truncated; the printed path holds the full text.
+- Exit code 2 means no usable verdict; the reason goes to stderr.
 - You should not normally need to stop the daemon: it retires itself after 30
-  minutes idle. To reclaim the ~700MB now, run `nix develop -c just stop-ghcid`
+  minutes idle. To reclaim the ~850MB now, run `nix develop -c just stop-ghcid`
   from the repo root. It stops every daemon on the machine, including ones other
   worktrees are still using, so do not run it as routine cleanup.
 

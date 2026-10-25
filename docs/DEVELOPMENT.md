@@ -67,9 +67,10 @@ nix run .#test -- Parser
 ```
 
 While iterating, `nix run .#quick-typecheck` answers "does this typecheck" in
-about half a second by keeping a warm `ghcid` session. It is an inner loop, not
-a gate: it does not run tests, lint or link. You are not done until `build`,
-`test` and `lint` pass.
+about half a second by keeping a warm `ghcid` session, and
+`nix run .#quick-test [-- <filter>]` runs the tests inside it in a few seconds.
+They are an inner loop, not a gate: they do not lint or link. You are not done
+until `just check` passes.
 
 Inside `nix develop`, [`just`](https://github.com/casey/just) provides
 additional workflows (`just --list` for all of them):
