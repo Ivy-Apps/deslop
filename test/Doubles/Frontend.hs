@@ -28,7 +28,7 @@ import Data.Text.Encoding qualified as TE
 import Deslop.Error (Warning (..))
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Frontend.Finding (fixable, unfixable, within)
-import Deslop.Module (Location (..), Module (..), moduleIdUnsafe, moduleNameUnsafe)
+import Deslop.Module (Location (..), Module (..), ModuleRole (Source), moduleIdUnsafe, moduleNameUnsafe)
 import Deslop.Problem (LintRuleId (..), Problem (..))
 import Deslop.Problem.Formatter (CodeFence (..))
 import Effectful.Reader.Static (ask)
@@ -142,4 +142,5 @@ instance CompilerFrontend LinesFrontend where
                     , names = moduleNameUnsafe (portablePath located) :| []
                     , path = located
                     , edges = []
+                    , role = Source
                     }

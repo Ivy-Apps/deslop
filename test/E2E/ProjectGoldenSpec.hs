@@ -1,6 +1,7 @@
 module E2E.ProjectGoldenSpec (spec) where
 
 import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Deslop (doWork)
@@ -9,11 +10,13 @@ import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.RunReport (RunReport (..), Verdict (..))
 import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, renderTranscript, runMockCLI)
 import Doubles.FileSystem (runWritesInMemory)
+import Doubles.Git (Repository (..), noChanges, runGitInMemory)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.CLI (LogStyle (..))
 import Effects.FileSystem (runFileSystemIO, runRoFileSystemIO)
+import Effects.Git (GitRef (..), NoPullRequest (..))
 import Effects.ReportProblem (runReportProblem)
 import FileSystem.Path (
     AbsPath (osPath),
@@ -27,6 +30,7 @@ import FileSystem.Path (
 import Fixtures.OnDisk (Language (..), inCopyOf, languageDir, projectIn)
 import Frontend.TypeScript (TsFrontend (..))
 import Git.Ignore (loadGitIgnore)
+import Git.SourceLink (DiffAnchors (..), PullRequest (..), SourceBase (..), SourceLinks (..))
 import Params (Command (..), Params (..))
 import Renderable qualified
 import System.Directory.OsPath (removeFile)
@@ -34,7 +38,7 @@ import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (Golden, defaultGolden)
-import TestUtils (mkAbsolute, requireJust, snapshot)
+import TestUtils (mkAbsolute, requireJust, rp, snapshot)
 import UI (coverage, humanReadable, problemsFoundText)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -88,6 +92,14 @@ spec = describe "E2E.Project" $ do
     itBaselines TypeScript "ts-not-utf8-project"
 
     itIterates "ts-gitignore-project"
+
+    itDiagrams "ixartz-next-js-boilerplate"
+    itDiagramsWithoutPullRequest GhMissing
+    itDiagramsWithoutPullRequest NoneFound
+    itAsksNoPullRequestWithoutChanges
+    itAsksGitNothing CheckC
+    itAsksGitNothing FixC
+    itAsksGitNothing BaselineC
 
     itFixes
         TypeScript
@@ -195,7 +207,11 @@ data Run = Run
 
 -- | Runs one command over the project at the path, collecting what it leaves behind.
 runDeslopOn :: Writes -> Command -> OsPath -> IO Run
-runDeslopOn writes command projectPath = do
+runDeslopOn = runDeslopIn noChanges
+
+-- | As 'runDeslopOn', in this repository.
+runDeslopIn :: Repository -> Writes -> Command -> OsPath -> IO Run
+runDeslopIn repo writes command projectPath = do
     absProjectPath <- mkAbsolute projectPath
     writtenRef <- newIORef mempty
     logsRef <- newIORef (TestLogs [])
@@ -206,7 +222,8 @@ runDeslopOn writes command projectPath = do
             . runMockCLI defaultMockCLI {logsRef = Just logsRef}
             . runReportProblem
             . runConcurrent
-            $ doWork Params {projectPath = absProjectPath, command}
+            . runGitInMemory repo
+            $ doWork Params {projectPath = absProjectPath, command, diffBase = GitRef "main"}
     Run result <$> readIORef logsRef <*> readIORef writtenRef
   where
     fileSystem writtenRef = case writes of
@@ -390,6 +407,82 @@ itReportsRulebookBeforeLanguage project =
     it ("reports the broken rulebooks of " <> project <> " before finding no language")
         . runDeslopOnCopy CheckC TypeScript project (removeFile . (</> [osp|tsconfig.json|]))
         $ \_ run -> run.result `shouldSatisfy` isRulebookError
+
+{- | The page carries the graph inline, so a page holding the project's modules
+is a page that can show them. How it draws them is the browser's business, not
+this suite's.
+-}
+itDiagrams :: String -> Spec
+itDiagrams project = it ("diagrams " <> project) $ do
+    let projectPath = projectIn TypeScript project
+    absProjectPath <- mkAbsolute projectPath
+    let pagePath = withAbsBaseUnsafe absProjectPath [osp|deslop/diagram/index.html|]
+        repo = onGitHub {pullRequest = Right $ PullRequest "https://github.com/o/r/pull/7"}
+
+    run <- runDeslopIn repo InMemory DiagramC projectPath
+
+    fmap (.verdict) run.result `shouldBe` Right Clean
+    Map.keys run.written `shouldBe` [pagePath]
+    page <- decodeUtf8 <$> requireJust "Expected deslop/diagram/index.html to be written" (Map.lookup pagePath run.written)
+    page `shouldSatisfy` T.isInfixOf "\"schema\":\"deslop-graph/1\""
+    page `shouldSatisfy` T.isInfixOf "\"path\":\"src/app/[locale]/layout.tsx\",\"tags\":[\"changed\"]"
+    page `shouldSatisfy` T.isInfixOf "\"sourceBase\":\"https://github.com/o/r/blob/main/\""
+    page `shouldSatisfy` T.isInfixOf "\"pullRequest\":\"https://github.com/o/r/pull/7\""
+    pure . projectGolden TypeScript "diagram" project . T.unpack . renderRun $ run
+
+-- | Without its pull request, the diagram is still drawn, says why once, and links to none.
+itDiagramsWithoutPullRequest :: NoPullRequest -> Spec
+itDiagramsWithoutPullRequest reason = it ("diagrams without a pull request when " <> show reason) $ do
+    run <- runDeslopIn onGitHub {pullRequest = Left reason} InMemory DiagramC (projectIn TypeScript "ts-project-1")
+
+    fmap (.verdict) run.result `shouldBe` Right Clean
+    T.count "No pull request to link" (renderRun run) `shouldBe` 1
+    pages run `shouldSatisfy` all (T.isInfixOf "\"pullRequest\":null")
+
+-- | A pull request is a network call away, so a diagram with no diff never asks for one.
+itAsksNoPullRequestWithoutChanges :: Spec
+itAsksNoPullRequestWithoutChanges = it "diagrams without asking for a pull request when nothing changed" $ do
+    run <-
+        runDeslopIn
+            onGitHub {changes = Map.singleton (GitRef "main") mempty, pullRequest = error "asked for a pull request"}
+            InMemory
+            DiagramC
+            (projectIn TypeScript "ts-project-1")
+
+    fmap (.verdict) run.result `shouldBe` Right Clean
+    pages run `shouldSatisfy` all (T.isInfixOf "\"pullRequest\":null")
+
+-- | Only the diagram asks git and gh anything: the other commands stay as fast as they were.
+itAsksGitNothing :: Command -> Spec
+itAsksGitNothing command = it ("asks git nothing to " <> show command) $ do
+    let untouchable =
+            Repository
+                { changes = error "asked for the changed files"
+                , sourceLinks = error "asked for the source links"
+                , pullRequest = error "asked for a pull request"
+                }
+
+    run <- runDeslopIn untouchable InMemory command (projectIn TypeScript "ts-project-1")
+
+    run.result `shouldSatisfy` isRight
+
+-- | A repository on GitHub, at its root, whose branch changed a file of each fixture project.
+onGitHub :: Repository
+onGitHub =
+    Repository
+        { changes = Map.singleton (GitRef "main") (Set.fromList [rp "src/app/[locale]/layout.tsx", rp "README.md", rp "src/index.ts"])
+        , sourceLinks =
+            Just
+                SourceLinks
+                    { source = SourceBase "https://github.com/o/r/blob/main/"
+                    , diff = Just DiffAnchors {repoPrefix = ""}
+                    }
+        , pullRequest = Left NoneFound
+        }
+
+-- | The text of every page a run wrote.
+pages :: Run -> [Text]
+pages = fmap decodeUtf8 . Map.elems . (.written)
 
 {- | Deslop's own layering (deslop/rules/), judged by its own Haskell frontend.
 Asserted clean rather than goldened: a golden would change with every module

@@ -37,6 +37,7 @@ import Frontend.Haskell.CST (Header (..), HsProgram (..), HsSource (..), Import 
 import Frontend.Haskell.Cabal (Component (..), ComponentKind (..), HsConfig (..), OwnedAs (..), Owner (..), ownerOf, qualifier, sourceNamesOf)
 import Frontend.Haskell.HspecDiscover (DiscoveredSpec (..), discoveredSpecs)
 import Frontend.Haskell.ModuleName (HsModuleName, dotted, hsModuleName, mainModule, slashed)
+import Frontend.Haskell.ModuleRole (moduleRole)
 import Frontend.Haskell.Preprocessor (Preprocessor (..), Request (..), RequestedBy (..), requestedInFile)
 import Frontend.Haskell.Unit (HsUnit (..), Opacity (..), unitPath)
 import Renderable (Renderable (render))
@@ -131,6 +132,9 @@ lowerNamed projectRoot cfg entries = (fmap moduleOf entries, notRead <> disagree
             , path = relPath entry
             , edges = case entry.unit of
                 Readable program -> edgesOf entry program
+                Opaque {} -> []
+            , role = moduleRole ((.component.kind) <$> entry.owner) $ case entry.unit of
+                Readable program -> (.decl.moduleName) <$> program.source.imports
                 Opaque {} -> []
             }
 

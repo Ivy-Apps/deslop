@@ -18,6 +18,7 @@ import Effectful.Dispatch.Dynamic (interpret)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effects.CLI (CLI (..))
 import Effects.FileSystem (WrFileSystem (..), fsMkAbsolute, runRoFileSystemIO)
+import Effects.Git (GitRef (..), runGitIO)
 import Effects.ReportProblem (runReportProblem)
 import Params (Params (..))
 
@@ -29,7 +30,7 @@ belongs to setting the benchmark up rather than to the work being measured.
 caseParams :: Case -> IO Params
 caseParams c = do
     projectPath <- runEff . runRoFileSystemIO . fsMkAbsolute . fixturePath $ c.fixture
-    pure Params {projectPath = projectPath, command = c.command}
+    pure Params {projectPath = projectPath, command = c.command, diffBase = GitRef "main"}
 
 {- | Runs one case to completion, discarding everything it produces.
 
@@ -47,6 +48,7 @@ runCase params =
         . runSilentCLI
         . runReportProblem
         . runConcurrent
+        . runGitIO
         $ doWork params
 
 {- | Throws every write away.

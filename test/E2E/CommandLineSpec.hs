@@ -18,10 +18,12 @@ import Data.Version (showVersion)
 import Deslop (deslop)
 import Deslop.Command (Command (..))
 import Doubles.CLI (MockCLI (..), TestLogs (..), defaultMockCLI, runMockCLI)
+import Doubles.Git (noChanges, runGitInMemory)
 import Effectful (runEff)
 import Effectful.Concurrent (runConcurrent)
 import Effects.CLI (LogStyle (..))
 import Effects.FileSystem (runFileSystemIO)
+import Effects.Git (GitRef (..))
 import Fixtures.OnDisk (Language (..), inCopyOf, projectIn)
 import Options.Applicative (ParserResult (Failure), execParserPure, renderFailure)
 import Params (ParamsDto (..), paramsParser, parserPrefs)
@@ -44,8 +46,9 @@ run command projectPath = do
             . runFileSystemIO
             . runMockCLI defaultMockCLI {logsRef = Just logsRef}
             . runConcurrent
+            . runGitInMemory noChanges
             . deslop
-            $ ParamsDto {command, projectPath}
+            $ ParamsDto {command, projectPath, diffBase = GitRef "main"}
     Ran exitCode <$> readIORef logsRef
 
 -- | The messages a run logged in the given style, in order.
@@ -106,7 +109,7 @@ spec = describe "E2E.CommandLine" $ do
             (exitCode, err) <- answer ["lint"]
 
             exitCode `shouldBe` ExitFailure 1
-            err `shouldSatisfy` T.isPrefixOf "Unknown command 'lint'. Expected: check, fix, or baseline\n"
+            err `shouldSatisfy` T.isPrefixOf "Unknown command 'lint'. Expected: check, fix, baseline, or diagram\n"
 
         it "shows the help, failing, when given nothing to do" $ do
             (exitCode, err) <- answer []

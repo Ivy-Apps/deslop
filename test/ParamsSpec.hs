@@ -2,6 +2,7 @@ module ParamsSpec (spec) where
 
 import Data.Text qualified as T
 import Data.Version (showVersion)
+import Effects.Git (GitRef (..))
 import Options.Applicative
 import Params (Command (..), ParamsDto (..), paramsParser, parserPrefs)
 import Paths_deslop (version)
@@ -17,6 +18,7 @@ spec = describe "Params" $ do
                 ( ParamsDto
                     { command = FixC
                     , projectPath = [osp|.|]
+                    , diffBase = GitRef "main"
                     }
                 )
 
@@ -26,6 +28,7 @@ spec = describe "Params" $ do
                 ( ParamsDto
                     { command = CheckC
                     , projectPath = [osp|.|]
+                    , diffBase = GitRef "main"
                     }
                 )
 
@@ -35,6 +38,17 @@ spec = describe "Params" $ do
                 ( ParamsDto
                     { command = BaselineC
                     , projectPath = [osp|.|]
+                    , diffBase = GitRef "main"
+                    }
+                )
+
+    it "parses 'diagram' command with an explicit project dir" $ do
+        parseParams ["diagram", "fixtures/app"]
+            `shouldBe` Just
+                ( ParamsDto
+                    { command = DiagramC
+                    , projectPath = [osp|fixtures/app|]
+                    , diffBase = GitRef "main"
                     }
                 )
 
@@ -44,6 +58,7 @@ spec = describe "Params" $ do
                 ( ParamsDto
                     { command = FixC
                     , projectPath = [osp|/some/ts/project|]
+                    , diffBase = GitRef "main"
                     }
                 )
         parseParams ["check", "src"]
@@ -51,6 +66,7 @@ spec = describe "Params" $ do
                 ( ParamsDto
                     { command = CheckC
                     , projectPath = [osp|src|]
+                    , diffBase = GitRef "main"
                     }
                 )
         parseParams ["baseline", "."]
@@ -58,11 +74,22 @@ spec = describe "Params" $ do
                 ( ParamsDto
                     { command = BaselineC
                     , projectPath = [osp|.|]
+                    , diffBase = GitRef "main"
+                    }
+                )
+
+    it "parses the diagram's diff base" $ do
+        parseParams ["diagram", "--diff-base", "develop"]
+            `shouldBe` Just
+                ( ParamsDto
+                    { command = DiagramC
+                    , projectPath = [osp|.|]
+                    , diffBase = GitRef "develop"
                     }
                 )
 
     it "refuses an unknown command, naming the ones it knows, above the help" $ do
-        parseOutput ["lint"] `shouldBe` Just ("Unknown command 'lint'. Expected: check, fix, or baseline\n\n" <> helpText, ExitFailure 1)
+        parseOutput ["lint"] `shouldBe` Just ("Unknown command 'lint'. Expected: check, fix, baseline, or diagram\n\n" <> helpText, ExitFailure 1)
         fmap snd (parseOutput ["run"]) `shouldBe` Just (ExitFailure 1)
 
     it "shows the help, failing, when given no arguments" $ do
@@ -90,13 +117,17 @@ helpText =
     toString . T.intercalate "\n" $
         [ "Deslop - A Haskell-powered code cleaner \x2728"
         , ""
-        , "Usage: deslop [-v|--version] COMMAND [PROJECT_DIR]"
+        , "Usage: deslop [-v|--version] COMMAND [PROJECT_DIR] [--diff-base REF]"
         , ""
-        , "  Removes slop from your project's architecture. Commands: check, fix, baseline."
+        , "  Removes slop from your project's architecture. Commands: check, fix, baseline,"
+        , "  diagram."
         , ""
         , "Available options:"
         , "  -h,--help                Show this help text"
         , "  -v,--version             Show version"
-        , "  COMMAND                  Command to run: check, fix, or baseline"
+        , "  COMMAND                  Command to run: check, fix, baseline, or diagram"
         , "  PROJECT_DIR              Path to the project (default: \".\")"
+        , "  --diff-base REF          diagram: mark the modules changed since this branch"
+        , "                           left REF (origin/REF when the remote has it)"
+        , "                           (default: main)"
         ]

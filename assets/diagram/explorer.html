@@ -1,0 +1,932 @@
+<!doctype html>
+<!--
+  Deslop's module graph explorer, written by `deslop diagram`.
+  One self-contained page: the graph and every script it runs are inline below,
+  so it opens from disk, offline. The graph is computed by Deslop
+  (src/Deslop/Diagram.hs): this script only draws it.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Module graph</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #1f2328; --muted: #6b7280; --panel: #ffffff; --line: #d0d4da;
+    --edge: #3b4252; --accent: #d9480f; --folder-fg: #374151; --shadow: 0 2px 12px rgba(0,0,0,.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171a; --fg: #e6e8eb; --muted: #9aa3ae; --panel: #1f2226; --line: #363b42;
+      --edge: #c9d1d9; --accent: #ff922b; --folder-fg: #d1d5db; --shadow: 0 2px 12px rgba(0,0,0,.5);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font: 15px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+  #cy { position: fixed; inset: calc(env(safe-area-inset-top, 0) + 60px) 0 0 0; }
+  #bar { position: fixed; top: env(safe-area-inset-top, 0); left: 0; right: 0; display: flex; gap: 8px;
+    padding: 8px; z-index: 3; pointer-events: none; }
+  #bar > * { pointer-events: auto; }
+  #search-field { position: relative; flex: 1; min-width: 0; }
+  #search { width: 100%; height: 44px; padding: 0 44px 0 14px; border: 1px solid var(--line); border-radius: 22px;
+    background: var(--panel); color: var(--fg); font-size: 16px; box-shadow: var(--shadow); }
+  #search::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+  #clear-search { position: absolute; top: 0; right: 0; width: 44px; height: 44px; padding: 0; border: 0; box-shadow: none;
+    background: none; color: var(--muted); font-size: 18px; }
+  button, a.button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 22px; min-height: 44px; padding: 0 14px; box-shadow: var(--shadow); cursor: pointer; }
+  #results { position: fixed; top: calc(env(safe-area-inset-top, 0) + 58px); left: 8px; right: 8px; z-index: 4;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+    max-height: 50vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+  .row { display: block; width: 100%; text-align: left; border: 0; border-radius: 0; box-shadow: none;
+    border-bottom: 1px solid var(--line); padding: 10px 14px; min-height: 44px; background: none; }
+  .row span { display: block; overflow-wrap: anywhere; }
+  .row b { color: var(--accent); font-weight: 700; }
+  .row small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #options { position: fixed; top: calc(env(safe-area-inset-top, 0) + 58px); right: 8px; z-index: 4; padding: 6px 14px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  #options label { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+  #options input { width: 22px; height: 22px; }
+  #legend { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom, 0) + 8px); z-index: 2;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; font-size: 12px;
+    box-shadow: var(--shadow); opacity: .94; display: flex; flex-wrap: wrap; column-gap: 6px; row-gap: 6px; }
+  #legend .key { display: flex; align-items: center; gap: 5px; }
+  /* A folder key is a pill: outlined while its folder is closed, tinted in the folder's colour while it is open. */
+  #legend button.key { font-size: inherit; min-height: 28px; padding: 0 10px; border: 0; border-radius: 999px;
+    box-shadow: inset 0 0 0 1px var(--line); background: none; }
+  #legend button.key.open { font-weight: 700; background: color-mix(in srgb, var(--key) 22%, transparent);
+    box-shadow: inset 0 0 0 1.5px var(--key); }
+  #reset { width: 44px; padding: 0; font-size: 20px; }
+  #toggle-options { position: relative; width: 44px; padding: 0; display: flex; align-items: center; justify-content: center; }
+  #toggle-options.filtering::after { content: ""; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--accent); }
+  #legend .hubs, #legend .hint { flex-basis: 100%; }
+  #legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+  #legend .hubs { color: var(--muted); margin-top: 4px; display: flex; align-items: center; gap: 2px; }
+  /* An info icon: a 32px tap target that sits inside its row without making it taller. */
+  button.info { flex: none; width: 32px; min-height: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
+    box-shadow: none; background: none; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
+  #legend button.info { margin: -8px 0; }
+  #info { position: fixed; z-index: 6; max-width: min(320px, calc(100vw - 16px)); padding: 10px 12px; font-size: 14px;
+    background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  #legend .hint { color: var(--muted); margin-top: 4px; }
+  #sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; max-height: 42vh; overflow-y: auto;
+    background: var(--panel); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
+    padding: 12px 16px calc(env(safe-area-inset-bottom, 0) + 16px); }
+  /* The sheet's title row: the name takes what the actions leave, and wraps rather than pushing them off. */
+  #sheet .head { display: flex; align-items: center; gap: 8px; margin: -4px -8px 2px 0; }
+  #sheet h2 { flex: 1; min-width: 0; font-size: 18px; margin: 0; word-break: break-word; }
+  #sheet .actions { flex: none; display: flex; gap: 4px; }
+  a.button { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; box-shadow: none; }
+  #sheet .path { color: var(--muted); font-size: 13px; word-break: break-all; }
+  #sheet h3 { font-size: 14px; margin: 14px 0 4px; color: var(--muted); font-weight: 600; }
+  #sheet .badge { display: inline-block; font-size: 12px; padding: 2px 8px; margin: 6px 6px 0 0; border-radius: 10px;
+    border: 1px solid var(--line); }
+  #close { width: 34px; padding: 0; box-shadow: none; display: inline-flex; align-items: center; justify-content: center; }
+  /* The sheet's actions are smaller than the bar's buttons, so the module name keeps the room. */
+  #sheet .actions > * { min-height: 34px; height: 34px; font-size: 13px; }
+  #sheet .actions a.button { padding: 0 10px; }
+  /* A changed module's diff with no pull request to open it in: a badge in the Diff button's place, not a control. */
+  #sheet .actions .chip { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 22px;
+    border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--fg); cursor: default; }
+  #sheet .row { padding-left: 0; }
+  @media (max-width: 600px) { #sheet { max-height: 34vh; } }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="cy"></div>
+<div id="bar">
+  <div id="search-field">
+    <input id="search" type="search" placeholder="Find a module" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="clear-search" aria-label="Clear search" hidden>✕</button>
+  </div>
+  <button id="reset" aria-label="Reset" title="Reset">↺</button>
+  <button id="toggle-options" aria-label="Filters" title="Filters" aria-expanded="false">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/>
+    </svg>
+  </button>
+</div>
+<div id="results" hidden></div>
+<div id="options" hidden>
+  <label id="diff-option"><input type="checkbox" data-show="diff"> Diff only</label>
+  <label><input type="checkbox" data-show="tests"> Tests</label>
+  <label><input type="checkbox" data-show="benches"> Benchmarks</label>
+  <label><input type="checkbox" data-show="hubs"> Used everywhere</label>
+  <label><input type="checkbox" data-show="implied"> Implied arrows</label>
+  <label><input type="checkbox" data-show="externals"> Packages</label>
+</div>
+<div id="legend"></div>
+<div id="info" role="tooltip" hidden></div>
+<section id="sheet" hidden></section>
+<script id="graph" type="application/json">/* deslop:graph */</script>
+<!-- deslop:libraries -->
+<script>
+"use strict";
+(function () {
+  var graph = JSON.parse(document.getElementById("graph").textContent);
+  if (graph.schema !== "deslop-graph/1") {
+    document.body.textContent = "This page cannot read a graph of schema " + graph.schema + ".";
+    return;
+  }
+
+  // ---- The graph, indexed ------------------------------------------------
+  var nodes = {}, children = {}, outgoing = {}, incoming = {};
+  graph.nodes.forEach(function (n) {
+    n.tags = n.tags || [];
+    nodes[n.id] = n;
+    children[n.id] = [];
+    outgoing[n.id] = [];
+    incoming[n.id] = [];
+  });
+  graph.nodes.forEach(function (n) { if (n.parent) children[n.parent].push(n.id); });
+  graph.edges.forEach(function (e) { outgoing[e.source].push(e); incoming[e.target].push(e); });
+  var modules = graph.nodes.filter(function (n) { return n.kind === "module"; });
+  var roots = graph.nodes.filter(function (n) { return n.kind !== "external" && !n.parent; }).map(function (n) { return n.id; });
+
+  function has(n, tag) { return n.tags.indexOf(tag) >= 0; }
+  function ancestors(id) {
+    var out = [], p = nodes[id].parent;
+    while (p) { out.unshift(p); p = nodes[p].parent; }
+    return out;
+  }
+
+  // Colour by top-level folder; the one holding most of the source is split into its own sub-folders.
+  var palette = ["#4c6ef5", "#12b886", "#f59f00", "#e64980", "#7950f2", "#15aabf", "#fa5252", "#82c91e", "#fd7e14", "#868e96"];
+  var groupOf = (function () {
+    var bySegment = {};
+    var sources = modules.filter(function (m) { return !has(m, "test") && !has(m, "bench"); });
+    sources.forEach(function (m) { var a = ancestors(m.id)[0] || ""; bySegment[a] = (bySegment[a] || 0) + 1; });
+    var biggest = Object.keys(bySegment).sort(function (a, b) { return bySegment[b] - bySegment[a]; })[0];
+    var split = bySegment[biggest] > sources.length / 2;
+    return function (id) {
+      var a = ancestors(id);
+      if (nodes[id].kind === "folder") a.push(id);
+      if (split && a[0] === biggest && a[1]) return a[1];
+      return a[0] || "";
+    };
+  })();
+  var groups = [];
+  modules.forEach(function (m) { var g = groupOf(m.id); if (groups.indexOf(g) < 0) groups.push(g); });
+  groups.sort();
+  function colourOf(id) { return palette[groups.indexOf(groupOf(id)) % palette.length]; }
+  function groupLabel(g) { return g ? nodes[g].path + "/" : "(root)"; }
+
+  // ---- What is shown -------------------------------------------------------
+  var show = { diff: false, tests: false, benches: false, hubs: false, implied: false, externals: false };
+  var expanded = {};
+  var focused = null;
+
+  function moduleShown(n) {
+    return (show.tests || !has(n, "test")) && (show.benches || !has(n, "bench")) && (show.hubs || !has(n, "hub"));
+  }
+  // ---- Diff only -------------------------------------------------------------
+  var changedModules = modules.filter(function (m) { return has(m, "changed"); });
+  if (!changedModules.length) document.getElementById("diff-option").remove();
+  // What a drawn node stands for has changed: the module itself, or a shown module inside the folder.
+  function changedSet() {
+    var set = {};
+    changedModules.forEach(function (m) {
+      if (!moduleShown(m)) return;
+      set[m.id] = true;
+      ancestors(m.id).forEach(function (f) { set[f] = true; });
+    });
+    return set;
+  }
+  // Opens every folder holding a shown changed module.
+  function openChanged() {
+    changedModules.forEach(function (m) {
+      if (moduleShown(m)) ancestors(m.id).forEach(function (f) { expanded[f] = true; });
+    });
+  }
+  var shownCount = {};
+  function countShown() {
+    shownCount = {};
+    modules.forEach(function (m) {
+      if (!moduleShown(m)) return;
+      ancestors(m.id).forEach(function (f) { shownCount[f] = (shownCount[f] || 0) + 1; });
+    });
+  }
+  // The drawn node standing for a module or folder: its outermost collapsed folder, or itself.
+  function representative(id) {
+    var a = ancestors(id);
+    for (var i = 0; i < a.length; i++) if (!expanded[a[i]]) return a[i];
+    return id;
+  }
+  function drawnCount() {
+    var count = 0;
+    (function walk(ids) {
+      ids.forEach(function (id) {
+        var n = nodes[id];
+        if (n.kind === "module") { if (moduleShown(n)) count++; return; }
+        if (!shownCount[id]) return;
+        count++;
+        if (expanded[id]) walk(children[id]);
+      });
+    })(roots);
+    return count;
+  }
+  // Opens the biggest folders first, while the picture stays small enough to read.
+  function autoExpand(budget) {
+    countShown();
+    for (;;) {
+      var candidates = Object.keys(shownCount).filter(function (f) {
+        return !expanded[f] && ancestors(f).every(function (a) { return expanded[a]; });
+      }).sort(function (a, b) { return shownCount[b] - shownCount[a]; });
+      var opened = false;
+      for (var i = 0; i < candidates.length && !opened; i++) {
+        expanded[candidates[i]] = true;
+        if (drawnCount() <= budget) opened = true; else delete expanded[candidates[i]];
+      }
+      if (!opened) return;
+    }
+  }
+
+  function elements() {
+    countShown();
+    var els = [], drawn = {};
+    var changed = show.diff ? changedSet() : null;
+    function diffClass(id) { return changed ? (changed[id] ? " changed" : " unchanged") : ""; }
+    function layerOf(id) {
+      var n = nodes[id];
+      if (n.kind === "module") return n.layer;
+      var min = Infinity;
+      modules.forEach(function (m) { if (moduleShown(m) && ancestors(m.id).indexOf(id) >= 0) min = Math.min(min, m.layer); });
+      return min;
+    }
+    (function walk(ids, parent) {
+      ids.forEach(function (id) {
+        var n = nodes[id];
+        if (n.kind === "module" && !moduleShown(n)) return;
+        if (n.kind === "folder" && !shownCount[id]) return;
+        var open = n.kind === "folder" && expanded[id];
+        var label = n.kind === "module" ? fileLabel(n.path) : n.label + "/" + (open ? "" : "  " + shownCount[id]);
+        drawn[id] = true;
+        els.push({ group: "nodes", classes: n.kind + (open ? " open" : "") + (has(n, "hub") ? " hub" : "") + (has(n, "test") ? " test" : "") + (has(n, "bench") ? " bench" : "") + diffClass(id),
+          data: { id: id, parent: parent, label: label, colour: colourOf(id), layer: layerOf(id) } });
+        if (open) walk(children[id], id);
+      });
+    })(roots, undefined);
+    if (show.externals) graph.nodes.forEach(function (n) {
+      if (n.kind !== "external") return;
+      drawn[n.id] = true;
+      els.push({ group: "nodes", classes: "external" + diffClass(n.id), data: { id: n.id, label: n.name, colour: "#868e96", layer: 1e6 } });
+    });
+    var merged = {};
+    graph.edges.forEach(function (e) {
+      if (!show.implied && has(e, "implied")) return;
+      var s = representative(e.source), t = representative(e.target);
+      if (!drawn[s] || !drawn[t] || s === t) return;
+      var key = s + "\u0000" + t;
+      merged[key] = merged[key] || { source: s, target: t, count: 0, reexport: true };
+      merged[key].count += e.count;
+      merged[key].reexport = merged[key].reexport && e.kind === "reexport";
+    });
+    Object.keys(merged).forEach(function (k) {
+      var e = merged[k];
+      var dim = changed && !changed[e.source] && !changed[e.target];
+      els.push({ group: "edges", classes: (e.reexport ? "reexport" : "") + (dim ? " unchanged" : ""), data: { id: k, source: e.source, target: e.target, count: e.count } });
+    });
+    return els;
+  }
+  function fileLabel(path) {
+    var file = path.split("/").pop();
+    var dot = file.lastIndexOf(".");
+    return dot > 0 ? file.slice(0, dot) : file;
+  }
+
+  // ---- Drawing ---------------------------------------------------------------
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  // An edge's colour at its importer end: faded towards the background so the direction reads, yet still visible.
+  function faded(name) { return mix(css(name), css("--bg"), 0.45); }
+  // The #rrggbb colour that is `weight` of `a` and the rest of `b`.
+  function mix(a, b, weight) {
+    function channels(hex) { return [1, 3, 5].map(function (i) { return parseInt(hex.slice(i, i + 2), 16); }); }
+    var x = channels(a), y = channels(b);
+    return "#" + x.map(function (c, i) { return ("0" + Math.round(c * weight + y[i] * (1 - weight)).toString(16)).slice(-2); }).join("");
+  }
+  function style() {
+    return [
+      { selector: "node", style: { "label": "data(label)", "font-size": 13, "min-zoomed-font-size": 9, "color": css("--fg"),
+        "text-valign": "center", "text-halign": "center", "shape": "round-rectangle",
+        "width": function (n) { return Math.max(40, n.data("label").length * 7.4 + 18); }, "height": 28,
+        "background-color": "data(colour)", "background-opacity": 0.22, "border-width": 1.5, "border-color": "data(colour)" } },
+      { selector: "node.folder", style: { "font-weight": "bold", "background-opacity": 0.4, "border-width": 2.5, "height": 40, "font-size": 15,
+        "width": function (n) { return Math.max(60, n.data("label").length * 8.6 + 24); } } },
+      { selector: "node.open", style: { "text-valign": "top", "text-halign": "center", "text-margin-y": -4, "background-opacity": 0.06,
+        "border-width": 1.5, "border-style": "dashed", "font-size": 14, "color": css("--folder-fg"), "padding": 10, "events": "no" } },
+      { selector: "node.test", style: { "border-style": "dotted" } },
+      { selector: "node.bench", style: { "border-style": "dashed" } },
+      { selector: "node.module.changed", style: { "border-color": css("--accent"), "border-width": 3 } },
+      { selector: ".unchanged", style: { "opacity": 0.2 } },
+      { selector: "node.external", style: { "shape": "rectangle", "background-opacity": 0.1 } },
+      { selector: "edge", style: { "width": function (e) { return Math.min(4, 1 + Math.log2(e.data("count"))); },
+        "line-color": css("--edge"), "target-arrow-color": css("--edge"), "target-arrow-shape": "triangle", "arrow-scale": 0.8,
+        "curve-style": "bezier", "opacity": 0.22, "events": "no",
+        // Faint at the importer, solid at what it imports.
+        "line-fill": "linear-gradient", "line-gradient-stop-colors": faded("--edge") + " " + css("--edge"), "line-gradient-stop-positions": "0% 100%" } },
+      { selector: "edge.reexport", style: { "line-style": "dashed" } },
+      { selector: "edge.moving", style: { "display": "none" } },
+      { selector: ".faded", style: { "opacity": 0.08 } },
+      { selector: "edge.lit", style: { "opacity": 0.9, "line-color": css("--accent"), "target-arrow-color": css("--accent"), "z-index": 9,
+        "line-gradient-stop-colors": faded("--accent") + " " + css("--accent") } },
+      { selector: "node.lit", style: { "border-width": 3, "background-opacity": 0.45, "opacity": 1 } },
+      { selector: "node.picked", style: { "border-color": css("--accent"), "border-width": 4, "opacity": 1 } }
+    ];
+  }
+
+  var cy = cytoscape({ container: document.getElementById("cy"), style: style(),
+    boxSelectionEnabled: false, autoungrabify: true, autounselectify: true, minZoom: 0.05, maxZoom: 4 });
+  window.deslopExplorer = { cy: cy, ready: false, layouts: 0 };
+
+  function layout(then) {
+    syncLegendSelection();
+    var previous = {};
+    cy.nodes().forEach(function (n) { previous[n.id()] = n.position(); });
+    cy.batch(function () {
+      cy.elements().remove();
+      cy.add(elements());
+      cy.nodes().forEach(function (n) {
+        var from = previous[n.id()] || ancestors(n.id()).map(function (a) { return previous[a]; }).filter(Boolean).pop();
+        if (from) n.position({ x: from.x, y: from.y });
+      });
+    });
+    var animate = Object.keys(previous).length > 0;
+    // Nodes start stacked where their folder was, so edges wait until they have moved apart.
+    if (animate) cy.edges().addClass("moving");
+    cy.layout({
+      name: "elk", nodeDimensionsIncludeLabels: true, fit: false, animate: animate, animationDuration: 280,
+      elk: { "algorithm": "layered", "elk.direction": "DOWN", "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+        "elk.partitioning.activate": true, "elk.layered.spacing.nodeNodeBetweenLayers": 44, "elk.spacing.nodeNode": 14,
+        "elk.layered.spacing.edgeNodeBetweenLayers": 12, "elk.padding": "[top=30,left=12,bottom=12,right=12]",
+        "elk.layered.crossingMinimization.forceNodeModelOrder": false, "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX" },
+      nodeLayoutOptions: function (n) { return { "elk.partitioning.partition": n.data("layer") }; },
+      stop: function () {
+        window.deslopExplorer.layouts++;
+        cy.edges().removeClass("moving");
+        if (focused && cy.getElementById(focused).length) highlight(focused);
+        if (then) then();
+      }
+    }).run();
+  }
+
+  // ---- Interaction -------------------------------------------------------------
+  cy.on("tap", "node", function (ev) {
+    var n = nodes[ev.target.id()];
+    if (n.kind === "folder") { toggleFolder(n.id); return; }
+    focus(n.id, false);
+  });
+  // An open folder takes no events, so a drag on it pans; a tap on its name still closes it.
+  cy.on("tap", function (ev) {
+    if (ev.target !== cy) return;
+    var hit = openFolderNamed(ev.position);
+    if (hit) toggleFolder(hit.id()); else clearFocus();
+  });
+
+  // The innermost open folder whose name is under the point, padded for a finger.
+  function openFolderNamed(p) {
+    var pad = 8;
+    return cy.nodes(".open").filter(function (n) {
+      var b = n.boundingBox({ includeNodes: false, includeEdges: false, includeLabels: true, includeOverlays: false, useCache: false });
+      return p.x >= b.x1 - pad && p.x <= b.x2 + pad && p.y >= b.y1 - pad && p.y <= b.y2 + pad;
+    }).sort(function (a, b) { return b.ancestors().length - a.ancestors().length; })[0];
+  }
+
+  function toggleFolder(id) {
+    if (expanded[id]) {
+      Object.keys(expanded).forEach(function (f) { if (f === id || ancestors(f).indexOf(id) >= 0) delete expanded[f]; });
+      layout(function () { cy.animate({ center: { eles: cy.getElementById(id) }, duration: 250 }); });
+    } else {
+      // A legend key can name a folder inside a closed one: open the way down to it too.
+      ancestors(id).concat([id]).forEach(function (f) { expanded[f] = true; });
+      layout(function () { frame(cy.getElementById(id)); });
+    }
+  }
+
+  // Fits an opened folder on screen, but never closer than 1:1, so a small folder does not fill it.
+  var MAX_OPEN_ZOOM = 1;
+  function frame(eles) {
+    var bb = eles.boundingBox(), padding = 24;
+    var zoom = Math.min(MAX_OPEN_ZOOM, (cy.width() - 2 * padding) / bb.w, (cy.height() - 2 * padding) / bb.h);
+    cy.animate({ zoom: zoom, pan: { x: cy.width() / 2 - (bb.x1 + bb.w / 2) * zoom, y: cy.height() / 2 - (bb.y1 + bb.h / 2) * zoom },
+      duration: 250 });
+  }
+
+  function focus(id, move) {
+    var n = nodes[id];
+    var changed = false;
+    if (n.kind === "module") {
+      if (has(n, "test") && !show.tests) { show.tests = changed = true; }
+      if (has(n, "bench") && !show.benches) { show.benches = changed = true; }
+      if (has(n, "hub") && !show.hubs) { show.hubs = changed = true; }
+      ancestors(id).forEach(function (a) { if (!expanded[a]) { expanded[a] = changed = true; } });
+    } else if (n.kind === "external" && !show.externals) { show.externals = changed = true; }
+    focused = id;
+    syncOptions();
+    renderSheet(n);
+    function done() { highlight(id); reveal(id, move); }
+    if (changed) layout(done); else done();
+  }
+
+  // Centres a node in the part of the screen the sheet leaves free.
+  function reveal(id, zoomIn) {
+    var node = cy.getElementById(id);
+    if (!node.length) return;
+    var zoom = zoomIn ? Math.max(cy.zoom(), 1.1) : cy.zoom();
+    var free = cy.height() - document.getElementById("sheet").offsetHeight;
+    var p = node.position();
+    cy.animate({ zoom: zoom, pan: { x: cy.width() / 2 - p.x * zoom, y: Math.max(free, 120) / 2 - p.y * zoom }, duration: 300 });
+  }
+
+  function highlight(id) {
+    var el = cy.getElementById(id);
+    var hood = el.closedNeighborhood();
+    cy.batch(function () {
+      cy.elements().removeClass("lit picked").addClass("faded");
+      hood.removeClass("faded").addClass("lit");
+      el.ancestors().removeClass("faded");
+      hood.nodes().ancestors().removeClass("faded");
+      el.removeClass("lit").addClass("picked");
+    });
+  }
+  function clearFocus() {
+    focused = null;
+    cy.elements().removeClass("faded lit picked");
+    document.getElementById("sheet").hidden = true;
+  }
+
+  // ---- The detail sheet ----------------------------------------------------------
+  function renderSheet(n) {
+    var sheet = document.getElementById("sheet");
+    sheet.innerHTML = "";
+    sheet.hidden = false;
+    var head = el("div", { "class": "head" });
+    head.appendChild(el("h2", {}, nameOf(n.id)));
+    var actions = el("div", { "class": "actions" });
+    if (n.kind === "module" && has(n, "changed")) actions.appendChild(diffAction(n.path));
+    if (n.kind === "module" && graph.sourceBase) actions.appendChild(openSourceLink(n.path));
+    // An SVG cross rather than the "✕" glyph, whose font metrics sit it off-centre.
+    var close = el("button", { id: "close", "aria-label": "Close" });
+    close.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ' +
+      'stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+    close.onclick = clearFocus;
+    actions.appendChild(close);
+    head.appendChild(actions);
+    sheet.appendChild(head);
+    if (n.kind === "module") {
+      sheet.appendChild(el("div", { "class": "path" }, n.path));
+      var badges = el("div");
+      badges.appendChild(el("span", { "class": "badge" }, "layer " + n.layer));
+      if (has(n, "hub")) badges.appendChild(el("span", { "class": "badge" }, "used everywhere"));
+      if (has(n, "test")) badges.appendChild(el("span", { "class": "badge" }, "test"));
+      if (has(n, "bench")) badges.appendChild(el("span", { "class": "badge" }, "benchmark"));
+      if (has(n, "changed")) badges.appendChild(el("span", { "class": "badge" }, "changed"));
+      var reexports = outgoing[n.id].filter(function (e) { return e.kind === "reexport"; }).length;
+      if (reexports) badges.appendChild(el("span", { "class": "badge" }, "re-exports " + reexports));
+      namesOf(n).filter(function (a) { return a !== nameOf(n.id); }).forEach(function (a) { badges.appendChild(el("span", { "class": "badge" }, "also " + a)); });
+      sheet.appendChild(badges);
+    }
+    var imports = unique(outgoing[n.id].map(function (e) { return e.target; }));
+    var internal = imports.filter(function (t) { return nodes[t].kind !== "external"; });
+    var packages = imports.filter(function (t) { return nodes[t].kind === "external"; });
+    list(sheet, "Imports", internal);
+    if (packages.length) {
+      sheet.appendChild(el("h3", {}, "Packages (" + packages.length + ")"));
+      sheet.appendChild(el("div", { "class": "path" }, packages.map(nameOf).sort().join(", ")));
+    }
+    list(sheet, "Imported by", unique(incoming[n.id].map(function (e) { return e.source; })));
+    if (n.kind === "module") list(sheet, "Tested by", n.testedBy || []);
+    sheet.scrollTop = 0;
+  }
+  // A link to the module's file on its forge, opened in a new tab.
+  function openSourceLink(path) {
+    var href = graph.sourceBase + path.split("/").map(encodeURIComponent).join("/");
+    var link = el("a", { "class": "button", href: href, target: "_blank", rel: "noopener noreferrer", title: "Open the source in a new tab" });
+    link.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
+    link.appendChild(document.createTextNode("Open"));
+    return link;
+  }
+  // A changed module's diff: a link into its pull request's files on GitHub, whose anchor for a file is the
+  // SHA-256 of its path in the repository. Without a pull request, the same label as a chip that links nowhere.
+  function diffAction(path) {
+    var action = graph.pullRequest
+      ? el("a", { "class": "button", href: graph.pullRequest + "/files#diff-" + sha256(graph.repoPrefix + path),
+          target: "_blank", rel: "noopener noreferrer", title: "Open the diff in the pull request, in a new tab" })
+      : el("span", { "class": "chip", title: "Changed since the diff base" });
+    action.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5V15a3 3 0 0 0 3 3h6.5"/><path d="M18 15.5V9a3 3 0 0 0-3-3H8.5"/></svg>';
+    action.appendChild(document.createTextNode("Diff"));
+    return action;
+  }
+  // The lowercase hex SHA-256 of a string's UTF-8 bytes. Synchronous and self-contained:
+  // crypto.subtle exists only in secure contexts, and the page is also served over plain http.
+  var SHA256_K = [];
+  (function () {
+    var found = 0;
+    for (var c = 2; found < 64; c++) {
+      var prime = true;
+      for (var d = 2; d * d <= c; d++) if (c % d === 0) { prime = false; break; }
+      if (prime) SHA256_K[found++] = (Math.pow(c, 1 / 3) % 1) * 4294967296 | 0;
+    }
+  })();
+  function sha256(text) {
+    var bytes = Array.from(new TextEncoder().encode(text));
+    var bitLength = bytes.length * 8;
+    bytes.push(0x80);
+    while (bytes.length % 64 !== 56) bytes.push(0);
+    for (var shift = 56; shift >= 0; shift -= 8) bytes.push(shift >= 32 ? Math.floor(bitLength / Math.pow(2, shift)) & 0xff : (bitLength >>> shift) & 0xff);
+    var h = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    var w = new Array(64);
+    function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+    for (var i = 0; i < bytes.length; i += 64) {
+      for (var t = 0; t < 64; t++) {
+        if (t < 16) w[t] = (bytes[i + 4 * t] << 24) | (bytes[i + 4 * t + 1] << 16) | (bytes[i + 4 * t + 2] << 8) | bytes[i + 4 * t + 3];
+        else {
+          var s0 = rotr(w[t - 15], 7) ^ rotr(w[t - 15], 18) ^ (w[t - 15] >>> 3);
+          var s1 = rotr(w[t - 2], 17) ^ rotr(w[t - 2], 19) ^ (w[t - 2] >>> 10);
+          w[t] = (w[t - 16] + s0 + w[t - 7] + s1) | 0;
+        }
+      }
+      var a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], k = h[7];
+      for (t = 0; t < 64; t++) {
+        var t1 = (k + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + SHA256_K[t] + w[t]) | 0;
+        var t2 = ((rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+        k = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+      }
+      h = [h[0] + a, h[1] + b, h[2] + c, h[3] + d, h[4] + e, h[5] + f, h[6] + g, h[7] + k].map(function (x) { return x | 0; });
+    }
+    return h.map(function (x) { return ("00000000" + (x >>> 0).toString(16)).slice(-8); }).join("");
+  }
+  window.deslopExplorer.sha256 = sha256;
+  function list(parent, title, ids) {
+    parent.appendChild(el("h3", {}, title + " (" + ids.length + ")"));
+    ids.sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b)); }).forEach(function (id) {
+      var row = el("button", { "class": "row" }, nameOf(id));
+      if (nodes[id].path) row.appendChild(el("small", {}, nodes[id].path));
+      row.onclick = function () { focus(id, true); };
+      parent.appendChild(row);
+    });
+  }
+  // The shortest name a module answers to: the one a reader would write.
+  function nameOf(id) {
+    var n = nodes[id];
+    return n.kind === "folder" ? n.label : namesOf(n).reduce(function (a, b) { return b.length < a.length ? b : a; });
+  }
+  function namesOf(n) { return [n.name].concat(n.aliases || []); }
+  function unique(xs) { return xs.filter(function (x, i) { return xs.indexOf(x) === i; }); }
+  function el(tag, attrs, text) {
+    var e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  // ---- Search ------------------------------------------------------------------
+  // A ranked finder in the manner of fzf and VS Code's Cmd+P. Every whitespace-separated token of the query
+  // must match some field of a node. A node ranks by its worst token's tier, then by whether it is drawn,
+  // how many modules import it, how many it imports, its summed fuzzy score, and finally its name.
+  var search = document.getElementById("search"), results = document.getElementById("results");
+  var TIER = { exact: 5, segmentSuffix: 4, segmentPrefix: 3, substring: 2, fuzzy: 1 };
+  // A field's role sets its weight; a "leaf" role holds a single segment, so a query with "/" skips it.
+  var ROLE = {
+    leaf: { weight: 1, leaf: true }, basename: { weight: 1, leaf: true },
+    alias: { weight: 0.9, leaf: false }, path: { weight: 0.8, leaf: false }, id: { weight: 0.6, leaf: false }
+  };
+  // fzf v1's scoring.
+  var POINTS = { char: 16, boundary: 8, camel: 7, consecutive: 4, gapOpen: -3, gapExtend: -1 };
+  var SEPARATORS = "/.-_:";
+
+  var searchFields = {}, importedBy = {}, importsOf = {};
+  graph.nodes.forEach(function (n) {
+    if (n.kind === "folder") return;
+    searchFields[n.id] = fieldsOf(n);
+    importedBy[n.id] = internalCount(incoming[n.id].map(function (e) { return e.source; }));
+    importsOf[n.id] = internalCount(outgoing[n.id].map(function (e) { return e.target; }));
+  });
+  function fieldsOf(n) {
+    var names = n.kind === "external" ? [n.name] : n.aliases || [];
+    var byName = names.reduce(function (fs, a) { return fs.concat([field("leaf", lastSegment(a)), field("alias", a)]); }, []);
+    return n.kind === "external" ? byName
+      : byName.concat([field("basename", lastSegment(n.path)), field("path", n.path), field("id", n.name)]);
+  }
+  function field(role, text) { return { role: role, text: text, lower: text.toLowerCase() }; }
+  function lastSegment(text) { return text.slice(text.lastIndexOf("/") + 1); }
+  function internalCount(ids) { return unique(ids).filter(function (id) { return nodes[id].kind === "module"; }).length; }
+
+  // The ranked hits for a query, best first. Each hit carries the match of every token, for highlighting.
+  function rank(query) {
+    var tokens = query.trim().split(/\s+/).filter(Boolean);
+    if (!tokens.length) return [];
+    return Object.keys(searchFields).map(function (id) { return hitOf(id, tokens); })
+      .filter(Boolean).sort(byRank);
+  }
+  function hitOf(id, tokens) {
+    var matches = tokens.map(function (t) { return tokenMatch(t, searchFields[id]); });
+    if (matches.some(function (m) { return !m; })) return null;
+    return {
+      id: id, title: nameOf(id), matches: matches, drawn: drawn(nodes[id]) ? 1 : 0,
+      tier: Math.min.apply(null, matches.map(function (m) { return m.tier; })),
+      score: matches.reduce(function (s, m) { return s + m.score; }, 0)
+    };
+  }
+  function byRank(a, b) {
+    return b.tier - a.tier || b.drawn - a.drawn || importedBy[b.id] - importedBy[a.id] || importsOf[b.id] - importsOf[a.id]
+      || b.score - a.score || a.title.length - b.title.length || a.title.localeCompare(b.title);
+  }
+  function drawn(n) { return n.kind === "external" ? show.externals : moduleShown(n) && representative(n.id) === n.id; }
+
+  // A token starting with "." filters by path suffix (".hs", ".tsx"). Otherwise a "." between two letters
+  // also reads as "/" (Deslop.Frontend), and the better of the two readings counts.
+  function tokenMatch(token, fields) {
+    if (token[0] === ".") return pathSuffixMatch(token.toLowerCase(), fields);
+    var slashed = token.replace(/([a-z])\.(?=[a-z])/gi, "$1/");
+    return [token, slashed].map(function (r) { return readingMatch(r.toLowerCase(), fields); }).reduce(better, null);
+  }
+  function pathSuffixMatch(token, fields) {
+    return fields.filter(function (f) { return f.role === "basename"; })
+      .map(function (f) { return fieldMatch(token, f); })
+      .filter(function (m) { return m && m.tier >= TIER.segmentSuffix; })[0] || null;
+  }
+  function readingMatch(token, fields) {
+    var segmented = token.indexOf("/") >= 0;
+    return fields.filter(function (f) { return !(segmented && ROLE[f.role].leaf); })
+      .map(function (f) { return fieldMatch(token, f); }).reduce(better, null);
+  }
+  function better(a, b) {
+    if (!a || !b) return a || b;
+    return b.tier - a.tier > 0 || (b.tier === a.tier && b.score > a.score) ? b : a;
+  }
+  // The literal tiers first, then fuzzy; every tier is scored the fzf way, weighted by the field's role.
+  function fieldMatch(token, f) {
+    var literal = literalMatch(token, f.lower);
+    var positions = literal ? range(literal.at, token.length) : fuzzyPositions(token, f.lower);
+    if (!positions) return null;
+    return { tier: literal ? literal.tier : TIER.fuzzy, score: ROLE[f.role].weight * scoreOf(positions, f.text),
+      field: f, positions: positions };
+  }
+  function literalMatch(token, text) {
+    if (text === token) return { tier: TIER.exact, at: 0 };
+    var suffixAt = text.length - token.length;
+    if (suffixAt > 0 && text.slice(suffixAt) === token && startsSegment(text, suffixAt, token)) return { tier: TIER.segmentSuffix, at: suffixAt };
+    for (var at = text.indexOf(token); at >= 0; at = text.indexOf(token, at + 1)) {
+      if (startsSegment(text, at, token)) return { tier: TIER.segmentPrefix, at: at };
+    }
+    var inside = text.indexOf(token);
+    return inside >= 0 ? { tier: TIER.substring, at: inside } : null;
+  }
+  function startsSegment(text, at, token) { return at === 0 || isSeparator(text[at - 1]) || isSeparator(token[0]); }
+  function isSeparator(c) { return SEPARATORS.indexOf(c) >= 0; }
+  function range(from, count) { return Array.from({ length: count }, function (_, i) { return from + i; }); }
+  // fzf v1: scan forward greedily to the first complete match, shrink back from its end, then take the
+  // greedy positions from that start.
+  function fuzzyPositions(token, text) {
+    var t = 0, end = -1;
+    for (var i = 0; i < text.length && end < 0; i++) if (text[i] === token[t] && ++t === token.length) end = i;
+    if (end < 0) return null;
+    var start = end;
+    for (var j = end, u = token.length - 1; u >= 0; j--) if (text[j] === token[u]) { start = j; u--; }
+    var positions = [];
+    for (var k = start, v = 0; v < token.length; k++) if (text[k] === token[v]) { positions.push(k); v++; }
+    return positions;
+  }
+  function scoreOf(positions, text) {
+    return positions.reduce(function (s, p, i) {
+      var gap = i === 0 ? 0 : p - positions[i - 1] - 1;
+      var run = i > 0 && gap === 0 ? POINTS.consecutive : 0;
+      var penalty = gap > 0 ? POINTS.gapOpen + POINTS.gapExtend * (gap - 1) : 0;
+      return s + POINTS.char + bonusAt(text, p) + run + penalty;
+    }, 0);
+  }
+  function bonusAt(text, p) {
+    if (p === 0 || isSeparator(text[p - 1])) return POINTS.boundary;
+    var prev = text[p - 1], c = text[p];
+    return prev !== prev.toUpperCase() && c !== c.toLowerCase() ? POINTS.camel : 0;
+  }
+
+  function runSearch() {
+    var rows = document.createDocumentFragment();
+    rank(search.value).forEach(function (h) { rows.appendChild(resultRow(h)); });
+    results.textContent = "";
+    results.appendChild(rows);
+    results.scrollTop = 0;
+    results.hidden = !search.value.trim();
+  }
+  // A row shows the module's name and path, each with the characters its token matches marked.
+  function resultRow(h) {
+    var path = nodes[h.id].path;
+    var row = el("button", { "class": "row" });
+    row.appendChild(marked("span", h.title, marksOn(h.title, h.matches.filter(function (m) { return onTitle(h.title, m); }))));
+    if (path) row.appendChild(marked("small", path, marksOn(path, h.matches.filter(function (m) { return !onTitle(h.title, m); }))));
+    row.onclick = function () { results.hidden = true; search.blur(); focus(h.id, true); };
+    return row;
+  }
+  function onTitle(title, m) { return suffixOffset(m.field.text, title) !== null; }
+  // Where a field's text sits in a shown line: one is a suffix of the other (Frontend in Deslop/Frontend,
+  // Deslop/Frontend in lib/deslop/Deslop/Frontend). Null when the field is not shown on that line.
+  function suffixOffset(text, line) {
+    if (line.slice(-text.length) === text) return line.length - text.length;
+    return text.slice(-line.length) === line ? line.length - text.length : null;
+  }
+  function marksOn(line, matches) {
+    var on = {};
+    matches.forEach(function (m) {
+      var offset = suffixOffset(m.field.text, line);
+      if (offset !== null) m.positions.forEach(function (p) { if (p + offset >= 0) on[p + offset] = true; });
+    });
+    return on;
+  }
+  // Text as runs of plain and matched (bold) characters, built from DOM nodes so module text stays text.
+  function marked(tag, text, on) {
+    var e = el(tag);
+    for (var i = 0, j; i < text.length; i = j) {
+      for (j = i; j < text.length && !!on[j] === !!on[i]; j++);
+      e.appendChild(on[i] ? el("b", {}, text.slice(i, j)) : document.createTextNode(text.slice(i, j)));
+    }
+    return e;
+  }
+  window.deslopExplorer.search = function (query) { return rank(query).map(function (h) { return h.id; }); };
+  var clearSearch = document.getElementById("clear-search");
+  function syncClear() { clearSearch.hidden = !search.value; }
+  search.addEventListener("input", function () { syncClear(); runSearch(); });
+  // Tapping the field with a query brings its results back.
+  search.addEventListener("focus", runSearch);
+  search.addEventListener("click", runSearch);
+  clearSearch.onclick = function () {
+    search.value = "";
+    syncClear();
+    runSearch();
+    search.focus();
+  };
+
+  // ---- Info popovers -----------------------------------------------------------------
+  // One shared popover explains whichever info icon opened it: on hover or focus where there is a mouse, on tap elsewhere.
+  var explanations = {
+    diff: "Dims every module this branch didn't change, so the changes stand out. Changes are counted since the branch forked from main, plus uncommitted files.",
+    tests: "Shows test modules (specs, *.test.*, test suites). Hidden by default to keep the picture about the code itself.",
+    benches: "Shows benchmark modules. Hidden by default.",
+    hubs: "Shows hubs: modules imported by more than 40% of the others (at least 3). They're hidden by default because their arrows would cover the picture.",
+    implied: "Shows imports that a longer path already covers: A imports C directly, but A \u2192 B \u2192 C exists too. Hidden to keep the fewest arrows that still show who reaches whom.",
+    externals: "Shows external packages (npm, Hackage, flake inputs) as nodes, with arrows from the modules that import them.",
+    hiddenHubs: "Used everywhere: imported by more than 40% of the other modules, so hidden to keep the arrows readable. Turn on Used everywhere in Filters to show it."
+  };
+  var info = document.getElementById("info"), infoOwner = null;
+  var hoverable = !!window.matchMedia && window.matchMedia("(hover: hover)").matches;
+  // A tap on the popover dismisses it too, since on a phone it can cover the next row's icon. On click, not
+  // pointerdown: hidden any earlier, the click would land on the checkbox beneath it.
+  info.onclick = hideInfo;
+  function infoButton(topic, text) {
+    var button = el("button", { type: "button", "class": "info", "aria-label": "What is " + topic + "?", "aria-expanded": "false" });
+    button.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
+      '<circle cx="12" cy="12" r="9.5"/><path d="M12 11v6"/><circle cx="12" cy="7.5" r=".6" fill="currentColor"/></svg>';
+    // Inside a label, a click would also toggle its checkbox.
+    button.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (infoOwner === button && !hoverable) hideInfo(); else showInfo(button, text);
+    });
+    if (hoverable) {
+      button.addEventListener("pointerenter", function () { showInfo(button, text); });
+      button.addEventListener("focus", function () { showInfo(button, text); });
+      button.addEventListener("pointerleave", function () { if (document.activeElement !== button) hideInfo(); });
+      button.addEventListener("blur", hideInfo);
+    }
+    return button;
+  }
+  function showInfo(button, text) {
+    hideInfo();
+    infoOwner = button;
+    info.textContent = text;
+    info.hidden = false;
+    button.setAttribute("aria-expanded", "true");
+    button.setAttribute("aria-describedby", "info");
+    placeInfo(button.getBoundingClientRect());
+  }
+  // Below the icon when it fits, above it otherwise, and never past either side of the screen.
+  function placeInfo(anchor) {
+    var margin = 8, gap = 6, w = info.offsetWidth, h = info.offsetHeight;
+    var left = Math.min(Math.max(anchor.left + anchor.width / 2 - w / 2, margin), window.innerWidth - w - margin);
+    var below = anchor.bottom + gap + h <= window.innerHeight - margin;
+    info.style.left = left + "px";
+    info.style.top = (below ? anchor.bottom + gap : Math.max(margin, anchor.top - gap - h)) + "px";
+  }
+  function hideInfo() {
+    if (!infoOwner) return;
+    infoOwner.setAttribute("aria-expanded", "false");
+    infoOwner.removeAttribute("aria-describedby");
+    infoOwner = null;
+    info.hidden = true;
+  }
+
+  // ---- Options and legend ------------------------------------------------------------
+  var options = document.getElementById("options"), optionsButton = document.getElementById("toggle-options");
+  optionsButton.onclick = function () {
+    options.hidden = !options.hidden;
+    optionsButton.setAttribute("aria-expanded", String(!options.hidden));
+  };
+  // A tap anywhere else dismisses the results, the filters and the info popover. Capture, since the canvas swallows its taps.
+  document.addEventListener("pointerdown", function (ev) {
+    var t = ev.target;
+    var onInfo = info.contains(t) || !!(t.closest && t.closest("button.info"));
+    if (!results.contains(t) && !document.getElementById("search-field").contains(t)) results.hidden = true;
+    if (!options.contains(t) && !optionsButton.contains(t) && !onInfo) closeOptions();
+    if (!onInfo) hideInfo();
+  }, true);
+  document.addEventListener("keydown", function (ev) { if (ev.key === "Escape") hideInfo(); });
+  function closeOptions() {
+    options.hidden = true;
+    optionsButton.setAttribute("aria-expanded", "false");
+  }
+  function markFilters() {
+    optionsButton.classList.toggle("filtering", Object.keys(show).some(function (k) { return show[k]; }));
+  }
+  function syncOptions() {
+    options.querySelectorAll("input").forEach(function (box) { box.checked = show[box.dataset.show]; });
+    markFilters();
+    renderLegend();
+  }
+  options.querySelectorAll("input").forEach(function (box) {
+    box.parentNode.appendChild(infoButton(box.parentNode.textContent.trim(), explanations[box.dataset.show]));
+    box.onchange = function () {
+      show[box.dataset.show] = box.checked;
+      markFilters();
+      renderLegend();
+      if (!show.diff) { layout(); return; }
+      openChanged();
+      layout(function () { cy.animate({ fit: { eles: cy.elements(), padding: 16 }, duration: 250 }); });
+    };
+  });
+  function renderLegend() {
+    var legend = document.getElementById("legend");
+    legend.innerHTML = "";
+    countShown();
+    groups.filter(function (g) {
+      return modules.some(function (m) { return moduleShown(m) && groupOf(m.id) === g; });
+    }).forEach(function (g) {
+      var key = el(g ? "button" : "div", { "class": "key" });
+      var colour = palette[groups.indexOf(g) % palette.length];
+      if (g) {
+        key.onclick = function () { toggleFolder(g); };
+        key.dataset.folder = g;
+        key.style.setProperty("--key", colour);
+      }
+      var swatch = el("i");
+      swatch.style.background = colour;
+      key.appendChild(swatch);
+      key.appendChild(document.createTextNode(groupLabel(g)));
+      legend.appendChild(key);
+    });
+    var hubs = modules.filter(function (m) { return has(m, "hub"); });
+    if (hubs.length && !show.hubs) {
+      var hidden = el("div", { "class": "hubs" });
+      hidden.appendChild(el("span", {}, "Hidden: " + hubs.map(function (m) { return fileLabel(m.path); }).join(", ")));
+      hidden.appendChild(infoButton("Used everywhere", explanations.hiddenHubs));
+      legend.appendChild(hidden);
+    }
+    legend.appendChild(el("div", { "class": "hint" }, "Arrows point at what is imported. Tap a folder to open it, tap its name to close it."));
+    syncLegendSelection();
+  }
+
+  // Every open or close ends in layout(), which calls this, so a folder key always shows whether its folder is open.
+  function syncLegendSelection() {
+    document.querySelectorAll("#legend button.key").forEach(function (key) {
+      var open = !!expanded[key.dataset.folder];
+      key.classList.toggle("open", open);
+      key.setAttribute("aria-pressed", String(open));
+    });
+  }
+
+  if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { cy.style(style()); });
+
+  // The picture the page opens with: nothing extra shown, the biggest folders open, fitted from the top.
+  function start(then) {
+    Object.keys(show).forEach(function (k) { show[k] = false; });
+    expanded = {};
+    autoExpand(28);
+    clearFocus();
+    search.value = "";
+    syncClear();
+    results.hidden = true;
+    closeOptions();
+    syncOptions();
+    layout(function () {
+      cy.fit(undefined, 16);
+      // A wide graph fits by its width: pin it to the top rather than float it mid-screen.
+      cy.pan({ x: cy.pan().x, y: 16 - cy.elements().boundingBox().y1 * cy.zoom() });
+      if (then) then();
+    });
+  }
+  document.getElementById("reset").onclick = function () { start(); };
+
+  var started = performance.now();
+  start(function () {
+    window.deslopExplorer.ready = true;
+    window.deslopExplorer.firstLayoutMs = performance.now() - started;
+  });
+})();
+</script>
+</body>
+</html>

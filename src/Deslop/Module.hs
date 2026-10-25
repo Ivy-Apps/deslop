@@ -36,6 +36,7 @@ module Deslop.Module (
     EdgeTarget (..),
     EdgeKind (..),
     DependencyEdge (..),
+    ModuleRole (..),
     Module (..),
     canonicalName,
 ) where
@@ -197,8 +198,26 @@ data Module = Module
     package.
     -}
     , edges :: [DependencyEdge]
+    , role :: ModuleRole
     }
     deriving stock (Show, Eq)
+
+{- | Why a module exists: to ship, to test what ships, or to measure it. Only
+the frontend can tell - a path in TypeScript, an import or a cabal component in
+Haskell - so it decides while lowering.
+
+Ordered by how strongly a signal claims the module, so evidence combines with
+'<>': a Haskell file importing @Test.Tasty.Bench@ matches a test framework and
+a benchmark one, and is a 'Benchmark'.
+-}
+data ModuleRole = Source | Test | Benchmark
+    deriving stock (Show, Eq, Ord, Enum, Bounded)
+
+instance Semigroup ModuleRole where
+    (<>) = max
+
+instance Monoid ModuleRole where
+    mempty = Source
 
 {- | The name a report prints and a baseline id is built from. Fixed per module
 so that a Problem keeps the same id from run to run, and unique within the

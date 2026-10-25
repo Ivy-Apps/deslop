@@ -46,6 +46,7 @@ import FileSystem.Path (
 import Frontend.TypeScript.CST (TsNode (..), TsProgram (cst, path), onLines)
 import Frontend.TypeScript.Config (TsConfig)
 import Frontend.TypeScript.ModuleResolver (dropTypeScriptExtension, moduleNames, resolve)
+import Frontend.TypeScript.ModuleRole (moduleRole)
 import Renderable (Renderable (render))
 
 parseModule ::
@@ -69,6 +70,7 @@ parseModule prog = do
             , names = names
             , path = relPath
             , edges = catMaybes edges
+            , role = moduleRole relPath
             }
 
 {- | Every name a file answers to, canonical first.
