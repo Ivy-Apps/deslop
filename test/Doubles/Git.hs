@@ -28,8 +28,9 @@ data Repository = Repository
 runGitInMemory :: Repository -> Eff (Git : es) a -> Eff es a
 runGitInMemory repo = interpret $ \_ -> \case
     DiffOf _ ref ->
-        pure . maybeToRight (UnknownBase ref) . viaNonEmpty head $
-            [Diff base files | base <- [GitRef ("origin/" <> ref.text), ref], Just files <- [Map.lookup base repo.changes]]
+        pure $!
+            maybeToRight (UnknownBase ref) . viaNonEmpty head $
+                [Diff base files | base <- [GitRef ("origin/" <> ref.text), ref], Just files <- [Map.lookup base repo.changes]]
     SourceLinksOf _ -> pure $! repo.sourceLinks
     PullRequestOf _ _ -> pure $! repo.pullRequest
 

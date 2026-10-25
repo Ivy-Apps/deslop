@@ -32,7 +32,7 @@ data Attendance = Attended | Unattended
 
 -- | Why a page was not opened. Never fatal: the page is written either way.
 data LaunchFailure
-    = -- | The platform's launcher (@xdg-open@, @open@, @cmd@) is not on the PATH, or would not start.
+    = -- | The platform's launcher (@xdg-open@, @open@, @rundll32@) is not on the PATH, or would not start.
       LauncherMissing Text
     | -- | The launcher ran and gave up, with this exit code.
       LauncherFailed Text Int
@@ -88,13 +88,14 @@ openIO page =
     name = toText launcher
 
 {- | The program that opens a file in the default browser, and the arguments
-before the file. @start@ is a @cmd@ builtin, whose first quoted argument is
-a window title.
+before the file. Windows goes through @rundll32@ rather than @cmd /c start@:
+@cmd@ would parse the path as a command line, where an @&@ in a folder name
+starts another command.
 -}
 launcherOn :: String -> (FilePath, [String])
 launcherOn = \case
     "darwin" -> ("open", [])
-    "mingw32" -> ("cmd", ["/c", "start", ""])
+    "mingw32" -> ("rundll32", ["url.dll,FileProtocolHandler"])
     _linuxOrBsd -> ("xdg-open", [])
 
 -- | How long a launcher may take to say it failed: 2s.
