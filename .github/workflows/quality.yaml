@@ -177,21 +177,15 @@ jobs:
           site="$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq 'if .https_enforced then (.html_url | sub("^http:"; "https:")) else .html_url end')"
           site="${site%/}/"
           if [ -n "$PR_NUMBER" ]; then
-            dir="pr/$PR_NUMBER"
-            {
-              echo "environment=explore-pr-$PR_NUMBER"
-              echo "production=false"
-            } >> "$GITHUB_OUTPUT"
+            dir="pr/$PR_NUMBER" url="${site}pr/$PR_NUMBER/" environment="explore-pr-$PR_NUMBER" production=false
           else
-            dir="."
-            {
-              echo "environment=explore"
-              echo "production=true"
-            } >> "$GITHUB_OUTPUT"
+            dir=. url="$site" environment=explore production=true
           fi
           {
             echo "dir=$dir"
-            echo "url=$site${dir#.}${PR_NUMBER:+/}"
+            echo "url=$url"
+            echo "environment=$environment"
+            echo "production=$production"
           } >> "$GITHUB_OUTPUT"
 
       # Several PRs can publish at once, and a concurrency group would cancel
