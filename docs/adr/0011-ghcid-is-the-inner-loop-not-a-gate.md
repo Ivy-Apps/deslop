@@ -281,5 +281,6 @@ to ~10.5s. It holds the parallel figures above for its life.
 
 An unfiltered `quick-test` took 50-56s warm, because the whole suite runs ~4x
 slower interpreted. With no filter it now runs the compiled suite through
-`cabal test` after the session's typecheck, ~15s warm. A filtered run still
-uses the session, where it costs ~3.5s.
+`cabal test` after the session's typecheck: ~17s with nothing to rebuild and
+~37s after an edit to `FileSystem.Path`, which most modules import. A filtered
+run still uses the session, where it costs ~4s.

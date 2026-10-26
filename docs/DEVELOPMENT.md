@@ -69,7 +69,7 @@ nix run .#test -- Parser
 While iterating, `nix run .#quick-typecheck` answers "does this typecheck" in
 about half a second by keeping a warm `ghcid` session, and
 `nix run .#quick-test -- <filter>` runs the matching tests inside it in a few
-seconds. With no filter it runs the whole compiled suite, in ~15s.
+seconds. With no filter it runs the whole compiled suite, in ~17-37s.
 They are an inner loop, not a gate: they do not lint or link. You are not done
 until `just check` passes.
 

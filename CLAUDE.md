@@ -7,8 +7,10 @@ All cabal/GHC commands must run inside the Nix dev shell using our `nix run` com
 ### The check ladder
 
 1. While iterating: `nix run .#quick-typecheck`, then
-   `nix run .#quick-test [-- <filter>]` once it is green. They cover every
-   `.hs` and `.js` edit, so never run a full `just check` mid-work.
+   `nix run .#quick-test [-- <filter>]` once it is green, and
+   `nix develop .#ci -c just test-js` (~2s) after an `explorer/` `.js` edit.
+   They cover every `.hs` and `.js` edit, so never run a full `just check`
+   mid-work.
 2. Once, before handing back: `nix develop .#ci -c just check`, in the
    background. It already runs the build, the tests and hlint, so never run
    `nix run .#build`, `.#test` or `.#lint` before it.
@@ -41,8 +43,8 @@ session, filtered like `nix run .#test -- <filter>`. After the typecheck's
 exits 0 when they pass, 1 on a GHC error, a failing test or a filter that
 matches nothing. A filtered run takes ~3s after an edit,
 against ~25s for `nix run .#test -- <filter>`. With no filter it runs the
-compiled suite through `cabal test` instead, ~15s warm, since the whole suite
-runs ~4x slower interpreted.
+compiled suite through `cabal test` instead: ~17s with nothing to rebuild,
+~37s after an edit low in the module graph, against 50-56s interpreted.
 
 **Neither is a quality gate.** The session is interpreted, so it does not run
 `hlint`, does not link, and does not compile with `-O2`: step 2 of the ladder
