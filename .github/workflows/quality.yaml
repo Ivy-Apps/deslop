@@ -12,9 +12,14 @@ concurrency:
   group: quality-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Three independent jobs run in parallel, and `Check` gathers them into the one
+# status the repository ruleset requires. Between them they run one step per
+# `just check` recipe, so a red run names the stage that failed. `just check`
+# is the local full pipeline: a recipe added there must be added to one of
+# these jobs too.
 jobs:
-  check:
-    name: Check
+  lint:
+    name: Lint
     runs-on: ubuntu-24.04-arm
     permissions:
       id-token: write
@@ -28,15 +33,11 @@ jobs:
           # (non-fatal) auth error. The GitHub Actions cache does the work.
           use-flakehub: false
 
-      # Realises the `ci` dev shell and fetches the Hackage index that
-      # `cabal.project`'s pinned index-state requires. Every later step reuses
-      # both, so this is where the one-off setup cost is visible.
+      # Realises the `ci` dev shell, so its one-off cost is not billed to the
+      # first lint step. The linters need no cabal, so no Hackage index.
       - name: ❄️ Toolchain
-        run: nix develop .#ci --accept-flake-config -c cabal update
+        run: nix develop .#ci --accept-flake-config -c true
 
-      # One step per `just check` recipe, in the same order, so a red run
-      # names the stage that failed. `just check` is the local full pipeline:
-      # a recipe added there must be added here too.
       - name: 🎨 Format
         run: nix develop .#ci --accept-flake-config -c just format-check
 
@@ -46,13 +47,26 @@ jobs:
       - name: 🔍 Lint workflows
         run: nix develop .#ci --accept-flake-config -c just lint-actions
 
+  build-test:
+    name: Build and test
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
+
+      - name: ❄️ Toolchain and cabal store
+        uses: ./.github/actions/cabal-store
+        with:
+          name: build-test
+
       - name: 🏗️ Build
         run: nix develop .#ci --accept-flake-config -c just build
-
-      # CI-only: the dev shells do not carry the benchmark's dependencies, and
-      # agents never build it.
-      - name: ⏱️ Build benchmark
-        run: nix develop .#ci --accept-flake-config -c just build-bench
 
       - name: 🧪 Test
         run: nix develop .#ci --accept-flake-config -c just test
@@ -77,3 +91,50 @@ jobs:
           name: explorer
           path: deslop/diagram/index.html
           if-no-files-found: error
+
+  # CI-only: the dev shells do not carry the benchmark's dependencies, and
+  # agents never build it. A job of its own because it is the longest single
+  # compile, with its own store key because its dependencies differ.
+  bench:
+    name: Benchmark
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
+
+      - name: ❄️ Toolchain and cabal store
+        uses: ./.github/actions/cabal-store
+        with:
+          name: bench
+
+      - name: ⏱️ Build benchmark
+        run: nix develop .#ci --accept-flake-config -c just build-bench
+
+  # The status check the repository ruleset requires: green only when every job
+  # above succeeded. `always()` makes it report even when one failed or was
+  # skipped, because a required check that never reports blocks the merge
+  # without saying why.
+  check:
+    name: Check
+    needs: [lint, build-test, bench]
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    permissions: {}
+    steps:
+      - name: ✅ Every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != success ]; then
+              echo "A required job ended '$result'."
+              exit 1
+            fi
+          done
