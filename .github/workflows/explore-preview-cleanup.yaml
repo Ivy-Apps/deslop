@@ -12,6 +12,11 @@ jobs:
   cleanup:
     name: Remove explorer preview
     if: github.event.pull_request.head.repo.full_name == github.repository
+    # Shared with this PR's `deploy-preview`, so a deploy still running
+    # finishes before its preview is removed.
+    concurrency:
+      group: explore-preview-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:

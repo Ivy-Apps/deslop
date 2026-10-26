@@ -55,6 +55,10 @@ jobs:
       contents: read
       # Read-only, for the explorer preview's `gh pr view`.
       pull-requests: read
+    # Whether the explorer preview was drawn, so `deploy-preview` runs only
+    # when there is a page to publish.
+    outputs:
+      preview: ${{ steps.preview.outcome }}
     steps:
       - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@main
@@ -99,9 +103,12 @@ jobs:
       # from the PR head, not the merge commit, on a branch named after it and
       # with full history: that is what source links and the Diff view read.
       # Its own worktree, so what was tested above stays the merge commit.
-      # Forks get no preview: their token cannot publish it.
+      # Forks get no preview: their token cannot publish it. A preview that
+      # fails (a transient fetch, an explore error on the PR head) never fails
+      # this job: it only skips the upload and `deploy-preview`.
       - name: 🗺️ Explorer preview
         id: preview
+        continue-on-error: true
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         env:
           # Read-only (`pull-requests: read`): deslop asks `gh pr view <branch>`
@@ -141,11 +148,15 @@ jobs:
   # `workflow_run` workflow because `workflow_run` runs the copy on `main`, so a
   # PR could never prove a change to it. Not in `Check`: a preview that fails to
   # publish never blocks a merge. `explore-preview-cleanup.yaml` removes a PR's
-  # preview once it closes.
+  # preview once it closes, in the same concurrency group so it waits for a
+  # deploy still running; `main` has a group of its own.
   deploy-preview:
     name: Deploy explorer preview
     needs: build-test
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: needs.build-test.outputs.preview == 'success'
+    concurrency:
+      group: explore-preview-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
@@ -188,7 +199,7 @@ jobs:
             echo "production=$production"
           } >> "$GITHUB_OUTPUT"
 
-      # Several PRs can publish at once, and a concurrency group would cancel
+      # Several PRs can publish at once, and one group across them would cancel
       # all but one: on a rejected push, start again from the new tip.
       - name: 🚀 Publish to gh-pages
         env:
