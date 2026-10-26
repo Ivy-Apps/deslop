@@ -90,7 +90,7 @@
             name = "ai-lint";
             runtimeInputs = [ pkgs.nix ];
             text = ''
-              nix develop ".#ci" --no-warn-dirty --quiet -c hlint .
+              nix develop ".#ci" --no-warn-dirty --quiet -c just lint
             '';
           };
 
@@ -146,7 +146,7 @@
           # The ghcid daemon behind `nix run .#quick-typecheck` and
           # `nix run .#quick-test`, and the tool `just stop-ghcid` uses to
           # retire every session on the machine.
-          ghcidTools = import ./nix/ghcid { inherit pkgs; };
+          ghcidTools = import ./nix/ghcid { inherit pkgs parallel; };
 
         in
         {

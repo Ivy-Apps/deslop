@@ -7,11 +7,19 @@ All cabal/GHC commands must run inside the Nix dev shell using our `nix run` com
 ### The check ladder
 
 1. While iterating: `nix run .#quick-typecheck`, then
-   `nix run .#quick-test [-- <filter>]` once it is green.
-2. Once, before handing back: `nix develop .#ci -c just check`. It already runs
-   the build, the tests and hlint, so never run `nix run .#build`, `.#test` or
-   `.#lint` before it.
-3. After an edit that touches no code (docs only), run nothing.
+   `nix run .#quick-test [-- <filter>]` once it is green, and
+   `nix develop .#ci -c just test-js` (~2s) after an `explorer/` `.js` edit.
+   They cover every `.hs` and `.js` edit, so never run a full `just check`
+   mid-work.
+2. Once, before handing back: `nix develop .#ci -c just check`, in the
+   background. It already runs the build, the tests and hlint, so never run
+   `nix run .#build`, `.#test` or `.#lint` before it.
+3. After an edit that touches no code (docs only), or only a `git commit`, run
+   nothing: rerun the full check only after a code edit.
+4. Several `cabal` or `just` commands in a row share one shell,
+   `nix develop .#ci -c bash -c '...'`, instead of a `nix run .#test`,
+   `.#build` or `.#lint` each (they wrap those commands), which pays ~7.5s of
+   `nix develop` per call.
 
 ### Fast feedback
 
@@ -28,15 +36,16 @@ costs a reload instead of a recompile and relink.
 `All good (<N> modules)` and exits 0, or the GHC errors verbatim and exits 1.
 There is no need to pipe it through `grep`. Roughly 0.5s when nothing broke and
 ~2s when something did. The first call after a break starts the session and
-takes ~17s; every call after that is fast, so just run it and keep going.
+takes ~10s; every call after that is fast, so just run it and keep going.
 
 `quick-test` typechecks the same way, then runs the hspec suite inside the
 session, filtered like `nix run .#test -- <filter>`. After the typecheck's
 `All good (<N> modules)` it prints only failures and the summary line, and
 exits 0 when they pass, 1 on a GHC error, a failing test or a filter that
 matches nothing. A filtered run takes ~3s after an edit,
-against ~25s for `nix run .#test -- <filter>`. The whole suite runs
-interpreted, ~48s, so filter while iterating.
+against ~25s for `nix run .#test -- <filter>`. With no filter it runs the
+compiled suite through `cabal test` instead: ~17s with nothing to rebuild,
+~37s after an edit low in the module graph, against 50-56s interpreted.
 
 **Neither is a quality gate.** The session is interpreted, so it does not run
 `hlint`, does not link, and does not compile with `-O2`: step 2 of the ladder
@@ -49,8 +58,8 @@ Notes:
   `deslop.cabal`. Until then the check refuses to report and names the file.
 - Long output is truncated; the printed path holds the full text.
 - Exit code 2 means no usable verdict; the reason goes to stderr.
-- You should not normally need to stop the daemon: it retires itself after 30
-  minutes idle. To reclaim the ~1GB now, run `nix develop -c just stop-ghcid`
+- You should not normally need to stop the daemon: it retires itself after 2
+  hours idle. To reclaim the ~1GB now, run `nix develop -c just stop-ghcid`
   from the repo root. It stops every daemon on the machine, including ones other
   worktrees are still using, so do not run it as routine cleanup.
 

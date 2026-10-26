@@ -269,3 +269,18 @@ GHC cabal's own job count, every core under `jobs: $ncpus`, which
 set in `cabal.project`. Cabal leaves both out of its change detection, so the
 session, `just build` and `just test` reuse one dist-newstyle, and a build after
 the session still compiles with `-j4`.
+
+## Addendum (2026-10-25): a parallel load, and the whole suite compiled
+
+Transcripts after the first addendum showed the trade above in agents' time.
+A cold session cost 34s end to end and the watchdog reaped sessions that came
+back after 51-93 minutes, so the session now loads with `cabal repl --jobs=4`
+(GHC's `-j4`, bounded like the build's) and retires after 2 hours idle instead
+of 30 minutes. Measured on the same 4-core box: a cold spawn fell from ~17.5s
+to ~10.5s. It holds the parallel figures above for its life.
+
+An unfiltered `quick-test` took 50-56s warm, because the whole suite runs ~4x
+slower interpreted. With no filter it now runs the compiled suite through
+`cabal test` after the session's typecheck: ~17s with nothing to rebuild and
+~37s after an edit to `FileSystem.Path`, which most modules import. A filtered
+run still uses the session, where it costs ~4s.
