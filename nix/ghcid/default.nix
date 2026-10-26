@@ -20,8 +20,9 @@
 #   * Everything is killed by process tree. The `ghc --interactive` that ghcid
 #     owns is invoked through an @response-file and carries nothing identifying,
 #     so a pattern kill orphans ~1GB that can never be found again.
-#   * quick-test runs inside the same session as quick-typecheck, through
-#     ghcid's `--test` hook, so a worktree holds one GHCi, not two.
+#   * A filtered quick-test runs inside the same session as quick-typecheck,
+#     through ghcid's `--test` hook, so a worktree holds one GHCi, not two. An
+#     unfiltered one runs the compiled suite, which is faster for all of it.
 #
 # Files:
 #   session.nix    - what the daemon loads and runs, and every tuning constant
@@ -34,7 +35,7 @@
 #   quickTypecheck - `nix run .#quick-typecheck` and `just quick-typecheck`
 #   quickTest      - `nix run .#quick-test` and `just quick-test`
 #   stop           - `just stop-ghcid`, retires every daemon on the machine
-{ pkgs }:
+{ pkgs, parallel }:
 
 let
   inherit (pkgs) lib;
@@ -50,7 +51,7 @@ let
     '';
   };
 
-  quickTest = import ./quick-test.nix { inherit session daemon; };
+  quickTest = import ./quick-test.nix { inherit session daemon parallel; };
 
   # Machine-wide on purpose: the point of reaching for this is to get every
   # session off the machine, not to reason about which worktree owns what. It

@@ -21,9 +21,10 @@ check:
     just integration
     just deslop-self
 
-# Haskell lint (hlint)
+# Haskell lint (hlint). -j4 checks four files at a time, ~25s against ~60s
+# serially, with byte-identical output; bounded at four like `parallel`.
 lint:
-    hlint .
+    hlint -j4 .
 
 # Fail if any Haskell source is not formatted as fourmolu.yaml says. Fixtures
 # are test inputs whose bytes the goldens pin, so they are never formatted.

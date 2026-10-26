@@ -1,8 +1,9 @@
-# `nix run .#quick-test [-- <filter>]`: run the hspec suite, or the part of it
-# `--match <filter>` selects, inside the warm quick-typecheck session, so an
-# edit costs a reload rather than a recompile and relink. The request
-# protocol is in test-hook.nix.
-{ session, daemon }:
+# `nix run .#quick-test [-- <filter>]`: run the part of the hspec suite
+# `--match <filter>` selects inside the warm quick-typecheck session, so an edit
+# costs a reload rather than a recompile and relink. The request protocol is in
+# test-hook.nix. With no filter it runs the compiled suite instead: the whole
+# suite takes ~46s interpreted against ~13s compiled, which outweighs the build.
+{ session, daemon, parallel }:
 
 let
   # Every failure in full and no passes, so a green run is one summary line.
@@ -16,9 +17,21 @@ daemon.mkClient {
     # not typecheck, and 2 when no answer could be had.
     main() {
       typecheck || exit 1
+      if [ "$#" -eq 0 ]; then run_compiled; fi
       request_run "$@"
       await_run
       report_run "$@"
+    }
+
+    run_compiled() {
+      compiled_report="$STATE/compiled.report"
+      status=0
+      nix develop ".#ci" --no-warn-dirty --quiet -c \
+        cabal test ${parallel} -v0 --test-show-details=direct \
+        "--test-options=${toString hspecArgs}" >"$compiled_report" 2>&1 \
+        || status=1
+      print_capped "$compiled_report"
+      exit "$status"
     }
 
     request_run() {

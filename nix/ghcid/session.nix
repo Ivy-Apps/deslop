@@ -29,15 +29,17 @@ let
 
   cacheNamespace = "deslop-ghcid";
 
-  # The session loads serially: one that loaded in parallel holds the extra
-  # memory for as long as it lives (1.03GB against 0.96GB after a filtered quick-test), for a one-off saving. A
-  # multi-repl hands GHC cabal's job count as `-j`, every core under the usual
-  # `jobs: $ncpus`, so that is pinned here; and it writes the package's
-  # `ghc-options` into each unit file after any `--repl-options`, which is why
-  # the Justfile, not cabal.project, passes the build's `-j4`. Neither the job
-  # count nor `-j` is part of cabal's change detection, so the session and
-  # `just build`/`just test` do not invalidate each other's dist-newstyle.
-  replJobs = "--jobs=1";
+  # The session loads four modules at a time. A multi-repl hands GHC cabal's
+  # job count as `-j`, every core under the usual `jobs: $ncpus`, so it is
+  # pinned to four for the same memory bound as the Justfile's `parallel`. A
+  # session that loaded in parallel holds a little more memory for as long as
+  # it lives (1.03GB against 0.96GB serially), which buys a faster cold spawn.
+  # A multi-repl also writes the package's `ghc-options` into each unit file
+  # after any `--repl-options`, which is why the Justfile, not cabal.project,
+  # passes the build's `-j4`. Neither the job count nor `-j` is part of cabal's
+  # change detection, so the session and `just build`/`just test` do not
+  # invalidate each other's dist-newstyle.
+  replJobs = "--jobs=4";
 
   # How quick-test asks this session for a test run.
   testHook = import ./test-hook.nix { inherit lib; };
@@ -63,7 +65,7 @@ in
   sourceDirs = [ "src" "app" "test" ];
 
   # ── Tuning ─────────────────────────────────────────────────────────────────
-  idleSeconds = 1800; # a session holds ~1GB; reclaim it when unused
+  idleSeconds = 7200; # a session holds ~1GB; reclaim it when unused for 2h
   waitSeconds = 180; # budget for a verdict before giving up loudly
   spawnSeconds = 10; # a daemon we just spawned must be visible to pgrep by now
   # A live daemon that has not rewritten its verdict in this long is not going
