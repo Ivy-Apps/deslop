@@ -11,6 +11,7 @@ import Deslop.Module (
     moduleNameUnsafe,
     specifierUnsafe,
  )
+import Deslop.Module qualified as Role
 import Doubles.FileSystem (mockFiles, runMockRoFileSystem)
 import Effectful
 import Effectful.Reader.Static (runReader)
@@ -69,6 +70,7 @@ spec = describe "Frontend.TypeScript.Module" $ do
                                 }
                         }
                     ]
+                , role = Role.Source
                 }
 
     it "import alias not available" $ do

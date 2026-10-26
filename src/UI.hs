@@ -38,6 +38,7 @@ coverage :: RunSummary -> Text
 coverage (Checked ms rs) = "Checked " <> modules ms <> " enforcing " <> rules rs
 coverage (Baselined ms rs) = "Baselined " <> modules ms <> " enforcing " <> rules rs
 coverage (Scanned ms) = "Scanned " <> modules ms
+coverage (Explored ms) = "Explored " <> modules ms
 
 modules :: ModuleCount -> Text
 modules (ModuleCount n) = pluralise n "module"

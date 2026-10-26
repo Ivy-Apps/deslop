@@ -208,14 +208,17 @@ let
     # verdict does not describe what is on disk. This is what makes a stale
     # `All good` impossible rather than merely unlikely.
     #
-    # Source files are judged against the verdict, cabal files against the
-    # start of the session that wrote it: only a restart reads them.
+    # Source files, and the files splices embed, are judged against the
+    # verdict, cabal files against the start of the session that wrote it:
+    # only a restart reads them.
     stale_inputs() {
       if [ ! -f "$SESSION" ] || [ ! "$OUTF" -nt "$SESSION" ]; then
         echo stale
         return 0
       fi
       find ${lib.concatStringsSep " " session.sourceDirs} -type f -name '*.hs' \
+        -newer "$OUTF" -print -quit 2>/dev/null
+      find ${lib.concatStringsSep " " session.embeddedDirs} -type f \
         -newer "$OUTF" -print -quit 2>/dev/null
       for f in ${lib.concatStringsSep " " session.cabalFiles}; do
         [ "$f" -nt "$SESSION" ] && printf '%s\n' "$f"

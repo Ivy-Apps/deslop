@@ -1,12 +1,16 @@
 cabal-version:   3.0
 name:            deslop
-version:         0.11.1
+version:         0.12.0
 license:         MIT
 license-file:    LICENSE
 author:          Ivy Apps LTD
 maintainer:      iliyan@ivy-apps.com
 build-type:      Simple
 extra-doc-files: README.md
+extra-source-files:
+  explorer/src/*.html
+  explorer/src/*.js
+  explorer/vendor/*.js
 
 flag static
   description:
@@ -62,6 +66,11 @@ library
     Deslop.CodeGraph
     Deslop.Command
     Deslop.Error
+    Deslop.Explore.Html
+    Deslop.Explore.Html.Template
+    Deslop.Explore.Layering
+    Deslop.Explore.ModuleGraph
+    Deslop.Explore.ModuleGraph.Json
     Deslop.Frontend
     Deslop.Frontend.Finding
     Deslop.Frontend.Pipeline
@@ -81,10 +90,13 @@ library
     Deslop.Rule.Enforcer
     Deslop.Rule.Lint.CycleDetection
     Deslop.RunReport
+    Effects.Browser
     Effects.CLI
     Effects.Concurrency
     Effects.FileSystem
+    Effects.Git
     Effects.ReportProblem
+    FileSystem.Embed
     FileSystem.Iterator
     FileSystem.Path
     Frontend
@@ -97,6 +109,7 @@ library
     Frontend.Haskell.Lexer
     Frontend.Haskell.Module
     Frontend.Haskell.ModuleName
+    Frontend.Haskell.ModuleRole
     Frontend.Haskell.Parser
     Frontend.Haskell.Preprocessor
     Frontend.Haskell.Tokens
@@ -124,9 +137,11 @@ library
     Frontend.TypeScript.Lint.RelativeSpecifiers
     Frontend.TypeScript.Module
     Frontend.TypeScript.ModuleResolver
+    Frontend.TypeScript.ModuleRole
     Frontend.TypeScript.Parser
     Frontend.TypeScript.Tokens
     Git.Ignore
+    Git.SourceLink
     Params
     Prelude
     Renderable
@@ -184,6 +199,13 @@ test-suite deslop-test
     Paths_deslop
     Deslop.CodeGraphPropSpec
     Deslop.CodeGraphSpec
+    Deslop.Explore.Html.TemplateSpec
+    Deslop.Explore.HtmlSpec
+    Deslop.Explore.LayeringPropSpec
+    Deslop.Explore.LayeringSpec
+    Deslop.Explore.ModuleGraph.JsonSpec
+    Deslop.Explore.ModuleGraphPropSpec
+    Deslop.Explore.ModuleGraphSpec
     Deslop.Frontend.FindingSpec
     Deslop.Frontend.PipelinePropSpec
     Deslop.Frontend.PipelineSpec
@@ -201,16 +223,23 @@ test-suite deslop-test
     Deslop.Rule.Book.LoaderSpec
     Deslop.Rule.EnforcerSpec
     Deslop.Rule.Lint.CycleDetectionSpec
+    Doubles.Browser
     Doubles.CLI
     Doubles.FileSystem
+    Doubles.Git
     Doubles.Frontend
     E2E.CommandLineSpec
     E2E.FileSpec
     E2E.ProjectGoldenSpec
+    Effects.BrowserSpec
     Effects.FileSystemSpec
+    Effects.GitSpec
     Effects.ReportProblemSpec
+    FileSystem.EmbedSpec
     FileSystem.IteratorSpec
     FileSystem.PathSpec
+    Fixtures.Deslop.Explore.Html
+    Fixtures.Deslop.Explore.ModuleGraph.Json
     Fixtures.Deslop.Frontend
     Fixtures.Deslop.Frontend.Pipeline
     Fixtures.Deslop.GlobPlus
@@ -235,6 +264,7 @@ test-suite deslop-test
     Frontend.Haskell.LexerSpec
     Frontend.Haskell.ModuleNameSpec
     Frontend.Haskell.ModulePropSpec
+    Frontend.Haskell.ModuleRoleSpec
     Frontend.Haskell.ModuleSpec
     Frontend.Haskell.ParserPropSpec
     Frontend.Haskell.ParserSpec
@@ -267,6 +297,7 @@ test-suite deslop-test
     Frontend.TypeScript.Lint.RelativeSpecifiersSpec
     Frontend.TypeScript.ModulePropSpec
     Frontend.TypeScript.ModuleResolverSpec
+    Frontend.TypeScript.ModuleRoleSpec
     Frontend.TypeScript.ModuleSpec
     Frontend.TypeScript.ParserPropSpec
     Frontend.TypeScript.ParserSpec
@@ -278,6 +309,7 @@ test-suite deslop-test
     Generators.Frontend.TypeScript.CST
     Generators.Frontend.TypeScript.Project
     Git.IgnoreSpec
+    Git.SourceLinkSpec
     ParamsSpec
     TestUtils
     UISpec

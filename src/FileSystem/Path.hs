@@ -26,6 +26,7 @@ module FileSystem.Path (
     relativePathTo,
     dropCommonSegments,
     portablePath,
+    portableSegments,
 
     -- * The project under inspection
     ProjectRoot (..),
@@ -121,6 +122,12 @@ accepted.
 -}
 portablePath :: ProjectRelativePath -> Text
 portablePath = T.replace "\\" "/" . decodeOsPath . (.osPath)
+
+{- | The segments of a 'portablePath', outermost first, with every empty or
+@.@ segment dropped. None for a path that names no file, such as the root itself.
+-}
+portableSegments :: ProjectRelativePath -> Maybe (NonEmpty Text)
+portableSegments = nonEmpty . filter (`notElem` ["", "."]) . T.splitOn "/" . portablePath
 
 {- | The two paths with their shared leading segments removed, left as the part
 of each that the other does not have.

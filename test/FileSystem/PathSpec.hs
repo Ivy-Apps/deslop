@@ -8,6 +8,7 @@ import FileSystem.Path (
     decodeOsPath,
     encodeOsPath,
     encodeOsPathString,
+    portableSegments,
     relativePathTo,
  )
 import Hedgehog (Gen, assert, forAll, (===))
@@ -37,6 +38,16 @@ spec = describe "FileSystem.Path" $ do
             text <- forAll $ Gen.text (Range.linear 0 40) Gen.unicode
 
             decodeOsPath (encodeOsPath text) === text
+
+    describe "portableSegments" $ do
+        it "splits a path into its segments, outermost first" $
+            portableSegments (rp "src/ui/Button.tsx") `shouldBe` Just ("src" :| ["ui", "Button.tsx"])
+
+        it "drops the empty and . segments" $
+            portableSegments (rp "./src//a.ts") `shouldBe` Just ("src" :| ["a.ts"])
+
+        it "has none for the root itself" $
+            portableSegments (rp ".") `shouldBe` Nothing
 
     describe "relativePathTo" $ do
         it "strips the root from a file inside it" $ do

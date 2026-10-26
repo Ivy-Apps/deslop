@@ -1,0 +1,128 @@
+<!doctype html>
+<!--
+  Deslop's module graph explorer, written by `deslop explore`.
+  One self-contained page: the graph and every script it runs are inline below,
+  so it opens from disk, offline. The graph is computed by Deslop
+  (src/Deslop/Explore/ModuleGraph.hs): the scripts, from explorer/src/, only draw it.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Module graph</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #1f2328; --muted: #6b7280; --panel: #ffffff; --line: #d0d4da;
+    --edge: #3b4252; --accent: #d9480f; --folder-fg: #374151; --shadow: 0 2px 12px rgba(0,0,0,.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15171a; --fg: #e6e8eb; --muted: #9aa3ae; --panel: #1f2226; --line: #363b42;
+      --edge: #c9d1d9; --accent: #ff922b; --folder-fg: #d1d5db; --shadow: 0 2px 12px rgba(0,0,0,.5);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font: 15px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+  #cy { position: fixed; inset: calc(env(safe-area-inset-top, 0) + 60px) 0 0 0; }
+  #bar { position: fixed; top: env(safe-area-inset-top, 0); left: 0; right: 0; display: flex; gap: 8px;
+    padding: 8px; z-index: 3; pointer-events: none; }
+  #bar > * { pointer-events: auto; }
+  #search-field { position: relative; flex: 1; min-width: 0; }
+  #search { width: 100%; height: 44px; padding: 0 44px 0 14px; border: 1px solid var(--line); border-radius: 22px;
+    background: var(--panel); color: var(--fg); font-size: 16px; box-shadow: var(--shadow); }
+  #search::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+  #clear-search { position: absolute; top: 0; right: 0; width: 44px; height: 44px; padding: 0; border: 0; box-shadow: none;
+    background: none; color: var(--muted); font-size: 18px; }
+  button, a.button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 22px; min-height: 44px; padding: 0 14px; box-shadow: var(--shadow); cursor: pointer; }
+  #results { position: fixed; top: calc(env(safe-area-inset-top, 0) + 58px); left: 8px; right: 8px; z-index: 4;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+    max-height: 50vh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+  .row { display: block; width: 100%; text-align: left; border: 0; border-radius: 0; box-shadow: none;
+    border-bottom: 1px solid var(--line); padding: 10px 14px; min-height: 44px; background: none; }
+  .row span { display: block; overflow-wrap: anywhere; }
+  .row b { color: var(--accent); font-weight: 700; }
+  .row small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #options { position: fixed; top: calc(env(safe-area-inset-top, 0) + 58px); right: 8px; z-index: 4; padding: 6px 14px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  #options label { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+  #options input { width: 22px; height: 22px; }
+  #legend { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom, 0) + 8px); z-index: 2;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; font-size: 12px;
+    box-shadow: var(--shadow); opacity: .94; display: flex; flex-wrap: wrap; column-gap: 6px; row-gap: 6px; }
+  #legend .key { display: flex; align-items: center; gap: 5px; }
+  /* A folder key is a pill: outlined while its folder is closed, tinted in the folder's colour while it is open. */
+  #legend button.key { font-size: inherit; min-height: 28px; padding: 0 10px; border: 0; border-radius: 999px;
+    box-shadow: inset 0 0 0 1px var(--line); background: none; }
+  #legend button.key.open { font-weight: 700; background: color-mix(in srgb, var(--key) 22%, transparent);
+    box-shadow: inset 0 0 0 1.5px var(--key); }
+  #reset { width: 44px; padding: 0; font-size: 20px; }
+  #toggle-options { position: relative; width: 44px; padding: 0; display: flex; align-items: center; justify-content: center; }
+  #toggle-options.filtering::after { content: ""; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--accent); }
+  #legend .hubs, #legend .hint { flex-basis: 100%; }
+  #legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+  #legend .hubs { color: var(--muted); margin-top: 4px; display: flex; align-items: center; gap: 2px; }
+  /* An info icon: a 32px tap target that sits inside its row without making it taller. */
+  button.info { flex: none; width: 32px; min-height: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
+    box-shadow: none; background: none; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
+  #legend button.info { margin: -8px 0; }
+  #info { position: fixed; z-index: 6; max-width: min(320px, calc(100vw - 16px)); padding: 10px 12px; font-size: 14px;
+    background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  #legend .hint { color: var(--muted); margin-top: 4px; }
+  #sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; max-height: 42vh; overflow-y: auto;
+    background: var(--panel); border-top: 1px solid var(--line); border-radius: 16px 16px 0 0; box-shadow: var(--shadow);
+    padding: 12px 16px calc(env(safe-area-inset-bottom, 0) + 16px); }
+  /* The sheet's title row: the name takes what the actions leave, and wraps rather than pushing them off. */
+  #sheet .head { display: flex; align-items: center; gap: 8px; margin: -4px -8px 2px 0; }
+  #sheet h2 { flex: 1; min-width: 0; font-size: 18px; margin: 0; word-break: break-word; }
+  #sheet .actions { flex: none; display: flex; gap: 4px; }
+  a.button { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; box-shadow: none; }
+  #sheet .path { color: var(--muted); font-size: 13px; word-break: break-all; }
+  #sheet h3 { font-size: 14px; margin: 14px 0 4px; color: var(--muted); font-weight: 600; }
+  #sheet .badge { display: inline-block; font-size: 12px; padding: 2px 8px; margin: 6px 6px 0 0; border-radius: 10px;
+    border: 1px solid var(--line); }
+  #close { width: 34px; padding: 0; box-shadow: none; display: inline-flex; align-items: center; justify-content: center; }
+  /* The sheet's actions are smaller than the bar's buttons, so the module name keeps the room. */
+  #sheet .actions > * { min-height: 34px; height: 34px; font-size: 13px; }
+  #sheet .actions a.button { padding: 0 10px; }
+  /* A changed module's diff with no pull request to open it in: a small badge in the Diff button's place, not a control. */
+  #sheet .actions .chip { display: inline-flex; align-items: center; align-self: center; min-height: 0; height: 22px; font-size: 12px; padding: 0 8px; border-radius: 11px;
+    border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--fg); cursor: default; }
+  #sheet .row { padding-left: 0; }
+  @media (max-width: 600px) { #sheet { max-height: 34vh; } }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="cy"></div>
+<div id="bar">
+  <div id="search-field">
+    <input id="search" type="search" placeholder="Find a module" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="clear-search" aria-label="Clear search" hidden>✕</button>
+  </div>
+  <button id="reset" aria-label="Reset" title="Reset">↺</button>
+  <button id="toggle-options" aria-label="Filters" title="Filters" aria-expanded="false">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/>
+    </svg>
+  </button>
+</div>
+<div id="results" hidden></div>
+<div id="options" hidden>
+  <label id="diff-option"><input type="checkbox" data-show="diff"> Diff only</label>
+  <label><input type="checkbox" data-show="tests"> Tests</label>
+  <label><input type="checkbox" data-show="benches"> Benchmarks</label>
+  <label><input type="checkbox" data-show="hubs"> Used everywhere</label>
+  <label><input type="checkbox" data-show="implied"> Implied arrows</label>
+  <label><input type="checkbox" data-show="externals"> Packages</label>
+</div>
+<div id="legend"></div>
+<div id="info" role="tooltip" hidden></div>
+<section id="sheet" hidden></section>
+<script id="graph" type="application/json">/* deslop:graph */</script>
+<!-- deslop:scripts -->
+</body>
+</html>

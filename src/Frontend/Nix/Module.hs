@@ -32,6 +32,7 @@ import Deslop.Module (
     Module (..),
     ModuleId,
     ModuleName (..),
+    ModuleRole (Source),
     canonicalName,
     moduleIdUnsafe,
     specifierUnsafe,
@@ -72,7 +73,7 @@ lowerProject projectRoot scope units = do
     pure (everyModule, notRead <> shared everyModule)
   where
     relative = relativePathTo projectRoot
-    asset (moduleId, path) = Module {id = moduleId, names = moduleNames path, path, edges = []}
+    asset (moduleId, path) = Module {id = moduleId, names = moduleNames path, path, edges = [], role = Source}
     notRead = [ReferencesNotRead (relative path) why | Opaque path why _ <- units]
 
 {- | Every module, and every edge into one, by the names 'projectNames' gives
@@ -118,7 +119,7 @@ lowerUnit projectRoot scope moduleId unit = do
         Opaque {} -> pure []
     let others = [(edge, reached) | (edge, reached) <- resolved, fmap fst reached.inProject /= Just moduleId]
         edges = nubOrdOn (\e -> (e.specifier, e.target)) [edge reached.edgeTarget | (edge, reached) <- others]
-    pure (Module {id = moduleId, names = moduleNames file, path = file, edges}, mapMaybe ((.inProject) . snd) others)
+    pure (Module {id = moduleId, names = moduleNames file, path = file, edges, role = Source}, mapMaybe ((.inProject) . snd) others)
   where
     file = relativePathTo projectRoot (unitPath unit)
 

@@ -74,3 +74,4 @@ commandName :: Command -> Text
 commandName CheckC = "check"
 commandName FixC = "fix"
 commandName BaselineC = "baseline"
+commandName (ExploreC _) = "explore"

@@ -1,0 +1,9 @@
+{
+  "name": "deslop-explorer-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "What the explorer page's tests need; nothing here is embedded in the page. The flake builds node_modules from package-lock.json.",
+  "devDependencies": {
+    "fast-check": "4.10.2"
+  }
+}
