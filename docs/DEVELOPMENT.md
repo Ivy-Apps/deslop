@@ -133,7 +133,9 @@ CI publishes the `deslop explore` page of this repository to GitHub Pages, as
 the Deslop it just built draws it: `main` at the site root, and every PR from
 a branch of this repository at `pr/<n>/`, refreshed on each push and removed
 when the PR closes. A PR links its preview as a "View deployment" button. PRs
-from forks get none; the page is still a CI artifact (`explorer`).
+from forks get none; the page is still a CI artifact (`explorer-preview`). The
+`Explorer preview` job builds only the executable, in parallel with the tests,
+so a preview lands without waiting for them, and it never blocks a merge.
 
 ## Releasing
 
