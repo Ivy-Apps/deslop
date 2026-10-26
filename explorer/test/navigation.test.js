@@ -28,18 +28,27 @@ test("onWheel pans a two-finger move against the fingers, as a page scrolls", ()
   assert.deepEqual(onWheel(AT_ONE, { deltaX: 10, deltaY: -20 }), { zoom: 1, pan: { x: -10, y: 20 } });
 });
 
-test("onWheel reads a line-based wheel's lines, and a page-based one's pages, as pixels", () => {
+test("onWheel reads a line-based wheel's lines as pixels", () => {
   assert.deepEqual(onWheel(AT_ONE, { deltaY: 3, deltaMode: 1 }), { zoom: 1, pan: { x: 0, y: -48 } });
+});
+
+test("onWheel reads a page-based wheel's pages as the canvas's size", () => {
   assert.deepEqual(onWheel(AT_ONE, { deltaX: 1, deltaY: 1, deltaMode: 2 }), { zoom: 1, pan: { x: -800, y: -600 } });
 });
 
-test("onWheel turns Shift + a vertical wheel sideways, but leaves a sideways wheel as it is", () => {
+test("onWheel turns Shift + a vertical wheel sideways", () => {
   assert.deepEqual(onWheel(AT_ONE, { deltaY: 30, shiftKey: true }), { zoom: 1, pan: { x: -30, y: 0 } });
+});
+
+test("onWheel leaves Shift + a sideways wheel as it is", () => {
   assert.deepEqual(onWheel(AT_ONE, { deltaX: 30, shiftKey: true }), { zoom: 1, pan: { x: -30, y: 0 } });
 });
 
-test("onWheel zooms in on a pinch out and out on a pinch in", () => {
+test("onWheel zooms in on a pinch out", () => {
   assert.ok(onWheel(AT_ONE, { deltaY: -5, ctrlKey: true }).zoom > 1);
+});
+
+test("onWheel zooms out on a pinch in", () => {
   assert.ok(onWheel(AT_ONE, { deltaY: 5, ctrlKey: true }).zoom < 1);
 });
 
