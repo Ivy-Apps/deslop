@@ -1,0 +1,63 @@
+name: Explorer preview cleanup
+
+# Takes down a closed PR's explorer preview, which `deploy-preview` in
+# quality.yaml published: its `pr/<n>/` folder on `gh-pages`, and its
+# Deployments, so the PR no longer offers a dead "View deployment" link. Like
+# the deploy, it never checks out or runs repository code.
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cleanup:
+    name: Remove explorer preview
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Shared with this PR's `deploy-preview`, so a deploy still running
+    # finishes before its preview is removed.
+    concurrency:
+      group: explore-preview-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      deployments: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      # Static pages, never run.
+      - uses: actions/checkout@v7
+        with:
+          ref: gh-pages
+          path: site
+
+      # As in the deploy: on a rejected push, start again from the new tip.
+      - name: 🧹 Remove from gh-pages
+        run: |
+          cd site
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3 4 5; do
+            git fetch --depth 1 origin +gh-pages:refs/remotes/origin/gh-pages
+            git reset --hard origin/gh-pages
+            if [ ! -e "pr/$PR_NUMBER" ]; then
+              echo 'No preview to remove.'
+              exit 0
+            fi
+            git rm -rq "pr/$PR_NUMBER"
+            git commit -q -m "Remove the explorer preview of PR #$PR_NUMBER"
+            if git push origin HEAD:gh-pages; then
+              exit 0
+            fi
+            echo "Push $attempt rejected; retrying from the new tip."
+            sleep $((attempt * 3))
+          done
+          exit 1
+
+      - name: 🔗 Mark its deployments inactive
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/deployments?environment=explore-pr-$PR_NUMBER" --jq '.[].id' |
+            while read -r id; do
+              gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=inactive >/dev/null
+            done
