@@ -51,7 +51,7 @@ build:
 # Compile the benchmark. CI runs this; the dev shells do not carry the
 # benchmark's dependencies, so it needs `cabal update` first.
 build-bench:
-    cabal build --enable-benchmarks deslop-bench
+    cabal build --enable-benchmarks deslop-bench {{parallel}}
 
 # Run the test suite
 test:
