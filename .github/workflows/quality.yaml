@@ -16,7 +16,8 @@ concurrency:
 # status the repository ruleset requires. Between them they run one step per
 # `just check` recipe, so a red run names the stage that failed. `just check`
 # is the local full pipeline: a recipe added there must be added to one of
-# these jobs too.
+# these jobs too. `explore` and `deploy-preview` run alongside them and stay
+# out of `Check`: the explorer preview is informational.
 jobs:
   lint:
     name: Lint
@@ -53,12 +54,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      # Read-only, for the explorer preview's `gh pr view`.
-      pull-requests: read
-    # Whether the explorer preview was drawn, so `deploy-preview` runs only
-    # when there is a page to publish.
-    outputs:
-      preview: ${{ steps.preview.outcome }}
     steps:
       - uses: actions/checkout@v7
       - uses: DeterminateSystems/nix-installer-action@main
@@ -86,30 +81,55 @@ jobs:
       - name: ✨ Own Deslop rules (dogfood)
         run: nix develop .#ci --accept-flake-config -c just deslop-self
 
-      # CI-only: the explorer of this repository, as the binary just built
-      # draws it, for a reviewer to download and open.
-      - name: 🗺️ Explorer
-        run: nix develop .#ci --accept-flake-config -c cabal run -v0 deslop -- explore . --ci
-
-      - name: 📦 Upload explorer
-        uses: actions/upload-artifact@v7
+  # The `deslop explore` page of this repository, drawn by the Deslop this
+  # commit builds so a PR's own explorer changes show. A job of its own, in
+  # parallel with build-test, so `deploy-preview` waits for one executable
+  # build rather than the whole test suite. Its own store key because it
+  # builds no test suite, so its dependencies differ: sharing build-test's
+  # key, whichever job saved first would leave the other a store short of its
+  # packages, rebuilt on every run. Not in `Check`: a page that fails to draw
+  # never blocks a merge.
+  explore:
+    name: Explorer preview
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    permissions:
+      id-token: write
+      contents: read
+      # Read-only, for deslop's `gh pr view`.
+      pull-requests: read
+    # Whether the page was drawn, so `deploy-preview` runs only when there is
+    # one to publish.
+    outputs:
+      preview: ${{ steps.preview.outcome }}
+    steps:
+      # The PR head, not the merge commit, with full history: that is what
+      # source links and the Diff view read. On main, the pushed commit.
+      - uses: actions/checkout@v7
         with:
-          name: explorer
-          path: deslop/diagram/index.html
-          if-no-files-found: error
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: false
 
-      # The page `deploy-preview` publishes, drawn by the binary just built so a
-      # PR's own explorer changes show. Unlike the artifact above, it is drawn
-      # from the PR head, not the merge commit, on a branch named after it and
-      # with full history: that is what source links and the Diff view read.
-      # Its own worktree, so what was tested above stays the merge commit.
-      # Forks get no preview: their token cannot publish it. A preview that
-      # fails (a transient fetch, an explore error on the PR head) never fails
-      # this job: it only skips the upload and `deploy-preview`.
-      - name: 🗺️ Explorer preview
+      - name: ❄️ Toolchain and cabal store
+        uses: ./.github/actions/cabal-store
+        with:
+          name: explore
+
+      - name: 🏗️ Build executable
+        run: nix develop .#ci --accept-flake-config -c cabal build exe:deslop
+
+      # On a branch named after the PR's, as deslop reads it, measured from
+      # its base; main from its parent. Forks draw the page too, for the
+      # artifact, but `deploy-preview` never publishes theirs: their token
+      # cannot. A page that fails to draw never fails this job: it only skips
+      # the upload and `deploy-preview`.
+      - name: 🗺️ Explorer
         id: preview
         continue-on-error: true
-        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         env:
           # Read-only (`pull-requests: read`): deslop asks `gh pr view <branch>`
           # for the PR its Diff view opens in. Not set on main, where a fork's
@@ -117,28 +137,21 @@ jobs:
           GH_TOKEN: ${{ github.event_name == 'pull_request' && github.token || '' }}
           BASE_REF: ${{ github.base_ref }}
           HEAD_REF: ${{ github.head_ref }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          deslop="$(nix develop .#ci --accept-flake-config -c cabal list-bin deslop)"
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            git fetch --unshallow --no-tags origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
-            project="$RUNNER_TEMP/preview"
-            git worktree add -B "$HEAD_REF" "$project" "$HEAD_SHA"
+            git checkout -q -B "$HEAD_REF"
             base="$BASE_REF"
           else
-            git fetch --unshallow --no-tags origin
-            project="$PWD"
             base='HEAD^'
           fi
-          nix develop .#ci --accept-flake-config -c "$deslop" explore "$project" --ci --diff-base "$base"
-          echo "page=$project/deslop/diagram/index.html" >> "$GITHUB_OUTPUT"
+          nix develop .#ci --accept-flake-config -c cabal run -v0 deslop -- explore . --ci --diff-base "$base"
 
       - name: 📦 Upload explorer preview
         if: steps.preview.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
           name: explorer-preview
-          path: ${{ steps.preview.outputs.page }}
+          path: deslop/diagram/index.html
           if-no-files-found: error
 
   # Publishes the explorer preview to GitHub Pages: `main` at the site root, a
@@ -152,8 +165,11 @@ jobs:
   # deploy still running; `main` has a group of its own.
   deploy-preview:
     name: Deploy explorer preview
-    needs: build-test
-    if: needs.build-test.outputs.preview == 'success'
+    needs: explore
+    # Forks' pages are an artifact only: their token cannot publish.
+    if: >-
+      needs.explore.outputs.preview == 'success'
+      && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
     concurrency:
       group: explore-preview-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.ref }}
       cancel-in-progress: false
@@ -169,7 +185,7 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      # A PR closed while build-test ran is already cleaned up: publishing now
+      # A PR closed while explore ran is already cleaned up: publishing now
       # would bring its folder and Deployment back. A close after this check
       # queues the cleanup behind this job in the shared group, so it still
       # runs last. Pushes to main always publish.
