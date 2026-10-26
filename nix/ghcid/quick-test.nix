@@ -2,7 +2,7 @@
 # `--match <filter>` selects inside the warm quick-typecheck session, so an edit
 # costs a reload rather than a recompile and relink. The request protocol is in
 # test-hook.nix. With no filter it runs the compiled suite instead: the whole
-# suite takes ~46s interpreted against ~13s compiled, which outweighs the build.
+# suite runs ~4x slower interpreted, which outweighs the build.
 { session, daemon, parallel }:
 
 let
@@ -17,10 +17,13 @@ daemon.mkClient {
     # not typecheck, and 2 when no answer could be had.
     main() {
       typecheck || exit 1
-      if [ "$#" -eq 0 ]; then run_compiled; fi
-      request_run "$@"
-      await_run
-      report_run "$@"
+      if [ "$#" -eq 0 ]; then
+        run_compiled
+      else
+        request_run "$@"
+        await_run
+        report_run "$@"
+      fi
     }
 
     run_compiled() {
@@ -41,7 +44,7 @@ daemon.mkClient {
         printf '%s\n' "$REQUEST_ID"
         printf '%s\n' ${toString hspecArgs}
         # One pattern however many words, as under `nix run .#test`.
-        if [ "$#" -gt 0 ]; then printf '%s\n' --match "$*"; fi
+        printf '%s\n' --match "$*"
       } > "$TEST_REQUEST"
       touch "$TEST_TRIGGER"
     }
