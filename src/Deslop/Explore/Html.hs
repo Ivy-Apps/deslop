@@ -52,6 +52,7 @@ pageScripts =
             , $$(embedText "explorer/src/view.js")
             , $$(embedText "explorer/src/sha256.js")
             , $$(embedText "explorer/src/search.js")
+            , $$(embedText "explorer/src/navigation.js")
             , $$(embedText "explorer/src/explorer.js")
             ]
 

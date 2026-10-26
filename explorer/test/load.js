@@ -5,7 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const SCRIPTS = ["graph.js", "colour.js", "view.js", "sha256.js", "search.js"];
+const SCRIPTS = ["graph.js", "colour.js", "view.js", "sha256.js", "search.js", "navigation.js"];
 
 function load() {
   const context = vm.createContext({ TextEncoder });
@@ -13,8 +13,8 @@ function load() {
     const filename = path.join(__dirname, "..", "src", file);
     vm.runInContext(fs.readFileSync(filename, "utf8"), context, { filename });
   });
-  const { DeslopGraph, DeslopColour, DeslopView, DeslopSha256, DeslopSearch } = context;
-  return { DeslopGraph, DeslopColour, DeslopView, DeslopSha256, DeslopSearch };
+  const { DeslopGraph, DeslopColour, DeslopView, DeslopSha256, DeslopSearch, DeslopNavigation } = context;
+  return { DeslopGraph, DeslopColour, DeslopView, DeslopSha256, DeslopSearch, DeslopNavigation };
 }
 
 // A value the scripts returned, rebuilt in this realm: their arrays and objects have the context's own
