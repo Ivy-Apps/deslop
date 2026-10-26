@@ -1,5 +1,5 @@
 // The page: reads the graph it carries, draws it with cytoscape, and wires the controls to it.
-// The logic lives in DeslopGraph, DeslopColour, DeslopView, DeslopSha256 and DeslopSearch; this is the DOM around it.
+// The logic lives in DeslopGraph, DeslopColour, DeslopView, DeslopSha256, DeslopSearch and DeslopNavigation; this is the DOM around it.
 (function () {
   "use strict";
 
@@ -101,6 +101,45 @@
       }
     }).run();
   }
+
+  // ---- Trackpad and wheel ------------------------------------------------------------
+  // A two-finger move pans and a pinch zooms around the cursor, as in Figma. Cytoscape would zoom on every wheel
+  // from its own capturing listeners on the container, so these listen on the document, which the event passes
+  // first on its way down, and stop it there. Its touch handling is left alone: on a phone it still pans and pinches.
+  var canvas = cy.container();
+  // iOS Safari reports a touch pinch as gesture events too, which cytoscape ignores while its touches are down.
+  var touches = 0;
+  // The zoom a Safari trackpad pinch started at, while one is under way.
+  var gestureZoom = null;
+  function viewport() { return { zoom: cy.zoom(), pan: cy.pan() }; }
+  function limits() { return { min: cy.minZoom(), max: cy.maxZoom() }; }
+  function cursorOf(ev) { var r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; }
+  function swallow(ev) { ev.preventDefault(); ev.stopPropagation(); }
+  ["touchstart", "touchend", "touchcancel"].forEach(function (type) {
+    document.addEventListener(type, function (ev) { touches = ev.touches.length; }, { capture: true, passive: true });
+  });
+  document.addEventListener("wheel", function (ev) {
+    if (!canvas.contains(ev.target)) return;
+    swallow(ev);
+    // Safari pinches as a gesture: a pinch wheel during one would zoom twice.
+    if (ev.ctrlKey && gestureZoom !== null) return;
+    cy.viewport(DeslopNavigation.onWheel(viewport(), ev, cursorOf(ev), { width: cy.width(), height: cy.height() }, limits()));
+  }, { capture: true, passive: false });
+  document.addEventListener("gesturestart", function (ev) {
+    if (touches || !canvas.contains(ev.target)) return;
+    swallow(ev);
+    gestureZoom = cy.zoom();
+  }, true);
+  document.addEventListener("gesturechange", function (ev) {
+    if (gestureZoom === null) return;
+    swallow(ev);
+    cy.viewport(DeslopNavigation.onGesture(viewport(), gestureZoom, ev.scale, cursorOf(ev), limits()));
+  }, true);
+  document.addEventListener("gestureend", function (ev) {
+    if (gestureZoom === null) return;
+    swallow(ev);
+    gestureZoom = null;
+  }, true);
 
   // ---- Interaction -------------------------------------------------------------
   cy.on("tap", "node", function (ev) {

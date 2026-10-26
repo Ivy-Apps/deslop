@@ -23,7 +23,7 @@ spec = describe "Deslop.Explore.Html" $ do
             let page = explorerPage $ diagramOf Nothing Nothing Nothing []
                 inOrder =
                     ["vendor/cytoscape.min.js", "vendor/elk.bundled.js", "vendor/cytoscape-elk.js"]
-                        <> fmap ("src/" <>) ["graph.js", "colour.js", "view.js", "sha256.js", "search.js", "explorer.js"]
+                        <> fmap ("src/" <>) ["graph.js", "colour.js", "view.js", "sha256.js", "search.js", "navigation.js", "explorer.js"]
 
             offsets <- forM inOrder $ \file -> do
                 onDisk <- decodeUtf8 <$> readFileBS ("explorer/" <> file)
