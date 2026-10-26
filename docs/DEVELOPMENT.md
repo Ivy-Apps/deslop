@@ -127,6 +127,14 @@ Golden tests compare CLI output against snapshots in `.golden/`. If you
 intentionally change output formatting, re-record them with `just update-golden`
 and review the diff before committing.
 
+## Explorer previews
+
+CI publishes the `deslop explore` page of this repository to GitHub Pages, as
+the Deslop it just built draws it: `main` at the site root, and every PR from
+a branch of this repository at `pr/<n>/`, refreshed on each push and removed
+when the PR closes. A PR links its preview as a "View deployment" button. PRs
+from forks get none; the page is still a CI artifact (`explorer`).
+
 ## Releasing
 
 Releases are cut by pushing a `v*` tag. The
