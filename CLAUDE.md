@@ -16,9 +16,10 @@ All cabal/GHC commands must run inside the Nix dev shell using our `nix run` com
    `nix run .#build`, `.#test` or `.#lint` before it.
 3. After an edit that touches no code (docs only), or only a `git commit`, run
    nothing: rerun the full check only after a code edit.
-4. Several cabal or `ai-*` commands in a row share one shell,
-   `nix develop .#ci -c bash -c '...'`, instead of a `nix run .#x` each, which
-   pays ~7.5s of `nix develop` per call.
+4. Several `cabal` or `just` commands in a row share one shell,
+   `nix develop .#ci -c bash -c '...'`, instead of a `nix run .#test`,
+   `.#build` or `.#lint` each (they wrap those commands), which pays ~7.5s of
+   `nix develop` per call.
 
 ### Fast feedback
 
