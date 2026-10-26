@@ -163,24 +163,44 @@ jobs:
       contents: write
       deployments: write
       pages: read
+      pull-requests: read
     env:
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
       SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
+      # A PR closed while build-test ran is already cleaned up: publishing now
+      # would bring its folder and Deployment back. A close after this check
+      # queues the cleanup behind this job in the shared group, so it still
+      # runs last. Pushes to main always publish.
+      - name: 🚪 Still open
+        id: open
+        run: |
+          state=open
+          if [ -n "$PR_NUMBER" ]; then
+            state="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .state)"
+          fi
+          if [ "$state" != open ]; then
+            echo "::notice::PR #$PR_NUMBER is $state; not publishing its preview."
+          fi
+          echo "open=$([ "$state" = open ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       # Static pages, never run. `CNAME`, `.nojekyll` and other PRs' folders
       # stay as they are.
-      - uses: actions/checkout@v7
+      - if: steps.open.outputs.open == 'true'
+        uses: actions/checkout@v7
         with:
           ref: gh-pages
           path: site
 
-      - uses: actions/download-artifact@v8
+      - if: steps.open.outputs.open == 'true'
+        uses: actions/download-artifact@v8
         with:
           name: explorer-preview
           path: ${{ runner.temp }}/preview
 
       - name: 🧭 Where it goes
+        if: steps.open.outputs.open == 'true'
         id: target
         run: |
           # The site's own URL, so a custom domain needs no edit here. https
@@ -202,6 +222,7 @@ jobs:
       # Several PRs can publish at once, and one group across them would cancel
       # all but one: on a rejected push, start again from the new tip.
       - name: 🚀 Publish to gh-pages
+        if: steps.open.outputs.open == 'true'
         env:
           DIR: ${{ steps.target.outputs.dir }}
         run: |
@@ -232,6 +253,7 @@ jobs:
       # deployment" button: in a shared one, each new deployment would mark the
       # others inactive.
       - name: 🔗 Record the deployment
+        if: steps.open.outputs.open == 'true'
         env:
           ENVIRONMENT: ${{ steps.target.outputs.environment }}
           PRODUCTION: ${{ steps.target.outputs.production }}
