@@ -81,6 +81,9 @@ jobs:
       - name: ✨ Own Deslop rules (dogfood)
         run: nix develop .#ci --accept-flake-config -c just deslop-self
 
+      - name: ❄️ Nix package
+        run: nix build .#deslop --accept-flake-config && ./result/bin/deslop --version
+
   # The `deslop explore` page of this repository, drawn by the Deslop this
   # commit builds so a PR's own explorer changes show. A job of its own, in
   # parallel with build-test, so `deploy-preview` waits for one executable

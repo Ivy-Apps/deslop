@@ -3,8 +3,8 @@
 # source build would make every user compile the whole Haskell closure. See
 # docs/adr/0025-nix-installs-the-released-binary.md.
 #
-# The version and one hash per system live in release.json, which
-# .github/workflows/nix-bump.yml rewrites after each release.
+# The version and one download URL and hash per system live in release.json,
+# which .github/workflows/nix-bump.yml rewrites after each release.
 { lib, stdenvNoCC, fetchurl }:
 let
   release = lib.importJSON ./release.json;
@@ -17,8 +17,7 @@ stdenvNoCC.mkDerivation {
   inherit (release) version;
 
   src = fetchurl {
-    url = "https://github.com/Ivy-Apps/deslop/releases/download/v${release.version}/deslop-${platform.asset}.tar.gz";
-    inherit (platform) hash;
+    inherit (platform) url hash;
   };
 
   # The tarball holds the bare `deslop` binary, with no directory around it.

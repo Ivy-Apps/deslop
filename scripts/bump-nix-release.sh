@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Points the Nix package at a published GitHub Release: rewrites the version
-# and every system's hash in nix/package/release.json.
+# and every system's download URL and hash in nix/package/release.json, the
+# one place that knows where the release tarballs live.
 #
 # Usage: scripts/bump-nix-release.sh <version>    (e.g. 0.13.0, no leading v)
 #
@@ -27,7 +28,7 @@ for SYSTEM in $(jq -r '.platforms | keys[]' "$RELEASE_JSON"); do
     --output "$DOWNLOADS/$ASSET.tar.gz" "$URL"
   HASH="sha256-$(openssl dgst -sha256 -binary "$DOWNLOADS/$ASSET.tar.gz" | base64)"
   echo "$SYSTEM ($ASSET): $HASH"
-  json=$(jq --arg system "$SYSTEM" --arg hash "$HASH" \
-    '.platforms[$system].hash = $hash' <<<"$json")
+  json=$(jq --arg system "$SYSTEM" --arg url "$URL" --arg hash "$HASH" \
+    '.platforms[$system].url = $url | .platforms[$system].hash = $hash' <<<"$json")
 done
 printf '%s\n' "$json" >"$RELEASE_JSON"
