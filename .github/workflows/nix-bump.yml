@@ -44,6 +44,9 @@ jobs:
         with:
           ref: main
 
+      # The bump script evaluates the package's download URLs with Nix.
+      - uses: DeterminateSystems/nix-installer-action@main
+
       - name: Rewrite nix/package/release.json
         run: scripts/bump-nix-release.sh "$VERSION"
 

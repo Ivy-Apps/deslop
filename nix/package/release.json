@@ -3,18 +3,15 @@
   "platforms": {
     "x86_64-linux": {
       "asset": "linux-x64",
-      "hash": "sha256-lzLnY9rYai2i2eiRvErPhV8AnAsWw6HbO+T4RCxmloA=",
-      "url": "https://github.com/Ivy-Apps/deslop/releases/download/v0.12.1/deslop-linux-x64.tar.gz"
+      "hash": "sha256-lzLnY9rYai2i2eiRvErPhV8AnAsWw6HbO+T4RCxmloA="
     },
     "aarch64-linux": {
       "asset": "linux-arm64",
-      "hash": "sha256-d/I+0M2OP3IjshPalqHLwnWowqVSxWxFaz2PVvWiJBo=",
-      "url": "https://github.com/Ivy-Apps/deslop/releases/download/v0.12.1/deslop-linux-arm64.tar.gz"
+      "hash": "sha256-d/I+0M2OP3IjshPalqHLwnWowqVSxWxFaz2PVvWiJBo="
     },
     "aarch64-darwin": {
       "asset": "darwin-arm64",
-      "hash": "sha256-cSRnxrr2h0emscdwZatwQlmxLzuhOZq9u8mZO1Gj39c=",
-      "url": "https://github.com/Ivy-Apps/deslop/releases/download/v0.12.1/deslop-darwin-arm64.tar.gz"
+      "hash": "sha256-cSRnxrr2h0emscdwZatwQlmxLzuhOZq9u8mZO1Gj39c="
     }
   }
 }
