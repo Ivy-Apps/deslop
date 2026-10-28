@@ -1,0 +1,17 @@
+{
+  "version": "0.12.1",
+  "platforms": {
+    "x86_64-linux": {
+      "asset": "linux-x64",
+      "hash": "sha256-lzLnY9rYai2i2eiRvErPhV8AnAsWw6HbO+T4RCxmloA="
+    },
+    "aarch64-linux": {
+      "asset": "linux-arm64",
+      "hash": "sha256-d/I+0M2OP3IjshPalqHLwnWowqVSxWxFaz2PVvWiJBo="
+    },
+    "aarch64-darwin": {
+      "asset": "darwin-arm64",
+      "hash": "sha256-cSRnxrr2h0emscdwZatwQlmxLzuhOZq9u8mZO1Gj39c="
+    }
+  }
+}

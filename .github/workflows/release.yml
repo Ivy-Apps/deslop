@@ -554,3 +554,16 @@ jobs:
           esac
 
           gh release create "$TAG" "${ARGS[@]}" release/deslop-*.tar.gz release/checksums.txt
+
+  # Last, so it runs only once the release it points at exists.
+  nix-bump:
+    name: Bump Nix package
+    needs: [verify-version, github-release]
+    # The most nix-bump.yml's open-pr job needs; its compute job narrows this
+    # to contents: read.
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: ./.github/workflows/nix-bump.yml
+    with:
+      version: ${{ needs.verify-version.outputs.version }}

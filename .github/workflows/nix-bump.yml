@@ -1,0 +1,133 @@
+name: Bump Nix package
+
+# Opens a PR pointing nix/package/release.json at a published GitHub Release:
+# its version and one tarball hash per system. release.yml calls this after it
+# publishes the release; run it by hand to redo a bump or catch up on a missed
+# one. A `release: published` trigger would never fire: release.yml creates the
+# release with GITHUB_TOKEN, and events GITHUB_TOKEN causes start no workflows.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Released version, without the leading v (e.g. 0.13.0)
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Released version, without the leading v (e.g. 0.13.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # Everything that runs third-party code (the Nix installer, Nix itself, the
+  # downloaded tarballs) runs here, with a read-only token and no credentials
+  # left on disk. Its only product is the new release.json, handed on as an
+  # output that open-pr checks before trusting it.
+  compute:
+    name: Compute release.json
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      release-json: ${{ steps.bump.outputs.release-json }}
+    steps:
+      # main, not the triggering ref: release.yml runs on a tag, and the PR
+      # must be a change on top of main.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      # The bump script evaluates the package's download URLs with Nix.
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+
+      - name: Rewrite nix/package/release.json
+        id: bump
+        env:
+          # Read through the environment, never spliced into a script: the
+          # dispatch input is free text. The bump script rejects anything that
+          # is not a dotted version before it is used.
+          VERSION: ${{ inputs.version }}
+        run: |
+          scripts/bump-nix-release.sh "$VERSION"
+          echo "release-json=$(jq --compact-output . nix/package/release.json)" >>"$GITHUB_OUTPUT"
+
+  # Holds the write token, so it runs only GitHub's own actions and git, gh and
+  # jq from the runner image: no Nix, nothing downloaded.
+  open-pr:
+    name: Open the bump PR
+    needs: compute
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      # Push the bump branch, and open its PR.
+      contents: write
+      pull-requests: write
+    env:
+      VERSION: ${{ inputs.version }}
+      RELEASE_JSON: ${{ needs.compute.outputs.release-json }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      # This job trusts neither the free-text input nor compute's output: the
+      # version names the branch, and the output is all compute produced.
+      # Only a release.json for this version, with main's platforms and
+      # assets and a well-formed hash for each, gets committed.
+      - name: Write nix/package/release.json
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "error: '$VERSION' is not a release version such as 0.13.0" >&2
+            exit 1
+          fi
+          if ! jq --exit-status --arg version "$VERSION" \
+            --slurpfile main nix/package/release.json '
+              def assets: .platforms | map_values(.asset);
+              .version == $version
+              and keys == ["platforms", "version"]
+              and assets == ($main[0] | assets)
+              and all(.platforms[]; keys == ["asset", "hash"]
+                and (.hash | test("^sha256-[A-Za-z0-9+/]{43}=$")))
+            ' <<<"$RELEASE_JSON" >/dev/null; then
+            echo "error: compute produced an unexpected release.json: $RELEASE_JSON" >&2
+            exit 1
+          fi
+          # The same formatting the bump script writes.
+          jq . <<<"$RELEASE_JSON" >nix/package/release.json
+
+      - name: Open the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- nix/package/release.json; then
+            echo "nix/package/release.json already points at $VERSION"
+            exit 0
+          fi
+
+          BRANCH="nix-bump/v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --create "$BRANCH"
+          git commit --message "Nix package: bump to $VERSION" -- nix/package/release.json
+          # A re-run replaces the branch with a fresh bump from main.
+          git push --force origin "$BRANCH"
+
+          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[]')" ]; then
+            echo "PR for $BRANCH already open, branch updated"
+            exit 0
+          fi
+
+          BODY=$(printf '%s\n' \
+            "Points the Nix package (\`nix/package/release.json\`) at the v$VERSION GitHub Release: the version and the tarball hash of every system, computed by \`scripts/bump-nix-release.sh\` from the published assets." \
+            '' \
+            "**CI has not run on this PR.** It was opened with \`GITHUB_TOKEN\`, and GitHub starts no workflows for events that token causes. Close and reopen the PR to run the checks." \
+            '' \
+            "To verify by hand: \`nix build github:${GITHUB_REPOSITORY}/$BRANCH#deslop && ./result/bin/deslop --version\` prints $VERSION.")
+          gh pr create --base main --head "$BRANCH" \
+            --title "Nix package: bump to $VERSION" --body "$BODY"
