@@ -559,6 +559,8 @@ jobs:
   nix-bump:
     name: Bump Nix package
     needs: [verify-version, github-release]
+    # The most nix-bump.yml's open-pr job needs; its compute job narrows this
+    # to contents: read.
     permissions:
       contents: write
       pull-requests: write
