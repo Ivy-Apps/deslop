@@ -25,8 +25,21 @@
         "aarch64-darwin"
       ];
 
+      # The released binary, for Nix users of Deslop rather than its
+      # developers. See nix/package/default.nix.
+      flake.overlays.default = final: _prev: {
+        deslop = final.callPackage ./nix/package { };
+      };
+
       perSystem = { config, pkgs, system, ... }:
         let
+          # Only the systems the GitHub Release ships a binary for expose the
+          # package, so `nix flake check` and `nix flake show` never evaluate
+          # the derivation's throw on the others (x86_64-darwin).
+          hasReleasedBinary =
+            (pkgs.lib.importJSON ./nix/package/release.json).platforms ? ${system};
+          releasedBinary = pkgs.callPackage ./nix/package { };
+
           ghcVersion = "ghc9103";
           hlib = pkgs.haskell.lib.compose;
 
@@ -150,6 +163,11 @@
 
         in
         {
+          packages = pkgs.lib.optionalAttrs hasReleasedBinary {
+            deslop = releasedBinary;
+            default = releasedBinary;
+          };
+
           apps = {
             test = { type = "app"; program = "${aiTestRunner}/bin/ai-test"; };
             build = { type = "app"; program = "${aiBuildRunner}/bin/ai-build"; };

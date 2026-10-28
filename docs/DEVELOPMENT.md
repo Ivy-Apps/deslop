@@ -144,3 +144,12 @@ Releases are cut by pushing a `v*` tag. The
 binaries (x64, arm64) and a macOS arm64 binary, then publishes the platform
 packages and the `@ivy-apps/deslop` wrapper to npm. The npm version is derived
 from the tag.
+
+Its last job, [`nix-bump.yml`](../.github/workflows/nix-bump.yml), opens a PR
+pointing the flake's `deslop` package at the new GitHub Release:
+[`nix/package/release.json`](../nix/package/release.json) holds the version and
+one tarball hash per system, rewritten by `scripts/bump-nix-release.sh`. GitHub
+runs no CI on a PR opened with `GITHUB_TOKEN`, so close and reopen it to start
+the checks before merging. To redo a bump, run the workflow by hand
+(`gh workflow run nix-bump.yml -f version=<version>`). See
+[ADR 25](adr/0025-nix-installs-the-released-binary.md).

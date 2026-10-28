@@ -1,0 +1,77 @@
+name: Bump Nix package
+
+# Opens a PR pointing nix/package/release.json at a published GitHub Release:
+# its version and one tarball hash per system. release.yml calls this after it
+# publishes the release; run it by hand to redo a bump or catch up on a missed
+# one. A `release: published` trigger would never fire: release.yml creates the
+# release with GITHUB_TOKEN, and events GITHUB_TOKEN causes start no workflows.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Released version, without the leading v (e.g. 0.13.0)
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Released version, without the leading v (e.g. 0.13.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    name: Open the bump PR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      # Push the bump branch, and open its PR.
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # Read through the environment, never spliced into a script: the
+      # dispatch input is free text. The bump script rejects anything that is
+      # not a dotted version before it is used.
+      VERSION: ${{ inputs.version }}
+    steps:
+      # main, not the triggering ref: release.yml runs on a tag, and the PR
+      # must be a change on top of main.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Rewrite nix/package/release.json
+        run: scripts/bump-nix-release.sh "$VERSION"
+
+      - name: Open the PR
+        run: |
+          if git diff --quiet -- nix/package/release.json; then
+            echo "nix/package/release.json already points at $VERSION"
+            exit 0
+          fi
+
+          BRANCH="nix-bump/v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --create "$BRANCH"
+          git commit --message "Nix package: bump to $VERSION" -- nix/package/release.json
+          # A re-run replaces the branch with a fresh bump from main.
+          git push --force origin "$BRANCH"
+
+          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[]')" ]; then
+            echo "PR for $BRANCH already open, branch updated"
+            exit 0
+          fi
+
+          BODY=$(printf '%s\n' \
+            "Points the Nix package (\`nix/package/release.json\`) at the v$VERSION GitHub Release: the version and the tarball hash of every system, computed by \`scripts/bump-nix-release.sh\` from the published assets." \
+            '' \
+            "**CI has not run on this PR.** It was opened with \`GITHUB_TOKEN\`, and GitHub starts no workflows for events that token causes. Close and reopen the PR to run the checks." \
+            '' \
+            "To verify by hand: \`nix build github:${GITHUB_REPOSITORY}/$BRANCH#deslop && ./result/bin/deslop --version\` prints $VERSION.")
+          gh pr create --base main --head "$BRANCH" \
+            --title "Nix package: bump to $VERSION" --body "$BODY"

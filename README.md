@@ -56,6 +56,29 @@ npm install --save-dev @ivy-apps/deslop
 
 Then write your first rulebook in `deslop/rules/` — see [Writing Rules](#writing-rules), or copy one from [`examples/rules/`](./examples/rules/).
 
+### Install with Nix
+
+The flake ships the released binary for `x86_64-linux`, `aarch64-linux` and `aarch64-darwin`:
+
+```bash
+nix run github:Ivy-Apps/deslop -- check .
+```
+
+To keep it in a configuration, add the flake as an input and take `packages.${system}.default` (also named `deslop`), or apply its overlay to get `pkgs.deslop`:
+
+```nix
+{
+  inputs.deslop.url = "github:Ivy-Apps/deslop";
+
+  outputs = { nixpkgs, deslop, ... }: {
+    # Either the package directly:
+    #   deslop.packages.${system}.default
+    # or through the overlay:
+    #   nixpkgs.overlays = [ deslop.overlays.default ];  # then pkgs.deslop
+  };
+}
+```
+
 ### Commands
 
 | Command | What it does |
