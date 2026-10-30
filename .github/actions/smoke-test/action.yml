@@ -17,13 +17,16 @@ runs:
   using: composite
   steps:
     - shell: bash
+      env:
+        BINARY: ${{ inputs.binary }}
+        VERSION: ${{ inputs.version }}
       run: |
         # Compared in full, on purpose. `deslop --version` is an optparse
         # `infoOption` over `Paths_deslop.version` (src/Params.hs), so its
         # output is fixed and derived from deslop.cabal - there is nothing to
         # be lenient about. A substring match would accept 0.10.01 for 0.10.0.
-        OUT=$("${{ inputs.binary }}" --version)
-        EXPECTED="Deslop Version ${{ inputs.version }}"
+        OUT=$("$BINARY" --version)
+        EXPECTED="Deslop Version $VERSION"
         if [ "$OUT" != "$EXPECTED" ]; then
           echo "::error::--version printed '$OUT', expected '$EXPECTED'"
           exit 1

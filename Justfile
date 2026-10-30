@@ -41,8 +41,13 @@ format:
 # every `for X in $XS` over an injected variable reads to it as a typo for the
 # loop variable. actionlint 1.7.12 disables the rule by default; nixpkgs pins
 # 1.7.9, so we adopt that default by hand until the pin catches up.
+# zizmor then audits them offline against .github/zizmor.yml, which fails on an
+# unpinned action. It gets `.github`, because `.` also walks into the workflows
+# of the projects under fixtures/, which are test inputs. --strict-collection
+# fails on a file zizmor cannot parse, which it would otherwise skip with a warning.
 lint-actions:
     actionlint -shellcheck="shellcheck -e SC2153"
+    zizmor --offline --strict-collection .github
 
 # Compile the library and the executable
 build:

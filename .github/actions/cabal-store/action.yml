@@ -28,7 +28,7 @@ runs:
     # A miss restores the newest store for this runner, so a pin bump rebuilds
     # only what it changed. The Hackage index is not cached: at over 1GB it
     # restores no faster than `cabal update` downloads it.
-    - uses: actions/cache@v6
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.toolchain.outputs.store-dir }}
         key: cabal-store-${{ inputs.name }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'cabal.project', 'cabal.project.freeze', 'deslop.cabal') }}

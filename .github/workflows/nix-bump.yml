@@ -38,7 +38,7 @@ jobs:
     steps:
       # main, not the triggering ref: release.yml runs on a tag, and the PR
       # must be a change on top of main.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           persist-credentials: false
@@ -72,8 +72,9 @@ jobs:
       VERSION: ${{ inputs.version }}
       RELEASE_JSON: ${{ needs.compute.outputs.release-json }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: true # zizmor: ignore[artipacked] the branch push below needs this token
           ref: main
 
       # This job trusts neither the free-text input nor compute's output: the

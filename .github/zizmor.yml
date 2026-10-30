@@ -1,0 +1,12 @@
+# zizmor's default lets `actions/*` stay on a tag. Every action here is pinned to
+# a commit, so hold them all to it.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        "*": hash-pin
+  # release.yml runs on tags, so its caches restore only from tags and main,
+  # which no pull request can write. Dropping them rebuilds GHC on every release.
+  cache-poisoning:
+    ignore:
+      - release.yml
