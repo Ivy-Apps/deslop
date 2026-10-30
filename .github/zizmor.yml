@@ -5,8 +5,8 @@ rules:
     config:
       policies:
         "*": hash-pin
-  # release.yml runs on tags, so its caches restore only from tags and main,
-  # which no pull request can write. Dropping them rebuilds GHC on every release.
+  # release.yml runs on tags, so its caches restore only from that tag and main,
+  # which no pull request can write.
   cache-poisoning:
     ignore:
       - release.yml

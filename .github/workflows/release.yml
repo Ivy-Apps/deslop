@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: true # zizmor: ignore[artipacked] the fetch of main below needs this token
+          persist-credentials: false
           # merge-base below needs main's history. checkout fetches only the
           # tagged commit at the default depth of 1.
           fetch-depth: 0
