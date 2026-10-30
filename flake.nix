@@ -218,9 +218,13 @@
                 # the release workflow keeps all of its logic.
                 pkgs.actionlint
                 pkgs.shellcheck
+                # Behind `just lint-actions`: fails on an unpinned action.
+                pkgs.zizmor
                 # The Git.Ignore property tests use `git check-ignore` as an
                 # oracle, so the test suite needs a git binary on PATH.
                 pkgs.git
+                # Behind scripts/bump-nix-release.sh, which hashes the release tarballs.
+                pkgs.openssl
               ] ++ explorerTests.packages;
 
               buildInputs = sysLibs;
@@ -242,8 +246,10 @@
                 # See the `ci` shell for why shellcheck rides along.
                 pkgs.actionlint
                 pkgs.shellcheck
+                pkgs.zizmor
                 # See the `ci` shell: `git check-ignore` is a test oracle.
                 pkgs.git
+                pkgs.openssl
                 hgold
                 # For an interactive ghcid TUI; the agent-facing app reaches
                 # ghcid by store path and does not need it here. Kept out of the
