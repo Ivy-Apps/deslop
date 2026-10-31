@@ -165,10 +165,11 @@ spec = describe "Effects.Git" $ do
             withSystemTempDirectory "deslop-git" $ \dir ->
                 originIn dir `shouldReturn` Nothing
   where
-    originIn dir = runEff . runGitIO $ gitOrigin (ProjectRoot . ap $ toText dir)
+    originIn = askGit gitOrigin
     sourceBaseIn dir = fmap (.source.url) <$> sourceLinksIn dir
-    sourceLinksIn dir = runEff . runGitIO $ gitSourceLinks (ProjectRoot . ap $ toText dir)
-    changedIn dir ref = runEff . runGitIO $ gitDiff (ProjectRoot . ap $ toText dir) (GitRef ref)
+    sourceLinksIn = askGit gitSourceLinks
+    changedIn dir ref = askGit (`gitDiff` GitRef ref) dir
+    askGit question = runEff . runGitIO . question . ProjectRoot . ap . toText
 
 -- | A repository on GitHub with its project in @app/@, on the branch @feature/x@.
 appOnGitHubBranch :: FilePath -> IO ()

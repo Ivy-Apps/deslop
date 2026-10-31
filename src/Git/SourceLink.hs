@@ -110,13 +110,13 @@ worktree of it is called the same. Without a name there, the project's folder.
 projectNameOf :: ProjectRoot -> Maybe Text -> ProjectName
 projectNameOf root origin =
     ProjectName . fromMaybe (folderName root.path) $ do
-        (_host, repoPath) <- hostAndPath . T.strip =<< origin
+        (_host, repoPath) <- hostAndPath =<< origin
         pure $ T.takeWhileEnd (/= '/') repoPath
 
 -- | The links of a checkout, when its remote is on a forge we know.
 sourceLinksOf :: Checkout -> Maybe SourceLinks
 sourceLinksOf checkout = do
-    (host, repoPath) <- hostAndPath (T.strip checkout.originUrl)
+    (host, repoPath) <- hostAndPath checkout.originUrl
     forge <- forgeOf host
     let repoUrl = "https://" <> host <> "/" <> repoPath
     pure
@@ -152,10 +152,11 @@ blobPath = \case
     GitLab -> "/-/blob/"
 
 {- | The host and the @owner/repo@ path of a remote, from any of
-@https://host/o/r.git@, @ssh://git\@host:22/o/r@ or @git\@host:o/r.git@.
+@https://host/o/r.git@, @ssh://git\@host:22/o/r@ or @git\@host:o/r.git@, with
+or without the newline git prints after it.
 -}
 hostAndPath :: Text -> Maybe (Text, Text)
-hostAndPath remote = do
+hostAndPath printed = do
     (authority, rest) <- case T.breakOn "://" remote of
         (scheme, afterScheme)
             | not (T.null afterScheme) && scheme `elem` ["https", "http", "ssh", "git"] ->
@@ -170,6 +171,7 @@ hostAndPath remote = do
     guard . not $ T.null host || T.null repoPath
     pure (host, repoPath)
   where
+    remote = T.strip printed
     stripGit path = fromMaybe path $ T.stripSuffix ".git" path
 
 -- | Percent-encodes each segment of a @/@-separated path, keeping the slashes.
