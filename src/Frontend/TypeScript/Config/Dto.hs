@@ -104,10 +104,10 @@ jsoncStripper =
     escapedChar = do
         esc <- char '\\'
         c <- anySingle
-        pure $ T.pack [esc, c]
+        pure $ T.pack [esc, c] -- scratch: mutation comment proof
 
     normalStringChar :: Parser Text
-    normalStringChar = takeWhile1P Nothing (\c -> c /= '"' && c /= '\\')
+    normalStringChar = takeWhile1P Nothing (\c -> c /= '"' && c /= '\\') -- scratch: mutation comment proof
 
     -- Strip out line comments
     lineComment :: Parser Text
