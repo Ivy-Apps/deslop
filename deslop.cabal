@@ -14,7 +14,7 @@ extra-source-files:
 
 -- Swaps the test suite's entry point for sydtest + fromHspec. Off by default, so
 -- the normal cabal path, the freeze and the `ci` shell never see sydtest. Only
--- `checks.<system>.mutation` turns it on.
+-- nix/mutation.nix turns it on.
 flag mutation
   description: Build the test suite for sydtest-mutation
   default:     False

@@ -14,6 +14,7 @@ module TestUtils (
     -- * Fixtures on disk
     listFixtures,
     copyDir,
+    inEmptyDir,
 
     -- * Corpora
     loadCorpus,
@@ -52,6 +53,7 @@ import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, takeExtension, (</>))
 import Test.Hspec (Spec, expectationFailure, it, shouldBe, shouldNotBe)
 import Test.Hspec.Hedgehog (hedgehog)
+import UnliftIO.Temporary (withSystemTempDirectory)
 
 --------------------------------------------------------------------------------
 -- Golden tests
@@ -65,6 +67,10 @@ snapshot tmpDir filesToVerify = do
         let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
         return $ header <> content
     pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
+
+-- | Names the directory a golden test writes its @actual@ file to, when set.
+goldenActualDirEnv :: String
+goldenActualDirEnv = "GOLDEN_ACTUAL_DIR"
 
 --------------------------------------------------------------------------------
 -- Fixtures on disk
@@ -95,6 +101,9 @@ copyWritable :: OsPath -> OsPath -> IO ()
 copyWritable src dst = do
     SDO.copyFile src dst
     SDO.setPermissions dst . SDO.setOwnerWritable True =<< SDO.getPermissions dst
+
+inEmptyDir :: (OsPath -> IO a) -> IO a
+inEmptyDir act = withSystemTempDirectory "deslop-test" (act . encodeOsPathString)
 
 --------------------------------------------------------------------------------
 -- Corpora
@@ -157,7 +166,3 @@ requireRight :: (HasCallStack) => (e -> String) -> Either e a -> IO a
 requireRight formatErr = \case
     Left e -> expectationFailure (formatErr e) >> throwIO (AssertionFailed "unreachable")
     Right x -> pure x
-
--- | Names the directory a golden test writes its @actual@ file to, when set.
-goldenActualDirEnv :: String
-goldenActualDirEnv = "GOLDEN_ACTUAL_DIR"
