@@ -282,6 +282,11 @@ jobs:
       - name: Build binary
         shell: bash
         run: |
+          # One job at a time for the dependencies. Parallel installs race on the
+          # store's package.cache, which Windows refuses with "you don't have
+          # permission to modify this file". A tag cannot reuse another tag's
+          # cache, so every release installs the whole store from cold.
+          cabal build exe:deslop --only-dependencies -j1
           cabal build exe:deslop --ghc-options="$RTS_GHC_OPTIONS"
 
       - name: Collect binary
