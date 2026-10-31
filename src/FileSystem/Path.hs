@@ -17,6 +17,7 @@ module FileSystem.Path (
     -- * Absolute paths
     AbsPath (osPath),
     absPathUnsafe,
+    folderName,
     withAbsBaseUnsafe,
     withAbsBaseSafe,
 
@@ -34,7 +35,7 @@ module FileSystem.Path (
 
 import Control.Monad.Catch.Pure (runCatch)
 import Data.Text qualified as T
-import System.OsPath (OsPath, decodeUtf, encodeUtf, joinPath, osp, splitDirectories, (</>))
+import System.OsPath (OsPath, decodeUtf, encodeUtf, joinPath, osp, splitDirectories, takeFileName, (</>))
 
 encodeOsPath :: Text -> OsPath
 encodeOsPath = encodeOsPathString . T.unpack
@@ -54,6 +55,10 @@ newtype AbsPath = AbsPath
     { osPath :: OsPath
     }
     deriving (Show, Eq, Ord)
+
+-- | The last segment of a path.
+folderName :: AbsPath -> Text
+folderName = decodeOsPath . takeFileName . (.osPath)
 
 absPathUnsafe :: OsPath -> AbsPath
 absPathUnsafe = AbsPath

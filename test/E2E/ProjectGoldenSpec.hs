@@ -28,7 +28,7 @@ import FileSystem.Path (
     relativePathTo,
     withAbsBaseUnsafe,
  )
-import Fixtures.Deslop.Explore.Html (graphIn)
+import Fixtures.Deslop.Explore.Html (graphIn, titleIn)
 import Fixtures.Deslop.Explore.ModuleGraph.Json (moduleTags, textField)
 import Fixtures.OnDisk (Language (..), inCopyOf, languageDir, projectIn)
 import Frontend.TypeScript (TsFrontend (..))
@@ -100,6 +100,8 @@ spec = describe "E2E.Project" $ do
     itExploresWithoutPullRequest GhMissing
     itExploresWithoutPullRequest NoneFound
     itExploresDetachedWithoutAskingForPullRequest
+    itTitlesThePageAfterTheRepository
+    itTitlesThePageAfterTheFolderWithoutAnOrigin
     itAsksNoPullRequestWithoutChanges
     itAsksGitNothing CheckC
     itAsksGitNothing FixC
@@ -445,6 +447,19 @@ itExploresWithoutPullRequest reason = it ("explores without a pull request when 
     T.count "No pull request to link" (renderRun run) `shouldBe` 1
     pullRequestsOf run `shouldBe` [Nothing]
 
+-- | The repository's name wins over the project's folder.
+itTitlesThePageAfterTheRepository :: Spec
+itTitlesThePageAfterTheRepository = it "titles the page after the repository of its origin" $ do
+    run <- runDeslopIn onGitHub InMemory explore (projectIn TypeScript "ts-project-1")
+
+    fmap titleIn (pages run) `shouldBe` [Just "r graph"]
+
+itTitlesThePageAfterTheFolderWithoutAnOrigin :: Spec
+itTitlesThePageAfterTheFolderWithoutAnOrigin = it "titles the page after the project's folder without an origin" $ do
+    run <- runDeslopOn InMemory explore (projectIn TypeScript "ts-project-1")
+
+    fmap titleIn (pages run) `shouldBe` [Just "ts-project-1 graph"]
+
 -- | A detached @HEAD@ has no branch to ask a pull request of, so none is asked for.
 itExploresDetachedWithoutAskingForPullRequest :: Spec
 itExploresDetachedWithoutAskingForPullRequest = it "explores a detached checkout without asking for a pull request" $ do
@@ -481,6 +496,7 @@ itAsksGitNothing command = it ("asks git nothing to " <> show command) $ do
                 { changes = error "asked for the changed files"
                 , sourceLinks = error "asked for the source links"
                 , pullRequest = error "asked for a pull request"
+                , origin = error "asked for the origin"
                 }
 
     run <- runDeslopIn untouchable InMemory command (projectIn TypeScript "ts-project-1")
@@ -500,6 +516,7 @@ onGitHub =
                     , forge = GitHub DiffAnchors {repoPrefix = ""}
                     }
         , pullRequest = Left NoneFound
+        , origin = Just "git@github.com:o/r.git\n"
         }
 
 -- | Explore, marking what changed since @main@.

@@ -26,6 +26,8 @@ data Slot
       Scripts
     | -- | The graph, inside its @application/json@ script element.
       Graph
+    | -- | The project's name, escaped, inside the page's @title@ element.
+      Title
     deriving stock (Show, Eq, Enum, Bounded, Lift)
 
 -- | How the template spells a 'Slot'.
@@ -33,6 +35,7 @@ marker :: Slot -> Text
 marker = \case
     Scripts -> "<!-- deslop:scripts -->"
     Graph -> "/* deslop:graph */"
+    Title -> "<!-- deslop:title -->"
 
 -- | The template's text around its 'Slot's, each of them exactly once.
 newtype Template = Template [Piece]

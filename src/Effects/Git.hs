@@ -1,10 +1,10 @@
 {- | Asking git about the checkout a project sits in.
 
-Three questions the explorer asks: which files of the project differ from where
+Four questions the explorer asks: which files of the project differ from where
 its branch started, for its Diff only view, where its files can be read on the
-web, for its links to them, and which pull request shows their diff. The
-interpreter runs the @git@ and @gh@ binaries in the project directory; a test
-hands "Doubles.Git" the answer instead.
+web, for its links to them, which pull request shows their diff, and what its
+@origin@ is, to name the page. The interpreter runs the @git@ and @gh@ binaries
+in the project directory; a test hands "Doubles.Git" the answer instead.
 -}
 module Effects.Git (
     Branch (..),
@@ -14,6 +14,7 @@ module Effects.Git (
     NoPullRequest (..),
     Diff (..),
     gitDiff,
+    gitOrigin,
     gitPullRequest,
     gitSourceLinks,
     runGitIO,
@@ -57,6 +58,7 @@ data Git :: Effect where
     DiffOf :: ProjectRoot -> GitRef -> Git m (Either NoDiff Diff)
     SourceLinksOf :: ProjectRoot -> Git m (Maybe SourceLinks)
     PullRequestOf :: ProjectRoot -> Branch -> Git m (Either NoPullRequest PullRequest)
+    OriginOf :: ProjectRoot -> Git m (Maybe Text)
 
 type instance DispatchOf Git = 'Dynamic
 
@@ -82,11 +84,16 @@ up on after 'ghTimeout': only the explorer asks it.
 gitPullRequest :: (Git :> es) => ProjectRoot -> Branch -> Eff es (Either NoPullRequest PullRequest)
 gitPullRequest root = send . PullRequestOf root
 
+-- | The @origin@ remote's URL, as configured. None outside a repository or without one.
+gitOrigin :: (Git :> es) => ProjectRoot -> Eff es (Maybe Text)
+gitOrigin = send . OriginOf
+
 runGitIO :: (IOE :> es) => Eff (Git : es) a -> Eff es a
 runGitIO = interpret $ \_ -> \case
     DiffOf root ref -> liftIO $ diffIO root ref
     SourceLinksOf root -> liftIO $ sourceLinksIO root
     PullRequestOf root branch -> liftIO $ pullRequestIO root branch
+    OriginOf root -> liftIO $ originIO root
 
 -- | How long @gh@ may take before the explorer is written without a pull request: 3s.
 ghTimeout :: Int
@@ -103,17 +110,23 @@ pullRequestIO root branch =
 
 sourceLinksIO :: ProjectRoot -> IO (Maybe SourceLinks)
 sourceLinksIO root = do
-    origin <- git ["remote", "get-url", "origin"]
+    origin <- originIO root
     revision <-
         git ["symbolic-ref", "--short", "-q", "HEAD"] >>= \case
             Succeeded branch -> pure . Just . OnBranch . Branch $ T.strip branch
             _detached -> fmap (Detached . T.strip) . output <$> git ["rev-parse", "HEAD"]
     prefix <- git ["rev-parse", "--show-prefix"]
-    pure . (sourceLinksOf =<<) $ Checkout <$> output origin <*> revision <*> (T.strip <$> output prefix)
+    pure . (sourceLinksOf =<<) $ Checkout <$> origin <*> revision <*> (T.strip <$> output prefix)
   where
     git = gitIn root
     output = \case
         Succeeded out -> Just out
+        _ -> Nothing
+
+originIO :: ProjectRoot -> IO (Maybe Text)
+originIO root =
+    gitIn root ["remote", "get-url", "origin"] <&> \case
+        Succeeded origin -> Just origin
         _ -> Nothing
 
 diffIO :: ProjectRoot -> GitRef -> IO (Either NoDiff Diff)

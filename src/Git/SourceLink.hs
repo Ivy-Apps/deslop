@@ -3,7 +3,8 @@ its checkout.
 
 Only GitHub and GitLab are recognised, by their exact host, @github.com@ and
 @gitlab.com@; any other host has no link. Only GitHub's pull requests are linked
-to, through what @gh@ says. Pure: asking git and gh is "Effects.Git"'s business.
+to, through what @gh@ says. What a project is called comes from the same remote,
+on any host. Pure: asking git and gh is "Effects.Git"'s business.
 -}
 module Git.SourceLink (
     Branch (..),
@@ -12,10 +13,12 @@ module Git.SourceLink (
     DiffAnchors (..),
     Forge (..),
     GitRef (..),
+    ProjectName (..),
     PullRequest (..),
     Revision (..),
     SourceBase (..),
     SourceLinks (..),
+    projectNameOf,
     pullRequestFromGh,
     sourceLinksOf,
 ) where
@@ -25,7 +28,7 @@ import Data.Aeson.Types (parseMaybe)
 import Data.ByteString qualified as BS
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Data.Text qualified as T
-import FileSystem.Path (ProjectRelativePath)
+import FileSystem.Path (ProjectRelativePath, ProjectRoot (..), folderName)
 import Numeric (showHex)
 
 -- | What git accepts as a revision: a branch, a tag, a commit.
@@ -96,6 +99,19 @@ data SourceLinks = SourceLinks
     , forge :: Forge
     }
     deriving stock (Show, Eq)
+
+-- | What people call a project.
+newtype ProjectName = ProjectName {text :: Text}
+    deriving stock (Show, Eq)
+
+{- | The repository's name in its @origin@ URL, on any host, so a subfolder or a
+worktree of it is called the same. Without a name there, the project's folder.
+-}
+projectNameOf :: ProjectRoot -> Maybe Text -> ProjectName
+projectNameOf root origin =
+    ProjectName . fromMaybe (folderName root.path) $ do
+        (_host, repoPath) <- hostAndPath . T.strip =<< origin
+        pure $ T.takeWhileEnd (/= '/') repoPath
 
 -- | The links of a checkout, when its remote is on a forge we know.
 sourceLinksOf :: Checkout -> Maybe SourceLinks

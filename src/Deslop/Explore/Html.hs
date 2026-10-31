@@ -20,13 +20,15 @@ import Deslop.Explore.Html.Template (Slot (..), Template, fillTemplate, parseTem
 import Deslop.Explore.ModuleGraph (Diagram)
 import Deslop.Explore.ModuleGraph.Json (graphJson)
 import FileSystem.Embed (embedParsed, embedText)
+import Git.SourceLink (ProjectName (..))
 
-explorerPage :: Diagram -> Text
-explorerPage d = fillTemplate content template
+explorerPage :: ProjectName -> Diagram -> Text
+explorerPage name d = fillTemplate content template
   where
     content = \case
         Graph -> scriptSafe . decodeUtf8 . encode $ graphJson d
         Scripts -> mconcat (libraries <> pageScripts)
+        Title -> htmlEscaped name.text
 
 template :: Template
 template = $$(embedParsed parseTemplate "explorer/src/explorer.html")
@@ -108,3 +110,7 @@ JSON parser.
 -}
 scriptSafe :: Text -> Text
 scriptSafe = T.replace "<" "\\u003c"
+
+-- | Text as the HTML of an element holding it: @&@ first, or it would escape the other two.
+htmlEscaped :: Text -> Text
+htmlEscaped = T.replace ">" "&gt;" . T.replace "<" "&lt;" . T.replace "&" "&amp;"

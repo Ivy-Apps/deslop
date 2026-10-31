@@ -2,7 +2,7 @@ module Effects.GitSpec (spec) where
 
 import Data.Set qualified as Set
 import Effectful (runEff)
-import Effects.Git (Diff (..), GitRef (..), NoDiff (..), gitDiff, gitSourceLinks, runGitIO)
+import Effects.Git (Diff (..), GitRef (..), NoDiff (..), gitDiff, gitOrigin, gitSourceLinks, runGitIO)
 import FileSystem.Path (ProjectRoot (..))
 import Git.SourceLink (Branch (..), DiffAnchors (..), Forge (..), Revision (..), SourceBase (..), SourceLinks (..))
 import System.Directory (createDirectoryIfMissing)
@@ -142,7 +142,30 @@ spec = describe "Effects.Git" $ do
         it "has no link outside a git repository" $
             withSystemTempDirectory "deslop-git" $ \dir ->
                 sourceBaseIn dir `shouldReturn` Nothing
+
+    describe "gitOrigin" $ do
+        it "reads the origin from a project in a subfolder" $
+            withRepo $ \dir -> do
+                appOnGitHubBranch dir
+
+                originIn (dir <> "/app") `shouldReturn` Just "git@github.com:o/r.git\n"
+
+        it "reads the repository's origin from a linked worktree" $
+            withRepo $ \dir -> do
+                appOnGitHubBranch dir
+                git dir ["worktree", "add", "-q", dir <> "/.worktrees/other", "-b", "other"]
+
+                originIn (dir <> "/.worktrees/other") `shouldReturn` Just "git@github.com:o/r.git\n"
+
+        it "has none without an origin" $
+            withRepo $ \dir ->
+                originIn dir `shouldReturn` Nothing
+
+        it "has none outside a git repository" $
+            withSystemTempDirectory "deslop-git" $ \dir ->
+                originIn dir `shouldReturn` Nothing
   where
+    originIn dir = runEff . runGitIO $ gitOrigin (ProjectRoot . ap $ toText dir)
     sourceBaseIn dir = fmap (.source.url) <$> sourceLinksIn dir
     sourceLinksIn dir = runEff . runGitIO $ gitSourceLinks (ProjectRoot . ap $ toText dir)
     changedIn dir ref = runEff . runGitIO $ gitDiff (ProjectRoot . ap $ toText dir) (GitRef ref)
