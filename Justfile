@@ -53,18 +53,18 @@ lint-actions:
 # result/deslop/report.{txt,json}. Not part of `check`: a cold build takes well
 # over 25 minutes. Fails on a test failing at baseline, never on a survivor. See
 # nix/mutation.nix
-mutation:
-    nix build .#checks.x86_64-linux.mutation --accept-flake-config
+mutation check="mutation":
+    nix build .#checks.x86_64-linux.{{check}} --accept-flake-config
     cat result/score.md
 
 # Mutation-test only what this branch changes against `base`, leaving the report
 # in dist-newstyle/mutation-diff/. Still needs the instrumented build and the
 # coverage phase of `mutation`. The runner exits 1 on any survivor, which must not
 # fail a pull request, so only a run that left no report fails here.
-mutation-diff base="origin/main":
-    nix build .#checks.x86_64-linux.mutation.baseline --accept-flake-config --no-link
+mutation-diff base="origin/main" check="mutation":
+    nix build .#checks.x86_64-linux.{{check}}.baseline --accept-flake-config --no-link
     rm -rf dist-newstyle/mutation-diff
-    nix run .#checks.x86_64-linux.mutation.diff --accept-flake-config -- --base {{base}} --out-dir "$PWD/dist-newstyle/mutation-diff" || test -f dist-newstyle/mutation-diff/report.json
+    nix run .#checks.x86_64-linux.{{check}}.diff --accept-flake-config -- --base {{base}} --out-dir "$PWD/dist-newstyle/mutation-diff" || test -f dist-newstyle/mutation-diff/report.json
 
 # Compile the library and the executable
 build:

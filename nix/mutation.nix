@@ -6,6 +6,8 @@
   pkgs,
   hpkgs,
   sydtest,
+  # Concurrent test processes. Each can use 1g, and the driver near 3g.
+  jobs,
 }:
 let
   hlib = pkgs.haskell.lib.compose;
@@ -45,8 +47,8 @@ let
       coreLint = false;
       ghcMemLimit = "4g";
       testProcessMemLimit = "1g";
-      coverageJobs = 2;
-      mutationJobs = 2;
+      coverageJobs = jobs;
+      mutationJobs = jobs;
     };
 
   # Survivors must not abort the run, so the report is built without fail-fast.

@@ -170,12 +170,19 @@
 
         in
         {
-          checks = pkgs.lib.optionalAttrs (system == "x86_64-linux") {
-            mutation = import ./nix/mutation.nix {
-              inherit pkgs hpkgs;
-              inherit (inputs) sydtest;
-            };
-          };
+          checks = pkgs.lib.optionalAttrs (system == "x86_64-linux") (
+            let
+              mutationCheck = jobs: import ./nix/mutation.nix {
+                inherit pkgs hpkgs jobs;
+                inherit (inputs) sydtest;
+              };
+            in
+            {
+              mutation = mutationCheck 2;
+              # A GitHub runner has 4 cores and 16 GB, where the full run needs them.
+              mutation-ci = mutationCheck 4;
+            }
+          );
 
           packages = pkgs.lib.optionalAttrs hasReleasedBinary {
             deslop = releasedBinary;
