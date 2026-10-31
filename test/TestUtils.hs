@@ -9,6 +9,7 @@ filesystem belongs here.
 module TestUtils (
     -- * Golden tests
     snapshot,
+    goldenActualDirEnv,
 
     -- * Fixtures on disk
     listFixtures,
@@ -156,3 +157,7 @@ requireRight :: (HasCallStack) => (e -> String) -> Either e a -> IO a
 requireRight formatErr = \case
     Left e -> expectationFailure (formatErr e) >> throwIO (AssertionFailed "unreachable")
     Right x -> pure x
+
+-- | Names the directory a golden test writes its @actual@ file to, when set.
+goldenActualDirEnv :: String
+goldenActualDirEnv = "GOLDEN_ACTUAL_DIR"
