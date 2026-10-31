@@ -62,11 +62,12 @@ var DeslopGraph = (function () {
   }
   function namesOf(n) { return [n.name].concat(n.aliases || []); }
 
-  // A module's file name, with its extension only when its name spells one.
+  // A module's file name, with its extension only when the module is named by its path,
+  // as every module of a Nix project is.
   function fileLabel(n) {
     var file = lastSegment(n.path);
     var dot = file.lastIndexOf(".");
-    return dot > 0 && lastSegment(n.name) !== file ? file.slice(0, dot) : file;
+    return dot > 0 && n.name !== n.path ? file.slice(0, dot) : file;
   }
   function lastSegment(path) { return path.slice(path.lastIndexOf("/") + 1); }
 

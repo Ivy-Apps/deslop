@@ -89,7 +89,9 @@ oneModulePerId projectRoot claimed files = do
     pure
         [ (moduleId, path)
         | (spelling, moduleId, path) <- nubOrdOn (\(_, moduleId, _) -> moduleId) (sort found)
-        , spelling == TheFile || moduleId `Set.notMember` claimed
+        , case spelling of
+            TheFile -> True
+            ALink -> moduleId `Set.notMember` claimed
         ]
 
 -- | How a file spells its id's path. A 'TheFile' sorts before the links to it.

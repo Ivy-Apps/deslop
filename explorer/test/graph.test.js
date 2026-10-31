@@ -68,7 +68,7 @@ test("ancestors lists a module's folders outermost first", () => {
   assert.deepEqual(plain(DeslopGraph.ancestors(g, "src/Deslop/Graph.hs")), ["src/", "src/Deslop/"]);
 });
 
-test("fileLabel drops an extension the module's name does not spell", () => {
+test("fileLabel drops the extension of a module not named by its path", () => {
   const labels = [
     moduleAt("src/Deslop/Graph.hs", { name: "Deslop/Graph" }),
     moduleAt("app/Main.hs", { name: "exe/deslop/Main" }),
@@ -80,7 +80,13 @@ test("fileLabel drops an extension the module's name does not spell", () => {
   assert.deepEqual(labels, ["Graph", "Main", "util", "index", "types.d"]);
 });
 
-test("fileLabel keeps an extension the module's name spells", () => {
+test("fileLabel drops the extension of a module a paths key names with one", () => {
+  const label = DeslopGraph.fileLabel(moduleAt("src/kit/w.ts", { name: "@/w.ts" }));
+
+  assert.equal(label, "w");
+});
+
+test("fileLabel keeps the extension of a module named by its path", () => {
   const labels = [
     moduleAt("flake.nix", { name: "flake.nix" }),
     moduleAt("lib/default.nix", { name: "lib/default.nix", aliases: ["lib"] }),
