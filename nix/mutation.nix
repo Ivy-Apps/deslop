@@ -83,13 +83,14 @@ pkgs.runCommand "deslop-mutation"
 
     # `skipped` mutants sit behind a survivor at the same site: not killed, so they
     # count against the score. `uncovered` in the report's totals includes controls.
+    # Timeouts are inside Killed: the tool scores an overrun as a kill.
     jq -r '
       ([.groups[][] | select(.outcome == "uncovered" and .mutation.operator != "Control")] | length) as $uncovered
       | .mutations as $m
       | ($m.killed + $m.survived + $m.skipped + $uncovered) as $total
       | "### Mutation score: \(if $total == 0 then "n/a" else "\($m.killed * 1000 / $total | round / 10)%" end)\n",
-        "| Killed | Survived | Skipped | Uncovered | Total | Controls passed | Controls failed |",
-        "|---|---|---|---|---|---|---|",
-        "| \($m.killed) | \($m.survived) | \($m.skipped) | \($uncovered) | \($total) | \(.controls.passed) | \(.controls.failed) |"
+        "| Killed | Timeouts | Survived | Skipped | Uncovered | Total | Controls passed | Controls failed |",
+        "|---|---|---|---|---|---|---|---|",
+        "| \($m.killed) | \($m.timed_out) | \($m.survived) | \($m.skipped) | \($uncovered) | \($total) | \(.controls.passed) | \(.controls.failed) |"
     ' ${report}/deslop/report.json > "$out/score.md"
   ''

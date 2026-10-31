@@ -246,6 +246,8 @@
                 pkgs.git
                 # Behind scripts/bump-nix-release.sh, which hashes the release tarballs.
                 pkgs.openssl
+                # Behind `just mutation-diff`, which reads the report.
+                pkgs.jq
               ] ++ explorerTests.packages;
 
               buildInputs = sysLibs;
@@ -271,6 +273,7 @@
                 # See the `ci` shell: `git check-ignore` is a test oracle.
                 pkgs.git
                 pkgs.openssl
+                pkgs.jq
                 hgold
                 # For an interactive ghcid TUI; the agent-facing app reaches
                 # ghcid by store path and does not need it here. Kept out of the

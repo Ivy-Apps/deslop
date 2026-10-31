@@ -217,6 +217,7 @@ let
         return 0
       fi
       find ${lib.concatStringsSep " " session.sourceDirs} -type f -name '*.hs' \
+        ${lib.concatMapStringsSep " " (f: "! -name ${f}") session.unloadedSources} \
         -newer "$OUTF" -print -quit 2>/dev/null
       find ${lib.concatStringsSep " " session.embeddedDirs} -type f \
         -newer "$OUTF" -print -quit 2>/dev/null
