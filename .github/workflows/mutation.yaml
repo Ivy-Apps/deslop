@@ -130,7 +130,7 @@ jobs:
               cat mutation-diff/comment.md
               cat <<EOF
 
-          Fetch [the mutants above, uncut]($ARTIFACT_URL), then the full report:
+          Fetch [the changed code report]($ARTIFACT_URL), uncut, or the full report:
 
           ${fence}bash
           gh run download $GITHUB_RUN_ID -R $GITHUB_REPOSITORY -n mutation-diff -D /tmp/mutation-diff
