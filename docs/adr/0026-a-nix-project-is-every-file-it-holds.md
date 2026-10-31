@@ -26,8 +26,11 @@ A real configuration, ILIYANGERMANOV/nixos, showed two gaps in `deslop explore`:
 says. Every other file is listed and **never read**, so its size or bytes cost
 nothing: it is an edge-less `Source` module, whether a path reaches it or not.
 What is ignored stays out, unless a path reaches it, as ADR 23 decided. A
-symbolic link is what the walk says: a link to a file is a module of its own,
-sharing the id of what it links to, and a link to a directory is not walked.
+symbolic link to a file shares the id of what it links to, and gives way to the
+real path, so one file is one module. It is a module of its own only when it is
+a `.nix` link, which is read, or when nothing else speaks for that id: it leaves
+the project, or its target is ignored and no path reaches it. A link to a
+directory is not walked.
 
 **`lower` lists the files.** The driver reads all that `discover` returns, so
 `discover` stays `.nix` only, and `Frontend.Nix` lists the rest in `lower`,

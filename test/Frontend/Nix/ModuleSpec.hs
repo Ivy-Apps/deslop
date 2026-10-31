@@ -203,6 +203,17 @@ spec = describe "Frontend.Nix.Module" $ do
 
                 canonicalNames escaped `shouldBe` ["flake.nix", "link.md"]
 
+        it "to a gitignored file a path reaches leaves the module, and the edge, at the real path" $ do
+            ignoredTarget <- loweredWithLink createFileLink ("ignored.md", "alink.md") [("flake.nix", "{ a = ./ignored.md; }"), (".gitignore", "ignored.md\n"), ("ignored.md", "")]
+
+            edgeTargetsFrom "flake.nix" ignoredTarget `shouldBe` [("./ignored.md", "ignored.md")]
+            canonicalNames ignoredTarget `shouldBe` [".gitignore", "flake.nix", "ignored.md"]
+
+        it "to a gitignored file no path reaches is a module at the link" $ do
+            ignoredTarget <- loweredWithLink createFileLink ("ignored.md", "alink.md") [("flake.nix", "{ }"), (".gitignore", "ignored.md\n"), ("ignored.md", "")]
+
+            canonicalNames ignoredTarget `shouldBe` [".gitignore", "alink.md", "flake.nix"]
+
         it "to a directory leaves the module, and every edge through the link, at the real path" $ do
             through <- loweredWithLink createDirectoryLink ("real", "link") [("flake.nix", "{ a = ./link/x.md; }"), ("real/x.md", "")]
 

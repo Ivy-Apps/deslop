@@ -60,11 +60,10 @@ lowerProject ::
 lowerProject projectRoot scope otherFiles units = do
     unitIds <- traverse (idOf . unitPath) units
     lowered <- zipWithM (lowerUnit projectRoot scope) unitIds units
-    others <- oneModulePerId projectRoot (Set.fromList unitIds) otherFiles
+    let reached = Map.fromList (concatMap snd lowered)
+    others <- oneModulePerId projectRoot (Set.fromList unitIds <> Map.keysSet reached) otherFiles
     let modules = fmap fst lowered
-        reachedOnly =
-            Map.toList . (`Map.withoutKeys` Set.fromList (unitIds <> fmap fst others)) . Map.fromList $
-                concatMap snd lowered
+        reachedOnly = Map.toList (reached `Map.withoutKeys` Set.fromList (unitIds <> fmap fst others))
         assets = sortOn (.path) (fmap asset (others <> reachedOnly))
     pure (settleEdgeNames (modules <> assets), notRead)
   where
@@ -72,14 +71,15 @@ lowerProject projectRoot scope otherFiles units = do
     notRead = [ReferencesNotRead (relativePathTo projectRoot path) why | Opaque path why _ <- units]
 
 {- | The files that are not units, by id. A symbolic link shares the id of the
-file it links to, so it gives way to that file, or to the unit of that id,
-whatever the walk order. A link out of the project stands for the file it
-reaches; of several to one file, the first by path does.
+file it links to, so it gives way to that file whatever the walk order, or to
+what already claims that id: a unit, or a path a reference reaches. A link
+nothing else speaks for - out of the project, or to an ignored file no path
+reaches - stands for the file it links to; of several, the first by path does.
 -}
 oneModulePerId ::
     (RoFileSystem :> es) =>
     ProjectRoot -> Set ModuleId -> [AbsPath] -> Eff es [(ModuleId, ProjectRelativePath)]
-oneModulePerId projectRoot unitIds files = do
+oneModulePerId projectRoot claimed files = do
     realRoot <- ProjectRoot <$> fsMkAbsolute projectRoot.path.osPath
     found <- forM files $ \file -> do
         real <- fsMkAbsolute file.osPath
@@ -89,7 +89,7 @@ oneModulePerId projectRoot unitIds files = do
     pure
         [ (moduleId, path)
         | (spelling, moduleId, path) <- nubOrdOn (\(_, moduleId, _) -> moduleId) (sort found)
-        , spelling == TheFile || moduleId `Set.notMember` unitIds
+        , spelling == TheFile || moduleId `Set.notMember` claimed
         ]
 
 -- | How a file spells its id's path. A 'TheFile' sorts before the links to it.
