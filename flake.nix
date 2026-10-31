@@ -14,7 +14,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    # sydtest-mutation, behind `checks.<system>.mutation` only. Not on Hackage at
+    # sydtest-mutation, behind the `mutation` checks only. Not on Hackage at
     # our index-state and not in nixpkgs, so its flake is the source of truth.
     # Pinned to a rev because it moves weekly.
     sydtest = {

@@ -24,7 +24,6 @@ import FileSystem.Path (
     ProjectRelativePath (osPath),
     ProjectRoot (..),
     decodeOsPath,
-    encodeOsPathString,
     relativePathTo,
     withAbsBaseUnsafe,
  )
@@ -41,9 +40,8 @@ import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (Golden (actualFile), defaultGolden)
-import TestUtils (goldenActualDirEnv, mkAbsolute, requireJust, rp, snapshot)
+import TestUtils (goldenActualDirEnv, inEmptyDir, mkAbsolute, requireJust, rp, snapshot)
 import UI (coverage, humanReadable, problemsFoundText)
-import UnliftIO.Temporary (withSystemTempDirectory)
 
 spec :: Spec
 spec = describe "E2E.Project" $ do
@@ -246,9 +244,6 @@ runDeslopOnCopy command language project prepare check =
         runDeslopOn ToDisk command tmpDir >>= check tmpDir
 
 -- | Runs against a fresh, empty temporary directory.
-inEmptyDir :: (OsPath -> IO a) -> IO a
-inEmptyDir act = withSystemTempDirectory "deslop-test" (act . encodeOsPathString)
-
 projectGolden :: Language -> String -> String -> String -> IO (Golden String)
 projectGolden language kind project content = do
     actualDir <- lookupEnv goldenActualDirEnv

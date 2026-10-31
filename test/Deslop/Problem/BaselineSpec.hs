@@ -8,11 +8,10 @@ import Deslop.Problem.Baseline (Baseline (..), applyBaseline, inBaseline, loadBa
 import Doubles.FileSystem (InMemoryFileSystem (..), MockRoFileSystem, mockFileAt, mockFiles, newInMemoryFileSystem, runInMemoryFileSystem, runReadOnly)
 import Effectful (IOE, runEff)
 import Effects.FileSystem (runFileSystemIO)
-import FileSystem.Path (AbsPath, encodeOsPathString)
+import FileSystem.Path (AbsPath)
 import Fixtures.Deslop.Problem (brokenRule, lintProblemAt, locatedAt, violationOf)
 import Test.Hspec (Spec, describe, it, shouldBe)
-import TestUtils (ap, mkAbsolute)
-import UnliftIO.Temporary (withSystemTempDirectory)
+import TestUtils (ap, inEmptyDir, mkAbsolute)
 
 testPath :: AbsPath
 testPath = ap "/test/baseline.yaml"
@@ -147,8 +146,8 @@ spec = describe "Deslop.Problem.Baseline" $ do
 
             files `shouldBe` Map.singleton testBaselinePath "- lint-rule#src/file.ts\n- rb#rule#modA\n"
 
-        it "creates the deslop directory of a project that has none" . withSystemTempDirectory "deslop-baseline" $ \tmp -> do
-            project <- mkAbsolute . encodeOsPathString $ tmp
+        it "creates the deslop directory of a project that has none" . inEmptyDir $ \tmp -> do
+            project <- mkAbsolute tmp
 
             baseline <- runEff . runFileSystemIO $ saveBaseline project [problemA] >> loadBaseline project
 

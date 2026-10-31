@@ -18,8 +18,8 @@ jobs:
   # mutation stack is proven on. The Nix cache may not hold sydtest, so a run may
   # rebuild it from source.
   #
-  # A pull request tests only the mutants its diff touches: see nix/mutation.nix
-  # for what a full run costs. Main gets the full run, weekly or by hand.
+  # A pull request tests only the mutants its diff touches, to stay far from the
+  # job limit. Main gets the full run, weekly or by hand.
   mutation:
     name: Mutation testing
     runs-on: ubuntu-24.04
