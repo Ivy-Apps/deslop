@@ -71,7 +71,7 @@ mutation-diff base="origin/main" check="mutation":
     nix run .#checks.x86_64-linux.{{check}}.diff --accept-flake-config -- --base {{base}} --no-fail-fast --out-dir "$PWD/dist-newstyle/mutation-diff" | tee dist-newstyle/mutation-diff/run.log
     tail -n 1 dist-newstyle/mutation-diff/run.log | grep -q '^Machine-readable report: '
     jq -f nix/mutation-diff.jq dist-newstyle/mutation-diff/report.json > dist-newstyle/mutation-diff/mutation-diff.json
-    jq -r -f nix/mutation-comment.jq dist-newstyle/mutation-diff/mutation-diff.json > dist-newstyle/mutation-diff/comment.md
+    jq -j -f nix/mutation-comment.jq dist-newstyle/mutation-diff/mutation-diff.json > dist-newstyle/mutation-diff/comment.md
     jq -e '.controls.failed == 0' dist-newstyle/mutation-diff/report.json
 
 # Compile the library and the executable
