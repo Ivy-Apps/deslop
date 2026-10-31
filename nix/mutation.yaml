@@ -1,0 +1,96 @@
+# sydtest-mutation-plugin config, read when the library is instrumented. Schema:
+# Test.Syd.Mutation.Plugin.OptParse in sydtest-mutation-plugin.
+#
+# This is where a mutant is suppressed, by name, once a person has shown it cannot
+# be killed by a sound test, so the source stays free of ANN pragmas. Never add one
+# to lift a score: the score only means something while this list stays short.
+
+# Leaves a call and its arguments unmutated. `error` marks a bug or an unreachable
+# branch, and nobody asserts the wording of its message.
+ignore:
+  - error
+
+exceptions:
+  - Deslop
+  - Deslop.CodeGraph
+  - Deslop.Command
+  - Deslop.Error
+  - Deslop.Explore.Html
+  - Deslop.Explore.Html.Template
+  - Deslop.Explore.Layering
+  - Deslop.Explore.ModuleGraph
+  - Deslop.Explore.ModuleGraph.Json
+  - Deslop.Frontend
+  - Deslop.Frontend.Finding
+  - Deslop.Frontend.Pipeline
+  - Deslop.GlobPlus.Casing
+  - Deslop.GlobPlus.Compiler
+  - Deslop.Module
+  - Deslop.Problem
+  - Deslop.Problem.Formatter
+  - Deslop.Problem.Shrinker
+  - Deslop.Rule.Book
+  - Deslop.Rule.Book.Compiler
+  - Deslop.Rule.Book.Desugar
+  - Deslop.Rule.Book.Dto
+  - Deslop.Rule.Book.Loader
+  - Deslop.Rule.Enforcer
+  - Deslop.Rule.Lint.CycleDetection
+  - Deslop.RunReport
+  - Effects.Browser
+  - Effects.CLI
+  - Effects.Concurrency
+  - Effects.FileSystem
+  - Effects.Git
+  - Effects.ReportProblem
+  - FileSystem.Embed
+  - FileSystem.Iterator
+  - FileSystem.Path
+  - Frontend
+  - Frontend.Haskell
+  - Frontend.Haskell.CST
+  - Frontend.Haskell.Cabal
+  - Frontend.Haskell.HspecDiscover
+  - Frontend.Haskell.Ignore
+  - Frontend.Haskell.Iterator
+  - Frontend.Haskell.Lexer
+  - Frontend.Haskell.Module
+  - Frontend.Haskell.ModuleName
+  - Frontend.Haskell.ModuleRole
+  - Frontend.Haskell.Parser
+  - Frontend.Haskell.Preprocessor
+  - Frontend.Haskell.Tokens
+  - Frontend.Haskell.Unit
+  - Frontend.Nix
+  - Frontend.Nix.Config
+  - Frontend.Nix.FlakeInputs
+  - Frontend.Nix.Ignore
+  - Frontend.Nix.Iterator
+  - Frontend.Nix.Lexeme
+  - Frontend.Nix.Module
+  - Frontend.Nix.ModuleName
+  - Frontend.Nix.PathResolver
+  - Frontend.Nix.Reference
+  - Frontend.Nix.Unit
+  - Frontend.TypeScript
+  - Frontend.TypeScript.CST
+  - Frontend.TypeScript.Config
+  - Frontend.TypeScript.Config.Dto
+  - Frontend.TypeScript.Config.Loader
+  - Frontend.TypeScript.Ignore
+  - Frontend.TypeScript.Iterator
+  - Frontend.TypeScript.Lexer
+  - Frontend.TypeScript.Lint.RelativeSpecifiers
+  - Frontend.TypeScript.Module
+  - Frontend.TypeScript.ModuleResolver
+  - Frontend.TypeScript.ModuleRole
+  - Frontend.TypeScript.Parser
+  - Frontend.TypeScript.Tokens
+  - Git.Ignore
+  - Git.SourceLink
+  - Params
+  - Paths_deslop
+  - Prelude
+  - Renderable
+  - UI
+  - Utils

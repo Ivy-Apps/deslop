@@ -103,6 +103,11 @@ nix run .#test -- Parser
 nix run .#lint
 ```
 
+### Mutation testing
+
+`nix develop .#ci -c just mutation` runs sydtest-mutation over the library (see
+`nix/mutation.nix`). It is advisory and outside `just check`, so never a step of the ladder.
+
 ### Updating golden tests
 
 ```bash

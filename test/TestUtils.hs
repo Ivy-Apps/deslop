@@ -85,7 +85,15 @@ copyDir src dst = do
         isDirectory <- SDO.doesDirectoryExist srcPath
         if isDirectory
             then copyDir srcPath dstPath
-            else SDO.copyFile srcPath dstPath
+            else copyWritable srcPath dstPath
+
+{- | A copy is there to be written to, but 'SDO.copyFile' keeps the source's
+mode, and a mutation run reads the fixtures from the read-only Nix store.
+-}
+copyWritable :: OsPath -> OsPath -> IO ()
+copyWritable src dst = do
+    SDO.copyFile src dst
+    SDO.setPermissions dst . SDO.setOwnerWritable True =<< SDO.getPermissions dst
 
 --------------------------------------------------------------------------------
 -- Corpora

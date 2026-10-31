@@ -49,6 +49,14 @@ lint-actions:
     actionlint -shellcheck="shellcheck -e SC2153"
     zizmor --offline --strict-collection .github
 
+# Mutation-test the library: prints the score and leaves the report in
+# result/deslop/report.{txt,json}. Not part of `check`: a cold build takes well
+# over 25 minutes. Fails on a test failing at baseline, never on a survivor. See
+# nix/mutation.nix
+mutation:
+    nix build .#checks.x86_64-linux.mutation --accept-flake-config
+    cat result/score.md
+
 # Compile the library and the executable
 build:
     cabal build all {{parallel}}

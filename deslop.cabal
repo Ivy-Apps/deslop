@@ -12,6 +12,14 @@ extra-source-files:
   explorer/src/*.js
   explorer/vendor/*.js
 
+-- Swaps the test suite's entry point for sydtest + fromHspec. Off by default, so
+-- the normal cabal path, the freeze and the `ci` shell never see sydtest. Only
+-- `checks.<system>.mutation` turns it on.
+flag mutation
+  description: Build the test suite for sydtest-mutation
+  default:     False
+  manual:      True
+
 flag static
   description:
     Statically link the executable. musl only; used by the release CD.
@@ -189,9 +197,7 @@ test-suite deslop-test
     QuasiQuotes
     TemplateHaskell
 
-  type:               exitcode-stdio-1.0
   hs-source-dirs:     test
-  main-is:            Spec.hs
   build-tool-depends: hspec-discover:hspec-discover
 
   autogen-modules:    Paths_deslop
@@ -337,6 +343,23 @@ test-suite deslop-test
     , text
     , unliftio
     , yaml
+
+  -- The driver passes +RTS -M to every child, so -rtsopts is required. The plugin
+  -- imports its runtime into each module and turns -Wunused-imports off to hide
+  -- that, but hspec-discover's output turns -Wall back on, so -Werror needs easing.
+  -- Cabal wants `type` and `main-is` together in every branch.
+  if flag(mutation)
+    type:          exitcode-stdio-1.0
+    main-is:       MutationMain.hs
+    other-modules: MutationTree
+    ghc-options:   -threaded -rtsopts -with-rtsopts=-N -Wwarn=unused-imports
+    build-depends:
+      , sydtest
+      , sydtest-hspec
+
+  else
+    type:    exitcode-stdio-1.0
+    main-is: Spec.hs
 
 -- Measures 'Deslop.doWork' over the fixture projects and gates on regression
 -- against bench/reference.yaml. Local-only by design - see
