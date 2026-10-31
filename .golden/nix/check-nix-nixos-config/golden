@@ -3,564 +3,564 @@
 [Plain] 📚 Loaded 1 rulebook, 11 rules
 [Error] Found 50 problems:
 [Error] ─────────────────────────────────────────
-[Error] # architecture#darwin-is-not-nixos#programs/agents/skills/lib#unresolved#builtins.readDir dir
+[Error] # architecture#darwin-is-not-nixos#programs/agents/skills/lib.nix#unresolved#builtins.readDir dir
 programs/agents/skills/lib.nix:18
 nix-darwin modules never reach NixOS modules, even transitively.
 
-Module 'programs/agents/skills/lib' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 entries = builtins.readDir dir;
 ```
-Reached from 'modules/macos/user' (7 hops) via: modules/macos/user → modules/home/default → modules/home/claude-code → lib/claude-code → lib/agents → programs/agents/default → programs/agents/skills/default → programs/agents/skills/lib.
+Reached from 'modules/macos/user.nix' (7 hops) via: modules/macos/user.nix → modules/home/default.nix → modules/home/claude-code.nix → lib/claude-code.nix → lib/agents.nix → programs/agents/default.nix → programs/agents/skills/default.nix → programs/agents/skills/lib.nix.
 FIX: Move what both platforms share into a module outside modules/nixos and modules/macos.
 ---------
 
-# architecture#darwin-is-not-nixos#programs/agents/skills/lib#unresolved#dir + "/${name}"
+# architecture#darwin-is-not-nixos#programs/agents/skills/lib.nix#unresolved#dir + "/${name}"
 programs/agents/skills/lib.nix:29
 nix-darwin modules never reach NixOS modules, even transitively.
 
-Module 'programs/agents/skills/lib' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 sub = dir + "/${name}";
 ```
-Reached from 'modules/macos/user' (7 hops) via: modules/macos/user → modules/home/default → modules/home/claude-code → lib/claude-code → lib/agents → programs/agents/default → programs/agents/skills/default → programs/agents/skills/lib.
+Reached from 'modules/macos/user.nix' (7 hops) via: modules/macos/user.nix → modules/home/default.nix → modules/home/claude-code.nix → lib/claude-code.nix → lib/agents.nix → programs/agents/default.nix → programs/agents/skills/default.nix → programs/agents/skills/lib.nix.
 FIX: Move what both platforms share into a module outside modules/nixos and modules/macos.
 ---------
 
-# architecture#darwin-is-not-nixos#programs/agents/skills/lib#unresolved#source.src + "/${root}"
+# architecture#darwin-is-not-nixos#programs/agents/skills/lib.nix#unresolved#source.src + "/${root}"
 programs/agents/skills/lib.nix:52
 nix-darwin modules never reach NixOS modules, even transitively.
 
-Module 'programs/agents/skills/lib' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 lib.concatMap (root: collect (source.src + "/${root}") root) source.roots
 ```
-Reached from 'modules/macos/user' (7 hops) via: modules/macos/user → modules/home/default → modules/home/claude-code → lib/claude-code → lib/agents → programs/agents/default → programs/agents/skills/default → programs/agents/skills/lib.
+Reached from 'modules/macos/user.nix' (7 hops) via: modules/macos/user.nix → modules/home/default.nix → modules/home/claude-code.nix → lib/claude-code.nix → lib/agents.nix → programs/agents/default.nix → programs/agents/skills/default.nix → programs/agents/skills/lib.nix.
 FIX: Move what both platforms share into a module outside modules/nixos and modules/macos.
 ---------
 
-# architecture#darwin-is-not-nixos#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+# architecture#darwin-is-not-nixos#programs/agents/skills/lib.nix#unresolved#sub + "/SKILL.md"
 programs/agents/skills/lib.nix:32
 nix-darwin modules never reach NixOS modules, even transitively.
 
-Module 'programs/agents/skills/lib' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 if builtins.pathExists (sub + "/SKILL.md") then
 ```
-Reached from 'modules/macos/user' (7 hops) via: modules/macos/user → modules/home/default → modules/home/claude-code → lib/claude-code → lib/agents → programs/agents/default → programs/agents/skills/default → programs/agents/skills/lib.
+Reached from 'modules/macos/user.nix' (7 hops) via: modules/macos/user.nix → modules/home/default.nix → modules/home/claude-code.nix → lib/claude-code.nix → lib/agents.nix → programs/agents/default.nix → programs/agents/skills/default.nix → programs/agents/skills/lib.nix.
 FIX: Move what both platforms share into a module outside modules/nixos and modules/macos.
 ---------
 
-# architecture#lib-is-private-to-the-flake#modules/home/claude-code
+# architecture#lib-is-private-to-the-flake#modules/home/claude-code.nix
 modules/home/claude-code.nix:12
 lib is the flake's own helpers. Only flake.nix and lib itself import it; everything else is handed what it needs as an argument.
 
-Module 'modules/home/claude-code' directly imports 'lib/claude-code'.
+Module 'modules/home/claude-code.nix' directly imports 'lib/claude-code.nix'.
 ```nix
 claude = import "${root}/lib/claude-code.nix" {
 ```
 FIX: Move what is shared into programs/, or pass it in through specialArgs.
 ---------
 
-# architecture#lib-is-private-to-the-flake#modules/home/factory/claude-factory
+# architecture#lib-is-private-to-the-flake#modules/home/factory/claude-factory.nix
 modules/home/factory/claude-factory.nix:17
 lib is the flake's own helpers. Only flake.nix and lib itself import it; everything else is handed what it needs as an argument.
 
-Module 'modules/home/factory/claude-factory' directly imports 'lib/claude-code'.
+Module 'modules/home/factory/claude-factory.nix' directly imports 'lib/claude-code.nix'.
 ```nix
 claude = import "${root}/lib/claude-code.nix" {
 ```
 FIX: Move what is shared into programs/, or pass it in through specialArgs.
 ---------
 
-# architecture#lib-is-private-to-the-flake#programs/agents/skills/lib#unresolved#builtins.readDir dir
+# architecture#lib-is-private-to-the-flake#programs/agents/skills/lib.nix#unresolved#builtins.readDir dir
 programs/agents/skills/lib.nix:18
 lib is the flake's own helpers. Only flake.nix and lib itself import it; everything else is handed what it needs as an argument.
 
-Module 'programs/agents/skills/lib' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 entries = builtins.readDir dir;
 ```
 FIX: Move what is shared into programs/, or pass it in through specialArgs.
 ---------
 
-# architecture#lib-is-private-to-the-flake#programs/agents/skills/lib#unresolved#dir + "/${name}"
+# architecture#lib-is-private-to-the-flake#programs/agents/skills/lib.nix#unresolved#dir + "/${name}"
 programs/agents/skills/lib.nix:29
 lib is the flake's own helpers. Only flake.nix and lib itself import it; everything else is handed what it needs as an argument.
 
-Module 'programs/agents/skills/lib' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 sub = dir + "/${name}";
 ```
 FIX: Move what is shared into programs/, or pass it in through specialArgs.
 ---------
 
-# architecture#lib-is-private-to-the-flake#programs/agents/skills/lib#unresolved#source.src + "/${root}"
+# architecture#lib-is-private-to-the-flake#programs/agents/skills/lib.nix#unresolved#source.src + "/${root}"
 programs/agents/skills/lib.nix:52
 lib is the flake's own helpers. Only flake.nix and lib itself import it; everything else is handed what it needs as an argument.
 
-Module 'programs/agents/skills/lib' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 lib.concatMap (root: collect (source.src + "/${root}") root) source.roots
 ```
 FIX: Move what is shared into programs/, or pass it in through specialArgs.
 ---------
 
-# architecture#lib-is-private-to-the-flake#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+# architecture#lib-is-private-to-the-flake#programs/agents/skills/lib.nix#unresolved#sub + "/SKILL.md"
 programs/agents/skills/lib.nix:32
 lib is the flake's own helpers. Only flake.nix and lib itself import it; everything else is handed what it needs as an argument.
 
-Module 'programs/agents/skills/lib' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 if builtins.pathExists (sub + "/SKILL.md") then
 ```
 FIX: Move what is shared into programs/, or pass it in through specialArgs.
 ---------
 
-# architecture#lib-is-private-to-the-flake#programs/software-factory/default#unresolved#builtins.readFile script
+# architecture#lib-is-private-to-the-flake#programs/software-factory/default.nix#unresolved#builtins.readFile script
 programs/software-factory/default.nix:271
 lib is the flake's own helpers. Only flake.nix and lib itself import it; everything else is handed what it needs as an argument.
 
-Module 'programs/software-factory/default' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/software-factory/default.nix' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 ${builtins.readFile script}
 ```
 FIX: Move what is shared into programs/, or pass it in through specialArgs.
 ---------
 
-# architecture#lib-is-private-to-the-flake#shells/darwin-install
+# architecture#lib-is-private-to-the-flake#shells/darwin-install.nix
 shells/darwin-install.nix:16
 lib is the flake's own helpers. Only flake.nix and lib itself import it; everything else is handed what it needs as an argument.
 
-Module 'shells/darwin-install' directly imports 'lib/claude-code'.
+Module 'shells/darwin-install.nix' directly imports 'lib/claude-code.nix'.
 ```nix
 claudeCode = import "${self}/lib/claude-code.nix" {
 ```
 FIX: Move what is shared into programs/, or pass it in through specialArgs.
 ---------
 
-# architecture#lib-is-private-to-the-flake#shells/nixos-install
+# architecture#lib-is-private-to-the-flake#shells/nixos-install.nix
 shells/nixos-install.nix:17
 lib is the flake's own helpers. Only flake.nix and lib itself import it; everything else is handed what it needs as an argument.
 
-Module 'shells/nixos-install' directly imports 'lib/claude-code'.
+Module 'shells/nixos-install.nix' directly imports 'lib/claude-code.nix'.
 ```nix
 claudeCode = import "${self}/lib/claude-code.nix" {
 ```
 FIX: Move what is shared into programs/, or pass it in through specialArgs.
 ---------
 
-# architecture#nixos-is-not-darwin#programs/agents/skills/lib#unresolved#builtins.readDir dir
+# architecture#nixos-is-not-darwin#programs/agents/skills/lib.nix#unresolved#builtins.readDir dir
 programs/agents/skills/lib.nix:18
 NixOS modules never reach nix-darwin modules, even transitively.
 
-Module 'programs/agents/skills/lib' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 entries = builtins.readDir dir;
 ```
-Reached from 'modules/nixos/server/users' (7 hops) via: modules/nixos/server/users → modules/home/factory/default → modules/home/factory/claude-factory → lib/claude-code → lib/agents → programs/agents/default → programs/agents/skills/default → programs/agents/skills/lib.
+Reached from 'modules/nixos/server/users.nix' (7 hops) via: modules/nixos/server/users.nix → modules/home/factory/default.nix → modules/home/factory/claude-factory.nix → lib/claude-code.nix → lib/agents.nix → programs/agents/default.nix → programs/agents/skills/default.nix → programs/agents/skills/lib.nix.
 FIX: Move what both platforms share into a module outside modules/nixos and modules/macos.
 ---------
 
-# architecture#nixos-is-not-darwin#programs/agents/skills/lib#unresolved#dir + "/${name}"
+# architecture#nixos-is-not-darwin#programs/agents/skills/lib.nix#unresolved#dir + "/${name}"
 programs/agents/skills/lib.nix:29
 NixOS modules never reach nix-darwin modules, even transitively.
 
-Module 'programs/agents/skills/lib' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 sub = dir + "/${name}";
 ```
-Reached from 'modules/nixos/server/users' (7 hops) via: modules/nixos/server/users → modules/home/factory/default → modules/home/factory/claude-factory → lib/claude-code → lib/agents → programs/agents/default → programs/agents/skills/default → programs/agents/skills/lib.
+Reached from 'modules/nixos/server/users.nix' (7 hops) via: modules/nixos/server/users.nix → modules/home/factory/default.nix → modules/home/factory/claude-factory.nix → lib/claude-code.nix → lib/agents.nix → programs/agents/default.nix → programs/agents/skills/default.nix → programs/agents/skills/lib.nix.
 FIX: Move what both platforms share into a module outside modules/nixos and modules/macos.
 ---------
 
-# architecture#nixos-is-not-darwin#programs/agents/skills/lib#unresolved#source.src + "/${root}"
+# architecture#nixos-is-not-darwin#programs/agents/skills/lib.nix#unresolved#source.src + "/${root}"
 programs/agents/skills/lib.nix:52
 NixOS modules never reach nix-darwin modules, even transitively.
 
-Module 'programs/agents/skills/lib' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 lib.concatMap (root: collect (source.src + "/${root}") root) source.roots
 ```
-Reached from 'modules/nixos/server/users' (7 hops) via: modules/nixos/server/users → modules/home/factory/default → modules/home/factory/claude-factory → lib/claude-code → lib/agents → programs/agents/default → programs/agents/skills/default → programs/agents/skills/lib.
+Reached from 'modules/nixos/server/users.nix' (7 hops) via: modules/nixos/server/users.nix → modules/home/factory/default.nix → modules/home/factory/claude-factory.nix → lib/claude-code.nix → lib/agents.nix → programs/agents/default.nix → programs/agents/skills/default.nix → programs/agents/skills/lib.nix.
 FIX: Move what both platforms share into a module outside modules/nixos and modules/macos.
 ---------
 
-# architecture#nixos-is-not-darwin#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+# architecture#nixos-is-not-darwin#programs/agents/skills/lib.nix#unresolved#sub + "/SKILL.md"
 programs/agents/skills/lib.nix:32
 NixOS modules never reach nix-darwin modules, even transitively.
 
-Module 'programs/agents/skills/lib' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 if builtins.pathExists (sub + "/SKILL.md") then
 ```
-Reached from 'modules/nixos/server/users' (7 hops) via: modules/nixos/server/users → modules/home/factory/default → modules/home/factory/claude-factory → lib/claude-code → lib/agents → programs/agents/default → programs/agents/skills/default → programs/agents/skills/lib.
+Reached from 'modules/nixos/server/users.nix' (7 hops) via: modules/nixos/server/users.nix → modules/home/factory/default.nix → modules/home/factory/claude-factory.nix → lib/claude-code.nix → lib/agents.nix → programs/agents/default.nix → programs/agents/skills/default.nix → programs/agents/skills/lib.nix.
 FIX: Move what both platforms share into a module outside modules/nixos and modules/macos.
 ---------
 
-# architecture#nixos-is-not-darwin#programs/software-factory/default#unresolved#builtins.readFile script
+# architecture#nixos-is-not-darwin#programs/software-factory/default.nix#unresolved#builtins.readFile script
 programs/software-factory/default.nix:271
 NixOS modules never reach nix-darwin modules, even transitively.
 
-Module 'programs/software-factory/default' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/software-factory/default.nix' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 ${builtins.readFile script}
 ```
-Reached from 'modules/nixos/server/claude-policy' (1 hop) via: modules/nixos/server/claude-policy → programs/software-factory/default.
+Reached from 'modules/nixos/server/claude-policy.nix' (1 hop) via: modules/nixos/server/claude-policy.nix → programs/software-factory/default.nix.
 FIX: Move what both platforms share into a module outside modules/nixos and modules/macos.
 ---------
 
-# architecture#nothing-imports-the-flake#programs/agents/skills/lib#unresolved#builtins.readDir dir
+# architecture#nothing-imports-the-flake#programs/agents/skills/lib.nix#unresolved#builtins.readDir dir
 programs/agents/skills/lib.nix:18
 flake.nix is the entry point, so nothing imports it.
 
-Module 'programs/agents/skills/lib' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 entries = builtins.readDir dir;
 ```
 FIX: Import what flake.nix imports instead.
 ---------
 
-# architecture#nothing-imports-the-flake#programs/agents/skills/lib#unresolved#dir + "/${name}"
+# architecture#nothing-imports-the-flake#programs/agents/skills/lib.nix#unresolved#dir + "/${name}"
 programs/agents/skills/lib.nix:29
 flake.nix is the entry point, so nothing imports it.
 
-Module 'programs/agents/skills/lib' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 sub = dir + "/${name}";
 ```
 FIX: Import what flake.nix imports instead.
 ---------
 
-# architecture#nothing-imports-the-flake#programs/agents/skills/lib#unresolved#source.src + "/${root}"
+# architecture#nothing-imports-the-flake#programs/agents/skills/lib.nix#unresolved#source.src + "/${root}"
 programs/agents/skills/lib.nix:52
 flake.nix is the entry point, so nothing imports it.
 
-Module 'programs/agents/skills/lib' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 lib.concatMap (root: collect (source.src + "/${root}") root) source.roots
 ```
 FIX: Import what flake.nix imports instead.
 ---------
 
-# architecture#nothing-imports-the-flake#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+# architecture#nothing-imports-the-flake#programs/agents/skills/lib.nix#unresolved#sub + "/SKILL.md"
 programs/agents/skills/lib.nix:32
 flake.nix is the entry point, so nothing imports it.
 
-Module 'programs/agents/skills/lib' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 if builtins.pathExists (sub + "/SKILL.md") then
 ```
 FIX: Import what flake.nix imports instead.
 ---------
 
-# architecture#nothing-imports-the-flake#programs/software-factory/default#unresolved#builtins.readFile script
+# architecture#nothing-imports-the-flake#programs/software-factory/default.nix#unresolved#builtins.readFile script
 programs/software-factory/default.nix:271
 flake.nix is the entry point, so nothing imports it.
 
-Module 'programs/software-factory/default' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/software-factory/default.nix' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 ${builtins.readFile script}
 ```
 FIX: Import what flake.nix imports instead.
 ---------
 
-# architecture#only-lib-assembles-hosts#programs/agents/skills/lib#unresolved#builtins.readDir dir
+# architecture#only-lib-assembles-hosts#programs/agents/skills/lib.nix#unresolved#builtins.readDir dir
 programs/agents/skills/lib.nix:18
 lib's builders are the one place that turns a host directory into a system, so every host gets the same shared modules.
 
-Module 'programs/agents/skills/lib' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 entries = builtins.readDir dir;
 ```
 FIX: Add the host to nixosConfigurations or darwinConfigurations in flake.nix, through lib.
 ---------
 
-# architecture#only-lib-assembles-hosts#programs/agents/skills/lib#unresolved#dir + "/${name}"
+# architecture#only-lib-assembles-hosts#programs/agents/skills/lib.nix#unresolved#dir + "/${name}"
 programs/agents/skills/lib.nix:29
 lib's builders are the one place that turns a host directory into a system, so every host gets the same shared modules.
 
-Module 'programs/agents/skills/lib' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 sub = dir + "/${name}";
 ```
 FIX: Add the host to nixosConfigurations or darwinConfigurations in flake.nix, through lib.
 ---------
 
-# architecture#only-lib-assembles-hosts#programs/agents/skills/lib#unresolved#source.src + "/${root}"
+# architecture#only-lib-assembles-hosts#programs/agents/skills/lib.nix#unresolved#source.src + "/${root}"
 programs/agents/skills/lib.nix:52
 lib's builders are the one place that turns a host directory into a system, so every host gets the same shared modules.
 
-Module 'programs/agents/skills/lib' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 lib.concatMap (root: collect (source.src + "/${root}") root) source.roots
 ```
 FIX: Add the host to nixosConfigurations or darwinConfigurations in flake.nix, through lib.
 ---------
 
-# architecture#only-lib-assembles-hosts#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+# architecture#only-lib-assembles-hosts#programs/agents/skills/lib.nix#unresolved#sub + "/SKILL.md"
 programs/agents/skills/lib.nix:32
 lib's builders are the one place that turns a host directory into a system, so every host gets the same shared modules.
 
-Module 'programs/agents/skills/lib' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 if builtins.pathExists (sub + "/SKILL.md") then
 ```
 FIX: Add the host to nixosConfigurations or darwinConfigurations in flake.nix, through lib.
 ---------
 
-# architecture#only-lib-assembles-hosts#programs/software-factory/default#unresolved#builtins.readFile script
+# architecture#only-lib-assembles-hosts#programs/software-factory/default.nix#unresolved#builtins.readFile script
 programs/software-factory/default.nix:271
 lib's builders are the one place that turns a host directory into a system, so every host gets the same shared modules.
 
-Module 'programs/software-factory/default' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/software-factory/default.nix' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 ${builtins.readFile script}
 ```
 FIX: Add the host to nixosConfigurations or darwinConfigurations in flake.nix, through lib.
 ---------
 
-# architecture#programs-are-host-agnostic#programs/agents/skills/lib#unresolved#builtins.readDir dir
+# architecture#programs-are-host-agnostic#programs/agents/skills/lib.nix#unresolved#builtins.readDir dir
 programs/agents/skills/lib.nix:18
 A program is the same on every machine: it knows no host and no secret, even through what it imports.
 
-Module 'programs/agents/skills/lib' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 entries = builtins.readDir dir;
 ```
 FIX: Take what differs per host as an argument, and let the host or a module pass it in.
 ---------
 
-# architecture#programs-are-host-agnostic#programs/agents/skills/lib#unresolved#dir + "/${name}"
+# architecture#programs-are-host-agnostic#programs/agents/skills/lib.nix#unresolved#dir + "/${name}"
 programs/agents/skills/lib.nix:29
 A program is the same on every machine: it knows no host and no secret, even through what it imports.
 
-Module 'programs/agents/skills/lib' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 sub = dir + "/${name}";
 ```
 FIX: Take what differs per host as an argument, and let the host or a module pass it in.
 ---------
 
-# architecture#programs-are-host-agnostic#programs/agents/skills/lib#unresolved#source.src + "/${root}"
+# architecture#programs-are-host-agnostic#programs/agents/skills/lib.nix#unresolved#source.src + "/${root}"
 programs/agents/skills/lib.nix:52
 A program is the same on every machine: it knows no host and no secret, even through what it imports.
 
-Module 'programs/agents/skills/lib' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 lib.concatMap (root: collect (source.src + "/${root}") root) source.roots
 ```
 FIX: Take what differs per host as an argument, and let the host or a module pass it in.
 ---------
 
-# architecture#programs-are-host-agnostic#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+# architecture#programs-are-host-agnostic#programs/agents/skills/lib.nix#unresolved#sub + "/SKILL.md"
 programs/agents/skills/lib.nix:32
 A program is the same on every machine: it knows no host and no secret, even through what it imports.
 
-Module 'programs/agents/skills/lib' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 if builtins.pathExists (sub + "/SKILL.md") then
 ```
 FIX: Take what differs per host as an argument, and let the host or a module pass it in.
 ---------
 
-# architecture#programs-are-host-agnostic#programs/software-factory/default#unresolved#builtins.readFile script
+# architecture#programs-are-host-agnostic#programs/software-factory/default.nix#unresolved#builtins.readFile script
 programs/software-factory/default.nix:271
 A program is the same on every machine: it knows no host and no secret, even through what it imports.
 
-Module 'programs/software-factory/default' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/software-factory/default.nix' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 ${builtins.readFile script}
 ```
 FIX: Take what differs per host as an argument, and let the host or a module pass it in.
 ---------
 
-# architecture#programs-are-isolated#programs/agents/skills/lib#unresolved#builtins.readDir dir
+# architecture#programs-are-isolated#programs/agents/skills/lib.nix#unresolved#builtins.readDir dir
 programs/agents/skills/lib.nix:18
 A program uses another program only through its entry point (its default.nix).
 
-Module 'programs/agents/skills/lib' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 entries = builtins.readDir dir;
 ```
 FIX: Expose it from the other program's default.nix, or move the shared code.
 ---------
 
-# architecture#programs-are-isolated#programs/agents/skills/lib#unresolved#dir + "/${name}"
+# architecture#programs-are-isolated#programs/agents/skills/lib.nix#unresolved#dir + "/${name}"
 programs/agents/skills/lib.nix:29
 A program uses another program only through its entry point (its default.nix).
 
-Module 'programs/agents/skills/lib' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 sub = dir + "/${name}";
 ```
 FIX: Expose it from the other program's default.nix, or move the shared code.
 ---------
 
-# architecture#programs-are-isolated#programs/agents/skills/lib#unresolved#source.src + "/${root}"
+# architecture#programs-are-isolated#programs/agents/skills/lib.nix#unresolved#source.src + "/${root}"
 programs/agents/skills/lib.nix:52
 A program uses another program only through its entry point (its default.nix).
 
-Module 'programs/agents/skills/lib' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 lib.concatMap (root: collect (source.src + "/${root}") root) source.roots
 ```
 FIX: Expose it from the other program's default.nix, or move the shared code.
 ---------
 
-# architecture#programs-are-isolated#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+# architecture#programs-are-isolated#programs/agents/skills/lib.nix#unresolved#sub + "/SKILL.md"
 programs/agents/skills/lib.nix:32
 A program uses another program only through its entry point (its default.nix).
 
-Module 'programs/agents/skills/lib' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 if builtins.pathExists (sub + "/SKILL.md") then
 ```
 FIX: Expose it from the other program's default.nix, or move the shared code.
 ---------
 
-# architecture#programs-are-isolated#programs/claude-code/default
+# architecture#programs-are-isolated#programs/claude-code/default.nix
 programs/claude-code/default.nix:155
 A program uses another program only through its entry point (its default.nix).
 
-Module 'programs/claude-code/default' directly imports 'programs/software-factory/instructions.md'.
+Module 'programs/claude-code/default.nix' directly imports 'programs/software-factory/instructions.md'.
 ```nix
 extraInstructions = [ ../software-factory/instructions.md ];
 ```
 FIX: Expose it from the other program's default.nix, or move the shared code.
 ---------
 
-# architecture#programs-are-isolated#programs/software-factory/check
+# architecture#programs-are-isolated#programs/software-factory/check.nix
 programs/software-factory/check.nix:167
 A program uses another program only through its entry point (its default.nix).
 
-Module 'programs/software-factory/check' directly imports 'programs/agents/skills/lib'.
+Module 'programs/software-factory/check.nix' directly imports 'programs/agents/skills/lib.nix'.
 ```nix
 skillsCheck = (import ../agents/skills/lib.nix { inherit pkgs lib; }).mkCheck factory.admin.skills;
 ```
 FIX: Expose it from the other program's default.nix, or move the shared code.
 ---------
 
-# architecture#programs-are-isolated#programs/software-factory/default#unresolved#builtins.readFile script
+# architecture#programs-are-isolated#programs/software-factory/default.nix#unresolved#builtins.readFile script
 programs/software-factory/default.nix:271
 A program uses another program only through its entry point (its default.nix).
 
-Module 'programs/software-factory/default' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/software-factory/default.nix' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 ${builtins.readFile script}
 ```
 FIX: Expose it from the other program's default.nix, or move the shared code.
 ---------
 
-# architecture#secrets-are-read-in-one-place#programs/agents/skills/lib#unresolved#builtins.readDir dir
+# architecture#secrets-are-read-in-one-place#programs/agents/skills/lib.nix#unresolved#builtins.readDir dir
 programs/agents/skills/lib.nix:18
 modules/secrets.nix is the one module that knows where ciphertext lives; everything else asks it for a secret's path.
 
-Module 'programs/agents/skills/lib' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 entries = builtins.readDir dir;
 ```
 FIX: Declare the secret through myConfig.secrets and read its path from config.
 ---------
 
-# architecture#secrets-are-read-in-one-place#programs/agents/skills/lib#unresolved#dir + "/${name}"
+# architecture#secrets-are-read-in-one-place#programs/agents/skills/lib.nix#unresolved#dir + "/${name}"
 programs/agents/skills/lib.nix:29
 modules/secrets.nix is the one module that knows where ciphertext lives; everything else asks it for a secret's path.
 
-Module 'programs/agents/skills/lib' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 sub = dir + "/${name}";
 ```
 FIX: Declare the secret through myConfig.secrets and read its path from config.
 ---------
 
-# architecture#secrets-are-read-in-one-place#programs/agents/skills/lib#unresolved#source.src + "/${root}"
+# architecture#secrets-are-read-in-one-place#programs/agents/skills/lib.nix#unresolved#source.src + "/${root}"
 programs/agents/skills/lib.nix:52
 modules/secrets.nix is the one module that knows where ciphertext lives; everything else asks it for a secret's path.
 
-Module 'programs/agents/skills/lib' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 lib.concatMap (root: collect (source.src + "/${root}") root) source.roots
 ```
 FIX: Declare the secret through myConfig.secrets and read its path from config.
 ---------
 
-# architecture#secrets-are-read-in-one-place#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+# architecture#secrets-are-read-in-one-place#programs/agents/skills/lib.nix#unresolved#sub + "/SKILL.md"
 programs/agents/skills/lib.nix:32
 modules/secrets.nix is the one module that knows where ciphertext lives; everything else asks it for a secret's path.
 
-Module 'programs/agents/skills/lib' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 if builtins.pathExists (sub + "/SKILL.md") then
 ```
 FIX: Declare the secret through myConfig.secrets and read its path from config.
 ---------
 
-# architecture#secrets-are-read-in-one-place#programs/software-factory/default#unresolved#builtins.readFile script
+# architecture#secrets-are-read-in-one-place#programs/software-factory/default.nix#unresolved#builtins.readFile script
 programs/software-factory/default.nix:271
 modules/secrets.nix is the one module that knows where ciphertext lives; everything else asks it for a secret's path.
 
-Module 'programs/software-factory/default' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/software-factory/default.nix' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 ${builtins.readFile script}
 ```
 FIX: Declare the secret through myConfig.secrets and read its path from config.
 ---------
 
-# architecture#server-modules-are-server-only#programs/agents/skills/lib#unresolved#builtins.readDir dir
+# architecture#server-modules-are-server-only#programs/agents/skills/lib.nix#unresolved#builtins.readDir dir
 programs/agents/skills/lib.nix:18
 modules/nixos/server holds what only a headless server needs; only lib's server builder and the server modules themselves import it.
 
-Module 'programs/agents/skills/lib' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'builtins.readDir dir', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 entries = builtins.readDir dir;
 ```
 FIX: Move what other machines need too out of modules/nixos/server.
 ---------
 
-# architecture#server-modules-are-server-only#programs/agents/skills/lib#unresolved#dir + "/${name}"
+# architecture#server-modules-are-server-only#programs/agents/skills/lib.nix#unresolved#dir + "/${name}"
 programs/agents/skills/lib.nix:29
 modules/nixos/server holds what only a headless server needs; only lib's server builder and the server modules themselves import it.
 
-Module 'programs/agents/skills/lib' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'dir + "/${name}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 sub = dir + "/${name}";
 ```
 FIX: Move what other machines need too out of modules/nixos/server.
 ---------
 
-# architecture#server-modules-are-server-only#programs/agents/skills/lib#unresolved#source.src + "/${root}"
+# architecture#server-modules-are-server-only#programs/agents/skills/lib.nix#unresolved#source.src + "/${root}"
 programs/agents/skills/lib.nix:52
 modules/nixos/server holds what only a headless server needs; only lib's server builder and the server modules themselves import it.
 
-Module 'programs/agents/skills/lib' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'source.src + "/${root}"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 lib.concatMap (root: collect (source.src + "/${root}") root) source.roots
 ```
 FIX: Move what other machines need too out of modules/nixos/server.
 ---------
 
-# architecture#server-modules-are-server-only#programs/agents/skills/lib#unresolved#sub + "/SKILL.md"
+# architecture#server-modules-are-server-only#programs/agents/skills/lib.nix#unresolved#sub + "/SKILL.md"
 programs/agents/skills/lib.nix:32
 modules/nixos/server holds what only a headless server needs; only lib's server builder and the server modules themselves import it.
 
-Module 'programs/agents/skills/lib' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/agents/skills/lib.nix' imports 'sub + "/SKILL.md"', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 if builtins.pathExists (sub + "/SKILL.md") then
 ```
 FIX: Move what other machines need too out of modules/nixos/server.
 ---------
 
-# architecture#server-modules-are-server-only#programs/software-factory/default#unresolved#builtins.readFile script
+# architecture#server-modules-are-server-only#programs/software-factory/default.nix#unresolved#builtins.readFile script
 programs/software-factory/default.nix:271
 modules/nixos/server holds what only a headless server needs; only lib's server builder and the server modules themselves import it.
 
-Module 'programs/software-factory/default' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
+Module 'programs/software-factory/default.nix' imports 'builtins.readFile script', which Deslop cannot resolve to a module, so whether it breaks this Rule cannot be judged.
 ```nix
 ${builtins.readFile script}
 ```
 FIX: Move what other machines need too out of modules/nixos/server.
 [Error] ─────────────────────────────────────────
-[summary] Checked 125 modules enforcing 12 rules
+[summary] Checked 152 modules enforcing 12 rules
 [exit] Found 50 problems, none auto-fixable.
    Run `deslop baseline` to silence all 50 problems.

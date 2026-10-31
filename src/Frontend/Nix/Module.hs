@@ -1,11 +1,12 @@
-{- | Lowering every Nix file of the project into "Deslop.Module"s at once.
+{- | Lowering every file of a Nix project into "Deslop.Module"s at once.
 
-Each file is one module, named by "Frontend.Nix.ModuleName", with an
+Each file is one module, named by "Frontend.Nix.ModuleName". One that is not
+Nix is never read, and has no edges of its own. A @.nix@ file has an
 'ImportEdge' per thing "Frontend.Nix.Reference" finds it referring to:
 
 * a path in the project, to each module it reaches ("Frontend.Nix.PathResolver");
-  one that is not a @.nix@ file the walk found - a script, a secret, a
-  directory - is a module too, with no edges of its own;
+  one the walk did not find - a gitignored file, a directory - is a module too,
+  with no edges of its own;
 * a flake input, nixpkgs' NixOS modules or a search path entry, to an
   'External' module: @inputs\/\<name\>\/\<attr\>...@,
   @inputs\/nixpkgs\/nixos\/modules\/...@ and @nixpkgs\/...@;
@@ -31,72 +32,63 @@ import Deslop.Module (
     Location (..),
     Module (..),
     ModuleId,
-    ModuleName (..),
     ModuleRole (Source),
-    canonicalName,
     moduleIdUnsafe,
     specifierUnsafe,
  )
 import Effectful (Eff, type (:>))
 import Effects.FileSystem (RoFileSystem, fsMkAbsolute)
 import FileSystem.Path (AbsPath (..), ProjectRelativePath, ProjectRoot (..), absPathUnsafe, decodeOsPath, portablePath, relativePathTo)
-import Frontend.Nix.ModuleName (externalName, moduleNames, projectNames)
+import Frontend.Nix.ModuleName (externalName, moduleNames)
 import Frontend.Nix.PathResolver (reachedBy)
 import Frontend.Nix.Reference (Anchor (..), PathPattern, Reference (..), Referent (..), Scope, literalOf, referencesIn)
 import Frontend.Nix.Unit (NixSource (..), NixUnit (..), Opacity (..), unitPath)
 import Renderable (Renderable (render))
 import System.OsPath (takeDirectory)
 
--- | What only the whole program shows, and the user should hear about.
-data NixLowerError
-    = -- | A module exists, but what it refers to is unknown.
-      ReferencesNotRead ProjectRelativePath Opacity
-    | -- | @foo.nix@ beside @foo\/default.nix@: one name for two modules.
-      NameShared ModuleName [ProjectRelativePath]
+-- | A module exists, but what it refers to is unknown.
+data NixLowerError = ReferencesNotRead ProjectRelativePath Opacity
     deriving stock (Show, Eq)
 
-{- | Every unit as a 'Module', in the order given, then every module only a
-reference reaches, in path order; and what the user should hear about them.
+{- | Every unit as a 'Module', in the order given, then every other file of
+the project and every module only a reference reaches, in path order; and what
+the user should hear about them.
 -}
 lowerProject ::
     (RoFileSystem :> es) =>
-    ProjectRoot -> Scope -> [NixUnit] -> Eff es ([Module], [NixLowerError])
-lowerProject projectRoot scope units = do
+    ProjectRoot -> Scope -> [AbsPath] -> [NixUnit] -> Eff es ([Module], [NixLowerError])
+lowerProject projectRoot scope otherFiles units = do
     unitIds <- traverse (idOf . unitPath) units
     lowered <- zipWithM (lowerUnit projectRoot scope) unitIds units
+    otherIds <- traverse idOf otherFiles
     let modules = fmap fst lowered
+        others = zip otherIds (fmap relative otherFiles)
         reachedOnly =
-            Map.toList . (`Map.withoutKeys` Set.fromList unitIds) . Map.fromList $
+            Map.toList . (`Map.withoutKeys` Set.fromList (unitIds <> otherIds)) . Map.fromList $
                 concatMap snd lowered
-        assets = sortOn (.path) (fmap asset reachedOnly)
-        everyModule = named (modules <> assets)
-    pure (everyModule, notRead <> shared everyModule)
+        assets = sortOn (.path) (fmap asset (others <> reachedOnly))
+    pure (settleEdgeNames (modules <> assets), notRead)
   where
     relative = relativePathTo projectRoot
     asset (moduleId, path) = Module {id = moduleId, names = moduleNames path, path, edges = [], role = Source}
     notRead = [ReferencesNotRead (relative path) why | Opaque path why _ <- units]
 
-{- | Every module, and every edge into one, by the names 'projectNames' gives
-it once the whole project is known: what a module is canonically called
-depends on what lies beside it, so until then each is named by its path alone.
+{- | Every edge into a module by that module's names. An edge is named by the
+path it reached; through a linked directory that is no module's path, so it
+takes the names of the module of its id.
 
-A module is renamed by its own path, never by its id: a symbolic link to a
-@.nix@ file is a module of its own that shares the id of the file it links to.
-An edge is renamed as the module of its id and the path it was written as, or,
-reaching a module through a linked directory, as one of its id.
+A symbolic link to a file is a module of its own that shares the id of the file
+it links to, so an edge that does name a module's path keeps that name.
 -}
-named :: [Module] -> [Module]
-named modules = fmap rename modules
+settleEdgeNames :: [Module] -> [Module]
+settleEdgeNames modules = fmap (\m -> m {edges = fmap settle m.edges}) modules
   where
-    byPath = projectNames (fmap (.path) modules)
-    final m = Map.findWithDefault m.names m.path byPath
-    -- Until now, a module's names and an edge's are those of the path alone.
-    byIdAndPath = Map.fromList [((m.id, m.names), final m) | m <- modules]
-    byId = Map.fromList [(m.id, final m) | m <- modules]
-    rename m = m {names = final m, edges = fmap retarget m.edges}
-    retarget edge = case edge.target of
-        Resolved target names ->
-            edge {target = Resolved target (fromMaybe names (Map.lookup (target, names) byIdAndPath <|> Map.lookup target byId))}
+    known = Set.fromList [(m.id, m.names) | m <- modules]
+    byId = Map.fromList [(m.id, m.names) | m <- modules]
+    settle edge = case edge.target of
+        Resolved target names
+            | (target, names) `Set.notMember` known ->
+                edge {target = Resolved target (Map.findWithDefault names target byId)}
         _ -> edge
 
 -- | Canonicalised, as every edge into it is, so the two cannot disagree.
@@ -179,28 +171,9 @@ locate file source offset = Location {file, line, code}
     line = 1 + T.count "\n" before
     code = T.strip (T.takeWhileEnd (/= '\n') before <> T.takeWhile (/= '\n') (T.drop offset source))
 
-{- | Every name one module is canonically called and another is called at
-all. Aliases may be shared; a canonical name may not, as a Problem id is
-built from it.
--}
-shared :: [Module] -> [NixLowerError]
-shared modules =
-    [ NameShared name (sort (ordNub claimants))
-    | name <- ordNub (fmap canonicalName modules)
-    , let claimants = Map.findWithDefault [] name claimedBy
-    , length (ordNub claimants) > 1
-    ]
-  where
-    claimedBy = Map.fromListWith (<>) [(name, [m.path]) | m <- modules, name <- ordNub (toList m.names)]
-
 instance Renderable NixLowerError where
     render = \case
         ReferencesNotRead path why -> portablePath path <> " " <> reason why <> ", so what it refers to was not read."
-        NameShared name paths ->
-            T.intercalate ", " (fmap portablePath paths)
-                <> " share the name "
-                <> name.text
-                <> ", so a Rule cannot tell them apart; rename or move all but one."
       where
         reason = \case
             NotUtf8 -> "is not UTF-8"

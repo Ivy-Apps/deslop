@@ -152,7 +152,7 @@ var DeslopView = (function () {
         if (n.kind === "module" && !moduleShown(show, n)) return;
         if (n.kind === "folder" && !counts[id]) return;
         var open = n.kind === "folder" && !!expanded[id];
-        var label = n.kind === "module" ? DeslopGraph.fileLabel(n.path) : n.label + "/" + (open ? "" : "  " + counts[id]);
+        var label = n.kind === "module" ? DeslopGraph.fileLabel(n) : n.label + "/" + (open ? "" : "  " + counts[id]);
         drawn[id] = true;
         els.push({ group: "nodes", classes: n.kind + (open ? " open" : "") + (has(n, "hub") ? " hub" : "") + (has(n, "test") ? " test" : "") + (has(n, "bench") ? " bench" : "") + diffClass(id),
           data: { id: id, parent: parent, label: label, colour: colourOf(id), layer: layerOf(id) } });

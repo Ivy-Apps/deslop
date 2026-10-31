@@ -184,8 +184,9 @@ text are language-neutral.
     `lib/deslop/Deslop/Module`, and every executable's `Main` is
     `exe/<component>/Main` - aliased by its bare name
     ([ADR 21](0021-haskell-is-read-as-one-cabal-package.md)).
-  - Nix: `lib.nix` and `lib/default.nix` are both reached as `./lib`-shaped
-    paths, so `lib/default.nix` is canonically `lib/default`, aliased `lib`.
+  - Nix: a name is the path, so `lib.nix` and `lib/default.nix` never clash;
+    `lib/default.nix` is aliased `lib`
+    ([ADR 26](0026-a-nix-project-is-every-file-it-holds.md)).
   - Python: `foo.py` beside `foo/__init__.py` is two files and one importable
     name; name the package `foo/__init__`, aliased `foo`, and return a
     `LowerError` for the shadowing.

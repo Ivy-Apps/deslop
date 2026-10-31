@@ -112,6 +112,11 @@ its literal parts allow, one directory level per computed segment; one with no
 literal base is an Unresolved Dependency.
 _Avoid_: Glob (no one wrote one), dynamic import
 
+**Nix Module Name**:
+A file's path from the Project Root, extension included: `flake.nix`,
+`lib/default.nix`. A `default.nix` is also aliased by its directory, `lib`.
+_Avoid_: Stem (`lib/default` names nothing)
+
 **Flake Input**:
 An input the root `flake.nix` declares. `inputs.<name>.<attr>...` is an
 External Module named `inputs/<name>/<attr>...`, cut at the first computed
@@ -154,8 +159,9 @@ _Avoid_: Import path, module id, target
 
 **Unscanned Module**:
 A Module a Specifier resolved to that Deslop never read - gitignored, outside
-the tree it was pointed at, or not a source file, such as the script or the
-directory a Nix path names. It is a vertex like any other
+the tree it was pointed at, or not a source file, such as the directory a Nix
+path names. Every file of a Nix project that is not `.nix` is one too, reached
+or not. It is a vertex like any other
 and carries the names the frontend minted for it, but it has no dependencies of
 its own, so a transitive chain stops there.
 _Avoid_: External module (that is `react`, which resolved to nothing at all)

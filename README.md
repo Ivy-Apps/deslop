@@ -200,19 +200,19 @@ See [ADR 21](docs/adr/0021-haskell-is-read-as-one-cabal-package.md) for the deta
 
 ### Nix projects
 
-A directory with a `flake.nix` or a `default.nix` at its root is read as a Nix project (TypeScript and Haskell are tried first, so a Haskell project with a `flake.nix` is still Haskell). Every `.nix` file is a module, and it depends on every path it writes outside a comment, whatever the path is for: `import ./x.nix`, `imports = [ ./x.nix ]` and `builtins.readFile ./x.sh` are all edges. Deslop reads what is written and never evaluates it.
+A directory with a `flake.nix` or a `default.nix` at its root is read as a Nix project (TypeScript and Haskell are tried first, so a Haskell project with a `flake.nix` is still Haskell). Every file git does not ignore is a module. A `.nix` file depends on every path it writes outside a comment, whatever the path is for: `import ./x.nix`, `imports = [ ./x.nix ]` and `builtins.readFile ./x.sh` are all edges. Deslop reads what is written and never evaluates it. Any other file is listed and never read, so it has no edges of its own and its size costs nothing.
 
-- **Module names** are paths from the root without `.nix`: `modules/home/git`. A `default.nix` is canonically `lib/default` and aliased `lib`, so a rule may say either. `flake.nix` is `flake`. A file that is not Nix but that a path reaches, such as a script, a secret or a directory without a `default.nix`, is a module too, named with its extension: `secrets/common.yaml`.
+- **Module names** are paths from the root, extension included: `flake.nix`, `modules/home/git.nix`, `secrets/common.yaml`. A `default.nix` is also aliased by its directory, so `lib/default.nix` matches `lib/default.nix` and `lib`, and `lib/default` matches nothing. A gitignored file a path reaches and a directory without a `default.nix` are modules too, named by their path.
 - **The project root** is `self`, so `"${self}/modules/x.nix"` and `self + "/x"` resolve from the root. Name the other identifiers your configuration binds it to in `deslop/nix.yaml`:
 
   ```yaml
   roots: [root]   # specialArgs = { root = self; }
   ```
 - **Computed paths** with a literal base, such as `"${root}/hosts/${hostname}/configuration.nix"` or `./plugins/${name}.nix`, reach every file on disk the pattern can match. A path only evaluation can name (`dir + "/${name}"`, `builtins.readDir dir`), a path to nothing and a path outside the project are unresolved, and a `forbids` reports each one it would have had to judge as "cannot be judged", once per rule, at the file that wrote it.
-- **Outside the project:** `inputs.home-manager.nixosModules.home-manager` is `inputs/home-manager/nixosModules/home-manager` for every input the root `flake.nix` declares, cut at the first computed attribute; `modulesPath + "/profiles/qemu-guest.nix"` is `inputs/nixpkgs/nixos/modules/profiles/qemu-guest`; `<nixpkgs>` is `nixpkgs`.
-- **Not read:** a file that is not UTF-8 or does not lex (an unterminated string) stays a module without edges, with a warning, and so does `foo.nix` beside `foo/default.nix`, which share the name `foo`. There are no built-in Nix checks yet.
+- **Outside the project:** `inputs.home-manager.nixosModules.home-manager` is `inputs/home-manager/nixosModules/home-manager` for every input the root `flake.nix` declares, cut at the first computed attribute; `modulesPath + "/profiles/qemu-guest.nix"` is `inputs/nixpkgs/nixos/modules/profiles/qemu-guest.nix`; `<nixpkgs>` is `nixpkgs`.
+- **Not read:** a file that is not UTF-8 or does not lex (an unterminated string) stays a module without edges, with a warning. There are no built-in Nix checks yet.
 
-See [ADR 23](docs/adr/0023-nix-is-read-as-the-paths-it-writes.md) for the details.
+See [ADR 23](docs/adr/0023-nix-is-read-as-the-paths-it-writes.md) and [ADR 26](docs/adr/0026-a-nix-project-is-every-file-it-holds.md) for the details.
 
 ### Built-in Checks
 

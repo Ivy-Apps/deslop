@@ -62,11 +62,11 @@ var DeslopGraph = (function () {
   }
   function namesOf(n) { return [n.name].concat(n.aliases || []); }
 
-  // A module's file name without its extension.
-  function fileLabel(path) {
-    var file = path.split("/").pop();
+  // A module's file name, with its extension only when its name spells one.
+  function fileLabel(n) {
+    var file = n.path.split("/").pop();
     var dot = file.lastIndexOf(".");
-    return dot > 0 ? file.slice(0, dot) : file;
+    return dot > 0 && n.name.split("/").pop() !== file ? file.slice(0, dot) : file;
   }
 
   function unique(xs) { return xs.filter(function (x, i) { return xs.indexOf(x) === i; }); }
