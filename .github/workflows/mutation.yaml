@@ -1,0 +1,153 @@
+name: Mutation testing
+
+# Its own workflow, on purpose outside `Check`: mutation testing is advisory.
+on:
+  pull_request:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+# Rapid pushes to a PR cancel the stale run. Other runs are never cancelled.
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # It goes red when its numbers would be false: a test failing at baseline or a
+  # failed control. A survivor never does. x86_64 only, the one system sydtest's
+  # mutation stack is proven on. The Nix cache may not hold sydtest, so a run may
+  # rebuild it from source.
+  #
+  # A pull request tests only the mutants its diff touches, to stay far from the
+  # job limit. Main gets the full run, weekly or by hand.
+  mutation:
+    name: Mutation testing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    permissions:
+      contents: read
+    outputs:
+      diff-artifact-url: ${{ steps.diff-artifact.outputs.artifact-url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The diff is taken from the merge base with main.
+          fetch-depth: 0
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+        with:
+          use-flakehub: false
+
+      - name: 🧬 Mutation testing, changed code
+        if: github.event_name == 'pull_request'
+        run: nix develop .#ci --accept-flake-config -c just mutation-diff origin/main mutation-ci
+
+      - name: 🧬 Mutation testing, whole library
+        if: github.event_name != 'pull_request'
+        run: nix develop .#ci --accept-flake-config -c just mutation mutation-ci
+
+      - name: 📊 Score
+        run: |
+          if [ -f result/score.md ]; then
+            cat result/score.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            sed 's/\x1b\[[0-9;]*m//g' dist-newstyle/mutation-diff/report.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # A failed control is a run with a report, so these outlive a red step.
+      - name: 📄 Report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report
+          retention-days: 30
+          path: |
+            result/deslop/report.json
+            result/deslop/report.txt
+            dist-newstyle/mutation-diff/report.json
+            dist-newstyle/mutation-diff/report.txt
+          if-no-files-found: error
+
+      - name: 📄 Changed code report
+        id: diff-artifact
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-diff
+          path: |
+            dist-newstyle/mutation-diff/mutation-diff.json
+            dist-newstyle/mutation-diff/comment.md
+          retention-days: 30
+          if-no-files-found: warn
+
+  # A job of its own, so the write token is never near PR code: it checks nothing
+  # out, runs only GitHub's actions plus gh and jq, and treats the artifact as
+  # text. Forks and Dependabot get a read-only token, and keep the job summary.
+  comment:
+    name: Mutation comment
+    needs: mutation
+    if: >-
+      !cancelled() && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      # A run that died before its report has no artifact: the comment says so.
+      - name: 📥 Changed code report
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: mutation-diff
+          path: mutation-diff
+
+      - name: 💬 Comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RESULT: ${{ needs.mutation.result }}
+          ARTIFACT_URL: ${{ needs.mutation.outputs.diff-artifact-url }}
+        run: |
+          marker='<!-- mutation-report -->'
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          fence='```'
+          {
+            cat <<EOF
+          $marker
+          ### 🧬 Mutation testing
+
+          For \`$HEAD_SHA\`, [run]($run_url).
+
+          EOF
+            if [ "$RESULT" != success ]; then
+              printf '**The run failed, so read these numbers with care.**\n\n'
+            fi
+            if [ -f mutation-diff/comment.md ]; then
+              cat mutation-diff/comment.md
+              cat <<EOF
+
+          Fetch [the changed code report]($ARTIFACT_URL), uncut, or the full report:
+
+          ${fence}bash
+          gh run download $GITHUB_RUN_ID -R $GITHUB_REPOSITORY -n mutation-diff -D /tmp/mutation-diff
+          # /tmp/mutation-diff/mutation-diff.json
+          gh run download $GITHUB_RUN_ID -R $GITHUB_REPOSITORY -n mutation-report -D /tmp/mutation-report
+          # /tmp/mutation-report/dist-newstyle/mutation-diff/report.json
+          $fence
+          EOF
+            else
+              echo 'Did not finish, so there are no numbers for this push.'
+            fi
+          } > body.md
+          payload="$(jq -n --rawfile body body.md '{body: $body}')"
+          id="$(MARKER="$marker" gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith(env.MARKER))) | .id' | head -n 1)"
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" --input - <<<"$payload" >/dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --input - <<<"$payload" >/dev/null
+          fi

@@ -81,6 +81,9 @@ spec = describe "Frontend.Nix.Lexer" $ do
         it "reads an unquoted URI as one lexeme, not a path" $
             lexed "github:NixOS/nixpkgs" `shouldBe` Just [Uri "github:NixOS/nixpkgs"]
 
+        it "reads a URI whose scheme holds a plus, a minus and a dot as one lexeme" $
+            lexed "git+ssh.a-b://host/repo" `shouldBe` Just [Uri "git+ssh.a-b://host/repo"]
+
     describe "comments" $ do
         it "finds no path in a line comment" $
             pathsIn "# import ./a.nix\nx" `shouldBe` Just []
@@ -106,6 +109,16 @@ spec = describe "Frontend.Nix.Lexer" $ do
 
         it "reads $${ as text in a double-quoted string" $
             lexed "\"$${x}\"" `shouldBe` Just [Str DoubleQuoted [Chunk "$${x}"]]
+
+        it "ends an interpolation at its own brace, not at one the code opened" $
+            lexed "\"${{a}.a}b\""
+                `shouldBe` Just
+                    [ Str
+                        DoubleQuoted
+                        [ Interpolation [Punctuation "{", Identifier "a", Punctuation "}", Punctuation ".", Identifier "a"]
+                        , Chunk "b"
+                        ]
+                    ]
 
         it "reads the escapes of an indented string as its text" $
             lexed "'' ''' ''${x} ''\\n ''" `shouldBe` Just [Str Indented [Chunk " ''' ''${x} ''\\n "]]

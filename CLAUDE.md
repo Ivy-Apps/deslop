@@ -103,6 +103,15 @@ nix run .#test -- Parser
 nix run .#lint
 ```
 
+### Mutation testing
+
+`nix develop .#ci -c just mutation` runs sydtest-mutation over the library (see
+`nix/mutation.nix`). It is advisory and outside `just check`, so never a step of the ladder.
+
+On a pull request, CI comments what `just mutation-diff` found in the changed
+code, updated in place. The comment gives the `gh run download` commands for
+`mutation-diff.json`, the same mutants uncut, and for the full report.
+
 ### Updating golden tests
 
 ```bash

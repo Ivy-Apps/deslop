@@ -53,7 +53,8 @@ spec = do
                     )
                 ]
         forM_ cases $ \(input, expected) ->
-            it input $ do
+            -- sydtest-mutation lists test names one per line.
+            it (filter (/= '\n') input) $ do
                 let file = TsFile (absPathUnsafe [osp|test.ts|]) (T.pack input)
                 filter isImport (parseTs file).cst `shouldBe` [expected]
 

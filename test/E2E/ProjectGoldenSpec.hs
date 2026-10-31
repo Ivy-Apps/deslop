@@ -1,4 +1,4 @@
-module E2E.ProjectGoldenSpec (spec) where
+module E2E.ProjectGoldenSpec (spec, wholeRepositoryRuns) where
 
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
@@ -24,7 +24,6 @@ import FileSystem.Path (
     ProjectRelativePath (osPath),
     ProjectRoot (..),
     decodeOsPath,
-    encodeOsPathString,
     relativePathTo,
     withAbsBaseUnsafe,
  )
@@ -40,16 +39,30 @@ import System.Directory.OsPath (removeFile)
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
-import Test.Hspec.Golden (Golden, defaultGolden)
-import TestUtils (mkAbsolute, requireJust, rp, snapshot)
+import Test.Hspec.Golden (Golden (actualFile), defaultGolden)
+import TestUtils (goldenActualDirEnv, inEmptyDir, mkAbsolute, requireJust, rp, snapshot)
 import UI (coverage, humanReadable, problemsFoundText)
-import UnliftIO.Temporary (withSystemTempDirectory)
+
+{- | What the title of every test over a whole real application holds, for
+"MutationMain" to leave those out.
+-}
+wholeRepositoryRuns :: [String]
+wholeRepositoryRuns = [ixartzBoilerplate, melzarCleanArchitecture, checksItselfTitle]
+
+ixartzBoilerplate :: String
+ixartzBoilerplate = "ixartz-next-js-boilerplate"
+
+melzarCleanArchitecture :: String
+melzarCleanArchitecture = "melzar-nextjs-clean-architecture"
+
+checksItselfTitle :: String
+checksItselfTitle = "checks its own repository clean"
 
 spec :: Spec
 spec = describe "E2E.Project" $ do
     itChecks TypeScript "ts-project-1"
-    itChecks TypeScript "ixartz-next-js-boilerplate"
-    itChecks TypeScript "melzar-nextjs-clean-architecture"
+    itChecks TypeScript ixartzBoilerplate
+    itChecks TypeScript melzarCleanArchitecture
     itChecks TypeScript "ts-cycles-project"
     itChecks TypeScript "ts-gitignore-project"
     itChecks TypeScript "ts-globplus-project"
@@ -83,8 +96,8 @@ spec = describe "E2E.Project" $ do
     itReportsRulebookBeforeLanguage "ts-invalid-rulebook-project"
 
     itBaselines TypeScript "ts-project-1"
-    itBaselines TypeScript "ixartz-next-js-boilerplate"
-    itBaselines TypeScript "melzar-nextjs-clean-architecture"
+    itBaselines TypeScript ixartzBoilerplate
+    itBaselines TypeScript melzarCleanArchitecture
     itBaselines TypeScript "ts-cycles-project"
     itBaselines TypeScript "ts-gitignore-project"
     itBaselines TypeScript "ts-globplus-project"
@@ -96,7 +109,8 @@ spec = describe "E2E.Project" $ do
 
     itIterates "ts-gitignore-project"
 
-    itExplores "ixartz-next-js-boilerplate"
+    itExplores ixartzBoilerplate "src/app/[locale]/layout.tsx"
+    itExplores "ts-cycles-project" "src/a.ts"
     itExploresWithoutPullRequest GhMissing
     itExploresWithoutPullRequest NoneFound
     itExploresDetachedWithoutAskingForPullRequest
@@ -132,7 +146,7 @@ spec = describe "E2E.Project" $ do
 
     itFixes
         TypeScript
-        "ixartz-next-js-boilerplate"
+        ixartzBoilerplate
         [ ".storybook/preview.ts"
         , "next.config.ts"
         , "src/components/Hello.tsx"
@@ -148,7 +162,7 @@ spec = describe "E2E.Project" $ do
 
     itFixes
         TypeScript
-        "melzar-nextjs-clean-architecture"
+        melzarCleanArchitecture
         [ "src/app/layout.tsx"
         , "src/ui/common/components/layout/ContainerBox/ContainerBox.tsx"
         , "src/ui/common/components/layout/TopHeader/TopHeader.stories.tsx"
@@ -245,12 +259,20 @@ runDeslopOnCopy command language project prepare check =
         prepare tmpDir
         runDeslopOn ToDisk command tmpDir >>= check tmpDir
 
--- | Runs against a fresh, empty temporary directory.
-inEmptyDir :: (OsPath -> IO a) -> IO a
-inEmptyDir act = withSystemTempDirectory "deslop-test" (act . encodeOsPathString)
+projectGolden :: Language -> String -> String -> String -> IO (Golden String)
+projectGolden language kind project content = do
+    actualDir <- lookupEnv goldenActualDirEnv
+    pure . withActualIn actualDir name . defaultGolden name $ content
+  where
+    name = languageDir language <> "/" <> kind <> "-" <> project
 
-projectGolden :: Language -> String -> String -> String -> Golden String
-projectGolden language kind project = defaultGolden (languageDir language <> "/" <> kind <> "-" <> project)
+{- | hspec-golden writes the @actual@ file on every run. A mutation run has the
+source tree read-only, so "MutationMain" sends those writes elsewhere. Left
+alone otherwise, because @hgold@ promotes @.golden/*/actual@.
+-}
+withActualIn :: Maybe FilePath -> String -> Golden a -> Golden a
+withActualIn Nothing _ golden = golden
+withActualIn (Just dir) name golden = golden {actualFile = Just (dir <> "/" <> name <> "/actual")}
 
 {- | The closing summary and the check verdict are rendered by runDeslop,
 outside doWork, so the transcript alone would not cover them. Appending them
@@ -277,7 +299,7 @@ itChecks language project = it ("checks " <> project) $ do
     run <- runDeslopOn InMemory CheckC (projectIn language project)
 
     run.written `shouldBe` mempty
-    pure . projectGolden language "check" project . T.unpack . renderRun $ run
+    projectGolden language "check" project . T.unpack . renderRun $ run
 
 {- | A baseline is committed and read back on another machine and in CI, so an
 entry naming the machine that wrote it matches nothing there: the problem it
@@ -299,7 +321,7 @@ itBaselines language project = it ("baselines " <> project) $ do
     Map.keys run.written `shouldBe` [baselinePath]
     content <- requireJust "Expected deslop/baseline.yaml to be written" $ Map.lookup baselinePath run.written
     traverse_ (`shouldSatisfy` namesNoMachine absProjectPath) . baselineEntries $ content
-    pure . projectGolden language "baseline" project . T.unpack $
+    projectGolden language "baseline" project . T.unpack $
         renderRun run <> "\n>>> baseline.yaml\n" <> TE.decodeUtf8 content
   where
     baselineEntries :: ByteString -> [Text]
@@ -315,7 +337,7 @@ itFixes language project filesToCheck = it ("fixes " <> project) . runDeslopOnCo
     -- Files are repaired concurrently; the changelog must not say so.
     modified `shouldBe` sort modified
     fullSnapshot <- snapshot tmpDir filesToCheck
-    pure . projectGolden language "fix" project $
+    projectGolden language "fix" project $
         fullSnapshot <> "\n>>> changelog\n" <> T.unpack (T.unlines modified)
 
 {- | A file Deslop cannot read is kept as its bytes, so @deslop fix@ writes
@@ -344,7 +366,7 @@ itIterates project = it ("iterates " <> project) $ do
         gitIgnore <- loadGitIgnore (ecosystemIgnored TsFrontend cfg) projectRoot.path
         discover TsFrontend cfg projectRoot gitIgnore
 
-    pure . projectGolden TypeScript "iterated" project . T.unpack . T.unlines . sort $
+    projectGolden TypeScript "iterated" project . T.unpack . T.unlines . sort $
         fmap (decodeOsPath . (.osPath) . relativePathTo projectRoot) files
 
 {- | A rulebook deslop cannot use must abort the run before any file is
@@ -360,7 +382,7 @@ itFailsToLoadRulebook language project = it ("refuses to run " <> project) $ do
 
     run.result `shouldSatisfy` isRulebookError
     run.written `shouldBe` mempty
-    pure . projectGolden language "rulebook-error" project . T.unpack . renderRun $ run
+    projectGolden language "rulebook-error" project . T.unpack . renderRun $ run
 
 {- | A project configuration Deslop cannot use must abort the run before any
 file is checked, naming the file at fault: a tsconfig whose @extends@ names a
@@ -375,7 +397,7 @@ itFailsToLoadConfig language kind project culprit = it ("refuses to run " <> pro
         Left (FrontendError message) -> culprit `T.isInfixOf` message
         _ -> False
     run.written `shouldBe` mempty
-    pure . projectGolden language kind project . T.unpack . renderRun $ run
+    projectGolden language kind project . T.unpack . renderRun $ run
 
 {- | A directory no frontend recognises cannot be checked at all; saying so
 names what was looked for, rather than complaining about one language's config
@@ -417,8 +439,8 @@ itReportsRulebookBeforeLanguage project =
 is a page that can show them. How it draws them is the browser's business, not
 this suite's.
 -}
-itExplores :: String -> Spec
-itExplores project = it ("explores " <> project) $ do
+itExplores :: String -> Text -> Spec
+itExplores project changedModule = it ("explores " <> project) $ do
     let projectPath = projectIn TypeScript project
     absProjectPath <- mkAbsolute projectPath
     let pagePath = withAbsBaseUnsafe absProjectPath [osp|deslop/diagram/index.html|]
@@ -431,10 +453,10 @@ itExplores project = it ("explores " <> project) $ do
     page <- decodeUtf8 <$> requireJust "Expected deslop/diagram/index.html to be written" (Map.lookup pagePath run.written)
     graph <- requireJust "Expected the page to carry the graph" (graphIn page)
     textField "schema" graph `shouldBe` Just (Just "deslop-graph/1")
-    (find ((== "src/app/[locale]/layout.tsx") . fst) =<< moduleTags graph) `shouldBe` Just ("src/app/[locale]/layout.tsx", ["changed"])
+    (find ((== changedModule) . fst) =<< moduleTags graph) `shouldBe` Just (changedModule, ["changed"])
     textField "sourceBase" graph `shouldBe` Just (Just "https://github.com/o/r/blob/main/")
     textField "pullRequest" graph `shouldBe` Just (Just "https://github.com/o/r/pull/7")
-    pure . projectGolden TypeScript "explore" project . T.unpack . renderRun $ run
+    projectGolden TypeScript "explore" project . T.unpack . renderRun $ run
 
 -- | Without its pull request, the explorer is still written, says why once, and links to none.
 itExploresWithoutPullRequest :: NoPullRequest -> Spec
@@ -491,7 +513,7 @@ itAsksGitNothing command = it ("asks git nothing to " <> show command) $ do
 onGitHub :: Repository
 onGitHub =
     Repository
-        { changes = Map.singleton (GitRef "origin/main") (Set.fromList [rp "src/app/[locale]/layout.tsx", rp "README.md", rp "src/index.ts"])
+        { changes = Map.singleton (GitRef "origin/main") (Set.fromList [rp "src/app/[locale]/layout.tsx", rp "README.md", rp "src/index.ts", rp "src/a.ts"])
         , sourceLinks =
             Just
                 SourceLinks
@@ -519,7 +541,7 @@ Asserted clean rather than goldened: a golden would change with every module
 the repository gains.
 -}
 itChecksItself :: Spec
-itChecksItself = it "checks its own repository clean" $ do
+itChecksItself = it checksItselfTitle $ do
     run <- runDeslopOn InMemory CheckC [osp|.|]
 
     (renderRun run, fmap (.verdict) run.result) `shouldSatisfy` ((== Right Clean) . snd)
