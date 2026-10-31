@@ -50,8 +50,10 @@ An alias cannot clash with a canonical name: `d` is an alias only beside
 exists. The `NameShared` warning could no longer fire and is gone.
 
 **A directory a path reaches stays a module**, with no edges to its contents.
-It sits beside the folder node holding those files, in `deslop explore`, since a
-folder's id ends in `/`.
+In `deslop explore` it sits inside the folder node holding those files, so a
+closed folder stands for it and takes the arrows into it; the folder's count
+includes it. Its id stays distinct, since a folder's ends in `/`. A directory
+with no files beneath it has no folder node and stays in its parent.
 
 **Labels follow the name.** The explorer draws a module's file name, without the
 extension unless the module's name spells it. So Nix shows `default.nix`, and
