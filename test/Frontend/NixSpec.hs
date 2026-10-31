@@ -24,7 +24,10 @@ modulesReadingNone :: [AbsPath] -> [(AbsPath, ByteString)] -> IO [Text]
 modulesReadingNone unreadable files =
     fmap (sort . fmap (portablePath . (.path)) . (.modules))
         . requireRight (toString . Renderable.render)
-        <=< runEff . runConcurrent . runMockRoFileSystem failingOnThem . runReader projectRoot
+        <=< runEff
+        . runConcurrent
+        . runMockRoFileSystem failingOnThem
+        . runReader projectRoot
         $ lowerProjectAt NixFrontend projectRoot
   where
     tree = mockTree files

@@ -12,7 +12,7 @@ import Frontend.Nix (NixFrontend (..))
 import Hedgehog (forAll, (===))
 import Hedgehog.Gen qualified as Gen
 import Renderable qualified
-import System.Directory (createDirectoryLink, createDirectoryIfMissing, createFileLink)
+import System.Directory (createDirectoryIfMissing, createDirectoryLink, createFileLink)
 import System.FilePath (takeDirectory, (</>))
 import Test.Hspec
 import TestUtils (prop, requireRight)
