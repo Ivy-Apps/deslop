@@ -14,6 +14,13 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    # sydtest-mutation, behind `checks.<system>.mutation` only. Not on Hackage at
+    # our index-state and not in nixpkgs, so its flake is the source of truth.
+    # Pinned to a rev because it moves weekly.
+    sydtest = {
+      url = "github:NorfairKing/sydtest/6ba5347b0f1ec27cc912bb45ca98e0e4f24343ea";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
@@ -163,6 +170,13 @@
 
         in
         {
+          checks = pkgs.lib.optionalAttrs (system == "x86_64-linux") {
+            mutation = import ./nix/mutation.nix {
+              inherit pkgs hpkgs;
+              inherit (inputs) sydtest;
+            };
+          };
+
           packages = pkgs.lib.optionalAttrs hasReleasedBinary {
             deslop = releasedBinary;
             default = releasedBinary;

@@ -40,7 +40,7 @@ import System.Directory.OsPath (removeFile)
 import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
-import Test.Hspec.Golden (Golden, defaultGolden)
+import Test.Hspec.Golden (Golden (actualFile), defaultGolden)
 import TestUtils (mkAbsolute, requireJust, rp, snapshot)
 import UI (coverage, humanReadable, problemsFoundText)
 import UnliftIO.Temporary (withSystemTempDirectory)
@@ -249,8 +249,20 @@ runDeslopOnCopy command language project prepare check =
 inEmptyDir :: (OsPath -> IO a) -> IO a
 inEmptyDir act = withSystemTempDirectory "deslop-test" (act . encodeOsPathString)
 
-projectGolden :: Language -> String -> String -> String -> Golden String
-projectGolden language kind project = defaultGolden (languageDir language <> "/" <> kind <> "-" <> project)
+projectGolden :: Language -> String -> String -> String -> IO (Golden String)
+projectGolden language kind project content = do
+    actualDir <- lookupEnv "GOLDEN_ACTUAL_DIR"
+    pure . withActualIn actualDir name . defaultGolden name $ content
+  where
+    name = languageDir language <> "/" <> kind <> "-" <> project
+
+{- | hspec-golden writes the @actual@ file on every run. A mutation run has the
+source tree read-only, so "MutationMain" sends those writes elsewhere. Left
+alone otherwise, because @hgold@ promotes @.golden/*/actual@.
+-}
+withActualIn :: Maybe FilePath -> String -> Golden a -> Golden a
+withActualIn Nothing _ golden = golden
+withActualIn (Just dir) name golden = golden {actualFile = Just (dir <> "/" <> name <> "/actual")}
 
 {- | The closing summary and the check verdict are rendered by runDeslop,
 outside doWork, so the transcript alone would not cover them. Appending them
@@ -277,7 +289,7 @@ itChecks language project = it ("checks " <> project) $ do
     run <- runDeslopOn InMemory CheckC (projectIn language project)
 
     run.written `shouldBe` mempty
-    pure . projectGolden language "check" project . T.unpack . renderRun $ run
+    projectGolden language "check" project . T.unpack . renderRun $ run
 
 {- | A baseline is committed and read back on another machine and in CI, so an
 entry naming the machine that wrote it matches nothing there: the problem it
@@ -299,7 +311,7 @@ itBaselines language project = it ("baselines " <> project) $ do
     Map.keys run.written `shouldBe` [baselinePath]
     content <- requireJust "Expected deslop/baseline.yaml to be written" $ Map.lookup baselinePath run.written
     traverse_ (`shouldSatisfy` namesNoMachine absProjectPath) . baselineEntries $ content
-    pure . projectGolden language "baseline" project . T.unpack $
+    projectGolden language "baseline" project . T.unpack $
         renderRun run <> "\n>>> baseline.yaml\n" <> TE.decodeUtf8 content
   where
     baselineEntries :: ByteString -> [Text]
@@ -315,7 +327,7 @@ itFixes language project filesToCheck = it ("fixes " <> project) . runDeslopOnCo
     -- Files are repaired concurrently; the changelog must not say so.
     modified `shouldBe` sort modified
     fullSnapshot <- snapshot tmpDir filesToCheck
-    pure . projectGolden language "fix" project $
+    projectGolden language "fix" project $
         fullSnapshot <> "\n>>> changelog\n" <> T.unpack (T.unlines modified)
 
 {- | A file Deslop cannot read is kept as its bytes, so @deslop fix@ writes
@@ -344,7 +356,7 @@ itIterates project = it ("iterates " <> project) $ do
         gitIgnore <- loadGitIgnore (ecosystemIgnored TsFrontend cfg) projectRoot.path
         discover TsFrontend cfg projectRoot gitIgnore
 
-    pure . projectGolden TypeScript "iterated" project . T.unpack . T.unlines . sort $
+    projectGolden TypeScript "iterated" project . T.unpack . T.unlines . sort $
         fmap (decodeOsPath . (.osPath) . relativePathTo projectRoot) files
 
 {- | A rulebook deslop cannot use must abort the run before any file is
@@ -360,7 +372,7 @@ itFailsToLoadRulebook language project = it ("refuses to run " <> project) $ do
 
     run.result `shouldSatisfy` isRulebookError
     run.written `shouldBe` mempty
-    pure . projectGolden language "rulebook-error" project . T.unpack . renderRun $ run
+    projectGolden language "rulebook-error" project . T.unpack . renderRun $ run
 
 {- | A project configuration Deslop cannot use must abort the run before any
 file is checked, naming the file at fault: a tsconfig whose @extends@ names a
@@ -375,7 +387,7 @@ itFailsToLoadConfig language kind project culprit = it ("refuses to run " <> pro
         Left (FrontendError message) -> culprit `T.isInfixOf` message
         _ -> False
     run.written `shouldBe` mempty
-    pure . projectGolden language kind project . T.unpack . renderRun $ run
+    projectGolden language kind project . T.unpack . renderRun $ run
 
 {- | A directory no frontend recognises cannot be checked at all; saying so
 names what was looked for, rather than complaining about one language's config
@@ -434,7 +446,7 @@ itExplores project = it ("explores " <> project) $ do
     (find ((== "src/app/[locale]/layout.tsx") . fst) =<< moduleTags graph) `shouldBe` Just ("src/app/[locale]/layout.tsx", ["changed"])
     textField "sourceBase" graph `shouldBe` Just (Just "https://github.com/o/r/blob/main/")
     textField "pullRequest" graph `shouldBe` Just (Just "https://github.com/o/r/pull/7")
-    pure . projectGolden TypeScript "explore" project . T.unpack . renderRun $ run
+    projectGolden TypeScript "explore" project . T.unpack . renderRun $ run
 
 -- | Without its pull request, the explorer is still written, says why once, and links to none.
 itExploresWithoutPullRequest :: NoPullRequest -> Spec
