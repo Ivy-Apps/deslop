@@ -243,7 +243,6 @@ runDeslopOnCopy command language project prepare check =
         prepare tmpDir
         runDeslopOn ToDisk command tmpDir >>= check tmpDir
 
--- | Runs against a fresh, empty temporary directory.
 projectGolden :: Language -> String -> String -> String -> IO (Golden String)
 projectGolden language kind project content = do
     actualDir <- lookupEnv goldenActualDirEnv

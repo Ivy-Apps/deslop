@@ -59,12 +59,17 @@ mutation check="mutation":
 
 # Mutation-test only what this branch changes against `base`, leaving the report
 # in dist-newstyle/mutation-diff/. Still needs the instrumented build and the
-# coverage phase of `mutation`. The runner exits 1 on any survivor, which must not
-# fail a pull request, so only a run that left no report fails here.
+# coverage phase of `mutation`. Fails on a test failing at baseline, a failed
+# control or a runner that died, never on a survivor. The runner exits 1 on a
+# survivor and on a crash alike, so its exit code is ignored: only a run that
+# returned ends its stdout with the report line.
 mutation-diff base="origin/main" check="mutation":
-    nix build .#checks.x86_64-linux.{{check}}.baseline --accept-flake-config --no-link
+    nix build -L .#checks.x86_64-linux.{{check}}.baseline --accept-flake-config --no-link
     rm -rf dist-newstyle/mutation-diff
-    nix run .#checks.x86_64-linux.{{check}}.diff --accept-flake-config -- --base {{base}} --no-fail-fast --out-dir "$PWD/dist-newstyle/mutation-diff" || test -f dist-newstyle/mutation-diff/report.json
+    mkdir -p dist-newstyle/mutation-diff
+    nix run .#checks.x86_64-linux.{{check}}.diff --accept-flake-config -- --base {{base}} --no-fail-fast --out-dir "$PWD/dist-newstyle/mutation-diff" | tee dist-newstyle/mutation-diff/run.log
+    tail -n 1 dist-newstyle/mutation-diff/run.log | grep -q '^Machine-readable report: '
+    jq -e '.controls.failed == 0' dist-newstyle/mutation-diff/report.json
 
 # Compile the library and the executable
 build:

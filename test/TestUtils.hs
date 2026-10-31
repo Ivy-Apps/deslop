@@ -102,6 +102,7 @@ copyWritable src dst = do
     SDO.copyFile src dst
     SDO.setPermissions dst . SDO.setOwnerWritable True =<< SDO.getPermissions dst
 
+-- | Runs against a fresh, empty temporary directory.
 inEmptyDir :: (OsPath -> IO a) -> IO a
 inEmptyDir act = withSystemTempDirectory "deslop-test" (act . encodeOsPathString)
 
