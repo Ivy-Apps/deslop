@@ -25,7 +25,7 @@ import Data.Text qualified as T
 import Effectful
 import Effectful.Dispatch.Dynamic (interpret, send)
 import FileSystem.Path (AbsPath (..), ProjectRoot (..), decodeOsPath, encodeOsPath, relativePathTo, withAbsBaseUnsafe)
-import Git.SourceLink (Branch (..), Checkout (..), Diff (..), GitRef (..), PullRequest, Revision (..), SourceLinks, pullRequestFromGh, sourceLinksOf)
+import Git.SourceLink (Branch (..), Checkout (..), Diff (..), GitRef (..), OriginUrl (..), PullRequest, Revision (..), SourceLinks, pullRequestFromGh, sourceLinksOf)
 import System.Directory (findExecutable)
 import System.Environment (getEnvironment)
 import System.Exit (ExitCode (..))
@@ -58,7 +58,7 @@ data Git :: Effect where
     DiffOf :: ProjectRoot -> GitRef -> Git m (Either NoDiff Diff)
     SourceLinksOf :: ProjectRoot -> Git m (Maybe SourceLinks)
     PullRequestOf :: ProjectRoot -> Branch -> Git m (Either NoPullRequest PullRequest)
-    OriginOf :: ProjectRoot -> Git m (Maybe Text)
+    OriginOf :: ProjectRoot -> Git m (Maybe OriginUrl)
 
 type instance DispatchOf Git = 'Dynamic
 
@@ -85,7 +85,7 @@ gitPullRequest :: (Git :> es) => ProjectRoot -> Branch -> Eff es (Either NoPullR
 gitPullRequest root = send . PullRequestOf root
 
 -- | The @origin@ remote's URL, as configured. None outside a repository or without one.
-gitOrigin :: (Git :> es) => ProjectRoot -> Eff es (Maybe Text)
+gitOrigin :: (Git :> es) => ProjectRoot -> Eff es (Maybe OriginUrl)
 gitOrigin = send . OriginOf
 
 runGitIO :: (IOE :> es) => Eff (Git : es) a -> Eff es a
@@ -119,15 +119,9 @@ sourceLinksIO root = do
     pure . (sourceLinksOf =<<) $ Checkout <$> origin <*> revision <*> (T.strip <$> output prefix)
   where
     git = gitIn root
-    output = \case
-        Succeeded out -> Just out
-        _ -> Nothing
 
-originIO :: ProjectRoot -> IO (Maybe Text)
-originIO root =
-    gitIn root ["remote", "get-url", "origin"] <&> \case
-        Succeeded origin -> Just origin
-        _ -> Nothing
+originIO :: ProjectRoot -> IO (Maybe OriginUrl)
+originIO root = fmap OriginUrl . output <$> gitIn root ["remote", "get-url", "origin"]
 
 diffIO :: ProjectRoot -> GitRef -> IO (Either NoDiff Diff)
 diffIO root ref =
@@ -187,3 +181,10 @@ runIn program root args =
 
 -- | How one invocation went.
 data Run = CouldNotRun | Failed | Succeeded Text
+
+-- | What a run printed, when it succeeded.
+output :: Run -> Maybe Text
+output = \case
+    CouldNotRun -> Nothing
+    Failed -> Nothing
+    Succeeded out -> Just out

@@ -13,6 +13,7 @@ module Git.SourceLink (
     DiffAnchors (..),
     Forge (..),
     GitRef (..),
+    OriginUrl (..),
     ProjectName (..),
     PullRequest (..),
     Revision (..),
@@ -55,10 +56,13 @@ data Revision
       Detached Text
     deriving stock (Show, Eq)
 
+-- | The @origin@ remote, as configured: SSH, scp-like or https.
+newtype OriginUrl = OriginUrl {text :: Text}
+    deriving stock (Show, Eq)
+
 -- | What git says about the checkout a project sits in.
 data Checkout = Checkout
-    { originUrl :: Text
-    -- ^ The @origin@ remote, as configured: SSH, scp-like or https.
+    { originUrl :: OriginUrl
     , revision :: Revision
     , prefix :: Text
     -- ^ The project's folder inside the repository, ending in @/@; empty at its root.
@@ -107,7 +111,7 @@ newtype ProjectName = ProjectName {text :: Text}
 {- | The repository's name in its @origin@ URL, on any host, so a subfolder or a
 worktree of it is called the same. Without a name there, the project's folder.
 -}
-projectNameOf :: ProjectRoot -> Maybe Text -> ProjectName
+projectNameOf :: ProjectRoot -> Maybe OriginUrl -> ProjectName
 projectNameOf root origin =
     ProjectName . fromMaybe (folderName root.path) $ do
         (_host, repoPath) <- hostAndPath =<< origin
@@ -155,8 +159,8 @@ blobPath = \case
 @https://host/o/r.git@, @ssh://git\@host:22/o/r@ or @git\@host:o/r.git@, with
 or without the newline git prints after it.
 -}
-hostAndPath :: Text -> Maybe (Text, Text)
-hostAndPath printed = do
+hostAndPath :: OriginUrl -> Maybe (Text, Text)
+hostAndPath origin = do
     (authority, rest) <- case T.breakOn "://" remote of
         (scheme, afterScheme)
             | not (T.null afterScheme) && scheme `elem` ["https", "http", "ssh", "git"] ->
@@ -171,7 +175,7 @@ hostAndPath printed = do
     guard . not $ T.null host || T.null repoPath
     pure (host, repoPath)
   where
-    remote = T.strip printed
+    remote = T.strip origin.text
     stripGit path = fromMaybe path $ T.stripSuffix ".git" path
 
 -- | Percent-encodes each segment of a @/@-separated path, keeping the slashes.

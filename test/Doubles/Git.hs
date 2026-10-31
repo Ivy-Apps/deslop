@@ -17,13 +17,13 @@ import Effectful (Eff)
 import Effectful.Dispatch.Dynamic (interpret)
 import Effects.Git (Diff (..), Git (..), GitRef (..), NoDiff (..), NoPullRequest (..))
 import FileSystem.Path (ProjectRelativePath)
-import Git.SourceLink (PullRequest, SourceLinks)
+import Git.SourceLink (OriginUrl, PullRequest, SourceLinks)
 
 data Repository = Repository
     { changes :: Map GitRef (Set ProjectRelativePath)
     , sourceLinks :: Maybe SourceLinks
     , pullRequest :: Either NoPullRequest PullRequest
-    , origin :: Maybe Text
+    , origin :: Maybe OriginUrl
     }
 
 runGitInMemory :: Repository -> Eff (Git : es) a -> Eff es a

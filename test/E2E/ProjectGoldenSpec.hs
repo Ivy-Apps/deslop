@@ -33,7 +33,7 @@ import Fixtures.Deslop.Explore.ModuleGraph.Json (moduleTags, textField)
 import Fixtures.OnDisk (Language (..), inCopyOf, languageDir, projectIn)
 import Frontend.TypeScript (TsFrontend (..))
 import Git.Ignore (loadGitIgnore)
-import Git.SourceLink (Branch (..), DiffAnchors (..), Forge (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..))
+import Git.SourceLink (Branch (..), DiffAnchors (..), Forge (..), OriginUrl (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..))
 import Params (Command (..), Exploration (..), Opening (..), Params (..))
 import Renderable qualified
 import System.Directory.OsPath (removeFile)
@@ -516,7 +516,7 @@ onGitHub =
                     , forge = GitHub DiffAnchors {repoPrefix = ""}
                     }
         , pullRequest = Left NoneFound
-        , origin = Just "git@github.com:o/r.git\n"
+        , origin = Just (OriginUrl "git@github.com:o/r.git\n")
         }
 
 -- | Explore, marking what changed since @main@.

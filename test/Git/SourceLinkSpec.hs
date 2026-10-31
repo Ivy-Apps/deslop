@@ -1,7 +1,7 @@
 module Git.SourceLinkSpec (spec) where
 
 import FileSystem.Path (ProjectRoot (..))
-import Git.SourceLink (Branch (..), Checkout (..), DiffAnchors (..), Forge (..), ProjectName (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..), projectNameOf, pullRequestFromGh, sourceLinksOf)
+import Git.SourceLink (Branch (..), Checkout (..), DiffAnchors (..), Forge (..), OriginUrl (..), ProjectName (..), PullRequest (..), Revision (..), SourceBase (..), SourceLinks (..), projectNameOf, pullRequestFromGh, sourceLinksOf)
 import Test.Hspec
 import TestUtils (ap)
 
@@ -100,7 +100,7 @@ spec = describe "Git.SourceLink" $ do
   where
     linkOf origin revision prefix = (.source.url) <$> linksOf origin revision prefix
     forgeOf origin revision prefix = (.forge) <$> linksOf origin revision prefix
-    linksOf origin revision prefix = sourceLinksOf Checkout {originUrl = origin, revision, prefix}
+    linksOf origin revision prefix = sourceLinksOf Checkout {originUrl = OriginUrl origin, revision, prefix}
     onBranch = OnBranch . Branch
-    nameFrom = nameOf . Just
+    nameFrom = nameOf . Just . OriginUrl
     nameOf = (.text) . projectNameOf (ProjectRoot $ ap "/home/me/app")
