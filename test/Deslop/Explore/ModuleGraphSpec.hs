@@ -127,5 +127,35 @@ spec = describe "Deslop.Explore.ModuleGraph" $ do
                 `shouldBe` [ FolderNode {path = FolderPath ("src" :| []), parent = Nothing}
                            , FolderNode {path = FolderPath ("src" :| ["ui"]), parent = Just (FolderPath ("src" :| []))}
                            ]
+
+        it "puts a module named by a folder inside that folder, so the closed folder stands for it" $ do
+            let d = diagramOf Nothing Nothing Nothing [mkPathModule "programs/kit" [], mkPathModule "programs/kit/index.js" []]
+
+            folderOf d "programs/kit" `shouldBe` Just (Just (FolderPath ("programs" :| ["kit"])))
+
+        it "keeps a directory with no files beneath it in its parent, having no folder of its own" $ do
+            let d = diagramOf Nothing Nothing Nothing [mkPathModule "programs/empty" [], mkPathModule "programs/default.nix" []]
+
+            folderOf d "programs/empty" `shouldBe` Just (Just (FolderPath ("programs" :| [])))
+
+        it "nests directories named by folders, each inside its own" $ do
+            let d =
+                    diagramOf
+                        Nothing
+                        Nothing
+                        Nothing
+                        [mkPathModule "admin/skills" [], mkPathModule "admin/skills/deploy" [], mkPathModule "admin/skills/deploy/SKILL.md" []]
+
+            folderOf d <$> ["admin/skills", "admin/skills/deploy"]
+                `shouldBe` [ Just (Just (FolderPath ("admin" :| ["skills"])))
+                           , Just (Just (FolderPath ("admin" :| ["skills", "deploy"])))
+                           ]
+
+        it "adds no folder for a directory module, whichever folder holds it" $ do
+            let d = diagramOf Nothing Nothing Nothing [mkPathModule "kit" [], mkPathModule "kit/index.js" [], mkPathModule "empty" []]
+
+            d.folders `shouldBe` [FolderNode {path = FolderPath ("kit" :| []), parent = Nothing}]
+            folderOf d "empty" `shouldBe` Just Nothing
   where
+    folderOf d p = viaNonEmpty head [m.folder | m <- d.modules, m.path == rp p]
     layerOf d p = viaNonEmpty head [m.layer | m <- d.modules, m.path == rp p]

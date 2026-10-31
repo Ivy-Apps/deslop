@@ -1,7 +1,8 @@
 {- | Nix as a 'CompilerFrontend': a project with a @flake.nix@ or a
-@default.nix@ at its root, whose @.nix@ files lower to one
-'Deslop.Module.Module' each, depending on every path they write. See
-@docs\/adr\/0023@.
+@default.nix@ at its root, whose files lower to one 'Deslop.Module.Module'
+each. A @.nix@ file is read, and depends on every path it writes. Any other
+file is never read: 'lower' lists it itself, as the driver reads all that
+'discover' returns. See @docs\/adr\/0023@ and @docs\/adr\/0026@.
 -}
 module Frontend.Nix (
     NixFrontend (..),
@@ -17,10 +18,11 @@ import Effects.FileSystem (fsFileExists)
 import FileSystem.Path (ProjectRoot (..), encodeOsPath, withAbsBaseUnsafe)
 import Frontend.Nix.Config (NixConfigError (..), loadNixConfig)
 import Frontend.Nix.Ignore (nixEcosystemIgnored)
-import Frontend.Nix.Iterator (getNixFiles)
+import Frontend.Nix.Iterator (getNixFiles, getOtherFiles)
 import Frontend.Nix.Module (NixLowerError (..), lowerProject)
 import Frontend.Nix.Reference (Scope)
 import Frontend.Nix.Unit (NixUnit (..), readUnit, renderUnit)
+import Git.Ignore (loadGitIgnore)
 
 -- | Witness that the project is a Nix one.
 data NixFrontend = NixFrontend
@@ -47,4 +49,6 @@ instance CompilerFrontend NixFrontend where
     lint _ _ _ = pure []
     lower _ scope units = do
         projectRoot <- ask @ProjectRoot
-        lowerProject projectRoot scope units
+        gitIgnore <- loadGitIgnore nixEcosystemIgnored projectRoot.path
+        otherFiles <- getOtherFiles gitIgnore projectRoot
+        lowerProject projectRoot scope otherFiles units

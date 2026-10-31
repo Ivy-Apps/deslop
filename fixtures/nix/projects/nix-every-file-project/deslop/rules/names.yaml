@@ -1,0 +1,10 @@
+id: names
+name: What a stem names
+description: A Nix file is named by its path, so a stem names nothing.
+rules:
+  - id: a-stem-matches-nothing
+    description: The flake's edge to lib/default.nix does not match the stem lib/default.
+    target: "**"
+    forbids:
+      - import: "lib/default"
+    fix: Nothing to fix.

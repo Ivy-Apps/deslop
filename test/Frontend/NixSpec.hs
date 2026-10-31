@@ -2,17 +2,36 @@ module Frontend.NixSpec (spec) where
 
 import Deslop.Frontend (CompilerFrontend (..))
 import Deslop.Frontend.Finding (problem)
-import Doubles.FileSystem (defaultMockRoFileSystem, runInMemoryFileSystem, runReadOnly)
+import Deslop.Module (Module (..))
+import Doubles.FileSystem (MockRoFileSystem (..), defaultMockRoFileSystem, mockTree, runInMemoryFileSystem, runMockRoFileSystem, runReadOnly)
 import Effectful (runEff)
+import Effectful.Concurrent (runConcurrent)
 import Effectful.Reader.Static (runReader)
+import FileSystem.Path (AbsPath, portablePath)
+import Fixtures.Deslop.Frontend (Lowered (..), lowerProjectAt)
 import Fixtures.FileSystem.Path (inProject, projectFileSystem, projectRoot)
 import Frontend.Nix (NixFrontend (..))
 import Frontend.Nix.Reference (Scope (..))
 import Generators.Frontend.Nix.Source (genSource, genTricky)
 import Hedgehog (forAll, (===))
 import Hedgehog.Gen qualified as Gen
+import Renderable qualified
 import Test.Hspec
-import TestUtils (prop)
+import TestUtils (prop, requireRight)
+
+-- | The modules of a project on a file system on which reading these paths fails, by their path.
+modulesReadingNone :: [AbsPath] -> [(AbsPath, ByteString)] -> IO [Text]
+modulesReadingNone unreadable files =
+    fmap (sort . fmap (portablePath . (.path)) . (.modules))
+        . requireRight (toString . Renderable.render)
+        <=< runEff
+        . runConcurrent
+        . runMockRoFileSystem failingOnThem
+        . runReader projectRoot
+        $ lowerProjectAt NixFrontend projectRoot
+  where
+    tree = mockTree files
+    failingOnThem = tree {mockReadFile = \path -> if path `elem` unreadable then error "read a file that must not be read" else tree.mockReadFile path}
 
 detectedIn :: [(Text, ByteString)] -> IO (Maybe NixFrontend)
 detectedIn files = do
@@ -48,3 +67,10 @@ spec = describe "Frontend.Nix" $ do
             findings <- runReadOnly defaultMockRoFileSystem . runReader projectRoot $ lint NixFrontend scope (parse NixFrontend scope (inProject "a.nix") "import ./b.nix")
 
             fmap problem findings `shouldBe` []
+
+    describe "lowering" $
+        it "lists a file that is not Nix without ever reading it" $ do
+            let unreadable = fmap inProject ["docs/huge.md", "tool.py", "logo.bin"]
+
+            modulesReadingNone unreadable ((inProject "flake.nix", "{ }") : fmap (,"") unreadable)
+                `shouldReturn` ["docs/huge.md", "flake.nix", "logo.bin", "tool.py"]

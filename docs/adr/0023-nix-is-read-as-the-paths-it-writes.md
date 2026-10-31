@@ -4,7 +4,9 @@ Date: 2026-10-24
 
 ## Status
 
-Accepted. The third language behind
+Accepted. Partly superseded by
+[ADR 26](0026-a-nix-project-is-every-file-it-holds.md): its Discovery, Names
+and edge-less module parts. The third language behind
 [ADR 20](0020-languages-plug-in-through-a-staged-compiler-frontend.md)'s
 `CompilerFrontend`, and the first to mint the `Unresolved` edges ADR 20
 decided on.

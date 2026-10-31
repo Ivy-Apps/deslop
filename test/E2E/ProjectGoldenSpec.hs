@@ -74,6 +74,7 @@ spec = describe "E2E.Project" $ do
     itBaselines Nix "nix-tiny-project"
     -- Nix has no built-in rule that rewrites code, so fix changes nothing.
     itFixes Nix "nix-tiny-project" ["flake.nix", "packages/default.nix"]
+    itChecks Nix "nix-every-file-project"
     itChecks Nix "nix-nixos-config"
     itBaselines Nix "nix-nixos-config"
     itFailsToLoadConfig Nix "nix-config-error" "nix-broken-config-project" "deslop/nix.yaml"

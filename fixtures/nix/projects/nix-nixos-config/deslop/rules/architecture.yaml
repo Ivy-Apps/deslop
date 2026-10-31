@@ -27,7 +27,7 @@ rules:
       - import: "programs/**"
     allows:
       - import: "programs/{{program-name}}/**"
-      - import: "programs/*/default"
+      - import: "programs/*/default.nix"
     fix: Expose it from the other program's default.nix, or move the shared code.
 
   - id: hosts-are-identity-only
@@ -47,10 +47,10 @@ rules:
       system, so every host gets the same shared modules.
     target: "**"
     exclude:
-      - "lib/default"
+      - "lib/default.nix"
       - "hosts/**"
     forbids:
-      - import: "hosts/*/configuration"
+      - import: "hosts/*/configuration.nix"
     fix: Add the host to nixosConfigurations or darwinConfigurations in flake.nix, through lib.
 
   - id: lib-is-private-to-the-flake
@@ -59,7 +59,7 @@ rules:
       everything else is handed what it needs as an argument.
     target: "**"
     exclude:
-      - "flake"
+      - "flake.nix"
       - "lib/**"
     forbids:
       - import: "lib/**"
@@ -97,7 +97,7 @@ rules:
       server builder and the server modules themselves import it.
     target: "**"
     exclude:
-      - "lib/default"
+      - "lib/default.nix"
       - "modules/nixos/server/**"
     forbids:
       - import: "modules/nixos/server/**"
@@ -109,7 +109,7 @@ rules:
       everything else asks it for a secret's path.
     target: "**"
     exclude:
-      - "modules/secrets"
+      - "modules/secrets.nix"
     forbids:
       - import: "secrets/**"
     fix: Declare the secret through myConfig.secrets and read its path from config.
@@ -118,5 +118,5 @@ rules:
     description: flake.nix is the entry point, so nothing imports it.
     target: "**"
     forbids:
-      - import: "flake"
+      - import: "flake.nix"
     fix: Import what flake.nix imports instead.

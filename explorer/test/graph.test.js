@@ -67,3 +67,39 @@ test("ancestors lists a module's folders outermost first", () => {
 
   assert.deepEqual(plain(DeslopGraph.ancestors(g, "src/Deslop/Graph.hs")), ["src/", "src/Deslop/"]);
 });
+
+test("fileLabel drops the extension of a module not named by its path", () => {
+  const labels = [
+    moduleAt("src/Deslop/Graph.hs", { name: "Deslop/Graph" }),
+    moduleAt("app/Main.hs", { name: "exe/deslop/Main" }),
+    moduleAt("src/lib/util.tsx", { name: "@/lib/util" }),
+    moduleAt("src/lib/index.ts", { name: "@/lib", aliases: ["@/lib/index"] }),
+    moduleAt("src/types.d.ts", { name: "@/types.d" })
+  ].map(DeslopGraph.fileLabel);
+
+  assert.deepEqual(labels, ["Graph", "Main", "util", "index", "types.d"]);
+});
+
+test("fileLabel drops the extension of a module a paths key names with one", () => {
+  const label = DeslopGraph.fileLabel(moduleAt("src/kit/w.ts", { name: "@/w.ts" }));
+
+  assert.equal(label, "w");
+});
+
+test("fileLabel keeps the extension of a module named by its path", () => {
+  const labels = [
+    moduleAt("flake.nix", { name: "flake.nix" }),
+    moduleAt("lib/default.nix", { name: "lib/default.nix", aliases: ["lib"] }),
+    moduleAt("docs/x.md", { name: "docs/x.md" }),
+    moduleAt("programs/kit", { name: "programs/kit" }),
+    moduleAt(".gitignore", { name: ".gitignore" })
+  ].map(DeslopGraph.fileLabel);
+
+  assert.deepEqual(labels, ["flake.nix", "default.nix", "x.md", "kit", ".gitignore"]);
+});
+
+test("nameOf titles a default.nix by its directory, as it does a barrel", () => {
+  const raw = graphOf({ modules: [moduleAt("lib/default.nix", { name: "lib/default.nix", aliases: ["lib"] })] });
+
+  assert.equal(DeslopGraph.nameOf(DeslopGraph.index(raw), "lib/default.nix"), "lib");
+});

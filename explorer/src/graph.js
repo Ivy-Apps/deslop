@@ -62,17 +62,19 @@ var DeslopGraph = (function () {
   }
   function namesOf(n) { return [n.name].concat(n.aliases || []); }
 
-  // A module's file name without its extension.
-  function fileLabel(path) {
-    var file = path.split("/").pop();
+  // A module's file name, with its extension only when the module is named by its path,
+  // as every module of a Nix project is.
+  function fileLabel(n) {
+    var file = lastSegment(n.path);
     var dot = file.lastIndexOf(".");
-    return dot > 0 ? file.slice(0, dot) : file;
+    return dot > 0 && n.name !== n.path ? file.slice(0, dot) : file;
   }
+  function lastSegment(path) { return path.slice(path.lastIndexOf("/") + 1); }
 
   function unique(xs) { return xs.filter(function (x, i) { return xs.indexOf(x) === i; }); }
 
   return {
     problemOf: problemOf, index: index, httpsOnly: httpsOnly, has: has, ancestors: ancestors,
-    nameOf: nameOf, namesOf: namesOf, fileLabel: fileLabel, unique: unique
+    nameOf: nameOf, namesOf: namesOf, fileLabel: fileLabel, lastSegment: lastSegment, unique: unique
   };
 })();

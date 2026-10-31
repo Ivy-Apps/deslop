@@ -83,7 +83,7 @@ data ModuleNode = ModuleNode
     , name :: ModuleName
     , aliases :: [ModuleName]
     , folder :: Maybe FolderPath
-    -- ^ None for a module directly in the project root.
+    -- ^ None for a module directly in the project root. A directory's own folder, when it has one.
     , layer :: Int
     {- ^ 0 at the top. A module's layer is always above, so smaller than,
     that of everything it depends on outside its own cycle.
@@ -132,7 +132,7 @@ diagramOf :: Maybe SourceLinks -> Maybe PullRequest -> Maybe Diff -> [Module] ->
 diagramOf sourceLinks pullRequest diff parsed =
     Diagram
         { modules = moduleNode <$> located
-        , folders = folderNodes . mapMaybe (\(_, segs) -> folderOf segs) $ located
+        , folders
         , externals = ordNub [n | (_, Package n, _) <- deps]
         , edges = edgeOf <$> Map.toList (Map.fromListWith (+) [(d, 1 :: Int) | d <- deps])
         , sourceLinks
@@ -142,6 +142,18 @@ diagramOf sourceLinks pullRequest diff parsed =
   where
     located = sortOn snd $ mapMaybe (\m -> (m,) <$> portableSegments m.path) parsed
     pathOf = Map.fromList [(m.id, m.path) | (m, _) <- located]
+    folders = folderNodes . mapMaybe (folderOf . snd) $ located
+    folderPaths = Set.fromList $ (.path) <$> folders
+
+    {- A module that is a directory goes inside the folder of the files beneath
+    it, so that folder stands for it when closed. A directory with nothing
+    beneath it has no folder, and no file can share a path with a folder.
+    -}
+    homeOf segs
+        | own `Set.member` folderPaths = Just own
+        | otherwise = folderOf segs
+      where
+        own = FolderPath segs
 
     deps =
         [ (ModuleAt m.path, to, e.kind)
@@ -167,7 +179,7 @@ diagramOf sourceLinks pullRequest diff parsed =
             { path = m.path
             , name = canonicalName m
             , aliases = NE.tail m.names
-            , folder = folderOf segs
+            , folder = homeOf segs
             , -- Never the default: 'layers' ranks every vertex, and every module is one.
               layer = Map.findWithDefault 0 m.path layerOf
             , hub = m.path `Set.member` hubs
