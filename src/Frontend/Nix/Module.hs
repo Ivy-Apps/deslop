@@ -60,25 +60,48 @@ lowerProject ::
 lowerProject projectRoot scope otherFiles units = do
     unitIds <- traverse (idOf . unitPath) units
     lowered <- zipWithM (lowerUnit projectRoot scope) unitIds units
-    otherIds <- traverse idOf otherFiles
+    others <- oneModulePerId projectRoot (Set.fromList unitIds) otherFiles
     let modules = fmap fst lowered
-        others = zip otherIds (fmap relative otherFiles)
         reachedOnly =
-            Map.toList . (`Map.withoutKeys` Set.fromList (unitIds <> otherIds)) . Map.fromList $
+            Map.toList . (`Map.withoutKeys` Set.fromList (unitIds <> fmap fst others)) . Map.fromList $
                 concatMap snd lowered
         assets = sortOn (.path) (fmap asset (others <> reachedOnly))
     pure (settleEdgeNames (modules <> assets), notRead)
   where
-    relative = relativePathTo projectRoot
     asset (moduleId, path) = Module {id = moduleId, names = moduleNames path, path, edges = [], role = Source}
-    notRead = [ReferencesNotRead (relative path) why | Opaque path why _ <- units]
+    notRead = [ReferencesNotRead (relativePathTo projectRoot path) why | Opaque path why _ <- units]
+
+{- | The files that are not units, by id. A symbolic link shares the id of the
+file it links to, so it gives way to that file, or to the unit of that id,
+whatever the walk order. A link out of the project stands for the file it
+reaches; of several to one file, the first by path does.
+-}
+oneModulePerId ::
+    (RoFileSystem :> es) =>
+    ProjectRoot -> Set ModuleId -> [AbsPath] -> Eff es [(ModuleId, ProjectRelativePath)]
+oneModulePerId projectRoot unitIds files = do
+    realRoot <- ProjectRoot <$> fsMkAbsolute projectRoot.path.osPath
+    found <- forM files $ \file -> do
+        real <- fsMkAbsolute file.osPath
+        let path = relativePathTo projectRoot file
+            spelling = if relativePathTo realRoot real == path then TheFile else ALink
+        pure (spelling, idAt real, path)
+    pure
+        [ (moduleId, path)
+        | (spelling, moduleId, path) <- nubOrdOn (\(_, moduleId, _) -> moduleId) (sort found)
+        , spelling == TheFile || moduleId `Set.notMember` unitIds
+        ]
+
+-- | How a file spells its id's path. A 'TheFile' sorts before the links to it.
+data Spelling = TheFile | ALink
+    deriving stock (Eq, Ord)
 
 {- | Every edge into a module by that module's names. An edge is named by the
 path it reached; through a linked directory that is no module's path, so it
 takes the names of the module of its id.
 
-A symbolic link to a file is a module of its own that shares the id of the file
-it links to, so an edge that does name a module's path keeps that name.
+A @.nix@ symbolic link to a file is a module of its own that shares the id of
+the file it links to, so an edge that does name a module's path keeps that name.
 -}
 settleEdgeNames :: [Module] -> [Module]
 settleEdgeNames modules = fmap (\m -> m {edges = fmap settle m.edges}) modules
@@ -95,7 +118,10 @@ settleEdgeNames modules = fmap (\m -> m {edges = fmap settle m.edges}) modules
 
 -- | Canonicalised, as every edge into it is, so the two cannot disagree.
 idOf :: (RoFileSystem :> es) => AbsPath -> Eff es ModuleId
-idOf = fmap (moduleIdUnsafe . decodeOsPath . (.osPath)) . fsMkAbsolute . (.osPath)
+idOf = fmap idAt . fsMkAbsolute . (.osPath)
+
+idAt :: AbsPath -> ModuleId
+idAt = moduleIdUnsafe . decodeOsPath . (.osPath)
 
 {- | One unit's module, and every module in the project its edges reach,
 by id and path.

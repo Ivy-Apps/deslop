@@ -28,12 +28,11 @@ var DeslopSearch = (function () {
   }
   function fieldsOf(n) {
     var names = n.kind === "external" ? [n.name] : n.aliases || [];
-    var byName = names.reduce(function (fs, a) { return fs.concat([field("leaf", lastSegment(a)), field("alias", a)]); }, []);
+    var byName = names.reduce(function (fs, a) { return fs.concat([field("leaf", DeslopGraph.lastSegment(a)), field("alias", a)]); }, []);
     return n.kind === "external" ? byName
-      : byName.concat([field("basename", lastSegment(n.path)), field("path", n.path), field("id", n.name)]);
+      : byName.concat([field("basename", DeslopGraph.lastSegment(n.path)), field("path", n.path), field("id", n.name)]);
   }
   function field(role, text) { return { role: role, text: text, lower: text.toLowerCase() }; }
-  function lastSegment(text) { return text.slice(text.lastIndexOf("/") + 1); }
   function internalCount(g, ids) { return DeslopGraph.unique(ids).filter(function (id) { return g.nodes[id].kind === "module"; }).length; }
 
   // The ranked hits for a query, best first. Each hit carries the match of every token, for highlighting.

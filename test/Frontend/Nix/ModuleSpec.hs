@@ -179,10 +179,29 @@ spec = describe "Frontend.Nix.Module" $ do
         it "to a module names the edge by the path written" $
             edgeTargetsFrom "default.nix" linked `shouldBe` [("./real.nix", "real.nix")]
 
-        it "to a file that is not Nix is a module of its own, as the walk found it" $ do
-            notes <- loweredWithLink createFileLink ("real.md", "zlink.md") [("flake.nix", "{ }"), ("real.md", "")]
+        forM_ ["alink.md", "zlink.md"] $ \link -> describe ("called " <> link <> ", to a file that is not Nix") $ do
+            notes <-
+                runIO . loweredWithLink createFileLink ("real.md", link) $
+                    [("flake.nix", "{ }"), ("default.nix", "{ a = ./real.md; b = ./" <> fromString link <> "; }"), ("real.md", "")]
 
-            canonicalNames notes `shouldBe` ["flake.nix", "real.md", "zlink.md"]
+            it "leaves one module, at the real path" $
+                canonicalNames notes `shouldBe` ["default.nix", "flake.nix", "real.md"]
+
+            it "names every edge by the real path" $
+                fmap snd (edgeTargetsFrom "default.nix" notes) `shouldBe` ["real.md", "real.md"]
+
+        forM_ ["alink.md", "zlink.md"] $ \link ->
+            it ("called " <> link <> ", to a Nix file leaves one module, at the real path") $ do
+                aliased <- loweredWithLink createFileLink ("real.nix", link) [("flake.nix", "{ }"), ("real.nix", "{ }")]
+
+                canonicalNames aliased `shouldBe` ["flake.nix", "real.nix"]
+
+        it "to a file outside the project is a module at the link" $
+            withSystemTempDirectory "deslop-nix-module-outside" $ \outside -> do
+                writeFileBS (outside </> "real.md") ""
+                escaped <- loweredWithLink createFileLink (outside </> "real.md", "link.md") [("flake.nix", "{ }")]
+
+                canonicalNames escaped `shouldBe` ["flake.nix", "link.md"]
 
         it "to a directory leaves the module, and every edge through the link, at the real path" $ do
             through <- loweredWithLink createDirectoryLink ("real", "link") [("flake.nix", "{ a = ./link/x.md; }"), ("real/x.md", "")]

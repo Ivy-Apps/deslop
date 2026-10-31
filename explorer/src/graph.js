@@ -68,12 +68,12 @@ var DeslopGraph = (function () {
     var dot = file.lastIndexOf(".");
     return dot > 0 && lastSegment(n.name) !== file ? file.slice(0, dot) : file;
   }
-  function lastSegment(path) { return path.split("/").pop(); }
+  function lastSegment(path) { return path.slice(path.lastIndexOf("/") + 1); }
 
   function unique(xs) { return xs.filter(function (x, i) { return xs.indexOf(x) === i; }); }
 
   return {
     problemOf: problemOf, index: index, httpsOnly: httpsOnly, has: has, ancestors: ancestors,
-    nameOf: nameOf, namesOf: namesOf, fileLabel: fileLabel, unique: unique
+    nameOf: nameOf, namesOf: namesOf, fileLabel: fileLabel, lastSegment: lastSegment, unique: unique
   };
 })();
