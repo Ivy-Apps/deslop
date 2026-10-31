@@ -40,11 +40,11 @@ jobs:
 
       - name: 🧬 Mutation testing, changed code
         if: github.event_name == 'pull_request'
-        run: nix develop .#ci --accept-flake-config -c just mutation-diff
+        run: nix develop .#ci --accept-flake-config -c just mutation-diff origin/main mutation-ci
 
       - name: 🧬 Mutation testing, whole library
         if: github.event_name != 'pull_request'
-        run: nix develop .#ci --accept-flake-config -c just mutation
+        run: nix develop .#ci --accept-flake-config -c just mutation mutation-ci
 
       - name: 📊 Score
         run: |
