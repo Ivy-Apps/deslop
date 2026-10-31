@@ -1,4 +1,4 @@
-module E2E.ProjectGoldenSpec (spec) where
+module E2E.ProjectGoldenSpec (spec, wholeRepositoryRuns) where
 
 import Data.Map.Strict qualified as Map
 import Data.Set qualified as Set
@@ -43,11 +43,26 @@ import Test.Hspec.Golden (Golden (actualFile), defaultGolden)
 import TestUtils (goldenActualDirEnv, inEmptyDir, mkAbsolute, requireJust, rp, snapshot)
 import UI (coverage, humanReadable, problemsFoundText)
 
+{- | What the title of every test over a whole real application holds, for
+"MutationMain" to leave those out.
+-}
+wholeRepositoryRuns :: [String]
+wholeRepositoryRuns = [ixartzBoilerplate, melzarCleanArchitecture, checksItselfTitle]
+
+ixartzBoilerplate :: String
+ixartzBoilerplate = "ixartz-next-js-boilerplate"
+
+melzarCleanArchitecture :: String
+melzarCleanArchitecture = "melzar-nextjs-clean-architecture"
+
+checksItselfTitle :: String
+checksItselfTitle = "checks its own repository clean"
+
 spec :: Spec
 spec = describe "E2E.Project" $ do
     itChecks TypeScript "ts-project-1"
-    itChecks TypeScript "ixartz-next-js-boilerplate"
-    itChecks TypeScript "melzar-nextjs-clean-architecture"
+    itChecks TypeScript ixartzBoilerplate
+    itChecks TypeScript melzarCleanArchitecture
     itChecks TypeScript "ts-cycles-project"
     itChecks TypeScript "ts-gitignore-project"
     itChecks TypeScript "ts-globplus-project"
@@ -81,8 +96,8 @@ spec = describe "E2E.Project" $ do
     itReportsRulebookBeforeLanguage "ts-invalid-rulebook-project"
 
     itBaselines TypeScript "ts-project-1"
-    itBaselines TypeScript "ixartz-next-js-boilerplate"
-    itBaselines TypeScript "melzar-nextjs-clean-architecture"
+    itBaselines TypeScript ixartzBoilerplate
+    itBaselines TypeScript melzarCleanArchitecture
     itBaselines TypeScript "ts-cycles-project"
     itBaselines TypeScript "ts-gitignore-project"
     itBaselines TypeScript "ts-globplus-project"
@@ -94,7 +109,8 @@ spec = describe "E2E.Project" $ do
 
     itIterates "ts-gitignore-project"
 
-    itExplores "ixartz-next-js-boilerplate"
+    itExplores ixartzBoilerplate "src/app/[locale]/layout.tsx"
+    itExplores "ts-cycles-project" "src/a.ts"
     itExploresWithoutPullRequest GhMissing
     itExploresWithoutPullRequest NoneFound
     itExploresDetachedWithoutAskingForPullRequest
@@ -130,7 +146,7 @@ spec = describe "E2E.Project" $ do
 
     itFixes
         TypeScript
-        "ixartz-next-js-boilerplate"
+        ixartzBoilerplate
         [ ".storybook/preview.ts"
         , "next.config.ts"
         , "src/components/Hello.tsx"
@@ -146,7 +162,7 @@ spec = describe "E2E.Project" $ do
 
     itFixes
         TypeScript
-        "melzar-nextjs-clean-architecture"
+        melzarCleanArchitecture
         [ "src/app/layout.tsx"
         , "src/ui/common/components/layout/ContainerBox/ContainerBox.tsx"
         , "src/ui/common/components/layout/TopHeader/TopHeader.stories.tsx"
@@ -423,8 +439,8 @@ itReportsRulebookBeforeLanguage project =
 is a page that can show them. How it draws them is the browser's business, not
 this suite's.
 -}
-itExplores :: String -> Spec
-itExplores project = it ("explores " <> project) $ do
+itExplores :: String -> Text -> Spec
+itExplores project changedModule = it ("explores " <> project) $ do
     let projectPath = projectIn TypeScript project
     absProjectPath <- mkAbsolute projectPath
     let pagePath = withAbsBaseUnsafe absProjectPath [osp|deslop/diagram/index.html|]
@@ -437,7 +453,7 @@ itExplores project = it ("explores " <> project) $ do
     page <- decodeUtf8 <$> requireJust "Expected deslop/diagram/index.html to be written" (Map.lookup pagePath run.written)
     graph <- requireJust "Expected the page to carry the graph" (graphIn page)
     textField "schema" graph `shouldBe` Just (Just "deslop-graph/1")
-    (find ((== "src/app/[locale]/layout.tsx") . fst) =<< moduleTags graph) `shouldBe` Just ("src/app/[locale]/layout.tsx", ["changed"])
+    (find ((== changedModule) . fst) =<< moduleTags graph) `shouldBe` Just (changedModule, ["changed"])
     textField "sourceBase" graph `shouldBe` Just (Just "https://github.com/o/r/blob/main/")
     textField "pullRequest" graph `shouldBe` Just (Just "https://github.com/o/r/pull/7")
     projectGolden TypeScript "explore" project . T.unpack . renderRun $ run
@@ -497,7 +513,7 @@ itAsksGitNothing command = it ("asks git nothing to " <> show command) $ do
 onGitHub :: Repository
 onGitHub =
     Repository
-        { changes = Map.singleton (GitRef "origin/main") (Set.fromList [rp "src/app/[locale]/layout.tsx", rp "README.md", rp "src/index.ts"])
+        { changes = Map.singleton (GitRef "origin/main") (Set.fromList [rp "src/app/[locale]/layout.tsx", rp "README.md", rp "src/index.ts", rp "src/a.ts"])
         , sourceLinks =
             Just
                 SourceLinks
@@ -525,7 +541,7 @@ Asserted clean rather than goldened: a golden would change with every module
 the repository gains.
 -}
 itChecksItself :: Spec
-itChecksItself = it "checks its own repository clean" $ do
+itChecksItself = it checksItselfTitle $ do
     run <- runDeslopOn InMemory CheckC [osp|.|]
 
     (renderRun run, fmap (.verdict) run.result) `shouldSatisfy` ((== Right Clean) . snd)
