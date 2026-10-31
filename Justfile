@@ -64,7 +64,7 @@ mutation check="mutation":
 mutation-diff base="origin/main" check="mutation":
     nix build .#checks.x86_64-linux.{{check}}.baseline --accept-flake-config --no-link
     rm -rf dist-newstyle/mutation-diff
-    nix run .#checks.x86_64-linux.{{check}}.diff --accept-flake-config -- --base {{base}} --out-dir "$PWD/dist-newstyle/mutation-diff" || test -f dist-newstyle/mutation-diff/report.json
+    nix run .#checks.x86_64-linux.{{check}}.diff --accept-flake-config -- --base {{base}} --no-fail-fast --out-dir "$PWD/dist-newstyle/mutation-diff" || test -f dist-newstyle/mutation-diff/report.json
 
 # Compile the library and the executable
 build:
