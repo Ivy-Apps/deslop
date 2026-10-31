@@ -3,7 +3,8 @@ its checkout.
 
 Only GitHub and GitLab are recognised, by their exact host, @github.com@ and
 @gitlab.com@; any other host has no link. Only GitHub's pull requests are linked
-to, through what @gh@ says. Pure: asking git and gh is "Effects.Git"'s business.
+to, through what @gh@ says. What a project is called comes from the same remote,
+on any host. Pure: asking git and gh is "Effects.Git"'s business.
 -}
 module Git.SourceLink (
     Branch (..),
@@ -12,10 +13,13 @@ module Git.SourceLink (
     DiffAnchors (..),
     Forge (..),
     GitRef (..),
+    OriginUrl (..),
+    ProjectName (..),
     PullRequest (..),
     Revision (..),
     SourceBase (..),
     SourceLinks (..),
+    projectNameOf,
     pullRequestFromGh,
     sourceLinksOf,
 ) where
@@ -25,7 +29,7 @@ import Data.Aeson.Types (parseMaybe)
 import Data.ByteString qualified as BS
 import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Data.Text qualified as T
-import FileSystem.Path (ProjectRelativePath)
+import FileSystem.Path (ProjectRelativePath, ProjectRoot (..), folderName)
 import Numeric (showHex)
 
 -- | What git accepts as a revision: a branch, a tag, a commit.
@@ -52,10 +56,13 @@ data Revision
       Detached Text
     deriving stock (Show, Eq)
 
+-- | The @origin@ remote, as configured: SSH, scp-like or https.
+newtype OriginUrl = OriginUrl {text :: Text}
+    deriving stock (Show, Eq)
+
 -- | What git says about the checkout a project sits in.
 data Checkout = Checkout
-    { originUrl :: Text
-    -- ^ The @origin@ remote, as configured: SSH, scp-like or https.
+    { originUrl :: OriginUrl
     , revision :: Revision
     , prefix :: Text
     -- ^ The project's folder inside the repository, ending in @/@; empty at its root.
@@ -97,10 +104,23 @@ data SourceLinks = SourceLinks
     }
     deriving stock (Show, Eq)
 
+-- | What people call a project.
+newtype ProjectName = ProjectName {text :: Text}
+    deriving stock (Show, Eq)
+
+{- | The repository's name in its @origin@ URL, on any host, so a subfolder or a
+worktree of it is called the same. Without a name there, the project's folder.
+-}
+projectNameOf :: ProjectRoot -> Maybe OriginUrl -> ProjectName
+projectNameOf root origin =
+    ProjectName . fromMaybe (folderName root.path) $ do
+        (_host, repoPath) <- hostAndPath =<< origin
+        pure $ T.takeWhileEnd (/= '/') repoPath
+
 -- | The links of a checkout, when its remote is on a forge we know.
 sourceLinksOf :: Checkout -> Maybe SourceLinks
 sourceLinksOf checkout = do
-    (host, repoPath) <- hostAndPath (T.strip checkout.originUrl)
+    (host, repoPath) <- hostAndPath checkout.originUrl
     forge <- forgeOf host
     let repoUrl = "https://" <> host <> "/" <> repoPath
     pure
@@ -136,10 +156,11 @@ blobPath = \case
     GitLab -> "/-/blob/"
 
 {- | The host and the @owner/repo@ path of a remote, from any of
-@https://host/o/r.git@, @ssh://git\@host:22/o/r@ or @git\@host:o/r.git@.
+@https://host/o/r.git@, @ssh://git\@host:22/o/r@ or @git\@host:o/r.git@, with
+or without the newline git prints after it.
 -}
-hostAndPath :: Text -> Maybe (Text, Text)
-hostAndPath remote = do
+hostAndPath :: OriginUrl -> Maybe (Text, Text)
+hostAndPath origin = do
     (authority, rest) <- case T.breakOn "://" remote of
         (scheme, afterScheme)
             | not (T.null afterScheme) && scheme `elem` ["https", "http", "ssh", "git"] ->
@@ -154,6 +175,7 @@ hostAndPath remote = do
     guard . not $ T.null host || T.null repoPath
     pure (host, repoPath)
   where
+    remote = T.strip origin.text
     stripGit path = fromMaybe path $ T.stripSuffix ".git" path
 
 -- | Percent-encodes each segment of a @/@-separated path, keeping the slashes.

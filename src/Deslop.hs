@@ -36,22 +36,22 @@ import Effects.FileSystem (
     fsWriteFile,
     runFileSystemIO,
  )
-import Effects.Git (Diff (..), Git, GitRef (..), NoDiff (..), NoPullRequest (..), gitDiff, gitPullRequest, gitSourceLinks, runGitIO)
+import Effects.Git (Diff (..), Git, GitRef (..), NoDiff (..), NoPullRequest (..), gitDiff, gitOrigin, gitPullRequest, gitSourceLinks, runGitIO)
 import Effects.ReportProblem (ReportProblem, getProblems, runReportProblem)
 import FileSystem.Path (
-    AbsPath (osPath),
+    AbsPath,
     ProjectRelativePath,
     ProjectRoot (..),
-    decodeOsPath,
+    folderName,
     portablePath,
     relativePathTo,
     withAbsBaseUnsafe,
  )
 import Frontend (detectFrontend, lookedFor)
-import Git.SourceLink (Forge (..), PullRequest, Revision (..), SourceLinks (..))
+import Git.SourceLink (Forge (..), PullRequest, Revision (..), SourceLinks (..), projectNameOf)
 import Params (Command (..), Exploration (..), Opening (..), Params (..), ParamsDto (..), paramsFromDto)
 import System.Exit (ExitCode (..))
-import System.OsPath (osp, takeFileName)
+import System.OsPath (osp)
 import UI (divider, humanReadable, problemsFoundText, problemsLogText, summaryLine)
 import Utils (pluralise)
 
@@ -168,7 +168,7 @@ logTitle params detected = do
         "🚀 "
             <> commandTitle params.command
             <> " project: "
-            <> decodeOsPath (takeFileName params.projectPath.osPath)
+            <> folderName params.projectPath
     for_ detected $ \(SomeFrontend fe) ->
         cliLog Plain $ label fe <> " project detected."
     case params.command of
@@ -257,8 +257,9 @@ writeExplorer projectRoot exploration modules = do
             Left reason -> Nothing <$ cliLog Plain ("No diff to show: " <> noDiffText reason)
     sourceLinks <- gitSourceLinks projectRoot
     pullRequest <- pullRequestFor projectRoot (foldMap (.files) diff) sourceLinks
+    origin <- gitOrigin projectRoot
     fsMkDirP dir
-    fsWriteFile page . encodeUtf8 . explorerPage $ diagramOf sourceLinks pullRequest diff modules
+    fsWriteFile page . encodeUtf8 . explorerPage (projectNameOf projectRoot origin) $ diagramOf sourceLinks pullRequest diff modules
     cliLog Success $
         "✅ Success: Explorer written to " <> portablePath (relativePathTo projectRoot page)
     openExplorer exploration.opening page
