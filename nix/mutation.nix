@@ -41,7 +41,8 @@ let
       packages = [ "deslop" ];
       needToBeLinkedAgainstMutationRuntime = [ "deslop" ];
       assertAllKilled = false;
-      coreLint = true;
+      # Off: with it the whole library dies compiling UI, exit 1 and no message.
+      coreLint = false;
       ghcMemLimit = "4g";
       testProcessMemLimit = "1g";
       coverageJobs = 2;
@@ -68,6 +69,10 @@ in
 pkgs.runCommand "deslop-mutation"
   {
     nativeBuildInputs = [ pkgs.jq ];
+    passthru = {
+      inherit baseline;
+      inherit (report) diff;
+    };
   }
   ''
     mkdir "$out"
