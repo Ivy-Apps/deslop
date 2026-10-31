@@ -18,30 +18,20 @@ import Test.Hspec
 import TestUtils (prop, requireRight)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
--- | A real project with these files, and these symbolic links, target first, beside them.
-loweredWithLinks :: [(FilePath, ByteString)] -> [(FilePath, FilePath)] -> IO (Lowered NixFrontend)
-loweredWithLinks files links = withSystemTempDirectory "deslop-nix-module-links" $ \tmp -> do
+-- | A real project with these files, and a symbolic link, by how it is made, its target first, beside them.
+loweredWithLink :: (FilePath -> FilePath -> IO ()) -> (FilePath, FilePath) -> [(FilePath, ByteString)] -> IO (Lowered NixFrontend)
+loweredWithLink makeLink (target, link) files = withSystemTempDirectory "deslop-nix-module-links" $ \tmp -> do
     traverse_ (\(path, content) -> createDirectoryIfMissing True (takeDirectory (tmp </> path)) >> writeFileBS (tmp </> path) content) files
-    traverse_ (\(target, link) -> createFileLink (tmp </> target) (tmp </> link)) links
-    loweredAt tmp
-
-loweredAt :: FilePath -> IO (Lowered NixFrontend)
-loweredAt tmp = do
+    makeLink (tmp </> target) (tmp </> link)
     let root = ProjectRoot (absPathUnsafe (encodeOsPathString tmp))
     requireRight (toString . Renderable.render) <=< runEff . runConcurrent . runFileSystemIO . runReader root $ lowerProjectAt NixFrontend root
-
--- | A real project whose @flake.nix@ reaches @real\/x.md@ through the linked directory @link@.
-withDirectoryLink :: IO (Lowered NixFrontend)
-withDirectoryLink = withSystemTempDirectory "deslop-nix-module-dir-links" $ \tmp -> do
-    createDirectoryIfMissing True (tmp </> "real")
-    writeFileBS (tmp </> "real" </> "x.md") ""
-    writeFileBS (tmp </> "flake.nix") "{ a = ./link/x.md; }"
-    createDirectoryLink (tmp </> "real") (tmp </> "link")
-    loweredAt tmp
 
 -- | These files, by their path from the project root, through every stage; the test fails when the project does not load.
 lowered :: [(Text, ByteString)] -> IO (Lowered NixFrontend)
 lowered = requireRight (toString . Renderable.render) <=< lowerProject NixFrontend
+
+canonicalNames :: Lowered NixFrontend -> [Text]
+canonicalNames = sort . fmap ((.text) . canonicalName) . (.modules)
 
 project :: [(Text, ByteString)]
 project =
@@ -63,7 +53,7 @@ spec = describe "Frontend.Nix.Module" $ do
 
     describe "naming" $ do
         it "lowers every file of the project, and every directory a path reaches" $
-            sort (fmap ((.text) . canonicalName) result.modules)
+            canonicalNames result
                 `shouldBe` sort
                     [ "broken.nix"
                     , "deslop/nix.yaml"
@@ -135,8 +125,8 @@ spec = describe "Frontend.Nix.Module" $ do
                 ]
 
         it "is a module with no edges, its file name its name" $
-            [(portablePath m.path, length m.edges, m.role) | m <- whole.modules, portablePath m.path /= "flake.nix"]
-                `shouldBe` [("a.py", 0, Source), ("docs/x.md", 0, Source), ("logo.bin", 0, Source)]
+            [(portablePath m.path, (canonicalName m).text, length m.edges, m.role) | m <- whole.modules, portablePath m.path /= "flake.nix"]
+                `shouldBe` [("a.py", "a.py", 0, Source), ("docs/x.md", "docs/x.md", 0, Source), ("logo.bin", "logo.bin", 0, Source)]
 
         it "says nothing about it" $
             fmap Renderable.render whole.warnings `shouldBe` []
@@ -151,7 +141,7 @@ spec = describe "Frontend.Nix.Module" $ do
                 ]
 
         it "is a module only when a path reaches it" $
-            sort (fmap ((.text) . canonicalName) ignoring.modules) `shouldBe` [".gitignore", "flake.nix", "reached.md"]
+            canonicalNames ignoring `shouldBe` [".gitignore", "flake.nix", "reached.md"]
 
     describe "a directory a path reaches" $ do
         beside <-
@@ -164,7 +154,7 @@ spec = describe "Frontend.Nix.Module" $ do
                 ]
 
         it "is a module, beside the files in it and with no edges to them" $ do
-            sort (fmap ((.text) . canonicalName) beside.modules)
+            canonicalNames beside
                 `shouldBe` ["deploy", "deploy.nix", "flake.nix", "pkg", "pkg.nix", "pkg/x.txt"]
             fmap (.edges) (moduleNamed "pkg" beside) `shouldBe` Just []
 
@@ -180,27 +170,25 @@ spec = describe "Frontend.Nix.Module" $ do
 
     describe "a symbolic link" $ do
         linked <-
-            runIO $
-                loweredWithLinks
-                    [("flake.nix", "{ }"), ("default.nix", "{ a = import ./real.nix; }"), ("real.nix", "{ }")]
-                    [("real.nix", "zlink.nix")]
+            runIO . loweredWithLink createFileLink ("real.nix", "zlink.nix") $
+                [("flake.nix", "{ }"), ("default.nix", "{ a = import ./real.nix; }"), ("real.nix", "{ }")]
 
         it "to a module names each by its own path" $
-            sort (fmap ((.text) . canonicalName) linked.modules) `shouldBe` ["default.nix", "flake.nix", "real.nix", "zlink.nix"]
+            canonicalNames linked `shouldBe` ["default.nix", "flake.nix", "real.nix", "zlink.nix"]
 
         it "to a module names the edge by the path written" $
             edgeTargetsFrom "default.nix" linked `shouldBe` [("./real.nix", "real.nix")]
 
         it "to a file that is not Nix is a module of its own, as the walk found it" $ do
-            notes <- loweredWithLinks [("flake.nix", "{ }"), ("real.md", "")] [("real.md", "zlink.md")]
+            notes <- loweredWithLink createFileLink ("real.md", "zlink.md") [("flake.nix", "{ }"), ("real.md", "")]
 
-            sort (fmap ((.text) . canonicalName) notes.modules) `shouldBe` ["flake.nix", "real.md", "zlink.md"]
+            canonicalNames notes `shouldBe` ["flake.nix", "real.md", "zlink.md"]
 
         it "to a directory leaves the module, and every edge through the link, at the real path" $ do
-            through <- withDirectoryLink
+            through <- loweredWithLink createDirectoryLink ("real", "link") [("flake.nix", "{ a = ./link/x.md; }"), ("real/x.md", "")]
 
             edgeTargetsFrom "flake.nix" through `shouldBe` [("./link/x.md", "real/x.md")]
-            sort (fmap ((.text) . canonicalName) through.modules) `shouldBe` ["flake.nix", "real/x.md"]
+            canonicalNames through `shouldBe` ["flake.nix", "real/x.md"]
 
     prop "reaches exactly the files a project's literal paths name" $ do
         targets <- forAll $ Gen.subsequence ["a", "b", "c", "d"]

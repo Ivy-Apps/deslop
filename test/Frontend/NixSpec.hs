@@ -68,11 +68,9 @@ spec = describe "Frontend.Nix" $ do
 
             fmap problem findings `shouldBe` []
 
-    let at path content = (inProject path, content)
-
     describe "lowering" $
         it "lists a file that is not Nix without ever reading it" $ do
             let unreadable = fmap inProject ["docs/huge.md", "tool.py", "logo.bin"]
 
-            modulesReadingNone unreadable (("flake.nix" `at` "{ }") : fmap (,"") unreadable)
+            modulesReadingNone unreadable ((inProject "flake.nix", "{ }") : fmap (,"") unreadable)
                 `shouldReturn` ["docs/huge.md", "flake.nix", "logo.bin", "tool.py"]

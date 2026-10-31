@@ -467,7 +467,7 @@
     var hubs = modules.filter(function (m) { return has(m, "hub"); });
     if (hubs.length && !view.show.hubs) {
       var hidden = el("div", { "class": "hubs" });
-      hidden.appendChild(el("span", {}, "Hidden: " + hubs.map(function (m) { return fileLabel(m); }).join(", ")));
+      hidden.appendChild(el("span", {}, "Hidden: " + hubs.map(fileLabel).join(", ")));
       hidden.appendChild(infoButton("Used everywhere", explanations.hiddenHubs));
       legend.appendChild(hidden);
     }

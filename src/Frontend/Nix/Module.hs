@@ -86,10 +86,12 @@ settleEdgeNames modules = fmap (\m -> m {edges = fmap settle m.edges}) modules
     known = Set.fromList [(m.id, m.names) | m <- modules]
     byId = Map.fromList [(m.id, m.names) | m <- modules]
     settle edge = case edge.target of
-        Resolved target names
-            | (target, names) `Set.notMember` known ->
-                edge {target = Resolved target (Map.findWithDefault names target byId)}
-        _ -> edge
+        Resolved target names -> edge {target = Resolved target (settled target names)}
+        External _ -> edge
+        Unresolved _ -> edge
+    settled target names
+        | (target, names) `Set.member` known = names
+        | otherwise = Map.findWithDefault names target byId
 
 -- | Canonicalised, as every edge into it is, so the two cannot disagree.
 idOf :: (RoFileSystem :> es) => AbsPath -> Eff es ModuleId

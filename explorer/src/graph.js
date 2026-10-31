@@ -64,10 +64,11 @@ var DeslopGraph = (function () {
 
   // A module's file name, with its extension only when its name spells one.
   function fileLabel(n) {
-    var file = n.path.split("/").pop();
+    var file = lastSegment(n.path);
     var dot = file.lastIndexOf(".");
-    return dot > 0 && n.name.split("/").pop() !== file ? file.slice(0, dot) : file;
+    return dot > 0 && lastSegment(n.name) !== file ? file.slice(0, dot) : file;
   }
+  function lastSegment(path) { return path.split("/").pop(); }
 
   function unique(xs) { return xs.filter(function (x, i) { return xs.indexOf(x) === i; }); }
 

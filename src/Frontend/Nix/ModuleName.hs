@@ -12,12 +12,12 @@ module Frontend.Nix.ModuleName (
 ) where
 
 import Data.Text qualified as T
-import Deslop.Module (ModuleName (..), moduleNameUnsafe)
+import Deslop.Module (ModuleName, moduleNameUnsafe)
 import FileSystem.Path (ProjectRelativePath, portablePath)
 
 -- | Every name a path answers to, canonical first.
 moduleNames :: ProjectRelativePath -> NonEmpty ModuleName
-moduleNames path = moduleNameUnsafe named :| (moduleNameUnsafe <$> maybeToList (T.stripSuffix "/default.nix" named))
+moduleNames path = moduleNameUnsafe <$> named :| maybeToList (T.stripSuffix "/default.nix" named)
   where
     named = portablePath path
 

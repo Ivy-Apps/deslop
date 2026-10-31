@@ -33,17 +33,11 @@ spec = describe "Frontend.Nix.ModuleName" $ do
     it "gives the root's default.nix no alias" $
         namesOf "default.nix" `shouldBe` ["default.nix"]
 
-    it "names flake.nix flake.nix" $
-        namesOf "flake.nix" `shouldBe` ["flake.nix"]
-
     it "names what is not Nix by its path" $
         namesOf "secrets/common.yaml" `shouldBe` ["secrets/common.yaml"]
 
     it "names a directory by its path" $
         namesOf "programs/agents/skills" `shouldBe` ["programs/agents/skills"]
-
-    it "tells a Nix file from the directory or script of its stem" $
-        (namesOf "pkg.nix", namesOf "pkg") `shouldBe` (["pkg.nix"], ["pkg"])
 
     it "names a module outside the project by its segments, with the extension" $
         fmap (.text) [externalName ("nixpkgs" :| []), externalName ("nixpkgs" :| ["lib", "default.nix"])]
