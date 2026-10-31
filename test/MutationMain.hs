@@ -11,10 +11,11 @@ import Test.Hspec (Spec)
 import Test.Hspec.Core.Spec (Item (itemRequirement), filterForest, mapSpecForest)
 import Test.Syd (sydTest, withTimeout)
 import Test.Syd.Hspec (fromHspec)
+import TestUtils (goldenActualDirEnv)
 
 main :: IO ()
 main = do
-    setEnv "GOLDEN_ACTUAL_DIR" =<< getTemporaryDirectory
+    setEnv goldenActualDirEnv =<< getTemporaryDirectory
     sydTest . withTimeout instrumentedTimeout . fromHspec . withoutWholeRepositoryRuns $ spec
 
 {- | Under instrumentation a run over a whole real application takes minutes, and

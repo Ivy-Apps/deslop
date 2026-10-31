@@ -41,7 +41,7 @@ import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, osp, (</>))
 import Test.Hspec
 import Test.Hspec.Golden (Golden (actualFile), defaultGolden)
-import TestUtils (mkAbsolute, requireJust, rp, snapshot)
+import TestUtils (goldenActualDirEnv, mkAbsolute, requireJust, rp, snapshot)
 import UI (coverage, humanReadable, problemsFoundText)
 import UnliftIO.Temporary (withSystemTempDirectory)
 
@@ -251,7 +251,7 @@ inEmptyDir act = withSystemTempDirectory "deslop-test" (act . encodeOsPathString
 
 projectGolden :: Language -> String -> String -> String -> IO (Golden String)
 projectGolden language kind project content = do
-    actualDir <- lookupEnv "GOLDEN_ACTUAL_DIR"
+    actualDir <- lookupEnv goldenActualDirEnv
     pure . withActualIn actualDir name . defaultGolden name $ content
   where
     name = languageDir language <> "/" <> kind <> "-" <> project
