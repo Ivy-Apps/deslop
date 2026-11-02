@@ -107,7 +107,7 @@ jsoncStripper =
         pure $ T.pack [esc, c]
 
     normalStringChar :: Parser Text
-    normalStringChar = takeWhile1P Nothing (\c -> c /= '"' && c /= '\\' && c /= '\DEL')
+    normalStringChar = takeWhile1P Nothing (\c -> c /= '"' && c /= '\\' && c /= '\NUL')
 
     -- Strip out line comments
     lineComment :: Parser Text
