@@ -14,6 +14,13 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    # sydtest-mutation, behind the `mutation` checks only. Not on Hackage at
+    # our index-state and not in nixpkgs, so its flake is the source of truth.
+    # Pinned to a rev because it moves weekly.
+    sydtest = {
+      url = "github:NorfairKing/sydtest/6ba5347b0f1ec27cc912bb45ca98e0e4f24343ea";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs@{ self, nixpkgs, flake-parts, ... }:
@@ -163,6 +170,20 @@
 
         in
         {
+          checks = pkgs.lib.optionalAttrs (system == "x86_64-linux") (
+            let
+              mutationCheck = jobs: import ./nix/mutation.nix {
+                inherit pkgs hpkgs jobs;
+                inherit (inputs) sydtest;
+              };
+            in
+            {
+              mutation = mutationCheck 2;
+              # A GitHub runner has 4 cores and 16 GB, where the full run needs them.
+              mutation-ci = mutationCheck 4;
+            }
+          );
+
           packages = pkgs.lib.optionalAttrs hasReleasedBinary {
             deslop = releasedBinary;
             default = releasedBinary;
@@ -225,6 +246,8 @@
                 pkgs.git
                 # Behind scripts/bump-nix-release.sh, which hashes the release tarballs.
                 pkgs.openssl
+                # Behind `just mutation-diff`, which reads the report.
+                pkgs.jq
               ] ++ explorerTests.packages;
 
               buildInputs = sysLibs;
@@ -250,6 +273,7 @@
                 # See the `ci` shell: `git check-ignore` is a test oracle.
                 pkgs.git
                 pkgs.openssl
+                pkgs.jq
                 hgold
                 # For an interactive ghcid TUI; the agent-facing app reaches
                 # ghcid by store path and does not need it here. Kept out of the
