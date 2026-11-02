@@ -1,0 +1,16 @@
+# sydtest-mutation-plugin config, read when the library is instrumented. Schema:
+# Test.Syd.Mutation.Plugin.OptParse in sydtest-mutation-plugin.
+#
+# This is where a mutant is suppressed, by name, once a person has shown it cannot
+# be killed by a sound test, so the source stays free of ANN pragmas. Never add one
+# to lift a score: the score only means something while this list stays short.
+
+# Leaves a call and its arguments unmutated. `error` marks a bug or an unreachable
+# branch, and nobody asserts the wording of its message.
+ignore:
+  - error
+
+# Generated, or nothing of ours to mutate.
+exceptions:
+  - Paths_deslop
+  - Prelude

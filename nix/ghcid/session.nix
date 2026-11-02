@@ -70,6 +70,9 @@ in
 
   sourceDirs = [ "src" "app" "test" ];
 
+  # Compiled only under the `mutation` cabal flag, so no session loads them.
+  unloadedSources = [ "MutationMain.hs" "MutationTree.hs" ];
+
   # ── Tuning ─────────────────────────────────────────────────────────────────
   idleSeconds = 7200; # a session holds ~1GB; reclaim it when unused for 2h
   waitSeconds = 180; # budget for a verdict before giving up loudly

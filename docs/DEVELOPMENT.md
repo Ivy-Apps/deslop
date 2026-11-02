@@ -127,6 +127,29 @@ Golden tests compare CLI output against snapshots in `.golden/`. If you
 intentionally change output formatting, re-record them with `just update-golden`
 and review the diff before committing.
 
+### Mutation testing
+
+Advisory and outside `just check`. Run it in the `ci` shell:
+
+| Command | Tests | Prints |
+|---|---|---|
+| `just mutation` | the whole library, 1h+ | the score |
+| `just mutation-diff [base]` | the mutants on lines this branch adds or edits, against the merge base with `base` (default `origin/main`) | the mutants to act on, then the path of `mutation-diff.json` |
+
+`mutation-diff` exits 0 whatever survives. It fails only when its numbers would
+be false: a test failing before any mutation, a runner that died, or a failed
+control. Its logs go to `dist-newstyle/mutation-diff/run.log`. A pull request
+gets the same report as a comment, updated in place on every push.
+
+What a diff run cannot see, so `0 mutants` there is not a pass:
+
+- **Tests alone.** A change only to `test/` selects nothing, so it cannot show
+  that new tests kill an old survivor. Run `just mutation` for that.
+- **Deletions.** A removed line has no mutant.
+- **Anything outside `src/`.** Only the library is mutated.
+
+The report's `Not assessed` line counts what of the diff fell outside.
+
 ## Explorer previews
 
 CI publishes the `deslop explore` page of this repository to GitHub Pages, as

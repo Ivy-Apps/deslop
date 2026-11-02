@@ -36,7 +36,7 @@ runMockCLI mock = interpret $ \_ -> \case
     Log style msg -> case mock.logsRef of
         Nothing -> pure ()
         Just ref ->
-            liftIO . modifyIORef' ref $
+            liftIO . atomicModifyIORef'_ ref $
                 TestLogs . (<> [(style, msg)]) . (.transcript)
 
 {- | Renders a transcript for goldens, tagging each message with its style so a

@@ -9,10 +9,12 @@ filesystem belongs here.
 module TestUtils (
     -- * Golden tests
     snapshot,
+    goldenActualDirEnv,
 
     -- * Fixtures on disk
     listFixtures,
     copyDir,
+    inEmptyDir,
 
     -- * Corpora
     loadCorpus,
@@ -51,6 +53,7 @@ import System.File.OsPath qualified as SFO
 import System.OsPath (OsPath, takeExtension, (</>))
 import Test.Hspec (Spec, expectationFailure, it, shouldBe, shouldNotBe)
 import Test.Hspec.Hedgehog (hedgehog)
+import UnliftIO.Temporary (withSystemTempDirectory)
 
 --------------------------------------------------------------------------------
 -- Golden tests
@@ -64,6 +67,10 @@ snapshot tmpDir filesToVerify = do
         let header = "\n\n\n>>> FILE: " <> T.pack relPath <> "\n"
         return $ header <> content
     pure . T.unpack . T.dropWhile (== '\n') $ T.concat results
+
+-- | Names the directory a golden test writes its @actual@ file to, when set.
+goldenActualDirEnv :: String
+goldenActualDirEnv = "GOLDEN_ACTUAL_DIR"
 
 --------------------------------------------------------------------------------
 -- Fixtures on disk
@@ -85,7 +92,19 @@ copyDir src dst = do
         isDirectory <- SDO.doesDirectoryExist srcPath
         if isDirectory
             then copyDir srcPath dstPath
-            else SDO.copyFile srcPath dstPath
+            else copyWritable srcPath dstPath
+
+{- | A copy is there to be written to, but 'SDO.copyFile' keeps the source's
+mode, and a mutation run reads the fixtures from the read-only Nix store.
+-}
+copyWritable :: OsPath -> OsPath -> IO ()
+copyWritable src dst = do
+    SDO.copyFile src dst
+    SDO.setPermissions dst . SDO.setOwnerWritable True =<< SDO.getPermissions dst
+
+-- | Runs against a fresh, empty temporary directory.
+inEmptyDir :: (OsPath -> IO a) -> IO a
+inEmptyDir act = withSystemTempDirectory "deslop-test" (act . encodeOsPathString)
 
 --------------------------------------------------------------------------------
 -- Corpora

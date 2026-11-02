@@ -35,7 +35,7 @@ runWritesInMemory ::
     Eff (WrFileSystem : es) a ->
     Eff es a
 runWritesInMemory ref = interpret $ \_ -> \case
-    WriteFile path content -> liftIO . modifyIORef' ref $ Map.insert path content
+    WriteFile path content -> liftIO . atomicModifyIORef'_ ref $ Map.insert path content
     MkDirP _ -> pure ()
 
 {- | A product type containing mock implementations for all RoFileSystem operations.
@@ -161,8 +161,8 @@ runInMemoryFileSystem fs = runMockRoFileSystem (readingFrom (readIORef fs.files)
   where
     writing = interpret $ \_ -> \case
         WriteFile p content -> liftIO $ do
-            modifyIORef' fs.files (Map.insert p content)
-            modifyIORef' fs.written (<> [p])
+            atomicModifyIORef'_ fs.files (Map.insert p content)
+            atomicModifyIORef'_ fs.written (<> [p])
         MkDirP _ -> pure ()
 
 {- | A read-only tree of files, held purely: exactly these paths exist, holding
