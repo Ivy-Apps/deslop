@@ -17,6 +17,7 @@ set -euo pipefail
 BASE="${1:?usage: $0 <base> <check>}"
 CHECK="${2:?usage: $0 <base> <check>}"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$ROOT"
 OUT="$ROOT/dist-newstyle/mutation-diff"
 LOG="$OUT/run.log"
 
@@ -33,8 +34,8 @@ fail() {
 # library alone, and selects by added lines.
 not_assessed() {
   local merge_base=$1 others deleted sentence=""
-  others=$(git -C "$ROOT" diff --name-only "$merge_base" -- . ':(exclude)src' | wc -l)
-  deleted=$(git -C "$ROOT" diff --numstat "$merge_base" -- src | awk '{ d += $2 } END { print d + 0 }')
+  others=$(git diff --name-only "$merge_base" -- . ':(exclude)src' | wc -l)
+  deleted=$(git diff --numstat "$merge_base" -- src | awk '{ d += $2 } END { print d + 0 }')
   if [ "$others" -gt 0 ]; then
     sentence="$others changed files outside src/, tests included, select no mutants."
   fi
@@ -46,9 +47,8 @@ not_assessed() {
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
-merge_base=$(git -C "$ROOT" merge-base "$BASE" HEAD)
+merge_base=$(git merge-base "$BASE" HEAD)
 
-cd "$ROOT"
 nix build -L ".#checks.x86_64-linux.$CHECK.baseline" --accept-flake-config --no-link >>"$LOG" 2>&1 \
   || fail "the baseline failed: a test fails before any mutation, or the build broke."
 # The runner exits 1 on a survivor and on a crash alike, so its exit code says

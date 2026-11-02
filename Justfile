@@ -60,7 +60,7 @@ mutation check="mutation":
 # Mutation-test only what this branch changes against `base`, and print the
 # mutants to act on. Writes dist-newstyle/mutation-diff/mutation-diff.{json,md}
 # and run.log. Exits 0 on a survivor, non-zero when the run itself failed. See
-# scripts/mutation-diff.sh, and docs/mutation-testing.md for what it cannot see.
+# scripts/mutation-diff.sh, and docs/DEVELOPMENT.md for what it cannot see.
 mutation-diff base="origin/main" check="mutation":
     scripts/mutation-diff.sh {{quote(base)}} {{quote(check)}}
 
