@@ -57,22 +57,12 @@ mutation check="mutation":
     nix build .#checks.x86_64-linux.{{check}} --accept-flake-config
     cat result/score.md
 
-# Mutation-test only what this branch changes against `base`, leaving the report
-# in dist-newstyle/mutation-diff/, with mutation-diff.json, just the mutants a
-# reader acts on, and comment.md, their pull request comment. Still needs the instrumented build and the
-# coverage phase of `mutation`. Fails on a test failing at baseline, a failed
-# control or a runner that died, never on a survivor. The runner exits 1 on a
-# survivor and on a crash alike, so its exit code is ignored: only a run that
-# returned ends its stdout with the report line.
+# Mutation-test only what this branch changes against `base`, and print the
+# mutants to act on. Writes dist-newstyle/mutation-diff/mutation-diff.{json,md}
+# and run.log. Exits 0 on a survivor, non-zero when the run itself failed. See
+# scripts/mutation-diff.sh, and docs/mutation-testing.md for what it cannot see.
 mutation-diff base="origin/main" check="mutation":
-    nix build -L .#checks.x86_64-linux.{{check}}.baseline --accept-flake-config --no-link
-    rm -rf dist-newstyle/mutation-diff
-    mkdir -p dist-newstyle/mutation-diff
-    nix run .#checks.x86_64-linux.{{check}}.diff --accept-flake-config -- --base {{base}} --no-fail-fast --out-dir "$PWD/dist-newstyle/mutation-diff" | tee dist-newstyle/mutation-diff/run.log
-    tail -n 1 dist-newstyle/mutation-diff/run.log | grep -q '^Machine-readable report: '
-    jq -f nix/mutation-diff.jq dist-newstyle/mutation-diff/report.json > dist-newstyle/mutation-diff/mutation-diff.json
-    jq -j -f nix/mutation-comment.jq dist-newstyle/mutation-diff/mutation-diff.json > dist-newstyle/mutation-diff/comment.md
-    jq -e '.controls.failed == 0' dist-newstyle/mutation-diff/report.json
+    scripts/mutation-diff.sh {{quote(base)}} {{quote(check)}}
 
 # Compile the library and the executable
 build:

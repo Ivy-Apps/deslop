@@ -111,6 +111,9 @@ nix run .#lint
 On a pull request, CI comments what `just mutation-diff` found in the changed
 code, updated in place. The comment gives the `gh run download` commands for
 `mutation-diff.json`, the same mutants uncut, and for the full report.
+Locally, `nix develop .#ci -c just mutation-diff [base]` prints the same report
+and exits 0 on a survivor. What it cannot see, such as a test-only diff, is in
+`docs/DEVELOPMENT.md`.
 
 ### Updating golden tests
 

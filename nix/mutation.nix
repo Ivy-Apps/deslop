@@ -81,6 +81,13 @@ pkgs.runCommand "deslop-mutation"
     ln -s ${report}/deslop "$out/deslop"
     ln -s ${baseline} "$out/baseline"
 
+    # The plugin puts a control on every module's first mutant, so a whole-library
+    # run where none ran lost its instrumentation, and its numbers are false.
+    jq -e '.controls.passed + .controls.failed > 0' ${report}/deslop/report.json >/dev/null || {
+      echo "mutation: NO CONTROL RAN, so this run's numbers cannot be trusted." >&2
+      exit 1
+    }
+
     # `skipped` mutants sit behind a survivor at the same site: not killed, so they
     # count against the score. `uncovered` in the report's totals includes controls.
     # Timeouts are inside Killed: the tool scores an overrun as a kill.
